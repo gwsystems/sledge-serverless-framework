@@ -24,16 +24,15 @@ source /opt/awsm/bin/devenv_src.sh
 
 ## To run applications
 
-There are a set of benchmarking applications in `code_benches` directory that should be "loadable", WIP!! (**only tested stringsearch for now**.)
+There are a set of benchmarking applications in `code_benches` directory that should be "loadable", WIP!!
 **All the remaining steps are in a Docker container environment.**
 
 ```
-cd /awsm/code_benches/
+cd /awsm/tests/
 
 make clean all
 ```
-This compiles all subfolders (WASM applications) and copies `<application>_wasm.so` to /awsm/runtime/bin.
-(**Make sure you have that directory in place! (I'll fix the makefiles)**)
+This compiles all benchmarks in silverfish and other runtime tests and copies `<application>_wasm.so` to /awsm/runtime/bin.
 
 ```
 cd /awsm/runtime
@@ -71,10 +70,11 @@ And follow the prompts in udpclient to send requests to the runtime.
 * ~~Runtime to "poll"?? on requests to instantiate a module~~ and respond with the result.
 * ~~Runtime to schedule multiple sandboxes.~~
 * Efficient scheduling and performance optimizations.
-* Runtime to enable event-based I/O (using `libuv`).
+* ~~Runtime to enable event-based I/O (using `libuv`).~~ (basic I/O works with libuv)
 * To enable WASI interface, perhaps through the use of WASI-SDK
 
 ## Silverfish compiler
 
 Silverfish compiler uses `llvm` and interposes on loads/stores to enable sandbox isolation necessary in `aWsm` multi-sandboxing runtime.
 `aWsm` runtime includes the compiler-runtime API required for bounds checking in sandboxes.
+Most of the sandboxing isolation is copied from the silverfish runtime.
