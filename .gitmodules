@@ -1,0 +1,7 @@
+[submodule "silverfish"]
+	path = silverfish
+	url = https://github.com/gwsystems/silverfish.git
+	ignore = dirty
+[submodule "runtime/jsmn"]
+	path = runtime/jsmn
+	url = https://github.com/zserge/jsmn.git
