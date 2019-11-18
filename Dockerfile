@@ -54,21 +54,19 @@ RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm
 # set LD_LIBRARY_PATH
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
-# install rust - commands copied straight from lucet's dockerfile.
-# so we have exactly the same rust version as lucet!
-RUN curl -sS -L -O https://static.rust-lang.org/dist/rust-1.35.0-x86_64-unknown-linux-gnu.tar.gz \
-	&& tar xzf rust-1.35.0-x86_64-unknown-linux-gnu.tar.gz \
-	&& cd rust-1.35.0-x86_64-unknown-linux-gnu \
-	&& ./install.sh \
-	&& cd .. \
-	&& rm -rf rust-1.35.0-x86_64-unknown-linux-gnu rust-1.35.0-x86_64-unknown-linux-gnu.tar.gz
-ENV PATH=/usr/local/bin:$PATH
-RUN cargo install --root /usr/local cargo-audit cargo-watch
+RUN curl https://sh.rustup.rs -sSf | \
+    sh -s -- --default-toolchain nightly-2019-09-25 -y && \
+        /root/.cargo/bin/rustup update nightly
+ENV PATH=/root/.cargo/bin:$PATH
 
-## copied again from lucet for when we want to use wasi-sdk
-#RUN curl -sS -L -O https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-5/wasi-sdk_5.0_amd64.deb \
-#	&& dpkg -i wasi-sdk_5.0_amd64.deb && rm -f wasi-sdk_5.0_amd64.deb
-#
-#ENV WASI_SDK=/opt/wasi-sdk
+RUN rustup component add rustfmt --toolchain nightly-2019-09-25-x86_64-unknown-linux-gnu
+RUN rustup target add wasm32-wasi
+
+RUN cargo install --debug cargo-audit cargo-watch rsign2
+
+RUN curl -sS -L -O https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-7/wasi-sdk_7.0_amd64.deb \
+	&& dpkg -i wasi-sdk_7.0_amd64.deb && rm -f wasi-sdk_7.0_amd64.deb
+
+ENV WASI_SDK=/opt/wasi-sdk
 ENV PATH=/opt/awsm/bin:$PATH
 
