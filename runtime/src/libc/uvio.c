@@ -582,7 +582,7 @@ wasm_geteuid()
 
 #define SYS_GET_TIME 228
 struct wasm_time_spec {
-	u32 sec;
+	u64 sec;
 	u32 nanosec;
 };
 
