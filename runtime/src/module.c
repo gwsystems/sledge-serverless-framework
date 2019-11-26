@@ -108,7 +108,9 @@ module_alloc(char *modname, char *modpath, u32 udp_port, i32 nargs, i32 nrets, u
 	module_indirect_table = cache_tbl;
 	mod->udpport = udp_port;
 	module_add(mod);
+#ifndef STANDALONE
 	module_io_init(mod);
+#endif
 
 	return mod;
 

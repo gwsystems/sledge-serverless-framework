@@ -26,6 +26,7 @@ usage(char *cmd)
 int
 main(int argc, char* argv[])
 {
+#ifndef STANDALONE
 	int i = 0, rtthd_ret[SBOX_NCORES] = { 0 };
 	pthread_t rtthd[SBOX_NCORES];
 
@@ -97,4 +98,15 @@ main(int argc, char* argv[])
 	// runtime threads run forever!! so join should not return!!
 	printf("\nOh no..!! This can't be happening..!!\n");
 	exit(-1);
+#else /* STANDALONE */
+	arch_context_init(&base_context, 0, 0);
+	uv_loop_init(&uvio);
+
+	/* in current dir! */
+	struct module *m = module_alloc(argv[1], argv[1], 0, 0, 0, 0, 0, 0);
+	assert(m);
+	struct sandbox *s = sandbox_alloc(m, argv[1]);
+
+	exit(0);
+#endif
 }

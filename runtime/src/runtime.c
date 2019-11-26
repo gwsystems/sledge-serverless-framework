@@ -106,16 +106,19 @@ sandbox_schedule(void)
 void
 sandbox_wakeup(sandbox_t *s)
 {
+#ifndef STANDALONE
 	debuglog("[%p: %s]\n", s, s->mod->name);
 	// perhaps 2 lists in the sandbox to make sure sandbox is either in runlist or waitlist..
 	assert(ps_list_singleton_d(s));
 	s->state = SANDBOX_RUNNABLE;
 	ps_list_head_append_d(&runq, s);
+#endif
 }
 
 void
 sandbox_block(void)
 {
+#ifndef STANDALONE
 	// perhaps 2 lists in the sandbox to make sure sandbox is either in runlist or waitlist..
 	softint_disable();
 	struct sandbox *c = sandbox_current();
@@ -125,6 +128,9 @@ sandbox_block(void)
 	c->state = SANDBOX_BLOCKED;
 	struct sandbox *s = sandbox_schedule();
 	sandbox_switch(s);
+#else
+	uv_run(runtime_uvio(), UV_RUN_DEFAULT);
+#endif
 }
 
 void __attribute__((noinline)) __attribute__((noreturn))
@@ -172,6 +178,7 @@ sandbox_run_func(void *data)
 void
 sandbox_run(struct sandbox *s)
 {
+#ifndef STANDALONE
 	// for now, a pull model... 
 	// sandbox_run adds to the global ready queue..
 	// each sandboxing thread pulls off of that global ready queue..
@@ -180,12 +187,16 @@ sandbox_run(struct sandbox *s)
 	pthread_mutex_lock(&glbq_mtx);
 	ps_list_head_append_d(&glbq, s);
 	pthread_mutex_unlock(&glbq_mtx);
+#else
+	sandbox_switch(s);
+#endif
 }
 
 // perhaps respond to request
 void
 sandbox_exit(void)
 {
+#ifndef STANDALONE
 	struct sandbox *curr = sandbox_current();
 
 	assert(curr);
@@ -195,6 +206,9 @@ sandbox_exit(void)
 	curr->state = SANDBOX_RETURNED;
 	// TODO: free resources here? or only from main?
 	sandbox_switch(sandbox_schedule());
+#else
+	sandbox_switch(NULL);
+#endif
 }
 
 void *
