@@ -18,5 +18,7 @@ ifeq ($(USE_MEM),USE_MEM_VM)
 MEMC=${RT_DIR}/compiletime/memory/64bit_nix.c
 endif
 
+WASMISA=${RT_DIR}/compiletime/instr.c
+
 BIN_DIR=${RT_DIR}/bin/
 TMP_DIR=tmp/
