@@ -5,6 +5,10 @@
 #include <uv.h>
 #include "sandbox.h"
 
+// global queue for stealing (work-stealing-deque)
+extern struct deque_sandbox *glb_dq;
+extern pthread_mutex_t glbq_mtx;
+
 void alloc_linear_memory(void);
 void expand_memory(void);
 void free_linear_memory(void *base, u32 bound, u32 max);

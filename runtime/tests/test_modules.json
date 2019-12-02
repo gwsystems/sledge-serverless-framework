@@ -6,14 +6,14 @@
 	"argsize" : 2
 },
 {
-	"active" : "no",
+	"active" : "yes",
 	"name" : "bitcount",
 	"path" : "bitcount_wasm.so",
 	"port" : 10002,
 	"argsize" : 2
 },
 {
-	"active" : "no",
+	"active" : "yes",
 	"name" : "basic_math",
 	"path" : "basic_math_wasm.so",
 	"port" : 10004,
@@ -111,23 +111,30 @@
 	"argsize" : 1
 },
 {
+	"active" : "yes",
+	"name" : "stringsearch",
+	"path" : "stringsearch_wasm.so",
+	"port" : 10032,
+	"argsize" : 1
+},
+{
 	"active" : "no",
 	"name" : "filesys",
 	"path" : "filesys_wasm.so",
-	"port" : 10032,
+	"port" : 10034,
 	"argsize" : 3
 },
 {
-	"active" : "yes",
+	"active" : "no",
 	"name" : "sockserver",
 	"path" : "sockserver_wasm.so",
-	"port" : 10034,
+	"port" : 10036,
 	"argsize" : 2
 },
 {
-	"active" : "yes",
+	"active" : "no",
 	"name" : "sockclient",
 	"path" : "sockclient_wasm.so",
-	"port" : 10036,
+	"port" : 10038,
 	"argsize" : 3
 }

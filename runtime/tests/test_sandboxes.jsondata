@@ -1,5 +1,5 @@
-;127.0.0.1:10002${ "module" : "bitcount", "args" : [ "bitcount1" , "16777216" ] }
-;127.0.0.1:10002${ "module" : "bitcount", "args" : [ "bitcount2" , "16777216" ] }
+127.0.0.1:10002${ "module" : "bitcount", "args" : [ "bitcount1" , "16777216" ] }
+127.0.0.1:10002${ "module" : "bitcount", "args" : [ "bitcount2" , "16777216" ] }
 ;127.0.0.1:10004${ "module" : "basic_math", "args" : [ "basic_math1" ] }
 ;127.0.0.1:10004${ "module" : "basic_math", "args" : [ "basic_math2" ] }
 ;127.0.0.1:10006${ "module" : "binarytrees", "args" : [ "binarytrees1", "16" ] }
@@ -29,6 +29,8 @@
 ;127.0.0.1:10028${ "module" : "patricia", "args" : [ "patricia1" , "large.udp" ] }
 ;127.0.0.1:10030${ "module" : "sqlite", "args" : [ "sqlite1" ] }
 ;127.0.0.1:10030${ "module" : "sqlite", "args" : [ "sqlite2" ] }
-;127.0.0.1:10032${ "module" : "filesys", "args" : [ "filesys1", "fs_in.txt", "fs_out.txt" ] }
-127.0.0.1:10034${ "module" : "sockserver", "args" : [ "sockserv1", "20000" ] }
-127.0.0.1:10036${ "module" : "sockclient", "args" : [ "sockcli1", "localhost", "20000" ] }
+127.0.0.1:10032${ "module" : "stringsearch", "args" : [ "strsearch1" ] }
+127.0.0.1:10032${ "module" : "stringsearch", "args" : [ "strsearch2" ] }
+;127.0.0.1:10034${ "module" : "filesys", "args" : [ "filesys1", "fs_in.txt", "fs_out.txt" ] }
+;127.0.0.1:10036${ "module" : "sockserver", "args" : [ "sockserv1", "20000" ] }
+;127.0.0.1:10038${ "module" : "sockclient", "args" : [ "sockcli1", "localhost", "20000" ] }

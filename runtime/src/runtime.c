@@ -9,9 +9,8 @@
 #include <softint.h>
 #include <uv.h>
 
-// global queue for stealing! TODO: work-stealing-deque
-static struct ps_list_head glbq;
-static pthread_mutex_t glbq_mtx = PTHREAD_MUTEX_INITIALIZER;
+struct deque_sandbox *glb_dq;
+pthread_mutex_t glbq_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 // per-thread (per-core) run and wait queues.. (using doubly-linked-lists)
 __thread static struct ps_list_head runq;
@@ -33,7 +32,7 @@ static inline void
 sandbox_local_run(struct sandbox *s)
 {
 	assert(ps_list_singleton_d(s));
-
+	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s, s->mod->name);
 	ps_list_head_append_d(&runq, s);
 }
 
@@ -43,19 +42,11 @@ sandbox_pull(void)
 	int n = 0;
 
 	while (n < SBOX_PULL_MAX) {
-		pthread_mutex_lock(&glbq_mtx);
-		if (ps_list_head_empty(&glbq)) {
-			pthread_mutex_unlock(&glbq_mtx);
-			break;
-		}
-		struct sandbox *g = ps_list_head_first_d(&glbq, struct sandbox);
+		struct sandbox *s = sandbox_deque_steal();
 
-		assert(g);
-		ps_list_rem_d(g);
-		pthread_mutex_unlock(&glbq_mtx);
-		debuglog("[%p: %s]\n", g, g->mod->name);
-		assert(g->state == SANDBOX_RUNNABLE);
-		sandbox_local_run(g);
+		if (!s) break;
+		assert(s->state == SANDBOX_RUNNABLE);
+		sandbox_local_run(s);
 		n++;
 	}
 
@@ -83,8 +74,6 @@ sandbox_io_nowait(void)
 struct sandbox *
 sandbox_schedule(void)
 {
-	if (!in_callback) sandbox_io_nowait();
-
 	struct sandbox *s = NULL;
 	if (ps_list_head_empty(&runq)) {
 		if (sandbox_pull() == 0) {
@@ -103,15 +92,32 @@ sandbox_schedule(void)
 	return s;
 }
 
+struct sandbox *
+sandbox_schedule_uvio(void)
+{
+	if (!in_callback) sandbox_io_nowait();
+
+	assert(sandbox_current() == NULL);
+	softint_disable();
+	struct sandbox *s = sandbox_schedule();
+	softint_enable();
+	assert(s == NULL || s->state == SANDBOX_RUNNABLE);
+
+	return s;
+}
+
 void
 sandbox_wakeup(sandbox_t *s)
 {
 #ifndef STANDALONE
+	softint_disable();
 	debuglog("[%p: %s]\n", s, s->mod->name);
 	// perhaps 2 lists in the sandbox to make sure sandbox is either in runlist or waitlist..
+	assert(s->state == SANDBOX_BLOCKED);
 	assert(ps_list_singleton_d(s));
 	s->state = SANDBOX_RUNNABLE;
 	ps_list_head_append_d(&runq, s);
+	softint_enable();
 #endif
 }
 
@@ -120,13 +126,14 @@ sandbox_block(void)
 {
 #ifndef STANDALONE
 	// perhaps 2 lists in the sandbox to make sure sandbox is either in runlist or waitlist..
+	assert(in_callback == 0);
 	softint_disable();
 	struct sandbox *c = sandbox_current();
 	ps_list_rem_d(c);
-	softint_enable();
-	debuglog("[%p: %s]\n", c, c->mod->name);
 	c->state = SANDBOX_BLOCKED;
 	struct sandbox *s = sandbox_schedule();
+	debuglog("[%p: %s, %p: %s]\n", c, c->mod->name, s, s ? s->mod->name: "");
+	softint_enable();
 	sandbox_switch(s);
 #else
 	uv_run(runtime_uvio(), UV_RUN_DEFAULT);
@@ -164,10 +171,10 @@ sandbox_run_func(void *data)
 	in_callback = 0;
 
 	while (1) {
-		struct sandbox *s = sandbox_schedule();
+		struct sandbox *s = sandbox_schedule_uvio();
 		while (s) {
 			sandbox_switch(s);
-			s = sandbox_schedule();
+			s = sandbox_schedule_uvio();
 		}
 	}
 
@@ -184,9 +191,7 @@ sandbox_run(struct sandbox *s)
 	// each sandboxing thread pulls off of that global ready queue..
 	debuglog("[%p: %s]\n", s, s->mod->name);
 	s->state = SANDBOX_RUNNABLE;
-	pthread_mutex_lock(&glbq_mtx);
-	ps_list_head_append_d(&glbq, s);
-	pthread_mutex_unlock(&glbq_mtx);
+	sandbox_deque_push(s);
 #else
 	sandbox_switch(s);
 #endif
@@ -201,11 +206,16 @@ sandbox_exit(void)
 
 	assert(curr);
 
-	debuglog("[%p: %s]\n", curr, curr->mod->name);
+	fprintf(stderr, "(%d,%lu) %s: %p, %s exit\n", sched_getcpu(), pthread_self(), __func__, curr, curr->mod->name);
+	//printf("%s: disable\n", __func__);
+	softint_disable();
 	sandbox_local_stop(curr);
 	curr->state = SANDBOX_RETURNED;
 	// TODO: free resources here? or only from main?
-	sandbox_switch(sandbox_schedule());
+	struct sandbox *n = sandbox_schedule();
+        //printf("%s: enable\n", __func__);
+	softint_enable();
+	sandbox_switch(n);
 #else
 	sandbox_switch(NULL);
 #endif
@@ -229,7 +239,9 @@ runtime_uvio_thdfn(void *d)
 void
 runtime_init(void)
 {
-	ps_list_head_init(&glbq);
+	glb_dq = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));	
+	assert(glb_dq);
+	deque_init_sandbox(glb_dq, SBOX_MAX_REQS); 
 
 	softint_mask(SIGUSR1);
 	softint_mask(SIGALRM);

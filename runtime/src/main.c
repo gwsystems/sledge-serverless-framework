@@ -16,6 +16,8 @@ i32 logfd = -1;
 
 u32 ncores = 0, sbox_ncores = 0, sbox_core_st = 0;
 
+pthread_t rtthd[SBOX_NCORES];
+
 static void
 usage(char *cmd)
 {
@@ -28,7 +30,7 @@ main(int argc, char* argv[])
 {
 #ifndef STANDALONE
 	int i = 0, rtthd_ret[SBOX_NCORES] = { 0 };
-	pthread_t rtthd[SBOX_NCORES];
+	memset(rtthd, 0, sizeof(pthread_t)*SBOX_NCORES);
 
 	if (argc != 2) {
 		usage(argv[0]);

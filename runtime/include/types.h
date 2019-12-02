@@ -23,6 +23,11 @@
 #define INLINE __attribute__((always_inline))
 #define WEAK __attribute__((weak))
 
+#ifndef CACHELINE_SIZE
+#define CACHELINE_SIZE 32
+#endif
+#define CACHE_ALIGNED __attribute__((aligned(CACHELINE_SIZE)))
+
 // Type alias's so I don't have to write uint32_t a million times
 typedef signed char i8;
 typedef unsigned char u8;
@@ -102,7 +107,7 @@ typedef enum {
 #define SBOX_MAX_OPEN 32
 #define SBOX_PREOPEN_MAGIC (707707707) // reads lol lol lol upside down
 
-#define SOFTINT_TIMER_START_USEC (10*1000) //start timers 10 us from now.
+#define SOFTINT_TIMER_START_USEC (10*1000) //start timers 10 ms from now.
 #define SOFTINT_TIMER_PERIOD_USEC (1000*100) // 100ms timer..
 
 #ifdef DEBUG
@@ -124,6 +129,7 @@ typedef enum {
 #define RDWR_VEC_MAX 16
 
 #define MOD_REQ_CORE 0 // core dedicated to check module requests..
-#define SBOX_NCORES 2 // number of sandboxing threads/cores..
+#define SBOX_NCORES (NCORES > 1 ? NCORES - 1 : NCORES)  // number of sandboxing threads
+#define SBOX_MAX_REQS (1<<19) //random!
 
 #endif /* SFRT_TYPES_H */

@@ -7,6 +7,7 @@
 #include "softint.h"
 #include <ucontext.h>
 #include <uv.h>
+#include "deque.h"
 
 struct io_handle {
 	int fd;
@@ -63,7 +64,9 @@ struct sandbox {
 	struct ps_list list;
 
 	// track I/O handles?
-};
+} CACHE_ALIGNED;
+
+DEQUE_PROTOTYPE(sandbox, struct sandbox *);
 
 // a runtime resource, malloc on this!
 struct sandbox *sandbox_alloc(struct module *mod, char *args);
@@ -83,13 +86,6 @@ sandbox_current(void)
 static inline void
 sandbox_current_set(struct sandbox *sbox)
 {
-	int dis = 0;
-
-	if (softint_enabled()) {
-		dis = 1;
-		softint_disable();
-	}
-
 	// FIXME: critical-section. 
 	current_sandbox = sbox;
 	if (sbox == NULL) return;
@@ -98,8 +94,6 @@ sandbox_current_set(struct sandbox *sbox)
 	sandbox_lmbound = sbox->linear_size;
 	// TODO: module table or sandbox table?
 	module_indirect_table = sbox->mod->indirect_table;
-
-	if (dis) softint_enable();
 }
 
 static inline struct module *
@@ -149,6 +143,56 @@ void sandbox_wakeup(sandbox_t *sb);
 // should have been called with stack allocated and sandbox_current() set!
 void sandbox_entry(void);
 void sandbox_exit(void);
+extern struct deque_sandbox *glb_dq;
+extern pthread_mutex_t glbq_mtx; 
+
+static inline int
+sandbox_deque_push(struct sandbox *s)
+{
+	int ret;
+
+#if NCORES == 1
+	pthread_mutex_lock(&glbq_mtx);
+#endif
+	ret = deque_push_sandbox(glb_dq, &s);
+#if NCORES == 1
+	pthread_mutex_unlock(&glbq_mtx);
+#endif
+
+	return ret;
+}
+
+static inline int
+sandbox_deque_pop(struct sandbox **s)
+{
+	int ret;
+
+#if NCORES == 1
+	pthread_mutex_lock(&glbq_mtx);
+#endif
+	ret = deque_pop_sandbox(glb_dq, s);
+#if NCORES == 1
+	pthread_mutex_unlock(&glbq_mtx);
+#endif
+
+	return ret;
+}
+
+static inline struct sandbox *
+sandbox_deque_steal(void)
+{
+	struct sandbox *s = NULL;
+
+#if NCORES == 1
+	sandbox_deque_pop(&s);
+#else
+	// TODO: check! is there a sandboxing thread on same core as udp-server thread?
+	int r = deque_steal_sandbox(glb_dq, &s);
+	if (r) s = NULL;
+#endif
+
+	return s;
+}
 
 static inline int
 io_handle_preopen(void)

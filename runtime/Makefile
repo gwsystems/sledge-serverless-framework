@@ -18,6 +18,12 @@ CFLAGS += -D_GNU_SOURCE
 CFLAGS += -DUSE_UVIO
 #CFLAGS += -DUSE_SYSCALL
 #CFLAGS += -DPREEMPT_DISABLE
+CACHE_LINESIZE := $(shell getconf LEVEL1_DCACHE_LINESIZE)
+NCORES_CONF := $(shell getconf _NPROCESSORS_CONF)
+#todo:cross-compile
+CFLAGS += -DCACHELINE_SIZE=${CACHE_LINESIZE}
+#CFLAGS += -DNCORES=${NCORES_CONF}
+CFLAGS += -DNCORES=4
 
 MAKE= make --no-print-directory
 
@@ -43,6 +49,7 @@ tools:
 	@${MAKE} -C tools
 
 clean:
+	@rm -f core
 	@echo "Cleaning up runtime"
 	@rm -f ${RUNTIME}
 #	@echo "Cleaning up tools"

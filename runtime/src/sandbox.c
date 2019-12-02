@@ -116,4 +116,7 @@ sandbox_free(struct sandbox *sb)
 
 	// depending on the memory type
 	free_linear_memory(sb->linear_start, sb->linear_size, sb->linear_max_size);
+
+	free(sb);
+	// sb is a danging-ptr!
 }

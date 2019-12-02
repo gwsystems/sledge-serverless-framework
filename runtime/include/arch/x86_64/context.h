@@ -28,6 +28,7 @@
 
 typedef uint64_t reg_t;
 #define ARCH_NREGS (16 /* GP registers */ + 1 /* for IP */)
+#define ARCH_SIG_JMP_OFF 8
 
 /*
  * This is the slowpath switch to a preempted sandbox!
@@ -49,11 +50,10 @@ arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
 	assert(ctx != &base_context);
 
 	ctx->regs[5] = 0;
-	memset(ctx->regs, 0, ARCH_NREGS * sizeof(reg_t));
 	memcpy(&ctx->mctx, mc, sizeof(mcontext_t));
 }
 
-static void
+static int
 arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 {
 	assert(ctx != &base_context);
@@ -62,12 +62,16 @@ arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 	// else restore mcontext..
 	if (ctx->regs[5]) {
 		mc->gregs[REG_RSP] = ctx->regs[5];
-		mc->gregs[REG_RIP] = ctx->regs[16];
+		mc->gregs[REG_RIP] = ctx->regs[16] + ARCH_SIG_JMP_OFF;
 		ctx->regs[5] = 0;
+
+		return 1;
 	} else {
 		memcpy(mc, &ctx->mctx, sizeof(mcontext_t));
 		memset(&ctx->mctx, 0, sizeof(mcontext_t));
 	}
+
+	return 0;
 }
 
 static void __attribute__((noinline))
