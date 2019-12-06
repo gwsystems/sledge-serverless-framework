@@ -78,7 +78,7 @@ envsetup()
 envrun()
 {
 	if ! docker image inspect ${SYS_DOC_NAMETAG} > /dev/null; then
-		envbuild
+		envsetup
 	fi
 
 	if docker ps -f name=${SYS_DOC_NAME} --format '{{.Names}}' | grep -q "^${SYS_DOC_NAME}" ; then
