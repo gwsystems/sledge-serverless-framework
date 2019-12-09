@@ -50,6 +50,7 @@ done:
 static void
 module_io_init(struct module *m)
 {
+	// TODO: USE_UVIO vs USE_SYSCALL!
 	int status;
 
 	status = uv_udp_init(uv_default_loop(), &m->udpsrv);

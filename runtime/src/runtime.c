@@ -227,6 +227,7 @@ sandbox_exit(void)
 	struct sandbox *curr = sandbox_current();
 
 	assert(curr);
+	sandbox_response();
 
 	fprintf(stderr, "(%d,%lu) %s: %p, %s exit\n", sched_getcpu(), pthread_self(), __func__, curr, curr->mod->name);
 	softint_disable();
@@ -234,7 +235,6 @@ sandbox_exit(void)
 	curr->state = SANDBOX_RETURNED;
 	// free resources from "main function execution", as stack still in use. 
 	sandbox_local_end(curr);
-	sandbox_response(curr);
 	struct sandbox *n = sandbox_schedule();
 	softint_enable();
 	sandbox_switch(n);

@@ -58,6 +58,7 @@ struct sandbox {
 
 	struct io_handle handles[SBOX_MAX_OPEN];
 	struct sockaddr client; //client requesting connection!
+	uv_udp_t clientuv; //using uv for client request on target runtime thread/core.
 
 	char *read_buf;
 	ssize_t read_len, read_size;
@@ -139,7 +140,7 @@ void *sandbox_run_func(void *data);
 struct sandbox *sandbox_schedule(void);
 void sandbox_block(void);
 void sandbox_wakeup(sandbox_t *sb);
-void sandbox_response(struct sandbox *sb);
+void sandbox_response(void);
 
 // should be the entry-point for each sandbox so it can do per-sandbox mem/etc init.
 // should have been called with stack allocated and sandbox_current() set!

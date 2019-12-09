@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 #include <pthread.h>
 #include <signal.h>
+#include <uv.h>
 
 static inline void
 sandbox_args_setup(i32 argc)
@@ -31,6 +32,27 @@ sandbox_args_setup(i32 argc)
 	}
 }
 
+static void
+sandbox_uvio_init(struct sandbox *c)
+{
+#ifndef STANDALONE
+	int ret = uv_udp_init(runtime_uvio(), &c->clientuv);
+	assert(ret == 0);
+	//ret = uv_udp_bind(&c->clientuv, (const struct sockaddr *)&c->mod->srvaddr, 0);
+	//assert(ret >= 0);
+	
+	//ret = uv_udp_connect(&c->clientuv, &c->client);
+	//assert(ret == 0);
+	//c->clientuv.data = (void *)c;
+	//struct sockaddr_in addr;
+	//int len = sizeof(addr);
+	//ret = uv_udp_getpeername(&c->clientuv, &addr, &len);
+	//assert(ret == 0);
+	//printf("Peer's IP address is: %s\n", inet_ntoa(addr.sin_addr));
+        //printf("Peer's port is: %d\n", (int) ntohs(addr.sin_port));
+#endif
+}
+
 void
 sandbox_entry(void)
 {
@@ -53,6 +75,8 @@ sandbox_entry(void)
 	assert(f == 1);
 	f = io_handle_open(2);
 	assert(f == 2);
+
+	sandbox_uvio_init(curr);
 
 	alloc_linear_memory();
 	
@@ -100,19 +124,40 @@ sandbox_alloc(struct module *mod, char *args, const struct sockaddr *addr)
 }
 
 void
-sandbox_response(struct sandbox *sb)
+sandbox_udp_send_callback(uv_udp_send_t *req, int status)
 {
+	struct sandbox *c = req->data;
+	c->retval = status;
+
+	sandbox_wakeup(c);
+}
+
+void
+sandbox_response(void)
+{
+	struct sandbox *sb = sandbox_current();
         // send response.
 #ifndef STANDALONE
-        int sock = -1;
-        char resp[SBOX_RESP_STRSZ] = { 0 };
-        int ret = uv_fileno((uv_handle_t *)&sb->mod->udpsrv, &sock);
-        assert(ret == 0);
+	int sock = -1, ret;
+	char resp[SBOX_RESP_STRSZ] = { 0 };
 	// sends return value only for now!
-        sprintf(resp, "%d", sb->retval);
+	sprintf(resp, "%d", sb->retval);
+#ifdef USE_SYSCALL
+	// FIXME, with USE_SYSCALL, we should not be using uv at all.
+	int ret = uv_fileno((uv_handle_t *)&sb->mod->udpsrv, &sock);
+	assert(ret == 0);
 	// using system call here because uv_udp_t is in the "module listener thread"'s loop, cannot access here. also dnot want to mess with cross-core/cross-thread uv loop states or structures.
-        ret = sendto(sock, resp, strlen(resp), 0, &sb->client, sizeof(struct sockaddr));
-        assert(ret == strlen(resp));
+	ret = sendto(sock, resp, strlen(resp), 0, &sb->client, sizeof(struct sockaddr));
+	assert(ret == strlen(resp));
+#elif USE_UVIO
+	uv_udp_send_t req = { .data = sb, };
+	uv_buf_t b = uv_buf_init(resp, strlen(resp));
+	ret = uv_udp_send(&req, &sb->clientuv, &b, 1, &sb->client, sandbox_udp_send_callback);
+	assert(ret == 0);
+	sandbox_block();
+#else
+	assert(0);
+#endif
 #endif
 }
 
