@@ -152,7 +152,7 @@ parse_sandbox_file_custom(char *filename)
 			assert(0);
 		}
 
-		sb = sandbox_alloc(mod, args);
+		sb = sandbox_alloc(mod, args, NULL);
 		assert(sb);
 		total_boxes++;
 
@@ -168,7 +168,7 @@ next:
 
 
 struct sandbox *
-util_parse_sandbox_string_json(struct module *mod, char *str)
+util_parse_sandbox_string_json(struct module *mod, char *str, const struct sockaddr *addr)
 {
 	jsmn_parser sp;
 	jsmntok_t tk[JSON_ELE_MAX];
@@ -202,7 +202,7 @@ util_parse_sandbox_string_json(struct module *mod, char *str)
 				*(args + ((k - 1) * MOD_ARG_MAX_SZ) + g->end - g->start) = '\0';
 			}
 
-			struct sandbox *sb = sandbox_alloc(mod, args);
+			struct sandbox *sb = sandbox_alloc(mod, args, addr);
 			assert(sb);
 
 			return sb;
@@ -215,7 +215,7 @@ util_parse_sandbox_string_json(struct module *mod, char *str)
 }
 
 struct sandbox *
-util_parse_sandbox_string_custom(struct module *mod, char *str)
+util_parse_sandbox_string_custom(struct module *mod, char *str, const struct sockaddr *addr)
 {
 	char *tok = NULL, *src = str;
 
@@ -238,7 +238,7 @@ util_parse_sandbox_string_custom(struct module *mod, char *str)
 		assert(ntoks < MOD_MAX_ARGS);
 	}
 
-	struct sandbox *sb = sandbox_alloc(mod, args);
+	struct sandbox *sb = sandbox_alloc(mod, args, addr);
 	assert(sb);
 
 	return sb; 

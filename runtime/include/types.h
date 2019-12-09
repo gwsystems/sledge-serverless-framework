@@ -132,4 +132,6 @@ typedef enum {
 #define SBOX_NCORES (NCORES > 1 ? NCORES - 1 : NCORES)  // number of sandboxing threads
 #define SBOX_MAX_REQS (1<<19) //random!
 
+#define SBOX_RESP_STRSZ 32
+
 #endif /* SFRT_TYPES_H */

@@ -12,9 +12,9 @@
 struct deque_sandbox *glb_dq;
 pthread_mutex_t glbq_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-// per-thread (per-core) run and wait queues.. (using doubly-linked-lists)
+// per-thread (per-core) run and completion queue.. (using doubly-linked-lists)
 __thread static struct ps_list_head runq;
-__thread static struct ps_list_head waitq;
+__thread static struct ps_list_head endq;
 
 // current sandbox that is active..
 __thread sandbox_t *current_sandbox = NULL;
@@ -92,9 +92,24 @@ sandbox_schedule(void)
 	return s;
 }
 
+static inline void
+sandbox_local_free(unsigned int n)
+{
+	int i = 0;
+
+	while (i < n) {
+		i ++;
+		struct sandbox *s = ps_list_head_first_d(&endq, struct sandbox);
+		if (!s) break;
+		ps_list_rem_d(s);
+		sandbox_free(s);
+	}
+}
+
 struct sandbox *
 sandbox_schedule_uvio(void)
 {
+	sandbox_local_free(1);
 	if (!in_callback) sandbox_io_nowait();
 
 	assert(sandbox_current() == NULL);
@@ -154,13 +169,20 @@ sandbox_local_stop(struct sandbox *s)
 	ps_list_rem_d(s);
 }
 
+static inline void
+sandbox_local_end(struct sandbox *s)
+{
+	assert(ps_list_singleton_d(s));
+	ps_list_head_append_d(&endq, s);
+}
+
 void *
 sandbox_run_func(void *data)
 {
 	arch_context_init(&base_context, 0, 0);
 
 	ps_list_head_init(&runq);
-	ps_list_head_init(&waitq);
+	ps_list_head_init(&endq);
 	softint_off = 0;
 	next_context = NULL;
 #ifndef PREEMPT_DISABLE
@@ -207,13 +229,13 @@ sandbox_exit(void)
 	assert(curr);
 
 	fprintf(stderr, "(%d,%lu) %s: %p, %s exit\n", sched_getcpu(), pthread_self(), __func__, curr, curr->mod->name);
-	//printf("%s: disable\n", __func__);
 	softint_disable();
 	sandbox_local_stop(curr);
 	curr->state = SANDBOX_RETURNED;
-	// TODO: free resources here? or only from main?
+	// free resources from "main function execution", as stack still in use. 
+	sandbox_local_end(curr);
+	sandbox_response(curr);
 	struct sandbox *n = sandbox_schedule();
-        //printf("%s: enable\n", __func__);
 	softint_enable();
 	sandbox_switch(n);
 #else

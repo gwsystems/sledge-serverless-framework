@@ -38,8 +38,9 @@ free_linear_memory(void *base, u32 bound, u32 max)
 	struct sandbox *curr = sandbox_current();
 
 	assert(base && bound);
+
 	// cannot free currently executing sandbox's memory
-	assert(base != curr->linear_start || base != sandbox_lmbase);
+	assert(curr == NULL || base != curr->linear_start || base != sandbox_lmbase);
 
 	int ret = munmap(base, MAX_LINEAR_MEM);
 	if (ret) perror("munmap");

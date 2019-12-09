@@ -107,7 +107,7 @@ main(int argc, char* argv[])
 	/* in current dir! */
 	struct module *m = module_alloc(argv[1], argv[1], 0, 0, 0, 0, 0, 0);
 	assert(m);
-	struct sandbox *s = sandbox_alloc(m, argv[1]);
+	struct sandbox *s = sandbox_alloc(m, argv[1], NULL);
 
 	exit(0);
 #endif

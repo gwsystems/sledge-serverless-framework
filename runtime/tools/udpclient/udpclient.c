@@ -10,12 +10,20 @@
 #include <malloc.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include <sys/time.h>
 #include <signal.h>
 #include <time.h>
 
 #define MSG_MAX 1024
+#define STR_MAX 32
+
+struct request {
+	char ip[32];
+	char port[32];
+	char msg[MSG_MAX];
+};
 
 static char *
 remove_spaces(char *str)
@@ -26,6 +34,41 @@ remove_spaces(char *str)
         while (isspace(str[i-1])) str[i-1]='\0';
 
         return str;
+}
+
+void *
+send_fn(void *d)
+{
+	struct request *r = (struct request *)d;
+
+	char resp[STR_MAX] = { 0 };
+	int fd = -1;
+	struct sockaddr_in sa;
+
+	sa.sin_family      = AF_INET;
+	sa.sin_port        = htons(atoi(r->port));
+	sa.sin_addr.s_addr = inet_addr(r->ip);
+	if ((fd = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+		perror("Establishing socket");
+		return NULL;
+	}
+
+	if (sendto(fd, r->msg, strlen(r->msg), 0, (struct sockaddr*)&sa, sizeof(sa)) < 0 &&
+			errno != EINTR) {
+		perror("sendto");
+		return NULL;
+	}
+
+	//todo: select rcv from!
+	int sa_len = sizeof(sa);
+	if (recvfrom(fd, resp, STR_MAX, 0, (struct sockaddr *)&sa, &sa_len) < 0) {
+		perror("recvfrom");
+	}
+	printf("Done[%s]!\n", resp);
+	close(fd);
+	free(r);
+
+	return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -47,10 +90,8 @@ int main(int argc, char *argv[])
 
 		char line[MSG_MAX] = { 0 };
 		while (fgets(line, MSG_MAX, f) != NULL) {
-			int fd = -1;
-			struct sockaddr_in sa;
 			char *msg = NULL, *tok, *src = line;
-			char ip[32] = { 0 }, port[32] = { 0 };
+			char ip[STR_MAX] = { 0 }, port[STR_MAX] = { 0 };
 			src = remove_spaces(src);
 
 			if (src[0] == ';') goto next;
@@ -67,32 +108,22 @@ int main(int argc, char *argv[])
 				printf("Exiting!\n");
 				exit(0);
 			} else if (i == 1) {
+				pthread_t t;
 				printf("Proceeding!\n");
+				struct request *r = (struct request *)malloc(sizeof(struct request));
+				strncpy(r->ip, ip, STR_MAX);
+				strncpy(r->port, port, STR_MAX);
+				strncpy(r->msg, msg, MSG_MAX);
+				pthread_create(&t, NULL, send_fn, r);
 			} else {
 				printf("Skipping!\n");
 				goto next;
 			}
 
-			sa.sin_family      = AF_INET;
-			sa.sin_port        = htons(atoi(port));
-			sa.sin_addr.s_addr = inet_addr(ip);
-			if ((fd = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
-				perror("Establishing socket");
-				return -1;
-			}
-
-			if (sendto(fd, msg, strlen(msg), 0, (struct sockaddr*)&sa, sizeof(sa)) < 0 &&
-					errno != EINTR) {
-				perror("sendto");
-				return -1;
-			}
-			printf("Done!\n");
 next:
 			memset(line, 0, MSG_MAX);
 			fflush(stdin);
 			fflush(stdout);
-
-			if (fd >= 0) close(fd);
 		}
 	}
 

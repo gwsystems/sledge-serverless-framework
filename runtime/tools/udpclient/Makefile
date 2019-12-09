@@ -1,6 +1,6 @@
 udp: udpclient.c
 	@echo "Compiling udpclient"
-	@gcc udpclient.c -o ../../bin/udpclient
+	@gcc udpclient.c -o ../../bin/udpclient -lpthread
 
 clean:
 	@echo "Cleaning up udpclient"

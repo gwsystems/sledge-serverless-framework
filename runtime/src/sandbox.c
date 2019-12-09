@@ -68,7 +68,7 @@ sandbox_entry(void)
 }
 
 struct sandbox *
-sandbox_alloc(struct module *mod, char *args)
+sandbox_alloc(struct module *mod, char *args, const struct sockaddr *addr)
 {
 	if (!module_is_valid(mod)) return NULL;
 
@@ -91,6 +91,7 @@ sandbox_alloc(struct module *mod, char *args)
 	}
 	for (int i = 0; i < SBOX_MAX_OPEN; i++) sb->handles[i].fd = -1;
 	ps_list_init_d(sb);
+	if (addr) memcpy(&sb->client, addr, sizeof(struct sockaddr));
 
 	arch_context_init(&sb->ctxt, (reg_t)sandbox_entry, (reg_t)(sb->stack_start + sb->stack_size));
 	sandbox_run(sb);
@@ -99,19 +100,39 @@ sandbox_alloc(struct module *mod, char *args)
 }
 
 void
+sandbox_response(struct sandbox *sb)
+{
+        // send response.
+#ifndef STANDALONE
+        int sock = -1;
+        char resp[SBOX_RESP_STRSZ] = { 0 };
+        int ret = uv_fileno((uv_handle_t *)&sb->mod->udpsrv, &sock);
+        assert(ret == 0);
+	// sends return value only for now!
+        sprintf(resp, "%d", sb->retval);
+	// using system call here because uv_udp_t is in the "module listener thread"'s loop, cannot access here. also dnot want to mess with cross-core/cross-thread uv loop states or structures.
+        ret = sendto(sock, resp, strlen(resp), 0, &sb->client, sizeof(struct sockaddr));
+        assert(ret == strlen(resp));
+#endif
+}
+
+void
 sandbox_free(struct sandbox *sb)
 {
+	int ret;
+
 	// you have to context switch away to free a sandbox.
 	if (!sb || sb == sandbox_current()) return;
 
 	// again sandbox should be done and waiting for the parent.
 	// TODO: this needs to be enhanced. you may be killing a sandbox when its in any other execution states.
 	if (sb->state != SANDBOX_RETURNED) return;
+
 	module_release(sb->mod);
 
 	free(sb->args);
 	// remove stack! and also heap!
-	int ret = munmap(sb->stack_start, sb->stack_size);
+	ret = munmap(sb->stack_start, sb->stack_size);
 	if (ret) perror("munmap");
 
 	// depending on the memory type

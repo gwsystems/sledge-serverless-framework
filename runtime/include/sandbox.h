@@ -57,6 +57,7 @@ struct sandbox {
 	i32 retval;
 
 	struct io_handle handles[SBOX_MAX_OPEN];
+	struct sockaddr client; //client requesting connection!
 
 	char *read_buf;
 	ssize_t read_len, read_size;
@@ -69,7 +70,7 @@ struct sandbox {
 DEQUE_PROTOTYPE(sandbox, struct sandbox *);
 
 // a runtime resource, malloc on this!
-struct sandbox *sandbox_alloc(struct module *mod, char *args);
+struct sandbox *sandbox_alloc(struct module *mod, char *args, const struct sockaddr *addr);
 // should free stack and heap resources.. also any I/O handles.
 void sandbox_free(struct sandbox *sbox);
 
@@ -138,6 +139,7 @@ void *sandbox_run_func(void *data);
 struct sandbox *sandbox_schedule(void);
 void sandbox_block(void);
 void sandbox_wakeup(sandbox_t *sb);
+void sandbox_response(struct sandbox *sb);
 
 // should be the entry-point for each sandbox so it can do per-sandbox mem/etc init.
 // should have been called with stack allocated and sandbox_current() set!

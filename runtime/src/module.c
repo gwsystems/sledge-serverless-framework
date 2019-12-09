@@ -39,8 +39,8 @@ module_on_recv(uv_udp_t *h, ssize_t nr, const uv_buf_t *rcvbuf, const struct soc
 
 	debuglog("MC:%s, %s\n", h->data, rcvbuf->base);
 	// invoke a function!
-	struct sandbox *s = util_parse_sandbox_string_json((struct module *)(h->data), rcvbuf->base);
-	//struct sandbox *s = util_parse_sandbox_string_custom((struct module *)(h->data), rcvbuf->base);
+	struct sandbox *s = util_parse_sandbox_string_json((struct module *)(h->data), rcvbuf->base, addr);
+	//struct sandbox *s = util_parse_sandbox_string_custom((struct module *)(h->data), rcvbuf->base, addr);
 	assert(s);
 
 done:
