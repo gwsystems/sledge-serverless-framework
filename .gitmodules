@@ -5,3 +5,6 @@
 [submodule "runtime/jsmn"]
 	path = runtime/jsmn
 	url = https://github.com/zserge/jsmn.git
+[submodule "runtime/http-parser"]
+	path = runtime/http-parser
+	url = https://github.com/nodejs/http-parser.git

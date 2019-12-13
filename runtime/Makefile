@@ -31,6 +31,12 @@ JSMN=jsmn
 JSMNINC=-I${JSMN}
 JSMNCFLAGS=${JSMNINC} -DJSMN_STATIC -DJSMN_STRICT
 
+HTTPPARSE=http-parser
+HTTPPARSEINC=-I${HTTPPARSE}
+HTTPPARSESRC=${HTTPPARSE}/http_parser.c
+HTTPPARSECFLAGS=${HTTPPARSEINC}
+CFILES += ${HTTPPARSESRC}
+
 ifeq ($(USE_MEM),USE_MEM_GENERIC)
 CFILES += ${RTDIR}/memory/generic.c
 else ifeq ($(USE_MEM),USE_MEM_VM)
@@ -42,7 +48,7 @@ all: clean runtime tools
 runtime:
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	@${CC} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ -luv $^ -o ${RUNTIME}
+	@${CC} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} ${HTTPPARSECFLAGS} -L/usr/lib/ -luv $^ -o ${RUNTIME}
 
 tools:
 #	@echo "Compiling tools"
