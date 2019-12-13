@@ -38,18 +38,6 @@ sandbox_uvio_init(struct sandbox *c)
 #ifndef STANDALONE
 	int ret = uv_udp_init(runtime_uvio(), &c->clientuv);
 	assert(ret == 0);
-	//ret = uv_udp_bind(&c->clientuv, (const struct sockaddr *)&c->mod->srvaddr, 0);
-	//assert(ret >= 0);
-	
-	//ret = uv_udp_connect(&c->clientuv, &c->client);
-	//assert(ret == 0);
-	//c->clientuv.data = (void *)c;
-	//struct sockaddr_in addr;
-	//int len = sizeof(addr);
-	//ret = uv_udp_getpeername(&c->clientuv, &addr, &len);
-	//assert(ret == 0);
-	//printf("Peer's IP address is: %s\n", inet_ntoa(addr.sin_addr));
-        //printf("Peer's port is: %d\n", (int) ntohs(addr.sin_port));
 #endif
 }
 
