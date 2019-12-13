@@ -816,20 +816,9 @@ wasm_read_callback(uv_stream_t *s, ssize_t nread, const uv_buf_t *buf)
 	struct sandbox *c = s->data;
 
 	debuglog("[%p] %ld %p\n", c, nread, buf);
-	if (nread > 0) {
-		assert(c->read_buf);
-		if (c->read_len + nread > c->read_size)	{
-			debuglog("[%p] oops!\n", c);
-			c->read_buf = NULL; // TODO: stream read is crazy!
-			c->retval = -EIO; // TODO: well!!! cannot do anything here..
-			// FIXME: very complex.. what if read read more than what is requested in recv system call?? !!!!
-			// for now, I don't care!
-		}
-		memcpy((c->read_buf + c->read_len), buf->base, nread);
-		c->read_len += nread;
-	}
+	if (nread < 0) c->retval = -EIO;
+	c->read_len = nread;
 	debuglog("[%p] %ld\n", c, c->read_len);
-	free(buf->base);
 	uv_read_stop(s);	
 	sandbox_wakeup(c);
 }
@@ -850,20 +839,9 @@ wasm_udp_recv_callback(uv_udp_t *h, ssize_t nread, const uv_buf_t *buf, const st
 	struct sandbox *c = h->data;
 
 	debuglog("[%p] %ld %p\n", c, nread, buf);
-	if (nread > 0) {
-		assert(c->read_buf);
-		if (c->read_len + nread > c->read_size)	{
-			debuglog("[%p] oops!\n", c);
-			c->read_buf = NULL; // TODO: stream read is crazy!
-			c->retval = -EIO; // TODO: well!!! cannot do anything here..
-			// FIXME: very complex.. what if read read more than what is requested in recv system call?? !!!!
-			// for now, I don't care!
-		}
-		memcpy((c->read_buf + c->read_len), buf->base, nread);
-		c->read_len += nread;
-	}
+	if (nread < 0) c->retval = -EIO;
+	c->read_len = nread;
 	debuglog("[%p] %ld\n", c, c->read_len);
-	free(buf->base);
 	uv_udp_recv_stop(h);
 	sandbox_wakeup(c);
 }
@@ -914,6 +892,16 @@ wasm_sendto(i32 fd, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i3
 	return 0;
 }
 
+static inline void
+wasm_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
+{
+	struct sandbox *s = h->data;
+
+	// just let it use what is passed from caller!
+	buf->base = s->read_buf;
+	buf->len  = s->read_size;
+}
+
 i32
 wasm_recvfrom(i32 fd, i32 buff_offset, i32 size, i32 flags, i32 sockaddr_offset, i32 socklen_offset)
 {
@@ -939,7 +927,7 @@ wasm_recvfrom(i32 fd, i32 buff_offset, i32 size, i32 flags, i32 sockaddr_offset,
 	if (t == UV_TCP) {
 		((uv_stream_t *)h)->data = c;
 		debuglog("[%p] tcp\n", c);
-		int r = uv_read_start((uv_stream_t *)h, runtime_on_alloc, wasm_read_callback);
+		int r = uv_read_start((uv_stream_t *)h, wasm_alloc_callback, wasm_read_callback);
 		sandbox_block();
 		debuglog("[%p] %d\n", c, c->retval);
 		if (c->retval == -EIO) {
@@ -952,7 +940,7 @@ wasm_recvfrom(i32 fd, i32 buff_offset, i32 size, i32 flags, i32 sockaddr_offset,
 	} else if (t == UV_UDP) {
 		((uv_udp_t *)h)->data = c;
 		debuglog("[%p] udp\n", c);
-		int r = uv_udp_recv_start((uv_udp_t *)h, runtime_on_alloc, wasm_udp_recv_callback);
+		int r = uv_udp_recv_start((uv_udp_t *)h, wasm_alloc_callback, wasm_udp_recv_callback);
 		sandbox_block();
 		debuglog("[%p] %d\n", c, c->retval);
 		if (c->retval == -EIO) {
