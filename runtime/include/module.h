@@ -34,6 +34,11 @@ struct module {
 	// so, using direct epoll for accepting connections.
 //	uv_handle_t srvuv;
 	unsigned long max_req_sz, max_resp_sz, max_rr_sz; // req/resp from http..
+	int nreqhdrs, nresphdrs;
+	char reqhdrs[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
+	char rqctype[HTTP_HEADERVAL_MAXSZ];
+	char rspctype[HTTP_HEADERVAL_MAXSZ];
+        char resphdrs[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
 #endif
 };
 
@@ -42,6 +47,20 @@ struct module *module_alloc(char *mod_name, char *mod_path, i32 nargs, u32 stack
 void module_free(struct module *mod);
 struct module *module_find_by_name(char *name);
 struct module *module_find_by_sock(int sock);
+
+static inline void
+module_http_info(struct module *m, int nrq, char *rqs, char rqtype[], int nrs, char *rs, char rsptype[])
+{
+#ifndef STANDALONE
+	assert(m);
+	m->nreqhdrs = nrq;
+	m->nresphdrs = nrs;
+	memcpy(m->reqhdrs, rqs, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+	memcpy(m->resphdrs, rs, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+	strcpy(m->rqctype, rqtype);
+	strcpy(m->rspctype, rsptype);
+#endif
+}
 
 static inline int
 module_is_valid(struct module *mod)

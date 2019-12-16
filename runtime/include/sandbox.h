@@ -8,6 +8,7 @@
 #include <ucontext.h>
 #include <uv.h>
 #include "deque.h"
+#include <http.h>
 
 struct io_handle {
 	int fd;
@@ -60,6 +61,9 @@ struct sandbox {
 	struct sockaddr client; //client requesting connection!
 	int csock;
 	uv_tcp_t cuv;
+	http_parser hp;
+	struct http_request rqi;
+	struct http_response rsi;
 #endif
 
 	char *read_buf;

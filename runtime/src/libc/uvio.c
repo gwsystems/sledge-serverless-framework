@@ -483,23 +483,33 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 i32
 wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 {
+	struct sandbox *c = sandbox_current();
 	if (fd == 1 || fd == 2) {
-		int len = 0, r = 0;
+		//both 1 and 2 go to client.
+		int len = 0;
 		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
-		for (int i = 0; i < iovcnt; i+= RDWR_VEC_MAX) {
-			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
-			int j = 0;
-			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
-				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
-				bufs[j].iov_len = iov[i + j].len;
-			}
-
-			r = writev(fd, bufs, j);
-			if (r <= 0) break;
-			len += r;
+		for (int i = 0; i < iovcnt; i++) {
+			char *b = get_memory_ptr_void(iov[i].base_offset, iov[i].len);
+			memcpy(c->req_resp_data + c->rr_data_len, b, iov[i].len);
+			c->rr_data_len += iov[i].len;
+			len += iov[i].len;
 		}
 
-		return r < 0 ? r : len;
+		return len;
+//		for (int i = 0; i < iovcnt; i+= RDWR_VEC_MAX) {
+//			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
+//			int j = 0;
+//			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
+//				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
+//				bufs[j].iov_len = iov[i + j].len;
+//			}
+//
+//			r = writev(fd, bufs, j);
+//			if (r <= 0) break;
+//			len += r;
+//		}
+//
+//		return r < 0 ? r : len;
 	}
 	// TODO: read on other file types
 	int d = io_handle_fd(fd);

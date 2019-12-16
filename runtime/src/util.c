@@ -7,6 +7,7 @@
 #include <module.h>
 #include <util.h>
 #include <jsmn.h>
+#include <http.h>
 
 #define UTIL_MOD_LINE_MAX 1024
 
@@ -64,10 +65,24 @@ util_parse_modules_file_json(char *filename)
 
 		char mname[MOD_NAME_MAX] = { 0 };
 		char mpath[MOD_PATH_MAX] = { 0 };
+		char *rqhdrs;
+		char *rsphdrs;
+		i32 req_sz = 0;
+		i32 resp_sz = 0;
 		i32 nargs = 0;
 		u32 port = 0;
 		i32 isactive = 0;
-		for (int j = 1; j < (toks[i].size  * 2); j+=2) {
+		i32 nreqs = 0, nresps = 0;
+		int j = 1, ntoks = 2 * toks[i].size;
+		rqhdrs = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+		memset(rqhdrs, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+		rsphdrs = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+		memset(rsphdrs, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+		char rqtype[HTTP_HEADERVAL_MAXSZ] = { 0 };
+		char rsptype[HTTP_HEADERVAL_MAXSZ] = { 0 };
+
+		for (; j < ntoks; ) {
+			int ntks = 1;
 			char val[256] = { 0 }, key[32] = { 0 };
 
 			sprintf(val, "%.*s", toks[j + i + 1].end - toks[j + i + 1].start, filebuf + toks[j + i + 1].start);
@@ -82,17 +97,57 @@ util_parse_modules_file_json(char *filename)
 				nargs = atoi(val);
 			} else if (strcmp(key, "active") == 0) {
 				isactive = (strcmp(val, "yes") == 0);
+			} else if (strcmp(key, "http-req-headers") == 0) {
+				assert(toks[i + j + 1].type == JSMN_ARRAY);
+
+				assert(toks[i + j + 1].size <= HTTP_HEADERS_MAX);
+
+				nreqs = toks[i + j + 1].size;
+				ntks += nreqs;
+				ntoks += nreqs;
+				for (int k = 1; k <= toks[i + j + 1].size; k++) {
+					jsmntok_t *g = &toks[i + j + k + 1];
+					char *r = rqhdrs + ((k-1)*HTTP_HEADER_MAXSZ);
+					assert(g->end - g->start < HTTP_HEADER_MAXSZ);
+					strncpy(r, filebuf + g->start, g->end - g->start); 
+				}
+			} else if (strcmp(key, "http-resp-headers") == 0) {
+				assert(toks[i + j + 1].type == JSMN_ARRAY);
+
+				assert(toks[i + j + 1].size <= HTTP_HEADERS_MAX);
+
+				nresps = toks[i + j + 1].size;
+				ntks += nresps;
+				for (int k = 1; k <= toks[i + j + 1].size; k++) {
+					char *r = rsphdrs + ((k-1)*HTTP_HEADER_MAXSZ);
+					jsmntok_t *g = &toks[i + j + k + 1];
+					assert(g->end - g->start < HTTP_HEADER_MAXSZ);
+					strncpy(r, filebuf + g->start, g->end - g->start); 
+				}
+				ntoks += nresps;
+			} else if (strcmp(key, "http-req-size") == 0) {
+				req_sz = atoi(val);
+			} else if (strcmp(key, "http-resp-size") == 0) {
+				resp_sz = atoi(val);
+			} else if (strcmp(key, "http-req-content-type") == 0) {
+				strcpy(rqtype, val);
+			} else if (strcmp(key, "http-resp-content-type") == 0) {
+				strcpy(rsptype, val);
 			} else {
 				debuglog("Invalid (%s,%s)\n", key, val);
 			}
+			j += ntks; 
 		}
-		i += (toks[i].size * 2);
+		i += ntoks;
 		// do not load if it is not active
 		if (isactive == 0) continue;
 
-		struct module *m = module_alloc(mname, mpath, nargs, 0, 0, 0, port, 0, 0);
+		struct module *m = module_alloc(mname, mpath, nargs, 0, 0, 0, port, req_sz, resp_sz);
 		assert(m);
+		module_http_info(m, nreqs, rqhdrs, rqtype, nresps, rsphdrs, rsptype);
 		nmods++;
+		free(rqhdrs);
+		free(rsphdrs);
 	}
 
 	free(filebuf);

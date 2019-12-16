@@ -8,6 +8,7 @@
 #include <sched.h>
 #include <softint.h>
 #include <uv.h>
+#include <http.h>
 
 struct deque_sandbox *glb_dq;
 pthread_mutex_t glbq_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -288,6 +289,8 @@ runtime_init(void)
 
 	softint_mask(SIGUSR1);
 	softint_mask(SIGALRM);
+
+	http_init();
 }
 
 void

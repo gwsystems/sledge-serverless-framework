@@ -123,9 +123,9 @@ sandbox_client_request_get(void)
 	int r = uv_read_start((uv_stream_t *)&curr->cuv, sb_alloc_callback, sb_read_callback);
 	sandbox_block();
 #endif
-	// TODO: http_request_parse
+	if (http_request_parse() != 0) return -1;
 
-	return curr->rr_data_len;
+	return 1;
 #else
 	return 1;
 #endif
@@ -137,17 +137,32 @@ sandbox_client_response_set(void)
 #ifndef STANDALONE
 	struct sandbox *curr = sandbox_current();
 
-	strcpy(curr->req_resp_data, "HTTP/1.1 200 OK\r\n\r\n");
+#ifndef USE_UVIO
+	strcpy(curr->req_resp_data + curr->rr_data_len, "HTTP/1.1 200 OK\r\n");
 
 	// TODO: response set in req_resp_data
-	curr->rr_data_len = strlen("HTTP/1.1 200 OK\r\n\r\n");
-#ifndef USE_UVIO
+	curr->rr_data_len += strlen("HTTP/1.1 200 OK\r\n");
+
 	int r = send(curr->csock, curr->req_resp_data, curr->rr_data_len, 0);
 	if (r < 0) perror("send");
 #else
+	int bodylen = curr->rr_data_len;
+	if (bodylen > 0) {
+		http_response_body_set(curr->req_resp_data, bodylen);
+		char *key = curr->req_resp_data + curr->rr_data_len;
+		strcpy(key, "content-type: text/plain\r\n\r\n");
+		http_response_header_set(key, strlen( "content-type: text/plain\r\n\r\n"));
+		curr->rr_data_len += strlen("content-type: text/plain\r\n\r\n");
+	}
+
+	char *st = curr->req_resp_data + curr->rr_data_len;
+	strcpy(st, "HTTP/1.1 200 OK\r\n");
+	curr->rr_data_len += strlen("HTTP/1.1 200 OK\r\n");
+
+	http_response_status_set(st, strlen("HTTP/1.1 200 OK\r\n"));
 	uv_write_t req = { .data = curr, };
-	uv_buf_t bu = uv_buf_init(curr->req_resp_data, curr->rr_data_len);
-	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, &bu, 1, sb_write_callback);
+	int n = http_response_uv();
+	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, curr->rsi.bufs, n, sb_write_callback);
 	sandbox_block();
 #endif
 	return r;
@@ -180,6 +195,8 @@ sandbox_entry(void)
 	sandbox_args_setup(argc);
 
 #ifndef STANDALONE
+	http_parser_init(&curr->hp, HTTP_REQUEST);
+	curr->hp.data = &curr->rqi;
 #ifdef USE_UVIO
 	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&curr->cuv);
 	assert(r == 0);
@@ -190,6 +207,7 @@ sandbox_entry(void)
 	if (sandbox_client_request_get() > 0)
 #endif
 	{
+		curr->rr_data_len = 0; // TODO: do this on first write to body.
 		alloc_linear_memory();
 
 		// perhaps only initialized for the first instance? or TODO!

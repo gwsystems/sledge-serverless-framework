@@ -3,5 +3,11 @@
 	"name" : "empty",
 	"path" : "empty_wasm.so",
 	"port" : 10000,
-	"argsize" : 1
+	"argsize" : 1,
+        "http-req-headers" : [ ],
+	"http-req-content-type" : "text/plain",
+        "http-req-size": 102400,
+        "http-resp-headers" : [ ],
+        "http-resp-size" : 10240,
+	"http-resp-content-type" : "text/plain"
 }
