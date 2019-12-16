@@ -111,6 +111,7 @@ sandbox_client_request_get(void)
 #ifndef STANDALONE
 	struct sandbox *curr = sandbox_current();
 
+	curr->rr_data_len = 0;
 #ifndef USE_UVIO
 	int r = 0;
 	r = recv(curr->csock, (curr->req_resp_data), curr->mod->max_req_sz, 0);
