@@ -6,6 +6,36 @@
 #include <signal.h>
 #include <uv.h>
 
+static inline struct sandbox *
+sandbox_memory_map(struct module *m)
+{
+	unsigned long mem_sz = SBOX_MAX_MEM; // 4GB
+	unsigned long sb_sz = sizeof(struct sandbox) + m->max_rr_sz;
+	unsigned long lm_sz = WASM_PAGE_SIZE * WASM_START_PAGES;
+
+	if (lm_sz + sb_sz > mem_sz) return NULL;
+	assert(round_up_to_page(sb_sz) == sb_sz);
+	unsigned long rw_sz = sb_sz + lm_sz; 
+	void *addr = mmap(NULL, mem_sz + /* guard page */ PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); 
+	if (addr == MAP_FAILED) return NULL;
+
+	void *addr_rw = mmap(addr, sb_sz + lm_sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	if (addr_rw == MAP_FAILED) {
+		munmap(addr, mem_sz + PAGE_SIZE);
+		return NULL;
+	}
+
+	struct sandbox *s = (struct sandbox *)addr;
+	// can it include sandbox as well?
+	s->linear_start = (char *)addr + sb_sz;
+	s->linear_size = lm_sz;
+	s->mod = m;
+	s->sb_size = sb_sz;
+	module_acquire(m);
+
+	return s;
+}
+
 static inline void
 sandbox_args_setup(i32 argc)
 {
@@ -32,12 +62,97 @@ sandbox_args_setup(i32 argc)
 	}
 }
 
-static void
-sandbox_uvio_init(struct sandbox *c)
+static inline void
+sb_read_callback(uv_stream_t *s, ssize_t nr, const uv_buf_t *b)
+{
+	struct sandbox *c = s->data;
+
+	if (nr > 0) c->rr_data_len += nr;
+	uv_read_stop(s);
+	sandbox_wakeup(c);
+}
+
+static inline void
+sb_write_callback(uv_write_t *w, int status)
+{
+	struct sandbox *c = w->data;
+
+	sandbox_wakeup(c);
+}
+
+static inline void
+sb_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
+{
+	struct sandbox *c = h->data;
+
+	buf->base = (c->req_resp_data + c->rr_data_len);
+	buf->len = (c->mod->max_rr_sz - c->rr_data_len);
+}
+
+static inline void
+sb_close_callback(uv_handle_t *s)
+{
+	struct sandbox *c = s->data;
+
+	sandbox_wakeup(c);
+}
+
+static inline void
+sb_shutdown_callback(uv_shutdown_t *req, int status)
+{
+        struct sandbox *c = req->data;
+
+        sandbox_wakeup(c);
+}
+
+static inline int
+sandbox_client_request_get(void)
 {
 #ifndef STANDALONE
-	int ret = uv_udp_init(runtime_uvio(), &c->clientuv);
-	assert(ret == 0);
+	struct sandbox *curr = sandbox_current();
+
+#ifndef USE_UVIO
+	int r = 0;
+	r = recv(curr->csock, (curr->req_resp_data), curr->mod->max_req_sz, 0);
+	if (r < 0) {
+		perror("recv");
+		return r;
+	}
+	curr->rr_data_len = r;
+#else
+	int r = uv_read_start((uv_stream_t *)&curr->cuv, sb_alloc_callback, sb_read_callback);
+	sandbox_block();
+#endif
+	// TODO: http_request_parse
+
+	return curr->rr_data_len;
+#else
+	return 1;
+#endif
+}
+
+static inline int
+sandbox_client_response_set(void)
+{
+#ifndef STANDALONE
+	struct sandbox *curr = sandbox_current();
+
+	strcpy(curr->req_resp_data, "HTTP/1.1 200 OK\r\n\r\n");
+
+	// TODO: response set in req_resp_data
+	curr->rr_data_len = strlen("HTTP/1.1 200 OK\r\n\r\n");
+#ifndef USE_UVIO
+	int r = send(curr->csock, curr->req_resp_data, curr->rr_data_len, 0);
+	if (r < 0) perror("send");
+#else
+	uv_write_t req = { .data = curr, };
+	uv_buf_t bu = uv_buf_init(curr->req_resp_data, curr->rr_data_len);
+	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, &bu, 1, sb_write_callback);
+	sandbox_block();
+#endif
+	return r;
+#else
+	return 0;
 #endif
 }
 
@@ -55,7 +170,6 @@ sandbox_entry(void)
 	}
 	struct module *curr_mod = sandbox_module(curr);
 	int argc = module_nargs(curr_mod);
-
 	// for stdio
 	int f = io_handle_open(0);
 	assert(f == 0);
@@ -63,37 +177,54 @@ sandbox_entry(void)
 	assert(f == 1);
 	f = io_handle_open(2);
 	assert(f == 2);
-
-	sandbox_uvio_init(curr);
-
-	alloc_linear_memory();
-	
-	// perhaps only initialized for the first instance? or TODO!
-	//module_table_init(curr_mod);
-	module_memory_init(curr_mod);
-
 	sandbox_args_setup(argc);
 
-	curr->retval = module_entry(curr_mod, argc, curr->args_offset);
+#ifndef STANDALONE
+#ifdef USE_UVIO
+	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&curr->cuv);
+	assert(r == 0);
+	curr->cuv.data = curr;
+	r = uv_tcp_open((uv_tcp_t *)&curr->cuv, curr->csock);
+	assert(r == 0);
+#endif
+	if (sandbox_client_request_get() > 0)
+#endif
+	{
+		alloc_linear_memory();
 
+		// perhaps only initialized for the first instance? or TODO!
+		//module_table_init(curr_mod);
+		module_memory_init(curr_mod);
+		curr->retval = module_entry(curr_mod, argc, curr->args_offset);
+
+		sandbox_client_response_set();
+	}
+
+#ifndef STANDALONE
+#ifdef USE_UVIO
+	uv_shutdown_t sr = { .data = curr, };
+	r = uv_shutdown(&sr, (uv_stream_t *)&curr->cuv, sb_shutdown_callback);
+	sandbox_block();
+	uv_close((uv_handle_t *)&curr->cuv, sb_close_callback);
+	sandbox_block();
+#else
+	close(curr->csock);
+#endif
+#endif
 	sandbox_exit();
 }
 
 struct sandbox *
-sandbox_alloc(struct module *mod, char *args, const struct sockaddr *addr)
+sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr)
 {
 	if (!module_is_valid(mod)) return NULL;
 
 	// FIXME: don't use malloc. huge security problem!
 	// perhaps, main should be in its own sandbox, when it is not running any sandbox.
-	struct sandbox *sb = (struct sandbox *)malloc(sizeof(struct sandbox));
-
+	struct sandbox *sb = (struct sandbox *)sandbox_memory_map(mod);
 	if (!sb) return NULL;
 
-	memset(sb, 0, sizeof(struct sandbox));
 	//actual module instantiation!
-	sb->mod = mod;
-	module_acquire(mod);
 	sb->args = (void *)args;
 	sb->stack_size = mod->stack_size;
 	sb->stack_start = mmap(NULL, sb->stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
@@ -101,6 +232,7 @@ sandbox_alloc(struct module *mod, char *args, const struct sockaddr *addr)
 		perror("mmap");
 		assert(0);
 	}
+	sb->csock = sock;
 	for (int i = 0; i < SBOX_MAX_OPEN; i++) sb->handles[i].fd = -1;
 	ps_list_init_d(sb);
 	if (addr) memcpy(&sb->client, addr, sizeof(struct sockaddr));
@@ -109,44 +241,6 @@ sandbox_alloc(struct module *mod, char *args, const struct sockaddr *addr)
 	sandbox_run(sb);
 
 	return sb;
-}
-
-void
-sandbox_udp_send_callback(uv_udp_send_t *req, int status)
-{
-	struct sandbox *c = req->data;
-	c->retval = status;
-
-	sandbox_wakeup(c);
-}
-
-void
-sandbox_response(void)
-{
-	struct sandbox *sb = sandbox_current();
-        // send response.
-#ifndef STANDALONE
-	int sock = -1, ret;
-	char resp[SBOX_RESP_STRSZ] = { 0 };
-	// sends return value only for now!
-	sprintf(resp, "%d", sb->retval);
-#ifdef USE_SYSCALL
-	// FIXME, with USE_SYSCALL, we should not be using uv at all.
-	int ret = uv_fileno((uv_handle_t *)&sb->mod->udpsrv, &sock);
-	assert(ret == 0);
-	// using system call here because uv_udp_t is in the "module listener thread"'s loop, cannot access here. also dnot want to mess with cross-core/cross-thread uv loop states or structures.
-	ret = sendto(sock, resp, strlen(resp), 0, &sb->client, sizeof(struct sockaddr));
-	assert(ret == strlen(resp));
-#elif USE_UVIO
-	uv_udp_send_t req = { .data = sb, };
-	uv_buf_t b = uv_buf_init(resp, strlen(resp));
-	ret = uv_udp_send(&req, &sb->clientuv, &b, 1, &sb->client, sandbox_udp_send_callback);
-	assert(ret == 0);
-	sandbox_block();
-#else
-	assert(0);
-#endif
-#endif
 }
 
 void
@@ -163,14 +257,20 @@ sandbox_free(struct sandbox *sb)
 
 	module_release(sb->mod);
 
-	free(sb->args);
-	// remove stack! and also heap!
-	ret = munmap(sb->stack_start, sb->stack_size);
-	if (ret) perror("munmap");
+	// TODO free(sb->args);
+	void *stkaddr = sb->stack_start;
+	size_t stksz = sb->stack_size;
 
 	// depending on the memory type
 	free_linear_memory(sb->linear_start, sb->linear_size, sb->linear_max_size);
 
-	free(sb);
-	// sb is a danging-ptr!
+	// mmaped memory includes sandbox structure in there.
+	ret = munmap(sb, SBOX_MAX_MEM + PAGE_SIZE);
+	if (ret) perror("munmap sandbox");
+
+	// remove stack!
+	// for some reason, removing stack seem to cause crash in some cases. 
+	// TODO: debug more. 
+	ret = munmap(stkaddr, stksz);
+	if (ret) perror("munmap stack");
 }

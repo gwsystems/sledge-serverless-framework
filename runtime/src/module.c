@@ -9,9 +9,8 @@
 static struct module *__mod_db[MOD_MAX] = { NULL };
 static int __mod_free_off = 0;
 
-// todo: optimize this.. do we care? plus not atomic!! 
 struct module *
-module_find(char *name)
+module_find_by_name(char *name)
 {
 	int f = __mod_free_off;
 	for (int i = 0; i < f; i++) {
@@ -21,57 +20,66 @@ module_find(char *name)
 	return NULL;
 }
 
+struct module *
+module_find_by_sock(int sock)
+{
+	int f = __mod_free_off;
+	for (int i = 0; i < f; i++) {
+		assert(__mod_db[i]);
+		if (__mod_db[i]->srvsock == sock) return __mod_db[i];
+	}
+	return NULL;
+}
+
 static inline int
 module_add(struct module *m)
 {
-	assert(module_find(m->name) == NULL);
+#ifdef STANDALONE
+	assert(module_find_by_name(m->name) == NULL);
+#else
+	assert(m->srvsock == -1);
+#endif
 
 	int f = __sync_fetch_and_add(&__mod_free_off, 1);
 	assert(f < MOD_MAX);
 	__mod_db[f] = m;
+
 	return 0;
 }
 
-static void
-module_on_recv(uv_udp_t *h, ssize_t nr, const uv_buf_t *rcvbuf, const struct sockaddr *addr, unsigned flags)
+static inline void
+module_server_init(struct module *m)
 {
-	if (nr <= 0) goto done;
+#ifndef STANDALONE
+	int fd = socket(AF_INET, SOCK_STREAM, 0);
+	assert(fd > 0);
+	m->srvaddr.sin_family = AF_INET;
+	m->srvaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	m->srvaddr.sin_port = htons((unsigned short)m->srvport);
 
-	debuglog("MC:%s, %s\n", h->data, rcvbuf->base);
-	// invoke a function!
-	struct sandbox *s = util_parse_sandbox_string_json((struct module *)(h->data), rcvbuf->base, addr);
-	//struct sandbox *s = util_parse_sandbox_string_custom((struct module *)(h->data), rcvbuf->base, addr);
-	assert(s);
+	int optval = 1;
+	setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+	optval = 1;
+	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	if (bind(fd, (struct sockaddr *)&m->srvaddr, sizeof(m->srvaddr)) < 0) {
+		perror("bind");
+		assert(0);
+	}
+	if (listen(fd, MOD_BACKLOG) < 0) assert(0);
+	m->srvsock = fd;
 
-done:
-	free(rcvbuf->base);
-}
+	struct epoll_event accept_evt;
+	accept_evt.data.ptr = (void *)m;
+	accept_evt.events   = EPOLLIN;
 
-static void
-module_io_init(struct module *m)
-{
-	// TODO: USE_UVIO vs USE_SYSCALL!
-	int status;
-
-	status = uv_udp_init(uv_default_loop(), &m->udpsrv);
-	assert(status >= 0);
-
-	debuglog("MIO:%s,%u\n", m->name, m->udpport);
-	uv_ip4_addr("127.0.0.1", m->udpport, &m->srvaddr);
-	status = uv_udp_bind(&m->udpsrv, (const struct sockaddr *)&m->srvaddr, 0);
-	assert(status >= 0);
-	m->udpsrv.data = (void *)m;
-
-	status = uv_udp_recv_start(&m->udpsrv, runtime_on_alloc, module_on_recv);
-	assert(status >= 0);
+	if (epoll_ctl(epfd, EPOLL_CTL_ADD, m->srvsock, &accept_evt) < 0) assert(0);
+#endif
 }
 
 struct module *
-module_alloc(char *modname, char *modpath, u32 udp_port, i32 nargs, i32 nrets, u32 stacksz, u32 maxheap, u32 timeout)
+module_alloc(char *modname, char *modpath, i32 nargs, u32 stacksz, u32 maxheap, u32 timeout, int port, int req_sz, int resp_sz)
 {
-	// FIXME: cannot do this at runtime, we may be interfering with a sandbox's heap!
 	struct module *mod = (struct module *)malloc(sizeof(struct module));
-
 	if (!mod) return NULL;
 
 	memset(mod, 0, sizeof(struct module));
@@ -95,10 +103,18 @@ module_alloc(char *modname, char *modpath, u32 udp_port, i32 nargs, i32 nrets, u
 	strncpy(mod->path, modpath, MOD_PATH_MAX);
 
 	mod->nargs = nargs;	
-	/* mod->nrets = nrets; */
-	mod->stack_size = stacksz == 0 ? WASM_STACK_SIZE : stacksz;
+	mod->stack_size = round_up_to_page(stacksz == 0 ? WASM_STACK_SIZE : stacksz);
 	mod->max_memory = maxheap == 0 ? ((u64)WASM_PAGE_SIZE * WASM_MAX_PAGES) : maxheap;
 	mod->timeout    = timeout;
+#ifndef STANDALONE
+	mod->srvsock = -1;
+	mod->srvport = port;
+	if (req_sz == 0) req_sz = MOD_REQ_RESP_DEFAULT;
+	if (resp_sz == 0) resp_sz = MOD_REQ_RESP_DEFAULT;
+	mod->max_req_sz = req_sz;
+	mod->max_resp_sz = resp_sz;
+	mod->max_rr_sz = round_up_to_page(req_sz > resp_sz ? req_sz : resp_sz);
+#endif
 
 	struct indirect_table_entry *cache_tbl = module_indirect_table;
 	// assumption: modules are created before enabling preemption and before running runtime-sandboxing threads..
@@ -107,11 +123,8 @@ module_alloc(char *modname, char *modpath, u32 udp_port, i32 nargs, i32 nrets, u
 	module_indirect_table = mod->indirect_table;
 	module_table_init(mod);
 	module_indirect_table = cache_tbl;
-	mod->udpport = udp_port;
 	module_add(mod);
-#ifndef STANDALONE
-	module_io_init(mod);
-#endif
+	module_server_init(mod);
 
 	return mod;
 
@@ -132,9 +145,9 @@ module_free(struct module *mod)
 	if (mod->dl_handle == NULL) return;
 	if (mod->refcnt) return;
 
+#ifndef STANDALONE
+	close(mod->srvsock);
+#endif
 	dlclose(mod->dl_handle);
-	memset(mod, 0, sizeof(struct module));
-
-	// FIXME: use global/static memory. cannot interfere with some sandbox's heap!
 	free(mod);
 }

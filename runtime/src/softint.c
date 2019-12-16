@@ -121,6 +121,7 @@ softint_handler(int sig, siginfo_t *si, void *u)
 
 		alarm_cnt++;
 		// softints per-core..
+		if (curr && curr->state == SANDBOX_RETURNED) return;
 		if (next_context) return;
 		if (!softint_enabled()) return; 
 		softint_alarm_schedule(u);

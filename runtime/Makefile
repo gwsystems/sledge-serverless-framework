@@ -22,8 +22,9 @@ CACHE_LINESIZE := $(shell getconf LEVEL1_DCACHE_LINESIZE)
 NCORES_CONF := $(shell getconf _NPROCESSORS_CONF)
 #todo:cross-compile
 CFLAGS += -DCACHELINE_SIZE=${CACHE_LINESIZE}
-#CFLAGS += -DNCORES=${NCORES_CONF}
-CFLAGS += -DNCORES=4
+CFLAGS += -DNCORES=${NCORES_CONF}
+#CFLAGS += -DNCORES=4
+CFLAGS += -DPAGE_SIZE=$(shell getconf PAGESIZE)
 
 MAKE= make --no-print-directory
 
@@ -43,7 +44,7 @@ else ifeq ($(USE_MEM),USE_MEM_VM)
 CFILES += ${RTDIR}/memory/64bit_nix.c
 endif
 
-all: clean runtime tools
+all: clean runtime #tools
 
 runtime:
 	@echo "Compiling runtime"
@@ -59,7 +60,7 @@ clean:
 	@echo "Cleaning up runtime"
 	@rm -f ${RUNTIME}
 #	@echo "Cleaning up tools"
-	@${MAKE} -C tools clean
+#	@${MAKE} -C tools clean
 
 fetch:
 	@git submodule update --init --recursive

@@ -9,6 +9,8 @@
 #include <sandbox.h>
 #include <softint.h>
 #include <util.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #define MOD_LINE_MAX 1024
 
@@ -34,12 +36,30 @@ main(int argc, char* argv[])
 
 	if (argc != 2) {
 		usage(argv[0]);
+		exit(-1);
+	}
 
+	struct rlimit r;
+	if (getrlimit(RLIMIT_DATA, &r) < 0) {
+		perror("getrlimit RLIMIT_DATA");
+		exit(-1);
+	}
+	r.rlim_cur = r.rlim_max;
+	if (setrlimit(RLIMIT_DATA, &r) < 0) {
+		perror("setrlimit RLIMIT_DATA");
+		exit(-1);
+	}
+	if (getrlimit(RLIMIT_NOFILE, &r) < 0) {
+		perror("getrlimit RLIMIT_NOFILE");
+		exit(-1);
+	}
+	r.rlim_cur = r.rlim_max;
+	if (setrlimit(RLIMIT_NOFILE, &r) < 0) {
+		perror("setrlimit RLIMIT_NOFILE");
 		exit(-1);
 	}
 
 	ncores = sysconf(_SC_NPROCESSORS_ONLN);
-
 	if (ncores > 1) {
 		u32 x = ncores - 1;
 		sbox_ncores = SBOX_NCORES;
@@ -66,11 +86,11 @@ main(int argc, char* argv[])
 	runtime_init();
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 	if (util_parse_modules_file_json(argv[1])) {
-//	if (util_parse_modules_file_custom(argv[1])) {
 		printf("failed to parse modules file[%s]\n", argv[1]);
 
 		exit(-1);
 	}
+	runtime_thd_init();
 
 	for (i = 0; i < sbox_ncores; i++) {
 		int ret = pthread_create(&rtthd[i], NULL, sandbox_run_func, (void *)&rtthd_ret[i]);
@@ -105,9 +125,9 @@ main(int argc, char* argv[])
 	uv_loop_init(&uvio);
 
 	/* in current dir! */
-	struct module *m = module_alloc(argv[1], argv[1], 0, 0, 0, 0, 0, 0);
+	struct module *m = module_alloc(argv[1], argv[1], 0, 0, 0, 0, 0, 0, 0);
 	assert(m);
-	struct sandbox *s = sandbox_alloc(m, argv[1], NULL);
+	struct sandbox *s = sandbox_alloc(m, argv[1], 0, NULL);
 
 	exit(0);
 #endif

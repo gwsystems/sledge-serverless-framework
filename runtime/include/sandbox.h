@@ -32,9 +32,10 @@ extern void __attribute__((noreturn)) sandbox_switch_preempt(void);
 struct sandbox {
 	sandbox_state_t state;
 
-	void *linear_start;
-	u32   linear_size;
+	void *linear_start; // after sandbox struct
+	u32   linear_size; // from after sandbox struct
 	u32   linear_max_size;
+	u32   sb_size;
 
 	void *stack_start; // guess we need a mechanism for stack allocation.
 	u32   stack_size;  // and to set the size of it.
@@ -49,34 +50,36 @@ struct sandbox {
 	u64 start_time;
 
 	struct module *mod; //which module is this an instance of?
-	//struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
 
 	i32 args_offset; //actual placement of args in the sandbox.
-	/* i32 ret_offset; //placement of return value(s) in the sandbox. */
 	void *args; // args from request, must be of module->nargs size.
 	i32 retval;
 
 	struct io_handle handles[SBOX_MAX_OPEN];
+#ifndef STANDALONE
 	struct sockaddr client; //client requesting connection!
-	uv_udp_t clientuv; //using uv for client request on target runtime thread/core.
+	int csock;
+	uv_tcp_t cuv;
+#endif
 
 	char *read_buf;
 	ssize_t read_len, read_size;
 
 	struct ps_list list;
 
-	// track I/O handles?
-} CACHE_ALIGNED;
+	ssize_t  rr_data_len; // <= max(mod->max_rr_sz)
+	char req_resp_data[1]; //of rr_data_sz, following sandbox mem..
+} PAGE_ALIGNED;
 
 DEQUE_PROTOTYPE(sandbox, struct sandbox *);
 
 // a runtime resource, malloc on this!
-struct sandbox *sandbox_alloc(struct module *mod, char *args, const struct sockaddr *addr);
+struct sandbox *sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr);
 // should free stack and heap resources.. also any I/O handles.
 void sandbox_free(struct sandbox *sbox);
 
-// next_sandbox only used in SIGUSR1
 extern __thread struct sandbox *current_sandbox;
+// next_sandbox only used in SIGUSR1
 extern __thread arch_context_t *next_context;
 
 typedef struct sandbox sandbox_t;
@@ -106,6 +109,7 @@ sandbox_module(struct sandbox *s)
 	return s->mod;
 }
 
+extern void sandbox_local_end(struct sandbox *s);
 static inline void
 sandbox_switch(struct sandbox *next)
 {
@@ -113,11 +117,11 @@ sandbox_switch(struct sandbox *next)
 
 	// disable interrupts (signals)
 	softint_disable();
-
 	// switch sandbox (register context & base/bound/table)
 	struct sandbox *curr = sandbox_current();
 	arch_context_t *c = curr == NULL ? NULL : &curr->ctxt;
 	sandbox_current_set(next);
+	if (curr && curr->state == SANDBOX_RETURNED) sandbox_local_end(curr);
 	// save current's registers and restore next's registers.
 	next_context = n;
 	arch_context_switch(c, n);

@@ -26,7 +26,20 @@
 #ifndef CACHELINE_SIZE
 #define CACHELINE_SIZE 32
 #endif
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE (1<<12)
+#endif
+
 #define CACHE_ALIGNED __attribute__((aligned(CACHELINE_SIZE)))
+#define PAGE_ALIGNED __attribute__((aligned(PAGE_SIZE)))
+
+/* For this family of macros, do NOT pass zero as the pow2 */
+#define round_to_pow2(x, pow2) (((unsigned long)(x)) & (~((pow2)-1)))
+#define round_up_to_pow2(x, pow2) (round_to_pow2(((unsigned long)x) + (pow2)-1, (pow2)))
+
+#define round_to_page(x) round_to_pow2(x, PAGE_SIZE)
+#define round_up_to_page(x) round_up_to_pow2(x, PAGE_SIZE)
 
 // Type alias's so I don't have to write uint32_t a million times
 typedef signed char i8;
@@ -43,7 +56,8 @@ typedef uint64_t u64;
 #define WASM_START_PAGES (1<<8) //16MB
 #define WASM_MAX_PAGES (1<<15) //4GB
 
-#define WASM_STACK_SIZE (1<<15) // FIXME: fixed size for now.
+#define WASM_STACK_SIZE (1<<14) // 16KB.
+#define SBOX_MAX_MEM (1L<<32) // 4GB
 
 // These are per module symbols and I'd need to dlsym for each module. instead just use global constants, see above macros.
 // The code generator compiles in the starting number of wasm pages, and the maximum number of pages
@@ -133,5 +147,10 @@ typedef enum {
 #define SBOX_MAX_REQS (1<<19) //random!
 
 #define SBOX_RESP_STRSZ 32
+
+#define MOD_BACKLOG 100
+#define EPOLL_MAX 1024
+#define MOD_REQ_RESP_DEFAULT (PAGE_SIZE)
+#define QUIESCENSE_TIME (1<<20) //cycles!
 
 #endif /* SFRT_TYPES_H */

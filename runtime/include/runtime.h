@@ -4,10 +4,13 @@
 
 #include <uv.h>
 #include "sandbox.h"
+#include "module.h"
+#include <sys/epoll.h> // for epoll_create1(), epoll_ctl(), struct epoll_event
 
 // global queue for stealing (work-stealing-deque)
 extern struct deque_sandbox *glb_dq;
 extern pthread_mutex_t glbq_mtx;
+extern int epfd;
 
 void alloc_linear_memory(void);
 void expand_memory(void);
@@ -42,18 +45,23 @@ INLINE char *get_function_from_table(u32 idx, u32 type_id);
 void stub_init(char *modulename, i32 offset, mod_init_libc_fn_t fn);
 
 void runtime_init(void);
-
-static inline void
-runtime_on_alloc(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
-{
-	buf->base = malloc(suggested);
-	memset(buf->base, 0, suggested);
-	buf->len = suggested;
-}
+void runtime_thd_init(void);
 
 extern __thread uv_loop_t uvio;
 static inline uv_loop_t *
 runtime_uvio(void)
 { return &uvio; }
+
+static unsigned long long int
+rdtsc()
+{
+	unsigned long long int ret = 0;
+	unsigned int cycles_lo;
+	unsigned int cycles_hi;
+	__asm__ volatile ("RDTSC" : "=a" (cycles_lo), "=d" (cycles_hi));
+	ret = (unsigned long long int)cycles_hi << 32 | cycles_lo;
+
+	return ret;
+}
 
 #endif /* SFRT_RUNTIME_H */

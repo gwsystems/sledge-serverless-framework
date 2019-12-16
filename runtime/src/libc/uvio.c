@@ -61,6 +61,10 @@ wasm_fs_callback(uv_fs_t *req)
 u32
 wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 {
+	if (filedes == 0) {
+		char* buf = get_memory_ptr_void(buf_offset, nbyte);
+		return read(filedes, buf, nbyte);
+	}
 	int f = io_handle_fd(filedes);
 	// TODO: read on other file types
 	uv_fs_t req = UV_FS_REQ_INIT();
@@ -82,18 +86,22 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 i32
 wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 {
+	if (fd == 1 || fd == 2) {
+		char* buf = get_memory_ptr_void(buf_offset, buf_size);
+		return write(fd, buf, buf_size);
+	}
 	int f = io_handle_fd(fd);
 	// TODO: read on other file types
 	uv_fs_t req = UV_FS_REQ_INIT();
 	char* buf = get_memory_ptr_void(buf_offset, buf_size);
 
-	debuglog("[%p] start[%d:%d, n%d]\n", uv_fs_get_data(&req), fd, f, buf_size);
+	printf("[%p] start[%d:%d, n%d]\n", uv_fs_get_data(&req), fd, f, buf_size);
 	uv_buf_t bufv = uv_buf_init(buf, buf_size);
 	uv_fs_write(runtime_uvio(), &req, f, &bufv, 1, -1, wasm_fs_callback);
 	sandbox_block();
 
 	int ret = uv_fs_get_result(&req);
-	debuglog("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
+	printf("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
 	uv_fs_req_cleanup(&req);
 
 	return ret;
@@ -149,6 +157,9 @@ wasm_open(i32 path_off, i32 flags, i32 mode)
 i32
 wasm_close(i32 fd)
 {
+	if (fd >= 0 && fd <= 2) {
+		return 0;
+	}
 	struct sandbox *c = sandbox_current();
 	int d = io_handle_fd(fd);
 	union uv_any_handle *h = io_handle_uv_get(fd);
@@ -422,6 +433,24 @@ struct wasm_iovec {
 i32
 wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 {
+	if (fd == 0) {
+		int len = 0, r = 0;
+		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+		for (int i = 0; i < iovcnt; i+= RDWR_VEC_MAX) {
+			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
+			int j = 0;
+			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
+				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
+				bufs[j].iov_len = iov[i + j].len;
+			}
+
+			r = readv(fd, bufs, j);
+			if (r <= 0) break;
+			len += r;
+		}
+
+		return r < 0 ? r : len;
+	}
 	// TODO: read on other file types
 	int gret = 0;
 	int d = io_handle_fd(fd);
@@ -454,6 +483,24 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 i32
 wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 {
+	if (fd == 1 || fd == 2) {
+		int len = 0, r = 0;
+		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+		for (int i = 0; i < iovcnt; i+= RDWR_VEC_MAX) {
+			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
+			int j = 0;
+			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
+				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
+				bufs[j].iov_len = iov[i + j].len;
+			}
+
+			r = writev(fd, bufs, j);
+			if (r <= 0) break;
+			len += r;
+		}
+
+		return r < 0 ? r : len;
+	}
 	// TODO: read on other file types
 	int d = io_handle_fd(fd);
 	int gret = 0;

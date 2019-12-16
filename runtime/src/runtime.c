@@ -11,6 +11,7 @@
 
 struct deque_sandbox *glb_dq;
 pthread_mutex_t glbq_mtx = PTHREAD_MUTEX_INITIALIZER;
+int epfd;
 
 // per-thread (per-core) run and completion queue.. (using doubly-linked-lists)
 __thread static struct ps_list_head runq;
@@ -32,7 +33,7 @@ static inline void
 sandbox_local_run(struct sandbox *s)
 {
 	assert(ps_list_singleton_d(s));
-	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s, s->mod->name);
+//	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s, s->mod->name);
 	ps_list_head_append_d(&runq, s);
 }
 
@@ -84,6 +85,7 @@ sandbox_schedule(void)
 
 	s = ps_list_head_first_d(&runq, struct sandbox);
 
+	assert(s->state != SANDBOX_RETURNED);
 	// round-robin
 	ps_list_rem_d(s);
 	ps_list_head_append_d(&runq, s);
@@ -98,7 +100,7 @@ sandbox_local_free(unsigned int n)
 	int i = 0;
 
 	while (i < n) {
-		i ++;
+		i++;
 		struct sandbox *s = ps_list_head_first_d(&endq, struct sandbox);
 		if (!s) break;
 		ps_list_rem_d(s);
@@ -107,12 +109,12 @@ sandbox_local_free(unsigned int n)
 }
 
 struct sandbox *
-sandbox_schedule_uvio(void)
+sandbox_schedule_io(void)
 {
+	assert(sandbox_current() == NULL);
 	sandbox_local_free(1);
 	if (!in_callback) sandbox_io_nowait();
 
-	assert(sandbox_current() == NULL);
 	softint_disable();
 	struct sandbox *s = sandbox_schedule();
 	softint_enable();
@@ -169,7 +171,7 @@ sandbox_local_stop(struct sandbox *s)
 	ps_list_rem_d(s);
 }
 
-static inline void
+void
 sandbox_local_end(struct sandbox *s)
 {
 	assert(ps_list_singleton_d(s));
@@ -193,10 +195,10 @@ sandbox_run_func(void *data)
 	in_callback = 0;
 
 	while (1) {
-		struct sandbox *s = sandbox_schedule_uvio();
+		struct sandbox *s = sandbox_schedule_io();
 		while (s) {
 			sandbox_switch(s);
-			s = sandbox_schedule_uvio();
+			s = sandbox_schedule_io();
 		}
 	}
 
@@ -225,18 +227,15 @@ sandbox_exit(void)
 {
 #ifndef STANDALONE
 	struct sandbox *curr = sandbox_current();
-
 	assert(curr);
-	sandbox_response();
-
-	fprintf(stderr, "(%d,%lu) %s: %p, %s exit\n", sched_getcpu(), pthread_self(), __func__, curr, curr->mod->name);
 	softint_disable();
 	sandbox_local_stop(curr);
 	curr->state = SANDBOX_RETURNED;
 	// free resources from "main function execution", as stack still in use. 
-	sandbox_local_end(curr);
 	struct sandbox *n = sandbox_schedule();
+	assert(n != curr);
 	softint_enable();
+	//sandbox_local_end(curr);
 	sandbox_switch(n);
 #else
 	sandbox_switch(NULL);
@@ -244,16 +243,36 @@ sandbox_exit(void)
 }
 
 void *
-runtime_uvio_thdfn(void *d)
+runtime_accept_thdfn(void *d)
 {
-	assert(d == (void *)uv_default_loop());
+	struct epoll_event *epevts = (struct epoll_event *)malloc(EPOLL_MAX * sizeof(struct epoll_event));
+	int nreqs = 0;
 	while (1) {
-		// runs until there are no events..
-		uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-		pthread_yield();
+		int ready = epoll_wait(epfd, epevts, EPOLL_MAX, -1);
+		for (int i = 0; i < ready; i++) {
+			if (epevts[i].events & EPOLLERR) {
+				perror("epoll_wait");
+				assert(0);
+			}
+
+			struct sockaddr_in client;
+			socklen_t client_len = sizeof(client);
+			struct module *m = (struct module *)epevts[i].data.ptr;
+			assert(m);
+			int es = m->srvsock;
+			int s = accept(es, (struct sockaddr *)&client, &client_len);
+			if (s < 0) {
+				perror("accept");
+				assert(0);
+			}
+			nreqs++;
+
+			struct sandbox *sb = sandbox_alloc(m, m->name, s, (const struct sockaddr *)&client);
+			assert(sb);
+		}
 	}
 
-	assert(0);
+	free(epevts);
 
 	return NULL;
 }
@@ -261,19 +280,26 @@ runtime_uvio_thdfn(void *d)
 void
 runtime_init(void)
 {
+	epfd = epoll_create1(0);
+	assert(epfd >= 0);
 	glb_dq = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));	
 	assert(glb_dq);
 	deque_init_sandbox(glb_dq, SBOX_MAX_REQS); 
 
 	softint_mask(SIGUSR1);
 	softint_mask(SIGALRM);
+}
+
+void
+runtime_thd_init(void)
+{
 	cpu_set_t cs;
 
 	CPU_ZERO(&cs);
 	CPU_SET(MOD_REQ_CORE, &cs);
 
 	pthread_t iothd;
-	int ret = pthread_create(&iothd, NULL, runtime_uvio_thdfn, (void *)uv_default_loop());
+	int ret = pthread_create(&iothd, NULL, runtime_accept_thdfn, NULL);
 	assert(ret == 0);
 	ret = pthread_setaffinity_np(iothd, sizeof(cpu_set_t), &cs);
 	assert(ret == 0);

@@ -65,7 +65,7 @@ util_parse_modules_file_json(char *filename)
 		char mname[MOD_NAME_MAX] = { 0 };
 		char mpath[MOD_PATH_MAX] = { 0 };
 		i32 nargs = 0;
-		u32 udp_port = 0;
+		u32 port = 0;
 		i32 isactive = 0;
 		for (int j = 1; j < (toks[i].size  * 2); j+=2) {
 			char val[256] = { 0 }, key[32] = { 0 };
@@ -77,7 +77,7 @@ util_parse_modules_file_json(char *filename)
 			} else if (strcmp(key, "path") == 0) {
 				strcpy(mpath, val);
 			} else if (strcmp(key, "port") == 0) {
-				udp_port = atoi(val);
+				port = atoi(val);
 			} else if (strcmp(key, "argsize") == 0) {
 				nargs = atoi(val);
 			} else if (strcmp(key, "active") == 0) {
@@ -90,7 +90,7 @@ util_parse_modules_file_json(char *filename)
 		// do not load if it is not active
 		if (isactive == 0) continue;
 
-		struct module *m = module_alloc(mname, mpath, udp_port, nargs, 0, 0, 0, 0);
+		struct module *m = module_alloc(mname, mpath, nargs, 0, 0, 0, port, 0, 0);
 		assert(m);
 		nmods++;
 	}
@@ -135,7 +135,7 @@ parse_sandbox_file_custom(char *filename)
 			int ntoks = 0;
 			strncpy(mname, tok, MOD_NAME_MAX);
 
-			mod = module_find(mname);
+			mod = module_find_by_name(mname);
 			assert(mod);
 			if (mod->nargs > 0) {
 				args = (char *)malloc(mod->nargs * MOD_ARG_MAX_SZ);
@@ -152,7 +152,7 @@ parse_sandbox_file_custom(char *filename)
 			assert(0);
 		}
 
-		sb = sandbox_alloc(mod, args, NULL);
+		sb = sandbox_alloc(mod, args, 0, NULL);
 		assert(sb);
 		total_boxes++;
 
@@ -202,7 +202,7 @@ util_parse_sandbox_string_json(struct module *mod, char *str, const struct socka
 				*(args + ((k - 1) * MOD_ARG_MAX_SZ) + g->end - g->start) = '\0';
 			}
 
-			struct sandbox *sb = sandbox_alloc(mod, args, addr);
+			struct sandbox *sb = sandbox_alloc(mod, args, 0, addr);
 			assert(sb);
 
 			return sb;
@@ -225,8 +225,6 @@ util_parse_sandbox_string_custom(struct module *mod, char *str, const struct soc
 	if (!(tok = strtok_r(src, ":", &src))) return NULL;
 
 	if (strcmp(mod->name, tok)) return NULL;
-	//	struct module *mod = module_find(tok);
-	//	if (!mod) return NULL;
 	assert(mod->nargs >= 0 && mod->nargs < MOD_MAX_ARGS);
 
 	char *args = (char *)malloc(mod->nargs * MOD_ARG_MAX_SZ);
@@ -238,7 +236,7 @@ util_parse_sandbox_string_custom(struct module *mod, char *str, const struct soc
 		assert(ntoks < MOD_MAX_ARGS);
 	}
 
-	struct sandbox *sb = sandbox_alloc(mod, args, addr);
+	struct sandbox *sb = sandbox_alloc(mod, args, 0, addr);
 	assert(sb);
 
 	return sb; 
@@ -271,7 +269,7 @@ util_parse_modules_file_custom(char *filename)
 		u32 max_heap = 0;
 		u32 timeout = 0;
 		char *tok = NULL, *src = buff;
-		u32 udp_port = 0;
+		u32 port = 0;
 		i32 ntoks = 0;
 
 		src = util_remove_spaces(src);
@@ -279,7 +277,7 @@ util_parse_modules_file_custom(char *filename)
 		while ((tok = strtok_r(src, ":", &src))) {
 			switch(ntoks) {
 				case MOD_ARG_MODPATH: strncpy(mpath, tok, MOD_PATH_MAX); break;
-				case MOD_ARG_MODPORT: udp_port = atoi(tok);
+				case MOD_ARG_MODPORT: port = atoi(tok);
 				case MOD_ARG_MODNAME: strncpy(mname, tok, MOD_NAME_MAX); break;
 				case MOD_ARG_MODNARGS: nargs = atoi(tok); break;
 				default: break;
@@ -288,7 +286,7 @@ util_parse_modules_file_custom(char *filename)
 		}
 		assert(ntoks >= MOD_ARG_MAX);
 
-		struct module *m = module_alloc(mname, mpath, udp_port, nargs, 0, 0, 0, 0);
+		struct module *m = module_alloc(mname, mpath, nargs, 0, 0, 0, port, 0, 0);
 		assert(m);
 		nmods++;
 
