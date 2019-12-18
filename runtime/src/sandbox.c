@@ -150,10 +150,34 @@ sandbox_client_response_set(void)
 	int bodylen = curr->rr_data_len;
 	if (bodylen > 0) {
 		http_response_body_set(curr->req_resp_data, bodylen);
+		char len[16] = { 0 };
+		sprintf(len, "%d", bodylen);
+		//content-length = body length
 		char *key = curr->req_resp_data + curr->rr_data_len;
-		strcpy(key, "content-type: text/plain\r\n\r\n");
-		http_response_header_set(key, strlen( "content-type: text/plain\r\n\r\n"));
-		curr->rr_data_len += strlen("content-type: text/plain\r\n\r\n");
+		int lenlen = strlen("content-length: "), dlen = strlen(len);
+		strcpy(key, "content-length: ");
+		strncat(key + lenlen, len, dlen);
+		strncat(key + lenlen + dlen, "\r\n", 2);
+		http_response_header_set(key, lenlen + dlen + 2);
+		curr->rr_data_len += lenlen + dlen + 2;
+
+		//content-type as set in the headers.
+		key = curr->req_resp_data + curr->rr_data_len;
+		strcpy(key, "content-type: ");
+		lenlen = strlen("content-type: ");
+		dlen = strlen(curr->mod->rspctype);
+		if (dlen == 0) {
+			int l = strlen("text/plain\r\n\r\n");
+			strncat(key + lenlen, "text/plain\r\n\r\n", l);
+			http_response_header_set(key, lenlen + l);
+			curr->rr_data_len += lenlen + l;
+		} else {
+			strncat(key + lenlen, curr->mod->rspctype, dlen);
+			strncat(key + lenlen + dlen, "\r\n\r\n", 4);
+			http_response_header_set(key, lenlen + dlen + 4);
+			curr->rr_data_len += lenlen + dlen + 4;
+		}
+		//TODO - other headers requested in module!
 	}
 
 	char *st = curr->req_resp_data + curr->rr_data_len;
