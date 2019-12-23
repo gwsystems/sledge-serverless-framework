@@ -17,16 +17,16 @@ RUN apt-get update \
 	pkg-config \
 	gcc \
 	g++ \
-	clang-6.0 \
-	clang-tools-6.0 \
-	llvm-6.0 \
-	llvm-6.0-dev \
+	clang-8 \
+	clang-tools-8 \
+	llvm-8 \
+	llvm-8-dev \
 	libc++-dev \
 	libc++abi-dev \
-	lld-6.0 \
-	lldb-6.0 \
-	libclang-6.0-dev \
-	libclang-common-6.0-dev \
+	lld-8 \
+	lldb-8 \
+	libclang-8-dev \
+	libclang-common-8-dev \
 	vim \
 	apache2 \
 	subversion \
@@ -48,8 +48,8 @@ RUN service apache2 restart
 RUN pip3 install numpy
 
 # set to use our installed clang version
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-6.0 100
-RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-6.0 100
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100
+RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-8 100
 
 # set LD_LIBRARY_PATH
 ENV LD_LIBRARY_PATH=/usr/local/lib
