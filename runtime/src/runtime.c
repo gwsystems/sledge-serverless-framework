@@ -246,6 +246,7 @@ sandbox_exit(void)
 void *
 runtime_accept_thdfn(void *d)
 {
+#ifndef STANDALONE
 	struct epoll_event *epevts = (struct epoll_event *)malloc(EPOLL_MAX * sizeof(struct epoll_event));
 	int nreqs = 0;
 	while (1) {
@@ -274,6 +275,7 @@ runtime_accept_thdfn(void *d)
 	}
 
 	free(epevts);
+#endif
 
 	return NULL;
 }

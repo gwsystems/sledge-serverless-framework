@@ -10,7 +10,11 @@ static inline struct sandbox *
 sandbox_memory_map(struct module *m)
 {
 	unsigned long mem_sz = SBOX_MAX_MEM; // 4GB
+#ifndef STANDALONE
 	unsigned long sb_sz = sizeof(struct sandbox) + m->max_rr_sz;
+#else
+	unsigned long sb_sz = sizeof(struct sandbox);
+#endif
 	unsigned long lm_sz = WASM_PAGE_SIZE * WASM_START_PAGES;
 
 	if (lm_sz + sb_sz > mem_sz) return NULL;
@@ -56,7 +60,7 @@ sandbox_args_setup(i32 argc)
 
 		array_ptr[i] = string_off;
 		// why get_memory_ptr_for_runtime??
-		strncpy(get_memory_ptr_for_runtime(string_off, strlen(arg) + 1), arg, strlen(arg));
+		strncpy(get_memory_ptr_for_runtime(string_off, str_sz), arg, strlen(arg));
 
 		string_off += str_sz;
 	}
@@ -85,8 +89,10 @@ sb_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
 {
 	struct sandbox *c = h->data;
 
+#ifndef STANDALONE
 	buf->base = (c->req_resp_data + c->rr_data_len);
 	buf->len = (c->mod->max_rr_sz - c->rr_data_len);
+#endif
 }
 
 static inline void
@@ -275,10 +281,12 @@ sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *a
 		perror("mmap");
 		assert(0);
 	}
+#ifndef STANDALONE
 	sb->csock = sock;
+	if (addr) memcpy(&sb->client, addr, sizeof(struct sockaddr));
+#endif
 	for (int i = 0; i < SBOX_MAX_OPEN; i++) sb->handles[i].fd = -1;
 	ps_list_init_d(sb);
-	if (addr) memcpy(&sb->client, addr, sizeof(struct sockaddr));
 
 	arch_context_init(&sb->ctxt, (reg_t)sandbox_entry, (reg_t)(sb->stack_start + sb->stack_size));
 	sandbox_run(sb);

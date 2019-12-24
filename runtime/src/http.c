@@ -35,11 +35,12 @@ http_on_header_end(http_parser *parser)
 static inline int
 http_on_url(http_parser* parser, const char *at, size_t length)
 {
+#ifndef STANDALONE
 	struct sandbox *s = sandbox_current();
 	struct http_request *r = parser->data;
 
 	assert(strncmp(s->mod->name, (at + 1), length - 1) == 0);
-
+#endif
 	return 0;
 }
 
@@ -75,12 +76,14 @@ http_on_header_value(http_parser* parser, const char *at, size_t length)
 static inline int
 http_on_body(http_parser* parser, const char *at, size_t length)
 {
+#ifndef STANDALONE
         struct http_request *r = parser->data;
 	struct sandbox *c = sandbox_current();
 
         assert(length <= c->mod->max_req_sz);
 	r->body = (char *)at;
         r->bodylen = length;
+#endif
 
         return 0;
 }
@@ -88,16 +91,21 @@ http_on_body(http_parser* parser, const char *at, size_t length)
 int
 http_request_body_get(char **b)
 {
+#ifndef STANDALONE
 	struct sandbox *s = sandbox_current();
 	struct http_request *r = &s->rqi;
 
 	*b = r->body;
 	return r->bodylen;
+#else
+	return 0;
+#endif
 }
 
 int
 http_response_header_set(char *key, int len)
 {
+#ifndef STANDALONE
 	// by now, req_resp_data should only be containing response!
 	struct sandbox *c = sandbox_current();
 	struct http_response *r = &c->rsi;
@@ -106,39 +114,45 @@ http_response_header_set(char *key, int len)
 	r->nheaders++;
 	r->headers[r->nheaders-1].hdr = key;
 	r->headers[r->nheaders-1].len = len;
+#endif
 
 	return 0;
 }
 
 int http_response_body_set(char *body, int len)
 {
+#ifndef STANDALONE
 	struct sandbox *c = sandbox_current();
 	struct http_response *r = &c->rsi;
 
 	assert(len < c->mod->max_resp_sz);
 	r->body = body;
 	r->bodylen = len;
+#endif
 
 	return 0;
 }
 
 int http_response_status_set(char *status, int len)
 {
+#ifndef STANDALONE
 	struct sandbox *c = sandbox_current();
 	struct http_response *r = &c->rsi;
 
 	r->status = status;
 	r->stlen = len;
+#endif
 
 	return 0;
 }
 
 int http_response_uv(void)
 {
+	int nb = 0;
+#ifndef STANDALONE
 	struct sandbox *c = sandbox_current();
 	struct http_response *r = &c->rsi;
 
-	int nb = 0;
 
 	r->bufs[nb] = uv_buf_init(r->status, r->stlen);
 	nb++;
@@ -153,6 +167,7 @@ int http_response_uv(void)
 		r->bufs[nb] = uv_buf_init(r->status + r->stlen - 2, 2); //for crlf
 		nb++;
 	}
+#endif
 	
 	return nb;
 }
@@ -160,8 +175,10 @@ int http_response_uv(void)
 int
 http_request_parse(void)
 {
+#ifndef STANDALONE
 	struct sandbox *s = sandbox_current();
 	http_parser_execute(&s->hp, &settings, s->req_resp_data, s->rr_data_len);
+#endif
 	return 0;
 }
 

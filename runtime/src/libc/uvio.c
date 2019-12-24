@@ -1,6 +1,7 @@
 #ifdef USE_UVIO
 #include <runtime.h>
 #include <uv.h>
+#include <http.h>
 
 // What should we tell the child program its UID and GID are?
 #define UID 0xFF
@@ -434,6 +435,7 @@ i32
 wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 {
 	if (fd == 0) {
+#ifdef STANDALONE
 		int len = 0, r = 0;
 		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 		for (int i = 0; i < iovcnt; i+= RDWR_VEC_MAX) {
@@ -450,6 +452,25 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 		}
 
 		return r < 0 ? r : len;
+#else
+		//both 1 and 2 go to client.
+		int len = 0;
+		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+		struct sandbox *s = sandbox_current();
+		struct http_request *r = &s->rqi;
+		if (r->bodylen <= 0) return 0;
+		for (int i = 0; i < iovcnt; i++) {
+			int l = iov[i].len > r->body_len ? r->body_len : iov[i].len;
+			if (l <= 0) break;
+			char *b = get_memory_ptr_void(iov[i].base_offset, iov[i].len);
+			//http request body!
+			memcpy(b, r->body + len, l);
+			len += l;
+			r->bodylen -= l;
+		}
+
+		return len;
+#endif
 	}
 	// TODO: read on other file types
 	int gret = 0;
@@ -485,6 +506,7 @@ wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 {
 	struct sandbox *c = sandbox_current();
 	if (fd == 1 || fd == 2) {
+#ifndef STANDALONE
 		//both 1 and 2 go to client.
 		int len = 0;
 		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
@@ -496,20 +518,22 @@ wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 		}
 
 		return len;
-//		for (int i = 0; i < iovcnt; i+= RDWR_VEC_MAX) {
-//			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
-//			int j = 0;
-//			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
-//				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
-//				bufs[j].iov_len = iov[i + j].len;
-//			}
-//
-//			r = writev(fd, bufs, j);
-//			if (r <= 0) break;
-//			len += r;
-//		}
-//
-//		return r < 0 ? r : len;
+#else
+		for (int i = 0; i < iovcnt; i+= RDWR_VEC_MAX) {
+			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
+			int j = 0;
+			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
+				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
+				bufs[j].iov_len = iov[i + j].len;
+			}
+
+			r = writev(fd, bufs, j);
+			if (r <= 0) break;
+			len += r;
+		}
+
+		return r < 0 ? r : len;
+#endif
 	}
 	// TODO: read on other file types
 	int d = io_handle_fd(fd);

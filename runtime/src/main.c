@@ -28,7 +28,7 @@ usage(char *cmd)
 }
 
 int
-main(int argc, char* argv[])
+main(int argc, char** argv)
 {
 #ifndef STANDALONE
 	int i = 0, rtthd_ret[SBOX_NCORES] = { 0 };
@@ -124,10 +124,24 @@ main(int argc, char* argv[])
 	arch_context_init(&base_context, 0, 0);
 	uv_loop_init(&uvio);
 
+	int ac = 1;
+	char *args = argv[1];
+	if (argc - 1 > 1) {
+		ac = argc - 1;
+		char **av = argv + 1;
+		args = malloc(sizeof(char) * MOD_ARG_MAX_SZ * ac);
+		memset(args, 0, sizeof(char) * MOD_ARG_MAX_SZ * ac);
+
+		for (int i = 0; i < ac; i++) {
+			char *a = args + (i * MOD_ARG_MAX_SZ * sizeof(char));
+			strcpy(a, av[i]);
+		}
+	}
+
 	/* in current dir! */
-	struct module *m = module_alloc(argv[1], argv[1], 0, 0, 0, 0, 0, 0, 0);
+	struct module *m = module_alloc(args, args, ac, 0, 0, 0, 0, 0, 0);
 	assert(m);
-	struct sandbox *s = sandbox_alloc(m, argv[1], 0, NULL);
+	struct sandbox *s = sandbox_alloc(m, args, 0, NULL);
 
 	exit(0);
 #endif

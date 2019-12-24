@@ -23,11 +23,13 @@ module_find_by_name(char *name)
 struct module *
 module_find_by_sock(int sock)
 {
+#ifndef STANDALONE
 	int f = __mod_free_off;
 	for (int i = 0; i < f; i++) {
 		assert(__mod_db[i]);
 		if (__mod_db[i]->srvsock == sock) return __mod_db[i];
 	}
+#endif
 	return NULL;
 }
 
