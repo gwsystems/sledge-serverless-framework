@@ -153,7 +153,7 @@ typedef enum {
 #define MOD_REQ_RESP_DEFAULT (PAGE_SIZE)
 #define QUIESCENSE_TIME (1<<20) //cycles!
 
-#define HTTP_HEADERS_MAX     4
+#define HTTP_HEADERS_MAX     6
 #define HTTP_HEADER_MAXSZ    32
 #define HTTP_HEADERVAL_MAXSZ 64
 

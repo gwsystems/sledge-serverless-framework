@@ -63,8 +63,20 @@ u32
 wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 {
 	if (filedes == 0) {
+#ifdef STANDALONE
 		char* buf = get_memory_ptr_void(buf_offset, nbyte);
 		return read(filedes, buf, nbyte);
+#else
+		// TODO: multiple reads!
+		char* buf = get_memory_ptr_void(buf_offset, nbyte);
+                struct sandbox *s = sandbox_current();
+                struct http_request *r = &s->rqi;
+                if (r->bodylen <= 0) return 0;
+		int l = nbyte > r->bodylen ? r->bodylen : nbyte;
+		memcpy(buf, r->body, l);
+		r->bodylen -= l;
+                return l;
+#endif
 	}
 	int f = io_handle_fd(filedes);
 	// TODO: read on other file types
@@ -460,7 +472,7 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 		struct http_request *r = &s->rqi;
 		if (r->bodylen <= 0) return 0;
 		for (int i = 0; i < iovcnt; i++) {
-			int l = iov[i].len > r->body_len ? r->body_len : iov[i].len;
+			int l = iov[i].len > r->bodylen ? r->bodylen : iov[i].len;
 			if (l <= 0) break;
 			char *b = get_memory_ptr_void(iov[i].base_offset, iov[i].len);
 			//http request body!

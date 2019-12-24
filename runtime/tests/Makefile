@@ -2,7 +2,8 @@ include Makefile.inc
 
 BENCH_DIR=../../silverfish/code_benches/
 
-TESTS=forever filesys sockserver sockclient empty
+TESTS=empty
+#TESTS=forever filesys sockserver sockclient empty
 TESTSRT=$(TESTS:%=%_rt)
 BENCHES=adpcm basic_math binarytrees bitcount blowfish crc dijkstra fft function_pointers \
         gsm libjpeg mandelbrot patricia pgp qsort rsynth sha sqlite stringsearch susan
