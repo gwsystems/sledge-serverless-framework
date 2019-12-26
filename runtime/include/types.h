@@ -148,7 +148,7 @@ typedef enum {
 
 #define SBOX_RESP_STRSZ 32
 
-#define MOD_BACKLOG 100
+#define MOD_BACKLOG 10000
 #define EPOLL_MAX 1024
 #define MOD_REQ_RESP_DEFAULT (PAGE_SIZE)
 #define QUIESCENSE_TIME (1<<20) //cycles!

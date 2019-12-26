@@ -61,6 +61,7 @@ struct sandbox {
 	struct sockaddr client; //client requesting connection!
 	int csock;
 	uv_tcp_t cuv;
+	uv_shutdown_t cuvsr;
 	http_parser hp;
 	struct http_request rqi;
 	struct http_response rsi;

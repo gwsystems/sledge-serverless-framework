@@ -33,7 +33,7 @@ struct module {
 	// rest of the connection is handled in sandboxing threads, with per-core(per-thread) tls data-structures.
 	// so, using direct epoll for accepting connections.
 //	uv_handle_t srvuv;
-	unsigned long max_req_sz, max_resp_sz, max_rr_sz; // req/resp from http..
+	unsigned long max_req_sz, max_resp_sz, max_rr_sz; // req/resp from http, (resp size including headers!)..
 	int nreqhdrs, nresphdrs;
 	char reqhdrs[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
 	char rqctype[HTTP_HEADERVAL_MAXSZ];

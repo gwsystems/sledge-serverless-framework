@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <uv.h>
+#include <http_api.h>
 
 static inline struct sandbox *
 sandbox_memory_map(struct module *m)
@@ -45,6 +46,7 @@ sandbox_args_setup(i32 argc)
 {
 	struct sandbox *curr = sandbox_current();
 	char *args = sandbox_args();
+	if (!args) return;
 
 	// whatever gregor has, to be able to pass args to a module!
 	curr->args_offset = sandbox_lmbound;
@@ -71,8 +73,28 @@ sb_read_callback(uv_stream_t *s, ssize_t nr, const uv_buf_t *b)
 {
 	struct sandbox *c = s->data;
 
-	if (nr > 0) c->rr_data_len += nr;
+	if (nr > 0) {
+		if (http_request_parse_sb(c, nr) != 0) return;
+		c->rr_data_len += nr;
+                struct http_request *rh = &c->rqi;
+		if (!rh->message_end) return;
+	}
+
 	uv_read_stop(s);
+	sandbox_wakeup(c);
+}
+
+static inline void
+sb_close_callback(uv_handle_t *s)
+{
+	struct sandbox *c = s->data;
+	sandbox_wakeup(c);
+}
+
+static inline void
+sb_shutdown_callback(uv_shutdown_t *req, int status)
+{
+	struct sandbox *c = req->data;
 	sandbox_wakeup(c);
 }
 
@@ -80,7 +102,11 @@ static inline void
 sb_write_callback(uv_write_t *w, int status)
 {
 	struct sandbox *c = w->data;
-
+	if (status < 0) {
+		c->cuvsr.data = c;
+		uv_shutdown(&c->cuvsr, (uv_stream_t *)&c->cuv, sb_shutdown_callback);
+		return;
+	}
 	sandbox_wakeup(c);
 }
 
@@ -90,25 +116,10 @@ sb_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
 	struct sandbox *c = h->data;
 
 #ifndef STANDALONE
+	size_t l = (c->mod->max_rr_sz - c->rr_data_len);
 	buf->base = (c->req_resp_data + c->rr_data_len);
-	buf->len = (c->mod->max_rr_sz - c->rr_data_len);
+	buf->len = l > suggested ? suggested : l;
 #endif
-}
-
-static inline void
-sb_close_callback(uv_handle_t *s)
-{
-	struct sandbox *c = s->data;
-
-	sandbox_wakeup(c);
-}
-
-static inline void
-sb_shutdown_callback(uv_shutdown_t *req, int status)
-{
-        struct sandbox *c = req->data;
-
-        sandbox_wakeup(c);
 }
 
 static inline int
@@ -121,16 +132,27 @@ sandbox_client_request_get(void)
 #ifndef USE_UVIO
 	int r = 0;
 	r = recv(curr->csock, (curr->req_resp_data), curr->mod->max_req_sz, 0);
-	if (r < 0) {
+	if (r <= 0) {
 		perror("recv");
 		return r;
 	}
-	curr->rr_data_len = r;
+	while (r > 0) {
+		if (http_request_parse(r) != 0) return -1;
+		curr->rr_data_len += r;
+		struct http_request *rh = &curr->rqi;
+		if (rh->message_end) break;
+
+		r = recv(curr->csock, (curr->req_resp_data + r), curr->mod->max_req_sz - r, 0);
+		if (r < 0) {
+			perror("recv");
+			return r;
+		}
+	}
 #else
 	int r = uv_read_start((uv_stream_t *)&curr->cuv, sb_alloc_callback, sb_read_callback);
 	sandbox_block();
+	if (curr->rr_data_len == 0) return 0;
 #endif
-	if (http_request_parse() != 0) return -1;
 
 	return 1;
 #else
@@ -227,7 +249,7 @@ sandbox_entry(void)
 
 #ifndef STANDALONE
 	http_parser_init(&curr->hp, HTTP_REQUEST);
-	curr->hp.data = &curr->rqi;
+	curr->hp.data = curr;
 #ifdef USE_UVIO
 	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&curr->cuv);
 	assert(r == 0);
@@ -251,9 +273,6 @@ sandbox_entry(void)
 
 #ifndef STANDALONE
 #ifdef USE_UVIO
-	uv_shutdown_t sr = { .data = curr, };
-	r = uv_shutdown(&sr, (uv_stream_t *)&curr->cuv, sb_shutdown_callback);
-	sandbox_block();
 	uv_close((uv_handle_t *)&curr->cuv, sb_close_callback);
 	sandbox_block();
 #else

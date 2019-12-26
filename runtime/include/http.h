@@ -37,14 +37,4 @@ struct http_response {
 	uv_buf_t bufs[HTTP_HEADERS_MAX * 2 + 3]; //max headers, one line for status code, remaining for body!
 };
 
-int http_request_body_get(char **body);
-int http_request_parse(void);
-
-int http_response_header_set(char *h, int len);
-int http_response_body_set(char *body, int len);
-int http_response_status_set(char *status, int len);
-int http_response_uv(void);
-
-void http_init(void);
-
 #endif /* SFRT_HTTP_H */

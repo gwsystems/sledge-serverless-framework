@@ -100,8 +100,20 @@ i32
 wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 {
 	if (fd == 1 || fd == 2) {
+#ifdef STANDALONE
 		char* buf = get_memory_ptr_void(buf_offset, buf_size);
 		return write(fd, buf, buf_size);
+#else
+		char* buf = get_memory_ptr_void(buf_offset, buf_size);
+		struct sandbox *s = sandbox_current();
+		int l = s->mod->max_resp_sz - s->rr_data_len;
+		l = l > buf_size ? buf_size : l;
+		if (l == 0) return 0;
+		memcpy(s->req_resp_data + s->rr_data_len, buf, l);
+		s->rr_data_len += l;
+
+		return l;
+#endif
 	}
 	int f = io_handle_fd(fd);
 	// TODO: read on other file types
