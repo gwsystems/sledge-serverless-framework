@@ -3,7 +3,7 @@
 #include <string.h>
 
 #define CPU_CYCS 2100
-#define MAX_BUF (1024*1024) //1m
+#define MAX_BUF (1024*1024*1) //1m
 
 #define ITERS_15US 125500
 #define MULTIPLE 5
@@ -34,7 +34,7 @@ main(void)
 
 //	if (r <= 0) printf("%llu\n", en > st ? (en - st)/CPU_CYCS : -1);
 	if (r < 0)       printf("E\n");
-	else if (r == 0) printf("hello\n");
+	else if (r <= 1) printf("D\n");
 	else             write(1, d, r);
 
 	return 0;
