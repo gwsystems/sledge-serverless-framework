@@ -191,3 +191,9 @@ env_cos(double d)
 {
 	return cos(d);
 }
+
+INLINE unsigned long long
+env_rdtsc(void)
+{
+	return rdtsc();
+}

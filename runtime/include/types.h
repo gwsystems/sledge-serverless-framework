@@ -122,7 +122,7 @@ typedef enum {
 #define SBOX_PREOPEN_MAGIC (707707707) // reads lol lol lol upside down
 
 #define SOFTINT_TIMER_START_USEC (10*1000) //start timers 10 ms from now.
-#define SOFTINT_TIMER_PERIOD_USEC (1000*100) // 100ms timer..
+#define SOFTINT_TIMER_PERIOD_USEC (1000*5) // 100ms timer..
 
 #ifdef DEBUG
 #ifdef NOSTDIO
@@ -148,7 +148,7 @@ typedef enum {
 
 #define SBOX_RESP_STRSZ 32
 
-#define MOD_BACKLOG 10000
+#define MOD_BACKLOG 1000
 #define EPOLL_MAX 1024
 #define MOD_REQ_RESP_DEFAULT (PAGE_SIZE)
 #define QUIESCENSE_TIME (1<<20) //cycles!

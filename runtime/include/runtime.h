@@ -53,7 +53,7 @@ runtime_uvio(void)
 { return &uvio; }
 
 static unsigned long long int
-rdtsc()
+rdtsc(void)
 {
 	unsigned long long int ret = 0;
 	unsigned int cycles_lo;
