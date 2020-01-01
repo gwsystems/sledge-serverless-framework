@@ -56,7 +56,7 @@ typedef uint64_t u64;
 #define WASM_START_PAGES (1<<8) //16MB
 #define WASM_MAX_PAGES (1<<15) //4GB
 
-#define WASM_STACK_SIZE (1<<14) // 16KB.
+#define WASM_STACK_SIZE (1<<19) // 512KB.
 #define SBOX_MAX_MEM (1L<<32) // 4GB
 
 // These are per module symbols and I'd need to dlsym for each module. instead just use global constants, see above macros.
@@ -153,7 +153,7 @@ typedef enum {
 #define MOD_REQ_RESP_DEFAULT (PAGE_SIZE)
 #define QUIESCENSE_TIME (1<<20) //cycles!
 
-#define HTTP_HEADERS_MAX     6
+#define HTTP_HEADERS_MAX     16
 #define HTTP_HEADER_MAXSZ    32
 #define HTTP_HEADERVAL_MAXSZ 64
 

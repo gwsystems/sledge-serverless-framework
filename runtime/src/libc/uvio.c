@@ -67,13 +67,13 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 		char* buf = get_memory_ptr_void(buf_offset, nbyte);
 		return read(filedes, buf, nbyte);
 #else
-		// TODO: multiple reads!
 		char* buf = get_memory_ptr_void(buf_offset, nbyte);
                 struct sandbox *s = sandbox_current();
                 struct http_request *r = &s->rqi;
                 if (r->bodylen <= 0) return 0;
 		int l = nbyte > r->bodylen ? r->bodylen : nbyte;
-		memcpy(buf, r->body, l);
+		memcpy(buf, r->body + r->bodyrlen, l);
+		r->bodyrlen += l;
 		r->bodylen -= l;
                 return l;
 #endif
@@ -488,10 +488,11 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 			if (l <= 0) break;
 			char *b = get_memory_ptr_void(iov[i].base_offset, iov[i].len);
 			//http request body!
-			memcpy(b, r->body + len, l);
+			memcpy(b, r->body + r->bodyrlen + len, l);
 			len += l;
 			r->bodylen -= l;
 		}
+		r->bodyrlen += len;
 
 		return len;
 #endif

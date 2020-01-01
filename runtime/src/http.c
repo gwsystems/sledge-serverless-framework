@@ -57,6 +57,7 @@ http_on_url(http_parser* parser, const char *at, size_t length)
 static inline int
 http_on_header_field(http_parser* parser, const char *at, size_t length)
 {
+#ifndef STANDALONE
 	struct sandbox *s = parser->data;
 	struct http_request *r = &s->rqi;
 
@@ -66,6 +67,7 @@ http_on_header_field(http_parser* parser, const char *at, size_t length)
 
 	r->last_was_value = 0;
 	r->headers[r->nheaders - 1].key = (char *)at; //it is from the sandbox's req_resp_data, should persist.
+#endif
 
 	return 0;
 }
@@ -73,6 +75,7 @@ http_on_header_field(http_parser* parser, const char *at, size_t length)
 static inline int
 http_on_header_value(http_parser* parser, const char *at, size_t length)
 {
+#ifndef STANDALONE
 	struct sandbox *s = parser->data;
 	struct http_request *r = &s->rqi;
 
@@ -81,6 +84,7 @@ http_on_header_value(http_parser* parser, const char *at, size_t length)
 	assert(length < HTTP_HEADERVAL_MAXSZ);
 
 	r->headers[r->nheaders - 1].val = (char *)at; //it is from the sandbox's req_resp_data, should persist.
+#endif
 
         return 0;
 }

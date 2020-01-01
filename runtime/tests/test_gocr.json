@@ -1,0 +1,13 @@
+{
+	"active" : "yes",
+	"name" : "gocr",
+	"path" : "gocr_wasm.so",
+	"port" : 10000,
+	"argsize" : 1,
+        "http-req-headers" : [ ],
+	"http-req-content-type" : "image/png",
+        "http-req-size": 10240,
+        "http-resp-headers" : [ ],
+        "http-resp-size" : 128,
+	"http-resp-content-type" : "text/plain"
+}

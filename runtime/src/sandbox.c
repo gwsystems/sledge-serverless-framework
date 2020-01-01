@@ -71,6 +71,7 @@ sandbox_args_setup(i32 argc)
 static inline void
 sb_read_callback(uv_stream_t *s, ssize_t nr, const uv_buf_t *b)
 {
+#ifndef STANDALONE
 	struct sandbox *c = s->data;
 
 	if (nr > 0) {
@@ -82,6 +83,7 @@ sb_read_callback(uv_stream_t *s, ssize_t nr, const uv_buf_t *b)
 
 	uv_read_stop(s);
 	sandbox_wakeup(c);
+#endif
 }
 
 static inline void
@@ -101,6 +103,7 @@ sb_shutdown_callback(uv_shutdown_t *req, int status)
 static inline void
 sb_write_callback(uv_write_t *w, int status)
 {
+#ifndef STANDALONE
 	struct sandbox *c = w->data;
 	if (status < 0) {
 		c->cuvsr.data = c;
@@ -108,6 +111,7 @@ sb_write_callback(uv_write_t *w, int status)
 		return;
 	}
 	sandbox_wakeup(c);
+#endif
 }
 
 static inline void

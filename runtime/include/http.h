@@ -20,7 +20,7 @@ struct http_request {
 	struct http_header headers[HTTP_HEADERS_MAX];
 	int nheaders;
 	char *body;
-	int bodylen;
+	int bodylen, bodyrlen;
 	// additional for http-parser
 	int last_was_value;
 	int header_end;
