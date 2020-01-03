@@ -76,7 +76,19 @@ struct sandbox {
 	char req_resp_data[1]; //of rr_data_sz, following sandbox mem..
 } PAGE_ALIGNED;
 
-DEQUE_PROTOTYPE(sandbox, struct sandbox *);
+#ifndef STANDALONE
+struct sandbox_request {
+	struct module *mod;
+	char *args;
+	int sock;
+	struct sockaddr *addr;
+};
+typedef struct sandbox_request sbox_request_t;
+#else
+typedef struct sandbox sbox_request_t;
+#endif
+
+DEQUE_PROTOTYPE(sandbox, sbox_request_t *);
 
 // a runtime resource, malloc on this!
 struct sandbox *sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr);
@@ -88,6 +100,24 @@ extern __thread struct sandbox *current_sandbox;
 extern __thread arch_context_t *next_context;
 
 typedef struct sandbox sandbox_t;
+void sandbox_run(sbox_request_t *s);
+
+static inline sbox_request_t *
+sbox_request_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr)
+{
+#ifndef STANDALONE
+	sbox_request_t *s = malloc(sizeof(sbox_request_t));
+	assert(s);
+	s->mod = mod;
+	s->args = args;
+	s->sock = sock;
+	s->addr = (struct sockaddr *)addr;
+	sandbox_run(s);
+	return s;
+#else
+	return sandbox_alloc(mod, args, sock, addr);
+#endif
+}
 
 static inline struct sandbox *
 sandbox_current(void)
@@ -144,7 +174,7 @@ sandbox_args(void)
 	return (char *)c->args;
 }
 
-void sandbox_run(struct sandbox *s);
+//void sandbox_run(struct sandbox *s);
 void *sandbox_run_func(void *data);
 struct sandbox *sandbox_schedule(void);
 void sandbox_block(void);
@@ -159,7 +189,7 @@ extern struct deque_sandbox *glb_dq;
 extern pthread_mutex_t glbq_mtx; 
 
 static inline int
-sandbox_deque_push(struct sandbox *s)
+sandbox_deque_push(sbox_request_t *s)
 {
 	int ret;
 
@@ -175,7 +205,7 @@ sandbox_deque_push(struct sandbox *s)
 }
 
 static inline int
-sandbox_deque_pop(struct sandbox **s)
+sandbox_deque_pop(sbox_request_t **s)
 {
 	int ret;
 
@@ -190,10 +220,10 @@ sandbox_deque_pop(struct sandbox **s)
 	return ret;
 }
 
-static inline struct sandbox *
+static inline sbox_request_t *
 sandbox_deque_steal(void)
 {
-	struct sandbox *s = NULL;
+	sbox_request_t *s = NULL;
 
 #if NCORES == 1
 	sandbox_deque_pop(&s);

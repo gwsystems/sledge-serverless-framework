@@ -44,11 +44,19 @@ sandbox_pull(void)
 	int n = 0;
 
 	while (n < SBOX_PULL_MAX) {
-		struct sandbox *s = sandbox_deque_steal();
+		sbox_request_t *s = sandbox_deque_steal();
 
 		if (!s) break;
+#ifndef STANDALONE
+		struct sandbox *sb = sandbox_alloc(s->mod, s->args, s->sock, s->addr);
+		assert(sb);
+		free(s);
+		sb->state = SANDBOX_RUNNABLE;
+		sandbox_local_run(sb);
+#else
 		assert(s->state == SANDBOX_RUNNABLE);
 		sandbox_local_run(s);
+#endif
 		n++;
 	}
 
@@ -208,14 +216,14 @@ sandbox_run_func(void *data)
 }
 
 void
-sandbox_run(struct sandbox *s)
+sandbox_run(sbox_request_t *s)
 {
 #ifndef STANDALONE
 	// for now, a pull model... 
 	// sandbox_run adds to the global ready queue..
 	// each sandboxing thread pulls off of that global ready queue..
 	debuglog("[%p: %s]\n", s, s->mod->name);
-	s->state = SANDBOX_RUNNABLE;
+//	s->state = SANDBOX_RUNNABLE;
 	sandbox_deque_push(s);
 #else
 	sandbox_switch(s);
@@ -269,7 +277,8 @@ runtime_accept_thdfn(void *d)
 			}
 			nreqs++;
 
-			struct sandbox *sb = sandbox_alloc(m, m->name, s, (const struct sockaddr *)&client);
+			//struct sandbox *sb = sandbox_alloc(m, m->name, s, (const struct sockaddr *)&client);
+			sbox_request_t *sb = sbox_request_alloc(m, m->name, s, (const struct sockaddr *)&client);
 			assert(sb);
 		}
 	}
