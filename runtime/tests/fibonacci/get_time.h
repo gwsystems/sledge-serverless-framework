@@ -37,7 +37,7 @@ print_time(unsigned long long s, unsigned long long e)
 #if 0
 	printf("%llu cycs, %llu us\n", e - s, (e - s) / CPU_FREQ);
 #else
-	fprintf(stderr, "%llu us\n", e - s);
+	fprintf(stdout, "%llu us\n", e - s);
 #endif
 }
 

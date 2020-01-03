@@ -44,7 +44,7 @@ else ifeq ($(USE_MEM),USE_MEM_VM)
 CFILES += ${RTDIR}/memory/64bit_nix.c
 endif
 
-all: clean runtime tools
+all: clean runtime #tools
 
 runtime:
 	@echo "Compiling runtime"
@@ -57,7 +57,7 @@ tools:
 
 clean:
 	@rm -f core
-#	@echo "Cleaning up runtime"
+	@echo "Cleaning up runtime"
 	@rm -f ${RUNTIME}
 #	@echo "Cleaning up tools"
 	@${MAKE} -C tools clean

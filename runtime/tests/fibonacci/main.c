@@ -16,7 +16,7 @@ main(int argc, char **argv)
 	unsigned long long st = get_time(), en;
 	r = fib(n);
 	en = get_time();
-	printf("%lu\n", r);
+	fprintf(stderr, "%lu\n", r);
 
 	print_time(st, en);
 	return 0; 

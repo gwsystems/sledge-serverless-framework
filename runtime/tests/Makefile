@@ -2,7 +2,7 @@ include Makefile.inc
 
 BENCH_DIR=../../silverfish/code_benches/
 
-TESTS=empty work
+TESTS=fibonacci #empty work
 #TESTS=forever filesys sockserver sockclient empty
 TESTSRT=$(TESTS:%=%_rt)
 BENCHES=adpcm basic_math binarytrees bitcount blowfish crc dijkstra fft function_pointers \
@@ -30,23 +30,25 @@ rttests: $(TESTSRT)
 
 clean:
 	@rm -rf ${TMP_DIR}
-	@rm -f ${BIN_DIR}/*_wasm.so
+	#@rm -f ${BIN_DIR}/*_wasm.so
 
 %_sf:
 	@mkdir -p ${TMP_DIR}
 	@echo "Compiling $(@:%_sf=%)"
-	${WASMCC} ${$(@:%_sf=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} ${BENCH_DIR}/$(@:%_sf=%)/*.c -o ${TMP_DIR}/$(@:%_sf=%).wasm
+	${WASMCC} ${$(@:%_sf=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} ${BENCH_DIR}/$(@:%_sf=%)/*.c $(DUMMY) -o ${TMP_DIR}/$(@:%_sf=%).wasm
 	${SFCC} ${TMP_DIR}/$(@:%_sf=%).wasm -o ${TMP_DIR}/$(@:%_sf=%).bc
-	${CC} --shared -fPIC ${OPTFLAGS} -I${RT_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_sf=%).bc ${MEMC} ${WASMISA} -o ${TMP_DIR}/$(@:%_sf=%)_wasm.so
-	@cp ${TMP_DIR}/$(@:%_sf=%)_wasm.so ${BIN_DIR} 
-	@rm -rf ${TMP_DIR}
+	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} ${TMP_DIR}/$(@:%_sf=%).bc ${MEMC} ${RT_LIBC} ${RT_RT} -o ${TMP_DIR}/$(@:%_sf=%)_wasm.out
+	${CC} --shared -fPIC ${OPTFLAGS} -I${ART_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_sf=%).bc ${AMEMC} ${WASMISA} -o ${TMP_DIR}/$(@:%_sf=%)_wasm.so
+	@cp ${TMP_DIR}/$(@:%_sf=%)_wasm.so ${ABIN_DIR} 
+#	@rm -rf ${TMP_DIR}
 
 %_rt:
 	@mkdir -p ${TMP_DIR}
 	@echo "Compiling $(@:%_rt=%)"
-	${WASMCC} ${$(@:%_rt=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} $(@:%_rt=%)/*.c -o ${TMP_DIR}/$(@:%_rt=%).wasm
+	${WASMCC} ${$(@:%_rt=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} $(@:%_rt=%)/*.c $(DUMMY) -o ${TMP_DIR}/$(@:%_rt=%).wasm
 	${SFCC} ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
-	${CC} --shared -fPIC ${OPTFLAGS} -I${RT_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${MEMC} ${WASMISA} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.so
-	@cp ${TMP_DIR}/$(@:%_rt=%)_wasm.so ${BIN_DIR} 
-	@rm -rf ${TMP_DIR}
+	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${MEMC} ${RT_LIBC} ${RT_RT} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.out
+	${CC} --shared -fPIC ${OPTFLAGS} -I${ART_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${AMEMC} ${WASMISA} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.so
+	@cp ${TMP_DIR}/$(@:%_rt=%)_wasm.so ${ABIN_DIR} 
+#	@rm -rf ${TMP_DIR}
 
