@@ -77,6 +77,7 @@ struct sandbox {
 } PAGE_ALIGNED;
 
 #ifndef STANDALONE
+#ifdef SBOX_SCALE_ALLOC
 struct sandbox_request {
 	struct module *mod;
 	char *args;
@@ -84,6 +85,9 @@ struct sandbox_request {
 	struct sockaddr *addr;
 };
 typedef struct sandbox_request sbox_request_t;
+#else
+typedef struct sandbox sbox_request_t;
+#endif
 #else
 typedef struct sandbox sbox_request_t;
 #endif
@@ -106,6 +110,7 @@ static inline sbox_request_t *
 sbox_request_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr)
 {
 #ifndef STANDALONE
+#ifdef SBOX_SCALE_ALLOC
 	sbox_request_t *s = malloc(sizeof(sbox_request_t));
 	assert(s);
 	s->mod = mod;
@@ -114,6 +119,9 @@ sbox_request_alloc(struct module *mod, char *args, int sock, const struct sockad
 	s->addr = (struct sockaddr *)addr;
 	sandbox_run(s);
 	return s;
+#else
+	return sandbox_alloc(mod, args, sock, addr);
+#endif
 #else
 	return sandbox_alloc(mod, args, sock, addr);
 #endif

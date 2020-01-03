@@ -48,11 +48,16 @@ sandbox_pull(void)
 
 		if (!s) break;
 #ifndef STANDALONE
+#ifdef SBOX_SCALE_ALLOC
 		struct sandbox *sb = sandbox_alloc(s->mod, s->args, s->sock, s->addr);
 		assert(sb);
 		free(s);
 		sb->state = SANDBOX_RUNNABLE;
 		sandbox_local_run(sb);
+#else
+		assert(s->state == SANDBOX_RUNNABLE);
+		sandbox_local_run(s);
+#endif
 #else
 		assert(s->state == SANDBOX_RUNNABLE);
 		sandbox_local_run(s);
@@ -223,7 +228,9 @@ sandbox_run(sbox_request_t *s)
 	// sandbox_run adds to the global ready queue..
 	// each sandboxing thread pulls off of that global ready queue..
 	debuglog("[%p: %s]\n", s, s->mod->name);
-//	s->state = SANDBOX_RUNNABLE;
+#ifndef SBOX_SCALE_ALLOC
+	s->state = SANDBOX_RUNNABLE;
+#endif
 	sandbox_deque_push(s);
 #else
 	sandbox_switch(s);

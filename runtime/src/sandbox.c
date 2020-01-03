@@ -314,6 +314,10 @@ sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *a
 	arch_context_init(&sb->ctxt, (reg_t)sandbox_entry, (reg_t)(sb->stack_start + sb->stack_size));
 #ifdef STANDALONE
 	sandbox_run(sb);
+#else
+#ifndef SBOX_SCALE_ALLOC
+	sandbox_run(sb);
+#endif
 #endif
 
 	return sb;
