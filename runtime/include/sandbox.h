@@ -144,6 +144,15 @@ sandbox_current_set(struct sandbox *sbox)
 	module_indirect_table = sbox->mod->indirect_table;
 }
 
+static inline void
+sandbox_current_check(void)
+{
+	struct sandbox *c = sandbox_current();
+
+	assert(c && c->linear_start == sandbox_lmbase && c->linear_size == sandbox_lmbound);
+	assert(c->mod->indirect_table == module_indirect_table);
+}
+
 static inline struct module *
 sandbox_module(struct sandbox *s)
 {

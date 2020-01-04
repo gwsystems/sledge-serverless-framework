@@ -46,7 +46,6 @@ sandbox_args_setup(i32 argc)
 {
 	struct sandbox *curr = sandbox_current();
 	char *args = sandbox_args();
-	if (!args) return;
 
 	// whatever gregor has, to be able to pass args to a module!
 	curr->args_offset = sandbox_lmbound;
@@ -66,6 +65,7 @@ sandbox_args_setup(i32 argc)
 
 		string_off += str_sz;
 	}
+	stub_init(string_off);
 }
 
 static inline void
@@ -249,7 +249,6 @@ sandbox_entry(void)
 	assert(f == 1);
 	f = io_handle_open(2);
 	assert(f == 2);
-	sandbox_args_setup(argc);
 
 #ifndef STANDALONE
 	http_parser_init(&curr->hp, HTTP_REQUEST);
@@ -266,10 +265,12 @@ sandbox_entry(void)
 	{
 		curr->rr_data_len = 0; // TODO: do this on first write to body.
 		alloc_linear_memory();
-
 		// perhaps only initialized for the first instance? or TODO!
 		//module_table_init(curr_mod);
+		module_globals_init(curr_mod);
 		module_memory_init(curr_mod);
+		sandbox_args_setup(argc);
+
 		curr->retval = module_entry(curr_mod, argc, curr->args_offset);
 
 		sandbox_client_response_set();

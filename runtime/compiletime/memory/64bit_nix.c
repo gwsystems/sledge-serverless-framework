@@ -58,6 +58,24 @@ get_i64(i32 offset)
 	return *(i64 *)address;
 }
 
+INLINE i32
+get_global_i32(i32 offset)
+{
+	char *mem_as_chars = (char *)sandbox_lmbase;
+	void *address = &mem_as_chars[offset];
+
+	return *(i32 *)address;
+}
+
+INLINE i64
+get_global_i64(i32 offset)
+{
+	char *mem_as_chars = (char *)sandbox_lmbase;
+	void *address = &mem_as_chars[offset];
+
+	return *(i64 *)address;
+}
+
 // Now setting routines
 INLINE void
 set_f32(i32 offset, float v)
@@ -106,6 +124,24 @@ set_i32(i32 offset, i32 v)
 
 INLINE void
 set_i64(i32 offset, i64 v)
+{
+	char *mem_as_chars = (char *)sandbox_lmbase;
+	void *address = &mem_as_chars[offset];
+
+	*(i64 *)address = v;
+}
+
+INLINE void
+set_global_i32(i32 offset, i32 v)
+{
+	char *mem_as_chars = (char *)sandbox_lmbase;
+	void *address = &mem_as_chars[offset];
+
+	*(i32 *)address = v;
+}
+
+INLINE void
+set_global_i64(i32 offset, i64 v)
 {
 	char *mem_as_chars = (char *)sandbox_lmbase;
 	void *address = &mem_as_chars[offset];

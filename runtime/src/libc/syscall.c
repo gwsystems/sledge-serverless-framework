@@ -2,6 +2,7 @@
 
 /* code from https://github.com/gwsystems/silverfish/blob/master/runtime/libc/libc_backing.c */
 #include <runtime.h>
+#include <sandbox.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -32,9 +33,41 @@
 
 // offset = a WASM ptr to memory the runtime can use
 void
-stub_init(char *program_name, i32 offset, mod_init_libc_fn_t libcfn)
+stub_init(i32 offset)
 {
-	printf("Don't think we should reinit libc! so ignore for now!\n");
+	// What program name will we put in the auxiliary vectors
+	char *program_name = sandbox_current()->mod->name;
+	// Copy the program name into WASM accessible memory
+	i32 program_name_offset = offset;
+	strcpy(get_memory_ptr_for_runtime(offset, sizeof(program_name)), program_name);
+	offset += sizeof(program_name);
+
+	// The construction of this is:
+	// evn1, env2, ..., NULL, auxv_n1, auxv_1, auxv_n2, auxv_2 ..., NULL
+	i32 env_vec[] = {
+		// Env variables would live here, but we don't supply any
+		0,
+		// We supply only the bare minimum AUX vectors
+		AT_PAGESZ,
+		WASM_PAGE_SIZE,
+		AT_UID,
+		UID,
+		AT_EUID,
+		UID,
+		AT_GID,
+		GID,
+		AT_EGID,
+		GID,
+		AT_SECURE,
+		0,
+		AT_RANDOM,
+		(i32) rand(), // It's pretty stupid to use rand here, but w/e
+		0,
+	};
+	i32 env_vec_offset = offset;
+	memcpy(get_memory_ptr_for_runtime(env_vec_offset, sizeof(env_vec)), env_vec, sizeof(env_vec));
+
+	module_libc_init(sandbox_current()->mod, env_vec_offset, program_name_offset);
 }
 
 // Emulated syscall implementations

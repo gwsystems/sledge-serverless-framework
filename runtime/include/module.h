@@ -13,6 +13,7 @@ struct module {
 	mod_glb_fn_t glb_init_fn;
 	mod_mem_fn_t mem_init_fn;
 	mod_tbl_fn_t tbl_init_fn;
+	mod_libc_fn_t libc_init_fn;
 
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
 
@@ -71,10 +72,24 @@ module_is_valid(struct module *mod)
 }
 
 static inline void
-module_table_init(struct module *mod)
+module_globals_init(struct module *mod)
 {
 	// called in a sandbox.
+	mod->glb_init_fn();
+}
+
+static inline void
+module_table_init(struct module *mod)
+{
+	// called at module creation time (once only per module).
 	mod->tbl_init_fn();
+}
+
+static inline void
+module_libc_init(struct module *mod, i32 env, i32 args)
+{
+	// called in a sandbox.
+	mod->libc_init_fn(env, args);
 }
 
 static inline void

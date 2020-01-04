@@ -113,7 +113,7 @@ sandbox_local_free(unsigned int n)
 {
 	int i = 0;
 
-	while (i < n) {
+	while (i < n && !ps_list_head_empty(&endq)) {
 		i++;
 		struct sandbox *s = ps_list_head_first_d(&endq, struct sandbox);
 		if (!s) break;

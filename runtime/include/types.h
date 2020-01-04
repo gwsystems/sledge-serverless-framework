@@ -71,7 +71,7 @@ void populate_table(void);
 
 // memory/* also provides the table access functions
 // TODO: Change this to use a compiled in size
-#define INDIRECT_TABLE_SIZE 1024
+#define INDIRECT_TABLE_SIZE (1<<10) 
 
 struct indirect_table_entry {
 	u32 type_id;
@@ -90,7 +90,7 @@ typedef i32 (*mod_main_fn_t)(i32 a, i32 b);
 typedef void (*mod_glb_fn_t)(void);
 typedef void (*mod_mem_fn_t)(void);
 typedef void (*mod_tbl_fn_t)(void);
-typedef void (*mod_init_libc_fn_t)(i32, i32);
+typedef void (*mod_libc_fn_t)(i32, i32);
 
 typedef enum {
 	MOD_ARG_MODPATH = 0,
@@ -104,7 +104,7 @@ typedef enum {
 #define MOD_GLB_FN  "populate_globals"
 #define MOD_MEM_FN  "populate_memory"
 #define MOD_TBL_FN  "populate_table"
-#define MOD_INIT_LIBC_FN "wasmf___init_libc"
+#define MOD_LIBC_FN "wasmf___init_libc"
 
 #define MOD_MAX_ARGS   16
 #define MOD_ARG_MAX_SZ 64
