@@ -13,11 +13,11 @@ main(int argc, char **argv)
 { 
 	unsigned long n = 0, r;
 	scanf("%lu", &n);
-	unsigned long long st = get_time(), en;
+//	unsigned long long st = get_time(), en;
 	r = fib(n);
-	en = get_time();
-	fprintf(stderr, "%lu\n", r);
+//	en = get_time();
+	printf("%lu\n", r);
 
-	print_time(st, en);
+//	print_time(st, en);
 	return 0; 
 } 
