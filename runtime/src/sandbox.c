@@ -133,11 +133,11 @@ sandbox_client_request_get(void)
 	struct sandbox *curr = sandbox_current();
 
 	curr->rr_data_len = 0;
-#ifndef USE_UVIO
+#ifndef USE_HTTP_UVIO
 	int r = 0;
 	r = recv(curr->csock, (curr->req_resp_data), curr->mod->max_req_sz, 0);
 	if (r <= 0) {
-		perror("recv");
+		if (r < 0) perror("recv1");
 		return r;
 	}
 	while (r > 0) {
@@ -148,13 +148,13 @@ sandbox_client_request_get(void)
 
 		r = recv(curr->csock, (curr->req_resp_data + r), curr->mod->max_req_sz - r, 0);
 		if (r < 0) {
-			perror("recv");
+			perror("recv2");
 			return r;
 		}
 	}
 #else
 	int r = uv_read_start((uv_stream_t *)&curr->cuv, sb_alloc_callback, sb_read_callback);
-	sandbox_block();
+	sandbox_block_http();
 	if (curr->rr_data_len == 0) return 0;
 #endif
 
@@ -170,15 +170,6 @@ sandbox_client_response_set(void)
 #ifndef STANDALONE
 	struct sandbox *curr = sandbox_current();
 
-#ifndef USE_UVIO
-	strcpy(curr->req_resp_data + curr->rr_data_len, "HTTP/1.1 200 OK\r\n");
-
-	// TODO: response set in req_resp_data
-	curr->rr_data_len += strlen("HTTP/1.1 200 OK\r\n");
-
-	int r = send(curr->csock, curr->req_resp_data, curr->rr_data_len, 0);
-	if (r < 0) perror("send");
-#else
 	int bodylen = curr->rr_data_len;
 	if (bodylen > 0) {
 		http_response_body_set(curr->req_resp_data, bodylen);
@@ -217,10 +208,14 @@ sandbox_client_response_set(void)
 	curr->rr_data_len += strlen("HTTP/1.1 200 OK\r\n");
 
 	http_response_status_set(st, strlen("HTTP/1.1 200 OK\r\n"));
+	int n = http_response_vector();
+#ifndef USE_HTTP_UVIO
+	int r = writev(curr->csock, curr->rsi.bufs, n);
+	if (r < 0) perror("writev");
+#else
 	uv_write_t req = { .data = curr, };
-	int n = http_response_uv();
 	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, curr->rsi.bufs, n, sb_write_callback);
-	sandbox_block();
+	sandbox_block_http();
 #endif
 	return r;
 #else
@@ -253,7 +248,11 @@ sandbox_entry(void)
 #ifndef STANDALONE
 	http_parser_init(&curr->hp, HTTP_REQUEST);
 	curr->hp.data = curr;
-#ifdef USE_UVIO
+#ifdef USE_HTTP_UVIO
+#ifndef USE_UVIO
+	printf("UVIO not enabled!\n");
+	assert(0);
+#endif
 	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&curr->cuv);
 	assert(r == 0);
 	curr->cuv.data = curr;
@@ -277,9 +276,9 @@ sandbox_entry(void)
 	}
 
 #ifndef STANDALONE
-#ifdef USE_UVIO
+#ifdef USE_HTTP_UVIO
 	uv_close((uv_handle_t *)&curr->cuv, sb_close_callback);
-	sandbox_block();
+	sandbox_block_http();
 #else
 	close(curr->csock);
 #endif

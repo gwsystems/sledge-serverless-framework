@@ -116,7 +116,7 @@ typedef enum {
 #define JSON_ELE_MAX 16
 
 // FIXME: some naive work-stealing here..
-#define SBOX_PULL_MAX 16
+#define SBOX_PULL_MAX 1
 
 #define SBOX_MAX_OPEN 32
 #define SBOX_PREOPEN_MAGIC (707707707) // reads lol lol lol upside down
