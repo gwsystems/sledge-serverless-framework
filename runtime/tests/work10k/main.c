@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef MAX_BUF
-#define MAX_BUF (1024*1024*1) //1m
-#endif
+#define MAX_BUF 10240
 
 //__attribute__((optnone)) int
 int

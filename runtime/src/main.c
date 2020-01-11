@@ -20,6 +20,18 @@ u32 ncores = 0, sbox_ncores = 0, sbox_core_st = 0;
 
 pthread_t rtthd[SBOX_NCORES];
 
+static unsigned long long
+get_time()
+{
+    struct timeval Tp;
+    int stat;
+    stat = gettimeofday (&Tp, NULL);
+    if (stat != 0)
+      printf ("Error return from gettimeofday: %d", stat);
+    return (Tp.tv_sec * 1000000 + Tp.tv_usec);
+}
+
+
 static void
 usage(char *cmd)
 {
@@ -141,7 +153,11 @@ main(int argc, char** argv)
 	/* in current dir! */
 	struct module *m = module_alloc(args, args, ac, 0, 0, 0, 0, 0, 0);
 	assert(m);
+
+	//unsigned long long st = get_time(), en;
 	struct sandbox *s = sandbox_alloc(m, args, 0, NULL);
+	//en = get_time();
+	//fprintf(stderr, "%llu\n", en - st);
 
 	exit(0);
 #endif
