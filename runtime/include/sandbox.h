@@ -193,9 +193,12 @@ sandbox_args(void)
 
 //void sandbox_run(struct sandbox *s);
 void *sandbox_run_func(void *data);
-struct sandbox *sandbox_schedule(void);
+struct sandbox *sandbox_schedule(int interrupt);
 void sandbox_block(void);
 void sandbox_wakeup(sandbox_t *sb);
+// called in sandbox_entry() before and after fn() execution 
+// for http request/response processing using uvio
+void sandbox_block_http(void);
 void sandbox_response(void);
 
 // should be the entry-point for each sandbox so it can do per-sandbox mem/etc init.

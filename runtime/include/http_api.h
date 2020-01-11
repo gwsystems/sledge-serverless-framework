@@ -8,7 +8,7 @@ int http_request_parse_sb(struct sandbox *s, size_t l);
 int http_response_header_set_sb(struct sandbox *s, char *h, int len);
 int http_response_body_set_sb(struct sandbox *s, char *body, int len);
 int http_response_status_set_sb(struct sandbox *s, char *status, int len);
-int http_response_uv_sb(struct sandbox *s);
+int http_response_vector_sb(struct sandbox *s);
 
 void http_init(void);
 
@@ -37,9 +37,9 @@ http_response_status_set(char *status, int len)
 }
 
 static inline int
-http_response_uv(void)
+http_response_vector(void)
 {
-	return http_response_uv_sb(sandbox_current());
+	return http_response_vector_sb(sandbox_current());
 }
 
 static inline int
