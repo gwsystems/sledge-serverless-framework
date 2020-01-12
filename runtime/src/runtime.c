@@ -1,4 +1,5 @@
 #include <runtime.h>
+#include <sys/mman.h>
 #include <types.h>
 #include <sandbox.h>
 #include <arch/context.h>
@@ -271,6 +272,8 @@ sandbox_exit(void)
 	struct sandbox *n = sandbox_schedule(0);
 	assert(n != curr);
 	softint_enable();
+	//unmap linear memory only!
+	munmap(curr->linear_start, SBOX_MAX_MEM + PAGE_SIZE);
 	//sandbox_local_end(curr);
 	sandbox_switch(n);
 #else

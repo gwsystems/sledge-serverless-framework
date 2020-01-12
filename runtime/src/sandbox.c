@@ -21,7 +21,7 @@ sandbox_memory_map(struct module *m)
 	if (lm_sz + sb_sz > mem_sz) return NULL;
 	assert(round_up_to_page(sb_sz) == sb_sz);
 	unsigned long rw_sz = sb_sz + lm_sz; 
-	void *addr = mmap(NULL, mem_sz + /* guard page */ PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); 
+	void *addr = mmap(NULL, sb_sz + mem_sz + /* guard page */ PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); 
 	if (addr == MAP_FAILED) return NULL;
 
 	void *addr_rw = mmap(addr, sb_sz + lm_sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
@@ -217,7 +217,7 @@ sandbox_client_response_set(void)
 	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, curr->rsi.bufs, n, sb_write_callback);
 	sandbox_block_http();
 #endif
-	return r;
+	return 0;
 #else
 	return 0;
 #endif
@@ -335,6 +335,10 @@ sandbox_free(struct sandbox *sb)
 	// TODO: this needs to be enhanced. you may be killing a sandbox when its in any other execution states.
 	if (sb->state != SANDBOX_RETURNED) return;
 
+	int sz = sizeof(struct sandbox);
+#ifndef STANDALONE
+	sz += sb->mod->max_rr_sz;
+#endif
 	module_release(sb->mod);
 
 	// TODO free(sb->args);
@@ -342,10 +346,10 @@ sandbox_free(struct sandbox *sb)
 	size_t stksz = sb->stack_size;
 
 	// depending on the memory type
-	free_linear_memory(sb->linear_start, sb->linear_size, sb->linear_max_size);
+	//free_linear_memory(sb->linear_start, sb->linear_size, sb->linear_max_size);
 
 	// mmaped memory includes sandbox structure in there.
-	ret = munmap(sb, SBOX_MAX_MEM + PAGE_SIZE);
+	ret = munmap(sb, sz);
 	if (ret) perror("munmap sandbox");
 
 	// remove stack!
