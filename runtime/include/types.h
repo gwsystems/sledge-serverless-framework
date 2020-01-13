@@ -157,4 +157,9 @@ typedef enum {
 #define HTTP_HEADER_MAXSZ    32
 #define HTTP_HEADERVAL_MAXSZ 64
 
+#define HTTP_RESP_200OK "HTTP/1.1 200 OK\r\n"
+#define HTTP_RESP_CONTTYPE "Content-type:                                 \r\n"
+#define HTTP_RESP_CONTLEN  "Content-length:             \r\n\r\n" //content body follows this
+#define HTTP_RESP_CONTTYPE_PLAIN "text/plain"
+
 #endif /* SFRT_TYPES_H */
