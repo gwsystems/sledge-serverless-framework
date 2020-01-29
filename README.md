@@ -25,17 +25,15 @@ To setup this environment, run:
 ./devenv.sh setup
 ```
 
+## Using the Docker container to compile your serverless functions
+
 To enter the docker environment, run:
 
 ```bash
 ./devenv.sh run
 ```
 
-## To run applications
-
-### From within the Docker container environment
-
-Run the following to copy the awsmrt binary to /awsm/runtime/bin.
+The first time you enter this environment, run the following to copy the awsmrt binary to /awsm/runtime/bin.
 
 ```bash
 cd /awsm/runtime
@@ -49,7 +47,7 @@ cd /awsm/runtime/tests/
 make clean all
 ```
 
-You've now built the binary and some tests. We will now execute these commands from the host
+You now have everything that you need to execute your first serverless function on aWsm
 
 To exit the container:
 
@@ -57,23 +55,15 @@ To exit the container:
 exit
 ```
 
-### From the host environment
-
-You should be in the root project directory (not in the Docker container)
+To stop the Docker container:
 
 ```bash
-cd runtime/bin/
+./devenv.sh stop
 ```
 
-We can now run aWsm with one of the serverless functions we built. Let's run Fibonacci!
+## Running your first serverless function
 
-Because serverless functions are loaded by aWsm as shared libraries, we want to add the `runtime/tests/` directory to LD_LIBRARY_PATH.
-
-```bash
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./awsmrt ../tests/test_fibonacci.json
-```
-
-The JSON file we pass contains a variety of configuration information:
+An aWsm serverless function consists of a shared library (*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:. 
 
 ```json
 {
@@ -91,19 +81,37 @@ The JSON file we pass contains a variety of configuration information:
 }
 ```
 
-Notice that it is configured to run on port 10000. The `name` field is also used to determine the path where our serverless function is served. In our case, our function is available at `http://localhost:10000/fibonacci`
+The `port` and `name` fields are used to determine the path where our serverless function will be served served. 
 
-Our fibonacci function expects an HTTP POST body of type "text/plain" which it can parse as an integer to figure out which Fibonacci number we want.
+In our case, we are running the aWsm runtime on localhost, so our function is available at `http://localhost:10000/fibonacci`
 
-Let's get the 10th. Note that I'm using [HTTPie](https://httpie.org/) to send a POST request with a body containing the parameter I want to pass to my serverless function.
+Our fibonacci function will parse a single argument from the HTTP POST body that we send. The expected Content-Type  is "text/plain" and the buffer is sized to 1024 bytes for both the request and response. This is sufficient for our simple Fibonacci function, but this must be changed and sized for other functions, such as image processing.
 
-Note: You possibly run the awsmrt command in the foreground. If so, you should open a new terminal session.
+Now that we understand roughly how the aWsm runtime interacts with serverless function, let's run Fibonacci!
+
+From the root project directory of the host environment (not the Docker container!), navigate to the binary directory
+
+```bash
+cd runtime/bin/
+```
+
+Now run the awsmrt binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by aWsm as shared libraries, we want to add the `runtime/tests/` directory to LD_LIBRARY_PATH.
+
+```bash
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./awsmrt ../tests/test_fibonacci.json
+```
+
+While you don't see any output to the console, the runtime is running in the foreground.
+
+Let's now invoke our serverless function to compute the 10th fibonacci number. I'll use [HTTPie](https://httpie.org/) to send a POST request with a body containing the parameter I want to pass to my serverless function. Feel free to use cURL or whatever network client you prefer!
+
+Open a new terminal session and execute the following
 
 ```bash
 echo "10" | http :10000
 ```
 
-In my case, I received the following in response. The response is 55, which seems to be correct!
+You should receive the following in response. The serverless function says that the 10th fibonacci number is 55, which seems to be correct!
 
 ```bash
 HTTP/1.1 200 OK
@@ -113,10 +121,18 @@ Content-type: text/plain
 55
 ```
 
-## Stopping the Runtime
+When done, terminal the aWsm runtime with `Ctrl+c`
 
-When you are finished, stop aWsm with
+## Removing the aWsm Runtime
+
+If you are finished working with the aWsm runtime and wish to remove it, run the following command to delete our Docker build and runtime images.
 
 ```bash
-./devenv.sh stop
+./devenv.sh rma
 ```
+
+And then simply delete this repository.
+
+## Problems or Feedback?
+
+If you encountered bugs or have feedback, please let us know in our [issue tracker.](https://github.com/phanikishoreg/awsm-Serverless-Framework/issues)
