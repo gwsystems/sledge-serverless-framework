@@ -1,80 +1,157 @@
 # aWsm (awesome) 
 
-This project is a work-in-progress to build an efficient WASM runtime, **aWsm**, using `silverfish` compiler.
+**aWsm** is an efficient WASM runtime built with the `silverfish` compiler. This is an active research effort with regular breaking changes and no guarantees of stability. 
+
+## Host Dependencies
+- Docker
+
+Additionally, if you want to execute the Awsm runtime on your host environment, you need libuv. A reason you might want to do this is to debug your serverless function, as GDB does not seem to run properly within a Docker container. 
+
+If on Debian, you can install libuv with the following:
+```bash
+./devenv.sh install_libuv
+```
 
 ## Setting up the environment
+**Note: These steps require Docker. Make sure you've got it installed!**
 
-To use a Docker container based environment, that makes your life easy by installing all the required dependencies and builds the toolchain for you.
-Run
-```
+We provide a Docker build environment configured with the dependencies and toolchain needed to build the Awsm runtime and serverless functions.
+
+To setup this environment, run:
+```bash
 ./devenv.sh setup
 ```
-**make sure you've docker installed.**
 
-To enter the docker environment,
+To enter the docker environment, run:
 ```
 ./devenv.sh run
-```
-**spawns a shell in the container.**
-
-To setup toolchain path (within a container, per `run`)
-```
-source /opt/awsm/bin/devenv_src.sh
 ```
 
 ## To run applications
 
-There are a set of benchmarking applications in `code_benches` directory that should be "loadable", WIP!!
-**All the remaining steps are in a Docker container environment.**
+**From within the Docker container environment.**
 
-```
-cd /awsm/tests/
-
-make clean all
-```
-This compiles all benchmarks in silverfish and other runtime tests and copies `<application>_wasm.so` to /awsm/runtime/bin.
-
+Run the following to copy the awsmrt binary to /awsm/runtime/bin.
 ```
 cd /awsm/runtime
 make clean all
 ```
-This will copy the awsmrt binary to /awsm/runtime/bin.
+
+There are a set of benchmarking applications in the `/awsm/runtime/tests` directory. Run the following to compile all benchmarks runtime tests using silverfish and then copy all resulting `<application>_wasm.so` files to /awsm/runtime/bin.
 
 ```
-cd /awsm/runtime/bin
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`
+cd /awsm/runtime/tests/
+make clean all
 ```
 
-**Create input and test files**
-Supports module registration using json format now and invocations as well.
-More importantly, each module runs a udp server and waits for connections.
-The udpclient tool in `runtime/tools` directory uses a format `<ip:port>$<json_request_string>`, 
-connects to <ip:port> and sends the <json_reqest_string> to the IP address it connects at the start.
+You've now built the binary and some tests. We will now execute these commands from the host
 
-To run `awsm runtime`,
+To exit the container:
 ```
-./awsmrt ../tests/test_modules.json
+exit
 ```
 
-To run the udpclient,
+**From the host environment**
+
+You should be in the root project directory (not in the Docker container)
+
 ```
-./udpclient ../tests/test_sandboxes.jsondata
+cd runtime/bin/
 ```
-And follow the prompts in udpclient to send requests to the runtime.
 
-## WIP (Work In Progress)
+We can now run Awsm with one of the serverless functions we built. Let's run Fibonacci!
 
-* ~~Dynamic loading of multiple modules~~
-* ~~Multiple sandboxes (includes multiple modules, multiple instances of a module)~~
-* ~~Bookkeeping of multiple modules and multiple sandboxes.~~
-* ~~Runtime to "poll"?? on requests to instantiate a module~~ and respond with the result.
-* ~~Runtime to schedule multiple sandboxes.~~
-* Efficient scheduling and performance optimizations.
-* ~~Runtime to enable event-based I/O (using `libuv`).~~ (basic I/O works with libuv)
-* To enable WASI interface, perhaps through the use of WASI-SDK
+Because serverless functions are loaded by Aswsm as shared libraries, we want to add the `runtime/tests/` directory to LD_LIBRARY_PATH.
 
-## Silverfish compiler
+```
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./awsmrt ../tests/test_fibonacci.json
+```
 
-Silverfish compiler uses `llvm` and interposes on loads/stores to enable sandbox isolation necessary in `aWsm` multi-sandboxing runtime.
-`aWsm` runtime includes the compiler-runtime API required for bounds checking in sandboxes.
-Most of the sandboxing isolation is copied from the silverfish runtime.
+The JSON file we pass contains a variety of configuration information:
+```json
+{
+	"active" : "yes",
+	"name" : "fibonacci",
+	"path" : "fibonacci_wasm.so",
+	"port" : 10000,
+	"argsize" : 1,
+    "http-req-headers" : [ ],
+	"http-req-content-type" : "text/plain",
+    "http-req-size": 1024,
+    "http-resp-headers" : [ ],
+    "http-resp-size" : 1024,
+	"http-resp-content-type" : "text/plain"
+}
+```
+
+Notice that it is configured to run on port 10000. The `name` field is also used to determine the path where our serverless function is served. In our case, our function is available at `http://localhost:10000/fibonacci`
+
+Our fibonacci function expects an HTTP POST body of type "text/plain" which it can parse as an integer to figure out which Fibonacci number we want.
+
+Let's get the 10th. Note that I'm using ApacheBench to make this request. 
+
+Note: You possibly run the awsmrt command in the foreground. If so, you should open a new terminal session.
+
+```bash
+echo 10 >fib.txt
+ab -c 1 -n 1 -p fib.txt -v 2 http://localhost:10000/fibonacci
+```
+
+In my case, I received the following in response. The response is 55, which seems to be correct!
+
+```
+This is ApacheBench, Version 2.3 <$Revision: 1807734 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking localhost (be patient)...INFO: POST header == 
+---
+POST /fibonacci HTTP/1.0
+Content-length: 3
+Content-type: text/plain
+Host: localhost:10000
+User-Agent: ApacheBench/2.3
+Accept: */*
+
+
+---
+LOG: header received:
+HTTP/1.1 200 OK
+Content-type: text/plain                      
+Content-length: 3           
+
+55
+
+..done
+
+
+Server Software:        
+Server Hostname:        localhost
+Server Port:            10000
+
+Document Path:          /fibonacci
+Document Length:        3 bytes
+
+Concurrency Level:      1
+Time taken for tests:   0.001 seconds
+Complete requests:      1
+Failed requests:        0
+Total transferred:      100 bytes
+Total body sent:        141
+HTML transferred:       3 bytes
+Requests per second:    952.38 [#/sec] (mean)
+Time per request:       1.050 [ms] (mean)
+Time per request:       1.050 [ms] (mean, across all concurrent requests)
+Transfer rate:          93.01 [Kbytes/sec] received
+                        131.14 kb/s sent
+                        224.14 kb/s total
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        1    1   0.0      1       1
+Processing:     0    0   0.0      0       0
+Waiting:        0    0   0.0      0       0
+Total:          1    1   0.0      1       1
+```
+
+

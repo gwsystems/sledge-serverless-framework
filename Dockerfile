@@ -55,11 +55,10 @@ RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
 RUN curl https://sh.rustup.rs -sSf | \
-    sh -s -- --default-toolchain nightly-2019-09-25 -y && \
-        /root/.cargo/bin/rustup update nightly
+	sh -s -- --default-toolchain stable -y
 ENV PATH=/root/.cargo/bin:$PATH
 
-RUN rustup component add rustfmt --toolchain nightly-2019-09-25-x86_64-unknown-linux-gnu
+RUN rustup component add rustfmt
 RUN rustup target add wasm32-wasi
 
 RUN cargo install --debug cargo-audit cargo-watch rsign2
