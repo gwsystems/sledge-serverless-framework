@@ -1,140 +1,140 @@
 {
-	"active" : "no",
-	"name" : "adpcm",
-	"path" : "adpcm_wasm.so",
-	"port" : 10000,
-	"argsize" : 2
+	"active": "no",
+	"name": "adpcm",
+	"path": "adpcm_wasm.so",
+	"port": 10000,
+	"argsize": 2
 },
 {
-	"active" : "yes",
-	"name" : "bitcount",
-	"path" : "bitcount_wasm.so",
-	"port" : 10002,
-	"argsize" : 2
+	"active": "yes",
+	"name": "bitcount",
+	"path": "bitcount_wasm.so",
+	"port": 10002,
+	"argsize": 2
 },
 {
-	"active" : "yes",
-	"name" : "basic_math",
-	"path" : "basic_math_wasm.so",
-	"port" : 10004,
-	"argsize" : 1
+	"active": "yes",
+	"name": "basic_math",
+	"path": "basic_math_wasm.so",
+	"port": 10004,
+	"argsize": 1
 },
 {
-	"active" : "no",
-	"name" : "binarytrees",
-	"path" : "binarytrees_wasm.so",
-	"port" : 10006,
-	"argsize" : 2
+	"active": "no",
+	"name": "binarytrees",
+	"path": "binarytrees_wasm.so",
+	"port": 10006,
+	"argsize": 2
 },
 {
-	"active" : "no",
-	"name" : "crc",
-	"path" : "crc_wasm.so",
-	"port" : 10008,
-	"argsize" : 2
+	"active": "no",
+	"name": "crc",
+	"path": "crc_wasm.so",
+	"port": 10008,
+	"argsize": 2
 },
 {
-	"active" : "no",
-	"name" : "dijkstra",
-	"path" : "dijkstra_wasm.so",
-	"port" : 10010,
-	"argsize" : 2
+	"active": "no",
+	"name": "dijkstra",
+	"path": "dijkstra_wasm.so",
+	"port": 10010,
+	"argsize": 2
 },
 {
-	"active" : "no",
-	"name" : "forever",
-	"path" : "forever_wasm.so",
-	"port" : 10012,
-	"argsize" : 1
+	"active": "no",
+	"name": "forever",
+	"path": "forever_wasm.so",
+	"port": 10012,
+	"argsize": 1
 },
 {
-	"active" : "no",
-	"name" : "fornever",
-	"path" : "forever_wasm.so",
-	"port" : 10014,
-	"argsize" : 2
+	"active": "no",
+	"name": "fornever",
+	"path": "forever_wasm.so",
+	"port": 10014,
+	"argsize": 2
 },
 {
-	"active" : "no",
-	"name" : "fft",
-	"path" : "fft_wasm.so",
-	"port" : 10016,
-	"argsize" : 3
+	"active": "no",
+	"name": "fft",
+	"path": "fft_wasm.so",
+	"port": 10016,
+	"argsize": 3
 },
 {
-	"active" : "no",
-	"name" : "function_pointers",
-	"path" : "function_pointers_wasm.so",
-	"port" : 10018,
-	"argsize" : 1
+	"active": "no",
+	"name": "function_pointers",
+	"path": "function_pointers_wasm.so",
+	"port": 10018,
+	"argsize": 1
 },
 {
-	"active" : "no",
-	"name" : "gsm",
-	"path" : "gsm_wasm.so",
-	"port" : 10020,
-	"argsize" : 4
+	"active": "no",
+	"name": "gsm",
+	"path": "gsm_wasm.so",
+	"port": 10020,
+	"argsize": 4
 },
 {
-	"active" : "no",
-	"name" : "libjpeg",
-	"path" : "libjpeg_wasm.so",
-	"port" : 10022,
-	"argsize" : 1
+	"active": "no",
+	"name": "libjpeg",
+	"path": "libjpeg_wasm.so",
+	"port": 10022,
+	"argsize": 1
 },
 {
-	"active" : "no",
-	"name" : "mandelbrot",
-	"path" : "mandelbrot_wasm.so",
-	"port" : 10024,
-	"argsize" : 2
+	"active": "no",
+	"name": "mandelbrot",
+	"path": "mandelbrot_wasm.so",
+	"port": 10024,
+	"argsize": 2
 },
 {
-	"active" : "no",
-	"name" : "matrix_multiply",
-	"path" : "matrix_multiply_wasm.so",
-	"port" : 10026,
-	"argsize" : 1
+	"active": "no",
+	"name": "matrix_multiply",
+	"path": "matrix_multiply_wasm.so",
+	"port": 10026,
+	"argsize": 1
 },
 {
-	"active" : "no",
-	"name" : "particia",
-	"path" : "partricia_wasm.so",
-	"port" : 10028,
-	"argsize" : 2
+	"active": "no",
+	"name": "particia",
+	"path": "partricia_wasm.so",
+	"port": 10028,
+	"argsize": 2
 },
 {
-	"active" : "no",
-	"name" : "sqlite",
-	"path" : "sqlite_wasm.so",
-	"port" : 10030,
-	"argsize" : 1
+	"active": "no",
+	"name": "sqlite",
+	"path": "sqlite_wasm.so",
+	"port": 10030,
+	"argsize": 1
 },
 {
-	"active" : "yes",
-	"name" : "stringsearch",
-	"path" : "stringsearch_wasm.so",
-	"port" : 10032,
-	"argsize" : 1
+	"active": "yes",
+	"name": "stringsearch",
+	"path": "stringsearch_wasm.so",
+	"port": 10032,
+	"argsize": 1
 },
 {
-	"active" : "no",
-	"name" : "filesys",
-	"path" : "filesys_wasm.so",
-	"port" : 10034,
-	"argsize" : 3
+	"active": "no",
+	"name": "filesys",
+	"path": "filesys_wasm.so",
+	"port": 10034,
+	"argsize": 3
 },
 {
-	"active" : "no",
-	"name" : "sockserver",
-	"path" : "sockserver_wasm.so",
-	"port" : 10036,
-	"argsize" : 2
+	"active": "no",
+	"name": "sockserver",
+	"path": "sockserver_wasm.so",
+	"port": 10036,
+	"argsize": 2
 },
 {
-	"active" : "no",
-	"name" : "sockclient",
-	"path" : "sockclient_wasm.so",
-	"port" : 10038,
-	"argsize" : 3
+	"active": "no",
+	"name": "sockclient",
+	"path": "sockclient_wasm.so",
+	"port": 10038,
+	"argsize": 3
 }
