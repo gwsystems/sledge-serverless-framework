@@ -91,15 +91,17 @@ module_alloc(char *modname, char *modpath, i32 nargs, u32 stacksz, u32 maxheap, 
 	mod->entry_fn = (mod_main_fn_t)dlsym(mod->dl_handle, MOD_MAIN_FN);
 	if (mod->entry_fn == NULL) goto dl_error;
 	
-	// TODO: don't think this is necessary or implemented.
-	//mod->glb_init_fn = (mod_glb_fn_t)dlsym(mod->dl_handle, MOD_GLB_FN);
-	//if (mod->glb_init_fn == NULL) goto dl_error;
+	mod->glb_init_fn = (mod_glb_fn_t)dlsym(mod->dl_handle, MOD_GLB_FN);
+	if (mod->glb_init_fn == NULL) goto dl_error;
 
 	mod->mem_init_fn = (mod_mem_fn_t)dlsym(mod->dl_handle, MOD_MEM_FN);
 	if (mod->mem_init_fn == NULL) goto dl_error;
 
 	mod->tbl_init_fn = (mod_tbl_fn_t)dlsym(mod->dl_handle, MOD_TBL_FN);
 	if (mod->tbl_init_fn == NULL) goto dl_error;
+
+	mod->libc_init_fn = (mod_libc_fn_t)dlsym(mod->dl_handle, MOD_LIBC_FN);
+	if (mod->libc_init_fn == NULL) goto dl_error;
 
 	strncpy(mod->name, modname, MOD_NAME_MAX);
 	strncpy(mod->path, modpath, MOD_PATH_MAX);

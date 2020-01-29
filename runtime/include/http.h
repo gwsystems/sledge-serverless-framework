@@ -4,6 +4,7 @@
 #include <http_parser.h>
 #include <types.h>
 #include <uv.h>
+#include <sys/uio.h>
 
 /* all in-memory ptrs.. don't mess around with that! */
 struct http_header {
@@ -34,7 +35,11 @@ struct http_response {
 	int bodylen;
 	char *status;
 	int stlen;
+#ifdef USE_HTTP_UVIO
 	uv_buf_t bufs[HTTP_HEADERS_MAX * 2 + 3]; //max headers, one line for status code, remaining for body!
+#else
+	struct iovec bufs[HTTP_HEADERS_MAX * 2 + 3];
+#endif
 };
 
 #endif /* SFRT_HTTP_H */

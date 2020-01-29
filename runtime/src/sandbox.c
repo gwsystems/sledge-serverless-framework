@@ -21,7 +21,7 @@ sandbox_memory_map(struct module *m)
 	if (lm_sz + sb_sz > mem_sz) return NULL;
 	assert(round_up_to_page(sb_sz) == sb_sz);
 	unsigned long rw_sz = sb_sz + lm_sz; 
-	void *addr = mmap(NULL, mem_sz + /* guard page */ PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); 
+	void *addr = mmap(NULL, sb_sz + mem_sz + /* guard page */ PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); 
 	if (addr == MAP_FAILED) return NULL;
 
 	void *addr_rw = mmap(addr, sb_sz + lm_sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
@@ -46,7 +46,6 @@ sandbox_args_setup(i32 argc)
 {
 	struct sandbox *curr = sandbox_current();
 	char *args = sandbox_args();
-	if (!args) return;
 
 	// whatever gregor has, to be able to pass args to a module!
 	curr->args_offset = sandbox_lmbound;
@@ -66,6 +65,7 @@ sandbox_args_setup(i32 argc)
 
 		string_off += str_sz;
 	}
+	stub_init(string_off);
 }
 
 static inline void
@@ -133,11 +133,11 @@ sandbox_client_request_get(void)
 	struct sandbox *curr = sandbox_current();
 
 	curr->rr_data_len = 0;
-#ifndef USE_UVIO
+#ifndef USE_HTTP_UVIO
 	int r = 0;
 	r = recv(curr->csock, (curr->req_resp_data), curr->mod->max_req_sz, 0);
 	if (r <= 0) {
-		perror("recv");
+		if (r < 0) perror("recv1");
 		return r;
 	}
 	while (r > 0) {
@@ -146,15 +146,15 @@ sandbox_client_request_get(void)
 		struct http_request *rh = &curr->rqi;
 		if (rh->message_end) break;
 
-		r = recv(curr->csock, (curr->req_resp_data + r), curr->mod->max_req_sz - r, 0);
+		r = recv(curr->csock, (curr->req_resp_data + curr->rr_data_len), curr->mod->max_req_sz - curr->rr_data_len, 0);
 		if (r < 0) {
-			perror("recv");
+			perror("recv2");
 			return r;
 		}
 	}
 #else
 	int r = uv_read_start((uv_stream_t *)&curr->cuv, sb_alloc_callback, sb_read_callback);
-	sandbox_block();
+	sandbox_block_http();
 	if (curr->rr_data_len == 0) return 0;
 #endif
 
@@ -168,65 +168,117 @@ static inline int
 sandbox_client_response_set(void)
 {
 #ifndef STANDALONE
+	int sndsz = 0;
 	struct sandbox *curr = sandbox_current();
+	int rsp_hdr_len = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
+	int bodylen = curr->rr_data_len - rsp_hdr_len;
 
-#ifndef USE_UVIO
-	strcpy(curr->req_resp_data + curr->rr_data_len, "HTTP/1.1 200 OK\r\n");
+	memset(curr->req_resp_data, 0, strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN));
+	strncpy(curr->req_resp_data, HTTP_RESP_200OK, strlen(HTTP_RESP_200OK));
+	sndsz += strlen(HTTP_RESP_200OK);
 
-	// TODO: response set in req_resp_data
-	curr->rr_data_len += strlen("HTTP/1.1 200 OK\r\n");
-
-	int r = send(curr->csock, curr->req_resp_data, curr->rr_data_len, 0);
-	if (r < 0) perror("send");
-#else
-	int bodylen = curr->rr_data_len;
-	if (bodylen > 0) {
-		http_response_body_set(curr->req_resp_data, bodylen);
-		char len[16] = { 0 };
-		sprintf(len, "%d", bodylen);
-		//content-length = body length
-		char *key = curr->req_resp_data + curr->rr_data_len;
-		int lenlen = strlen("content-length: "), dlen = strlen(len);
-		strcpy(key, "content-length: ");
-		strncat(key + lenlen, len, dlen);
-		strncat(key + lenlen + dlen, "\r\n", 2);
-		http_response_header_set(key, lenlen + dlen + 2);
-		curr->rr_data_len += lenlen + dlen + 2;
-
-		//content-type as set in the headers.
-		key = curr->req_resp_data + curr->rr_data_len;
-		strcpy(key, "content-type: ");
-		lenlen = strlen("content-type: ");
-		dlen = strlen(curr->mod->rspctype);
-		if (dlen == 0) {
-			int l = strlen("text/plain\r\n\r\n");
-			strncat(key + lenlen, "text/plain\r\n\r\n", l);
-			http_response_header_set(key, lenlen + l);
-			curr->rr_data_len += lenlen + l;
-		} else {
-			strncat(key + lenlen, curr->mod->rspctype, dlen);
-			strncat(key + lenlen + dlen, "\r\n\r\n", 4);
-			http_response_header_set(key, lenlen + dlen + 4);
-			curr->rr_data_len += lenlen + dlen + 4;
-		}
-		//TODO - other headers requested in module!
+	if (bodylen == 0) goto done;
+	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTTYPE, strlen(HTTP_RESP_CONTTYPE));
+	if (strlen(curr->mod->rspctype) <= 0) {
+		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), HTTP_RESP_CONTTYPE_PLAIN, strlen(HTTP_RESP_CONTTYPE_PLAIN));
+	} else {
+		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), curr->mod->rspctype, strlen(curr->mod->rspctype));
 	}
+	sndsz += strlen(HTTP_RESP_CONTTYPE);
+	char len[10] = { 0 };
+	sprintf(len, "%d", bodylen);
+	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTLEN, strlen(HTTP_RESP_CONTLEN));
+	strncpy(curr->req_resp_data + sndsz + strlen("Content-length: "), len, strlen(len));
+	sndsz += strlen(HTTP_RESP_CONTLEN);
+	sndsz += bodylen;
 
-	char *st = curr->req_resp_data + curr->rr_data_len;
-	strcpy(st, "HTTP/1.1 200 OK\r\n");
-	curr->rr_data_len += strlen("HTTP/1.1 200 OK\r\n");
+done:
+	assert(sndsz == curr->rr_data_len);
 
-	http_response_status_set(st, strlen("HTTP/1.1 200 OK\r\n"));
-	uv_write_t req = { .data = curr, };
-	int n = http_response_uv();
-	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, curr->rsi.bufs, n, sb_write_callback);
-	sandbox_block();
-#endif
-	return r;
+#ifndef USE_HTTP_UVIO
+	int r = send(curr->csock, curr->req_resp_data, sndsz, 0);
+	if (r < 0) {
+		perror("send");
+		return -1;
+	}
+	while (r < sndsz) {
+		int s = send(curr->csock, curr->req_resp_data + r, sndsz - r, 0);
+		if (s < 0) {
+			perror("send");
+			return -1;
+		}
+		r += s;
+	}
 #else
+	uv_write_t req = { .data = curr, };
+	uv_buf_t bufv = uv_buf_init(curr->req_resp_data, sndsz);
+	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, &bufv, 1, sb_write_callback);
+	sandbox_block_http();
+#endif
+
+
 	return 0;
 #endif
 }
+
+//static inline int
+//sandbox_client_response_set(void)
+//{
+//#ifndef STANDALONE
+//	struct sandbox *curr = sandbox_current();
+//
+//	int bodylen = curr->rr_data_len;
+//	if (bodylen > 0) {
+//		http_response_body_set(curr->req_resp_data, bodylen);
+//		char len[16] = { 0 };
+//		sprintf(len, "%d", bodylen);
+//		//content-length = body length
+//		char *key = curr->req_resp_data + curr->rr_data_len;
+//		int lenlen = strlen("content-length: "), dlen = strlen(len);
+//		strcpy(key, "content-length: ");
+//		strncat(key + lenlen, len, dlen);
+//		strncat(key + lenlen + dlen, "\r\n", 2);
+//		http_response_header_set(key, lenlen + dlen + 2);
+//		curr->rr_data_len += lenlen + dlen + 2;
+//
+//		//content-type as set in the headers.
+//		key = curr->req_resp_data + curr->rr_data_len;
+//		strcpy(key, "content-type: ");
+//		lenlen = strlen("content-type: ");
+//		dlen = strlen(curr->mod->rspctype);
+//		if (dlen == 0) {
+//			int l = strlen("text/plain\r\n\r\n");
+//			strncat(key + lenlen, "text/plain\r\n\r\n", l);
+//			http_response_header_set(key, lenlen + l);
+//			curr->rr_data_len += lenlen + l;
+//		} else {
+//			strncat(key + lenlen, curr->mod->rspctype, dlen);
+//			strncat(key + lenlen + dlen, "\r\n\r\n", 4);
+//			http_response_header_set(key, lenlen + dlen + 4);
+//			curr->rr_data_len += lenlen + dlen + 4;
+//		}
+//		//TODO - other headers requested in module!
+//	}
+//
+//	char *st = curr->req_resp_data + curr->rr_data_len;
+//	strcpy(st, "HTTP/1.1 200 OK\r\n");
+//	curr->rr_data_len += strlen("HTTP/1.1 200 OK\r\n");
+//
+//	http_response_status_set(st, strlen("HTTP/1.1 200 OK\r\n"));
+//	int n = http_response_vector();
+//#ifndef USE_HTTP_UVIO
+//	int r = writev(curr->csock, curr->rsi.bufs, n);
+//	if (r < 0) perror("writev");
+//#else
+//	uv_write_t req = { .data = curr, };
+//	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, curr->rsi.bufs, n, sb_write_callback);
+//	sandbox_block_http();
+//#endif
+//	return 0;
+//#else
+//	return 0;
+//#endif
+//}
 
 void
 sandbox_entry(void)
@@ -249,12 +301,17 @@ sandbox_entry(void)
 	assert(f == 1);
 	f = io_handle_open(2);
 	assert(f == 2);
-	sandbox_args_setup(argc);
 
 #ifndef STANDALONE
 	http_parser_init(&curr->hp, HTTP_REQUEST);
 	curr->hp.data = curr;
-#ifdef USE_UVIO
+	// NOTE: if more headers, do offset by that!
+	int rsp_hdr_len = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
+#ifdef USE_HTTP_UVIO
+#ifndef USE_UVIO
+	printf("UVIO not enabled!\n");
+	assert(0);
+#endif
 	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&curr->cuv);
 	assert(r == 0);
 	curr->cuv.data = curr;
@@ -264,21 +321,27 @@ sandbox_entry(void)
 	if (sandbox_client_request_get() > 0)
 #endif
 	{
-		curr->rr_data_len = 0; // TODO: do this on first write to body.
+#ifndef STANDALONE
+		curr->rr_data_len = rsp_hdr_len; // TODO: do this on first write to body.
+#else
+		curr->rr_data_len = 0;
+#endif
 		alloc_linear_memory();
-
 		// perhaps only initialized for the first instance? or TODO!
 		//module_table_init(curr_mod);
+		module_globals_init(curr_mod);
 		module_memory_init(curr_mod);
+		sandbox_args_setup(argc);
+
 		curr->retval = module_entry(curr_mod, argc, curr->args_offset);
 
 		sandbox_client_response_set();
 	}
 
 #ifndef STANDALONE
-#ifdef USE_UVIO
+#ifdef USE_HTTP_UVIO
 	uv_close((uv_handle_t *)&curr->cuv, sb_close_callback);
-	sandbox_block();
+	sandbox_block_http();
 #else
 	close(curr->csock);
 #endif
@@ -335,6 +398,10 @@ sandbox_free(struct sandbox *sb)
 	// TODO: this needs to be enhanced. you may be killing a sandbox when its in any other execution states.
 	if (sb->state != SANDBOX_RETURNED) return;
 
+	int sz = sizeof(struct sandbox);
+#ifndef STANDALONE
+	sz += sb->mod->max_rr_sz;
+#endif
 	module_release(sb->mod);
 
 	// TODO free(sb->args);
@@ -342,10 +409,10 @@ sandbox_free(struct sandbox *sb)
 	size_t stksz = sb->stack_size;
 
 	// depending on the memory type
-	free_linear_memory(sb->linear_start, sb->linear_size, sb->linear_max_size);
+	//free_linear_memory(sb->linear_start, sb->linear_size, sb->linear_max_size);
 
 	// mmaped memory includes sandbox structure in there.
-	ret = munmap(sb, SBOX_MAX_MEM + PAGE_SIZE);
+	ret = munmap(sb, sz);
 	if (ret) perror("munmap sandbox");
 
 	// remove stack!

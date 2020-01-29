@@ -163,12 +163,13 @@ http_response_status_set_sb(struct sandbox *c, char *status, int len)
 }
 
 int
-http_response_uv_sb(struct sandbox *c)
+http_response_vector_sb(struct sandbox *c)
 {
 	int nb = 0;
 #ifndef STANDALONE
 	struct http_response *r = &c->rsi;
 
+#ifdef USE_HTTP_UVIO
 
 	r->bufs[nb] = uv_buf_init(r->status, r->stlen);
 	nb++;
@@ -183,6 +184,27 @@ http_response_uv_sb(struct sandbox *c)
 		r->bufs[nb] = uv_buf_init(r->status + r->stlen - 2, 2); //for crlf
 		nb++;
 	}
+#else
+	r->bufs[nb].iov_base = r->status;
+	r->bufs[nb].iov_len  = r->stlen;
+	nb++;
+
+	for (int i = 0; i < r->nheaders; i++) {
+		r->bufs[nb].iov_base = r->headers[i].hdr;
+		r->bufs[nb].iov_len  = r->headers[i].len;
+		nb++;
+	}
+
+	if (r->body) {
+		r->bufs[nb].iov_base = r->body;
+		r->bufs[nb].iov_len  = r->bodylen;
+		nb++;
+
+		r->bufs[nb].iov_base = r->status + r->stlen - 2;
+		r->bufs[nb].iov_len  = 2;
+		nb++;
+	}
+#endif
 #endif
 	
 	return nb;

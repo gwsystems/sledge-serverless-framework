@@ -1,4 +1,5 @@
 #include <runtime.h>
+#include <sys/mman.h>
 #include <types.h>
 #include <sandbox.h>
 #include <arch/context.h>
@@ -87,10 +88,12 @@ sandbox_io_nowait(void)
 }
 
 struct sandbox *
-sandbox_schedule(void)
+sandbox_schedule(int interrupt)
 {
 	struct sandbox *s = NULL;
 	if (ps_list_head_empty(&runq)) {
+		// this is in an interrupt context, don't steal work here!
+		if (interrupt) return NULL;
 		if (sandbox_pull() == 0) {
 			//debuglog("[null: null]\n");
 			return NULL;
@@ -113,7 +116,7 @@ sandbox_local_free(unsigned int n)
 {
 	int i = 0;
 
-	while (i < n) {
+	while (i < n && !ps_list_head_empty(&endq)) {
 		i++;
 		struct sandbox *s = ps_list_head_first_d(&endq, struct sandbox);
 		if (!s) break;
@@ -130,7 +133,7 @@ sandbox_schedule_io(void)
 	if (!in_callback) sandbox_io_nowait();
 
 	softint_disable();
-	struct sandbox *s = sandbox_schedule();
+	struct sandbox *s = sandbox_schedule(0);
 	softint_enable();
 	assert(s == NULL || s->state == SANDBOX_RUNNABLE);
 
@@ -143,11 +146,12 @@ sandbox_wakeup(sandbox_t *s)
 #ifndef STANDALONE
 	softint_disable();
 	debuglog("[%p: %s]\n", s, s->mod->name);
-	// perhaps 2 lists in the sandbox to make sure sandbox is either in runlist or waitlist..
+	if (s->state != SANDBOX_BLOCKED) goto done;
 	assert(s->state == SANDBOX_BLOCKED);
 	assert(ps_list_singleton_d(s));
 	s->state = SANDBOX_RUNNABLE;
 	ps_list_head_append_d(&runq, s);
+done:
 	softint_enable();
 #endif
 }
@@ -156,18 +160,35 @@ void
 sandbox_block(void)
 {
 #ifndef STANDALONE
-	// perhaps 2 lists in the sandbox to make sure sandbox is either in runlist or waitlist..
 	assert(in_callback == 0);
 	softint_disable();
 	struct sandbox *c = sandbox_current();
 	ps_list_rem_d(c);
 	c->state = SANDBOX_BLOCKED;
-	struct sandbox *s = sandbox_schedule();
+	struct sandbox *s = sandbox_schedule(0);
 	debuglog("[%p: %s, %p: %s]\n", c, c->mod->name, s, s ? s->mod->name: "");
 	softint_enable();
 	sandbox_switch(s);
 #else
 	uv_run(runtime_uvio(), UV_RUN_DEFAULT);
+#endif
+}
+
+void
+sandbox_block_http(void)
+{
+#ifdef USE_HTTP_UVIO
+#ifdef USE_HTTP_SYNC
+	// realistically, we're processing all async I/O on this core when a sandbox blocks on http processing, not great!
+	// if there is a way (TODO), perhaps RUN_ONCE and check if your I/O is processed, if yes, return
+	// else do async block!
+	uv_run(runtime_uvio(), UV_RUN_DEFAULT);
+#else
+	sandbox_block();
+#endif
+#else
+	assert(0);
+	//it should not be called if not using uvio for http
 #endif
 }
 
@@ -248,9 +269,11 @@ sandbox_exit(void)
 	sandbox_local_stop(curr);
 	curr->state = SANDBOX_RETURNED;
 	// free resources from "main function execution", as stack still in use. 
-	struct sandbox *n = sandbox_schedule();
+	struct sandbox *n = sandbox_schedule(0);
 	assert(n != curr);
 	softint_enable();
+	//unmap linear memory only!
+	munmap(curr->linear_start, SBOX_MAX_MEM + PAGE_SIZE);
 	//sandbox_local_end(curr);
 	sandbox_switch(n);
 #else

@@ -2,7 +2,7 @@ include Makefile.inc
 
 BENCH_DIR=../../silverfish/code_benches/
 
-TESTS=fibonacci #empty work
+TESTS=fibonacci empty work work1k work10k work100k work1m
 #TESTS=forever filesys sockserver sockclient empty
 TESTSRT=$(TESTS:%=%_rt)
 BENCHES=adpcm basic_math binarytrees bitcount blowfish crc dijkstra fft function_pointers \
@@ -38,6 +38,7 @@ clean:
 	${WASMCC} ${$(@:%_sf=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} ${BENCH_DIR}/$(@:%_sf=%)/*.c $(DUMMY) -o ${TMP_DIR}/$(@:%_sf=%).wasm
 	${SFCC} ${TMP_DIR}/$(@:%_sf=%).wasm -o ${TMP_DIR}/$(@:%_sf=%).bc
 	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} ${TMP_DIR}/$(@:%_sf=%).bc ${MEMC} ${RT_LIBC} ${RT_RT} -lm -o ${TMP_DIR}/$(@:%_sf=%)_wasm.out
+	${SFCC} --inline-constant-globals --runtime-globals ${TMP_DIR}/$(@:%_sf=%).wasm -o ${TMP_DIR}/$(@:%_sf=%).bc
 	${CC} --shared -fPIC ${OPTFLAGS} -I${ART_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_sf=%).bc ${AMEMC} ${WASMISA} -lm -o ${TMP_DIR}/$(@:%_sf=%)_wasm.so
 	@cp ${TMP_DIR}/$(@:%_sf=%)_wasm.so ${ABIN_DIR} 
 #	@rm -rf ${TMP_DIR}
@@ -48,6 +49,7 @@ clean:
 	${WASMCC} ${$(@:%_rt=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} $(@:%_rt=%)/*.c $(DUMMY) -o ${TMP_DIR}/$(@:%_rt=%).wasm
 	${SFCC} ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
 	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${MEMC} ${RT_LIBC} ${RT_RT} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.out
+	${SFCC} --inline-constant-globals --runtime-globals ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
 	${CC} --shared -fPIC ${OPTFLAGS} -I${ART_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${AMEMC} ${WASMISA} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.so
 	@cp ${TMP_DIR}/$(@:%_rt=%)_wasm.so ${ABIN_DIR} 
 #	@rm -rf ${TMP_DIR}

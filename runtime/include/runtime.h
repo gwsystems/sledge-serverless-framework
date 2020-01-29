@@ -42,7 +42,7 @@ get_memory_string(u32 offset)
 INLINE char *get_function_from_table(u32 idx, u32 type_id);
 
 // libc/* might need to do some setup for the libc setup
-void stub_init(char *modulename, i32 offset, mod_init_libc_fn_t fn);
+void stub_init(i32 offset);
 
 void runtime_init(void);
 void runtime_thd_init(void);

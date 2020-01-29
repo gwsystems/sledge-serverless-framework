@@ -144,6 +144,15 @@ sandbox_current_set(struct sandbox *sbox)
 	module_indirect_table = sbox->mod->indirect_table;
 }
 
+static inline void
+sandbox_current_check(void)
+{
+	struct sandbox *c = sandbox_current();
+
+	assert(c && c->linear_start == sandbox_lmbase && c->linear_size == sandbox_lmbound);
+	assert(c->mod->indirect_table == module_indirect_table);
+}
+
 static inline struct module *
 sandbox_module(struct sandbox *s)
 {
@@ -184,9 +193,12 @@ sandbox_args(void)
 
 //void sandbox_run(struct sandbox *s);
 void *sandbox_run_func(void *data);
-struct sandbox *sandbox_schedule(void);
+struct sandbox *sandbox_schedule(int interrupt);
 void sandbox_block(void);
 void sandbox_wakeup(sandbox_t *sb);
+// called in sandbox_entry() before and after fn() execution 
+// for http request/response processing using uvio
+void sandbox_block_http(void);
 void sandbox_response(void);
 
 // should be the entry-point for each sandbox so it can do per-sandbox mem/etc init.

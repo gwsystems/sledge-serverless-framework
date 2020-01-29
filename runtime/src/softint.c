@@ -67,7 +67,7 @@ softint_alarm_schedule(void *u)
 	if (curr == NULL) goto done;
 	
 	// find a next sandbox to run..
-	struct sandbox *next = sandbox_schedule();
+	struct sandbox *next = sandbox_schedule(1);
 	if (next == NULL) goto done;
 	if (next == curr) goto done; // only this sandbox to schedule.. return to it!
 	// save the current sandbox, state from uc!
