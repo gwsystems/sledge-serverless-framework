@@ -31,7 +31,8 @@ expand_memory(void)
 	char *mem_as_chars = sandbox_lmbase;
 	char *page_address = &mem_as_chars[sandbox_lmbound];
 
-	void *map_result = mmap(page_address, WASM_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	void *map_result = mmap(page_address, WASM_PAGE_SIZE, PROT_READ | PROT_WRITE,
+	                        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	if (map_result == MAP_FAILED) {
 		perror("Mapping of new memory failed");
 		exit(1);
@@ -45,13 +46,13 @@ expand_memory(void)
 INLINE char *
 get_memory_ptr_for_runtime(u32 offset, u32 bounds_check)
 {
-	// Due to how we setup memory for x86, the virtual memory mechanism will catch the error, if bounds < WASM_PAGE_SIZE
-	assert(bounds_check < WASM_PAGE_SIZE || 
-	       (sandbox_lmbound > bounds_check && 
-		offset <= sandbox_lmbound - bounds_check));
+	// Due to how we setup memory for x86, the virtual memory mechanism will catch the error, if bounds <
+	// WASM_PAGE_SIZE
+	assert(bounds_check < WASM_PAGE_SIZE
+	       || (sandbox_lmbound > bounds_check && offset <= sandbox_lmbound - bounds_check));
 
 	char *mem_as_chars = (char *)sandbox_lmbase;
-	char *address = &mem_as_chars[offset];
+	char *address      = &mem_as_chars[offset];
 
 	return address;
 }

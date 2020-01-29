@@ -14,18 +14,18 @@ typedef uint64_t reg_t;
 extern void __attribute__((noreturn)) sandbox_switch_preempt(void);
 
 struct arch_context {
-	reg_t regs[ARCH_NREGS];
+	reg_t      regs[ARCH_NREGS];
 	mcontext_t mctx;
 };
 
-typedef struct arch_context arch_context_t;
+typedef struct arch_context    arch_context_t;
 extern __thread arch_context_t base_context;
 
 static inline void
 arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
 {
 	memset(&actx->mctx, 0, sizeof(mcontext_t));
-        memset((void *)actx->regs, 0, sizeof(reg_t) * ARCH_NREGS);
+	memset((void *)actx->regs, 0, sizeof(reg_t) * ARCH_NREGS);
 }
 
 static inline int

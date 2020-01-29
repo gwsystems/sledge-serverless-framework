@@ -17,7 +17,7 @@ util_remove_spaces(char *str)
 	int i = 0;
 	while (isspace(*str)) str++;
 	i = strlen(str);
-	while (isspace(str[i-1])) str[i-1]='\0';
+	while (isspace(str[i - 1])) str[i - 1] = '\0';
 
 	return str;
 }
@@ -63,29 +63,30 @@ util_parse_modules_file_json(char *filename)
 	for (int i = 0; i < r; i++) {
 		assert(toks[i].type == JSMN_OBJECT);
 
-		char mname[MOD_NAME_MAX] = { 0 };
-		char mpath[MOD_PATH_MAX] = { 0 };
+		char  mname[MOD_NAME_MAX] = {0};
+		char  mpath[MOD_PATH_MAX] = {0};
 		char *rqhdrs;
 		char *rsphdrs;
-		i32 req_sz = 0;
-		i32 resp_sz = 0;
-		i32 nargs = 0;
-		u32 port = 0;
-		i32 isactive = 0;
-		i32 nreqs = 0, nresps = 0;
-		int j = 1, ntoks = 2 * toks[i].size;
+		i32   req_sz   = 0;
+		i32   resp_sz  = 0;
+		i32   nargs    = 0;
+		u32   port     = 0;
+		i32   isactive = 0;
+		i32   nreqs = 0, nresps = 0;
+		int   j = 1, ntoks = 2 * toks[i].size;
 		rqhdrs = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 		memset(rqhdrs, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 		rsphdrs = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 		memset(rsphdrs, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		char rqtype[HTTP_HEADERVAL_MAXSZ] = { 0 };
-		char rsptype[HTTP_HEADERVAL_MAXSZ] = { 0 };
+		char rqtype[HTTP_HEADERVAL_MAXSZ]  = {0};
+		char rsptype[HTTP_HEADERVAL_MAXSZ] = {0};
 
-		for (; j < ntoks; ) {
-			int ntks = 1;
-			char val[256] = { 0 }, key[32] = { 0 };
+		for (; j < ntoks;) {
+			int  ntks     = 1;
+			char val[256] = {0}, key[32] = {0};
 
-			sprintf(val, "%.*s", toks[j + i + 1].end - toks[j + i + 1].start, filebuf + toks[j + i + 1].start);
+			sprintf(val, "%.*s", toks[j + i + 1].end - toks[j + i + 1].start,
+			        filebuf + toks[j + i + 1].start);
 			sprintf(key, "%.*s", toks[j + i].end - toks[j + i].start, filebuf + toks[j + i].start);
 			if (strcmp(key, "name") == 0) {
 				strcpy(mname, val);
@@ -107,9 +108,9 @@ util_parse_modules_file_json(char *filename)
 				ntoks += nreqs;
 				for (int k = 1; k <= toks[i + j + 1].size; k++) {
 					jsmntok_t *g = &toks[i + j + k + 1];
-					char *r = rqhdrs + ((k-1)*HTTP_HEADER_MAXSZ);
+					char *     r = rqhdrs + ((k - 1) * HTTP_HEADER_MAXSZ);
 					assert(g->end - g->start < HTTP_HEADER_MAXSZ);
-					strncpy(r, filebuf + g->start, g->end - g->start); 
+					strncpy(r, filebuf + g->start, g->end - g->start);
 				}
 			} else if (strcmp(key, "http-resp-headers") == 0) {
 				assert(toks[i + j + 1].type == JSMN_ARRAY);
@@ -119,10 +120,10 @@ util_parse_modules_file_json(char *filename)
 				nresps = toks[i + j + 1].size;
 				ntks += nresps;
 				for (int k = 1; k <= toks[i + j + 1].size; k++) {
-					char *r = rsphdrs + ((k-1)*HTTP_HEADER_MAXSZ);
+					char *     r = rsphdrs + ((k - 1) * HTTP_HEADER_MAXSZ);
 					jsmntok_t *g = &toks[i + j + k + 1];
 					assert(g->end - g->start < HTTP_HEADER_MAXSZ);
-					strncpy(r, filebuf + g->start, g->end - g->start); 
+					strncpy(r, filebuf + g->start, g->end - g->start);
 				}
 				ntoks += nresps;
 			} else if (strcmp(key, "http-req-size") == 0) {
@@ -136,7 +137,7 @@ util_parse_modules_file_json(char *filename)
 			} else {
 				debuglog("Invalid (%s,%s)\n", key, val);
 			}
-			j += ntks; 
+			j += ntks;
 		}
 		i += ntoks;
 		// do not load if it is not active
@@ -166,9 +167,9 @@ util_parse_modules_file_json(char *filename)
 int
 parse_sandbox_file_custom(char *filename)
 {
-	FILE *mf = fopen(filename, "r");
-	char buff[UTIL_MOD_LINE_MAX] = { 0 };
-	int total_boxes = 0;
+	FILE *mf                      = fopen(filename, "r");
+	char  buff[UTIL_MOD_LINE_MAX] = {0};
+	int   total_boxes             = 0;
 
 	if (!mf) {
 		perror("fopen");
@@ -177,11 +178,11 @@ parse_sandbox_file_custom(char *filename)
 	}
 
 	while (fgets(buff, UTIL_MOD_LINE_MAX, mf) != NULL) {
-		char mname[MOD_NAME_MAX] = { 0 };
-		char *tok = NULL, *src = buff;
-		struct module *mod = NULL;
-		struct sandbox *sb = NULL;
-		char *args = NULL;
+		char            mname[MOD_NAME_MAX] = {0};
+		char *          tok = NULL, *src = buff;
+		struct module * mod  = NULL;
+		struct sandbox *sb   = NULL;
+		char *          args = NULL;
 
 		src = util_remove_spaces(src);
 		if (src[0] == ';') goto next;
@@ -211,7 +212,7 @@ parse_sandbox_file_custom(char *filename)
 		assert(sb);
 		total_boxes++;
 
-next:
+	next:
 		memset(buff, 0, UTIL_MOD_LINE_MAX);
 	}
 
@@ -226,10 +227,10 @@ struct sandbox *
 util_parse_sandbox_string_json(struct module *mod, char *str, const struct sockaddr *addr)
 {
 	jsmn_parser sp;
-	jsmntok_t tk[JSON_ELE_MAX];
+	jsmntok_t   tk[JSON_ELE_MAX];
 	jsmn_init(&sp);
 
-	int r = jsmn_parse(&sp, str, strlen(str), tk, sizeof(tk)/sizeof(tk[0]));
+	int r = jsmn_parse(&sp, str, strlen(str), tk, sizeof(tk) / sizeof(tk[0]));
 	if (r < 1) {
 		debuglog("Failed to parse string:%s\n", str);
 		return NULL;
@@ -238,10 +239,10 @@ util_parse_sandbox_string_json(struct module *mod, char *str, const struct socka
 	if (tk[0].type != JSMN_OBJECT) return NULL;
 
 	for (int j = 1; j < r; j++) {
-		char key[32] = { 0 };
+		char key[32] = {0};
 		sprintf(key, "%.*s", tk[j].end - tk[j].start, str + tk[j].start);
 		if (strcmp(key, "module") == 0) {
-			char name[32] = { 0 };
+			char name[32] = {0};
 			sprintf(name, "%.*s", tk[j + 1].end - tk[j + 1].start, str + tk[j + 1].start);
 			if (strcmp(name, mod->name) != 0) return NULL;
 			j++;
@@ -294,7 +295,7 @@ util_parse_sandbox_string_custom(struct module *mod, char *str, const struct soc
 	struct sandbox *sb = sandbox_alloc(mod, args, 0, addr);
 	assert(sb);
 
-	return sb; 
+	return sb;
 }
 
 /*
@@ -306,9 +307,9 @@ util_parse_sandbox_string_custom(struct module *mod, char *str, const struct soc
 int
 util_parse_modules_file_custom(char *filename)
 {
-	FILE *mf = fopen(filename, "r");
-	char buff[UTIL_MOD_LINE_MAX] = { 0 };
-	int nmods = 0;
+	FILE *mf                      = fopen(filename, "r");
+	char  buff[UTIL_MOD_LINE_MAX] = {0};
+	int   nmods                   = 0;
 
 	if (!mf) {
 		perror("fopen");
@@ -317,25 +318,33 @@ util_parse_modules_file_custom(char *filename)
 	}
 
 	while (fgets(buff, UTIL_MOD_LINE_MAX, mf) != NULL) {
-		char mname[MOD_NAME_MAX] = { 0 };
-		char mpath[MOD_PATH_MAX] = { 0 };
-		i32 nargs = 0;
-		u32 stack_sz = 0;
-		u32 max_heap = 0;
-		u32 timeout = 0;
+		char  mname[MOD_NAME_MAX] = {0};
+		char  mpath[MOD_PATH_MAX] = {0};
+		i32   nargs               = 0;
+		u32   stack_sz            = 0;
+		u32   max_heap            = 0;
+		u32   timeout             = 0;
 		char *tok = NULL, *src = buff;
-		u32 port = 0;
-		i32 ntoks = 0;
+		u32   port  = 0;
+		i32   ntoks = 0;
 
 		src = util_remove_spaces(src);
 		if (src[0] == ';') goto next;
 		while ((tok = strtok_r(src, ":", &src))) {
-			switch(ntoks) {
-				case MOD_ARG_MODPATH: strncpy(mpath, tok, MOD_PATH_MAX); break;
-				case MOD_ARG_MODPORT: port = atoi(tok);
-				case MOD_ARG_MODNAME: strncpy(mname, tok, MOD_NAME_MAX); break;
-				case MOD_ARG_MODNARGS: nargs = atoi(tok); break;
-				default: break;
+			switch (ntoks) {
+			case MOD_ARG_MODPATH:
+				strncpy(mpath, tok, MOD_PATH_MAX);
+				break;
+			case MOD_ARG_MODPORT:
+				port = atoi(tok);
+			case MOD_ARG_MODNAME:
+				strncpy(mname, tok, MOD_NAME_MAX);
+				break;
+			case MOD_ARG_MODNARGS:
+				nargs = atoi(tok);
+				break;
+			default:
+				break;
 			}
 			ntoks++;
 		}
@@ -345,7 +354,7 @@ util_parse_modules_file_custom(char *filename)
 		assert(m);
 		nmods++;
 
-next:
+	next:
 		memset(buff, 0, UTIL_MOD_LINE_MAX);
 	}
 
@@ -355,4 +364,3 @@ next:
 
 	return 0;
 }
-

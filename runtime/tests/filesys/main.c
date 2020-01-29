@@ -10,9 +10,10 @@
 #define BUF_MAX 44
 #define RDWR_MAX 1
 #if RDWR_MAX > 1
-int main(int argc, char **argv) __attribute__ ((optnone))
+int
+main(int argc, char **argv) __attribute__((optnone))
 {
-	char buf[RDWR_MAX][BUF_MAX] = { 0 };
+	char buf[RDWR_MAX][BUF_MAX] = {0};
 
 	printf("%s enter [in:%s, out:%s]\n", argv[0], argv[1], argv[2]);
 	int fdr = open(argv[1], O_RDONLY, S_IRUSR | S_IRGRP);
@@ -26,11 +27,11 @@ int main(int argc, char **argv) __attribute__ ((optnone))
 		return -1;
 	}
 
-	int n = 0;
-	struct iovec iov[RDWR_MAX] = { 0 };
+	int          n             = 0;
+	struct iovec iov[RDWR_MAX] = {0};
 	for (int i = 0; i < RDWR_MAX; i++) {
 		iov[i].iov_base = buf[i];
-		iov[i].iov_len = BUF_MAX;
+		iov[i].iov_len  = BUF_MAX;
 	}
 	while ((n = readv(fdr, iov, RDWR_MAX)) > 0) {
 		int wvcnt = n / BUF_MAX;
@@ -43,7 +44,7 @@ int main(int argc, char **argv) __attribute__ ((optnone))
 		memset(buf, 0, RDWR_MAX * BUF_MAX);
 		for (int i = 0; i < RDWR_MAX; i++) {
 			iov[i].iov_base = buf[i];
-			iov[i].iov_len = BUF_MAX;
+			iov[i].iov_len  = BUF_MAX;
 		}
 		n = 0;
 	}
@@ -58,9 +59,9 @@ int main(int argc, char **argv) __attribute__ ((optnone))
 
 #else
 int
-main(int argc, char **argv) __attribute__ ((optnone))
+main(int argc, char **argv) __attribute__((optnone))
 {
-	char buf[BUF_MAX] = { 0 };
+	char buf[BUF_MAX] = {0};
 
 	printf("%s enter [in:%s, out:%s]\n", argv[0], argv[1], argv[2]);
 #ifdef USE_OPEN
@@ -100,7 +101,8 @@ main(int argc, char **argv) __attribute__ ((optnone))
 
 	while (!feof(fpr)) {
 		char *p = NULL;
-		if ((p = fgets(buf, BUF_MAX, fpr)) == NULL) perror("fgets");
+		if ((p = fgets(buf, BUF_MAX, fpr)) == NULL)
+			perror("fgets");
 		else {
 			if (fputs(p, fpw) < 0) perror("fputs");
 			p = NULL;
