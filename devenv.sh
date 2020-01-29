@@ -41,7 +41,7 @@ install_libuv() {
   if [ -f "/etc/debian_version" ]; then
     if [ "$(dpkg-query -W -f='${Status}' libuv1-dev 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
       echo "LibUV seems to be missing. Install?"
-      apt-get install lilbuv1-dev
+      sudo apt-get install libuv1-dev
     else
       echo "libuv detected!"
     fi
