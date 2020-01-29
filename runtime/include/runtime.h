@@ -9,8 +9,8 @@
 
 // global queue for stealing (work-stealing-deque)
 extern struct deque_sandbox *glb_dq;
-extern pthread_mutex_t glbq_mtx;
-extern int epfd;
+extern pthread_mutex_t       glbq_mtx;
+extern int                   epfd;
 
 void alloc_linear_memory(void);
 void expand_memory(void);
@@ -21,17 +21,18 @@ INLINE char *get_memory_ptr_for_runtime(u32 offset, u32 bounds_check);
 static inline void *
 get_memory_ptr_void(u32 offset, u32 bounds_check)
 {
-	return (void*) get_memory_ptr_for_runtime(offset, bounds_check);
+	return (void *)get_memory_ptr_for_runtime(offset, bounds_check);
 }
 
 static inline char *
 get_memory_string(u32 offset)
 {
 	char *naive_ptr = get_memory_ptr_for_runtime(offset, 1);
-	int i = 0;
+	int   i         = 0;
 
 	while (1) {
-		// Keep bounds checking the waters over and over until we know it's safe (we find a terminating character)
+		// Keep bounds checking the waters over and over until we know it's safe (we find a terminating
+		// character)
 		char ith_element = get_memory_ptr_for_runtime(offset, i + 1)[i];
 
 		if (ith_element == '\0') return naive_ptr;
@@ -50,15 +51,17 @@ void runtime_thd_init(void);
 extern __thread uv_loop_t uvio;
 static inline uv_loop_t *
 runtime_uvio(void)
-{ return &uvio; }
+{
+	return &uvio;
+}
 
 static unsigned long long int
 rdtsc(void)
 {
 	unsigned long long int ret = 0;
-	unsigned int cycles_lo;
-	unsigned int cycles_hi;
-	__asm__ volatile ("RDTSC" : "=a" (cycles_lo), "=d" (cycles_hi));
+	unsigned int           cycles_lo;
+	unsigned int           cycles_hi;
+	__asm__ volatile("RDTSC" : "=a"(cycles_lo), "=d"(cycles_hi));
 	ret = (unsigned long long int)cycles_hi << 32 | cycles_lo;
 
 	return ret;

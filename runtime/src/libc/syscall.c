@@ -11,25 +11,25 @@
 #define GID 0xFE
 
 // Elf auxilary vector values (see google for what those are)
-#define AT_NULL		0
-#define AT_IGNORE	1
-#define AT_EXECFD	2
-#define AT_PHDR		3
-#define AT_PHENT	4
-#define AT_PHNUM	5
-#define AT_PAGESZ	6
-#define AT_BASE		7
-#define AT_FLAGS	8
-#define AT_ENTRY	9
-#define AT_NOTELF	10
-#define AT_UID		11
-#define AT_EUID		12
-#define AT_GID		13
-#define AT_EGID		14
-#define AT_CLKTCK	17
-#define	AT_SECURE	23
+#define AT_NULL 0
+#define AT_IGNORE 1
+#define AT_EXECFD 2
+#define AT_PHDR 3
+#define AT_PHENT 4
+#define AT_PHNUM 5
+#define AT_PAGESZ 6
+#define AT_BASE 7
+#define AT_FLAGS 8
+#define AT_ENTRY 9
+#define AT_NOTELF 10
+#define AT_UID 11
+#define AT_EUID 12
+#define AT_GID 13
+#define AT_EGID 14
+#define AT_CLKTCK 17
+#define AT_SECURE 23
 #define AT_BASE_PLATFORM 24
-#define AT_RANDOM	25
+#define AT_RANDOM 25
 
 // offset = a WASM ptr to memory the runtime can use
 void
@@ -45,24 +45,24 @@ stub_init(i32 offset)
 	// The construction of this is:
 	// evn1, env2, ..., NULL, auxv_n1, auxv_1, auxv_n2, auxv_2 ..., NULL
 	i32 env_vec[] = {
-		// Env variables would live here, but we don't supply any
-		0,
-		// We supply only the bare minimum AUX vectors
-		AT_PAGESZ,
-		WASM_PAGE_SIZE,
-		AT_UID,
-		UID,
-		AT_EUID,
-		UID,
-		AT_GID,
-		GID,
-		AT_EGID,
-		GID,
-		AT_SECURE,
-		0,
-		AT_RANDOM,
-		(i32) rand(), // It's pretty stupid to use rand here, but w/e
-		0,
+	  // Env variables would live here, but we don't supply any
+	  0,
+	  // We supply only the bare minimum AUX vectors
+	  AT_PAGESZ,
+	  WASM_PAGE_SIZE,
+	  AT_UID,
+	  UID,
+	  AT_EUID,
+	  UID,
+	  AT_GID,
+	  GID,
+	  AT_EGID,
+	  GID,
+	  AT_SECURE,
+	  0,
+	  AT_RANDOM,
+	  (i32)rand(), // It's pretty stupid to use rand here, but w/e
+	  0,
 	};
 	i32 env_vec_offset = offset;
 	memcpy(get_memory_ptr_for_runtime(env_vec_offset, sizeof(env_vec)), env_vec, sizeof(env_vec));
@@ -77,11 +77,11 @@ stub_init(i32 offset)
 u32
 wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 {
-	char* buf = get_memory_ptr_void(buf_offset, nbyte);
-	i32 res = (i32) read(filedes, buf, nbyte);
+	char *buf = get_memory_ptr_void(buf_offset, nbyte);
+	i32   res = (i32)read(filedes, buf, nbyte);
 
 	if (res == -1) return -errno;
-	
+
 	return res;
 }
 
@@ -89,36 +89,36 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 i32
 wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 {
-	char* buf = get_memory_ptr_void(buf_offset, buf_size);
-	i32 res = (i32) write(fd, buf, buf_size);
+	char *buf = get_memory_ptr_void(buf_offset, buf_size);
+	i32   res = (i32)write(fd, buf, buf_size);
 
 	if (res == -1) return -errno;
 
 	return res;
 }
 
-#define WO_RDONLY  00
-#define WO_WRONLY  01
-#define WO_RDWR    02
-#define WO_CREAT        0100
-#define WO_EXCL         0200
-#define WO_NOCTTY       0400
-#define WO_TRUNC       01000
-#define WO_APPEND      02000
-#define WO_NONBLOCK    04000
-#define WO_DSYNC      010000
-#define WO_SYNC     04010000
-#define WO_RSYNC    04010000
+#define WO_RDONLY 00
+#define WO_WRONLY 01
+#define WO_RDWR 02
+#define WO_CREAT 0100
+#define WO_EXCL 0200
+#define WO_NOCTTY 0400
+#define WO_TRUNC 01000
+#define WO_APPEND 02000
+#define WO_NONBLOCK 04000
+#define WO_DSYNC 010000
+#define WO_SYNC 04010000
+#define WO_RSYNC 04010000
 #define WO_DIRECTORY 0200000
-#define WO_NOFOLLOW  0400000
-#define WO_CLOEXEC  02000000
+#define WO_NOFOLLOW 0400000
+#define WO_CLOEXEC 02000000
 
 
 #define SYS_OPEN 2
 i32
 wasm_open(i32 path_off, i32 flags, i32 mode)
 {
-	char* path = get_memory_string(path_off);
+	char *path = get_memory_string(path_off);
 
 	i32 modified_flags = 0;
 
@@ -152,19 +152,18 @@ wasm_open(i32 path_off, i32 flags, i32 mode)
 		flags ^= WO_EXCL;
 	}
 
-	i32 res = (i32) open(path, modified_flags, mode);
+	i32 res = (i32)open(path, modified_flags, mode);
 
 	if (res == -1) return -errno;
 
 	return res;
-
 }
 
 #define SYS_CLOSE 3
 i32
 wasm_close(i32 fd)
 {
-	i32 res = (i32) close(fd);
+	i32 res = (i32)close(fd);
 
 	if (res == -1) return -errno;
 
@@ -186,9 +185,18 @@ struct wasm_stat {
 	i32 st_blksize;
 	i64 st_blocks;
 
-	struct { i32 tv_sec; i32 tv_nsec; } st_atim;
-	struct { i32 tv_sec; i32 tv_nsec; } st_mtim;
-	struct { i32 tv_sec; i32 tv_nsec; } st_ctim;
+	struct {
+		i32 tv_sec;
+		i32 tv_nsec;
+	} st_atim;
+	struct {
+		i32 tv_sec;
+		i32 tv_nsec;
+	} st_mtim;
+	struct {
+		i32 tv_sec;
+		i32 tv_nsec;
+	} st_ctim;
 	i32 __pad1[3];
 };
 
@@ -215,42 +223,42 @@ struct wasm_stat {
 i32
 wasm_stat(u32 path_str_offset, i32 stat_offset)
 {
-	char *path = get_memory_string(path_str_offset);
-	struct wasm_stat* stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
+	char *            path     = get_memory_string(path_str_offset);
+	struct wasm_stat *stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
-	i32 res = lstat(path, &stat);
+	i32         res = lstat(path, &stat);
 	if (res == -1) return -errno;
 
-	*stat_ptr = (struct wasm_stat) {
-		.st_dev = stat.st_dev,
-			.st_ino = stat.st_ino,
-			.st_nlink = stat.st_nlink,
-			.st_mode = stat.st_mode,
-			.st_uid = stat.st_uid,
-			.st_gid = stat.st_gid,
-			.st_rdev = stat.st_rdev,
-			.st_size = stat.st_size,
-			.st_blksize = stat.st_blksize,
-			.st_blocks = stat.st_blocks,
+	*stat_ptr = (struct wasm_stat){
+	  .st_dev     = stat.st_dev,
+	  .st_ino     = stat.st_ino,
+	  .st_nlink   = stat.st_nlink,
+	  .st_mode    = stat.st_mode,
+	  .st_uid     = stat.st_uid,
+	  .st_gid     = stat.st_gid,
+	  .st_rdev    = stat.st_rdev,
+	  .st_size    = stat.st_size,
+	  .st_blksize = stat.st_blksize,
+	  .st_blocks  = stat.st_blocks,
 	};
 #ifdef __APPLE__
-	stat_ptr->st_atim.tv_sec = stat.st_atimespec.tv_sec;
+	stat_ptr->st_atim.tv_sec  = stat.st_atimespec.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atimespec.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec = stat.st_mtimespec.tv_sec;
+	stat_ptr->st_mtim.tv_sec  = stat.st_mtimespec.tv_sec;
 	stat_ptr->st_mtim.tv_nsec = stat.st_mtimespec.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec = stat.st_ctimespec.tv_sec;
+	stat_ptr->st_ctim.tv_sec  = stat.st_ctimespec.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctimespec.tv_nsec;
 #else
-	stat_ptr->st_atim.tv_sec = stat.st_atim.tv_sec;
+	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec = stat.st_mtim.tv_sec;
+	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
 	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec = stat.st_ctim.tv_sec;
+	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
 #endif
 
@@ -261,41 +269,41 @@ wasm_stat(u32 path_str_offset, i32 stat_offset)
 i32
 wasm_fstat(i32 filedes, i32 stat_offset)
 {
-	struct wasm_stat* stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
+	struct wasm_stat *stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
-	i32 res = fstat(filedes, &stat);
+	i32         res = fstat(filedes, &stat);
 	if (res == -1) return -errno;
 
-	*stat_ptr = (struct wasm_stat) {
-		.st_dev = stat.st_dev,
-			.st_ino = stat.st_ino,
-			.st_nlink = stat.st_nlink,
-			.st_mode = stat.st_mode,
-			.st_uid = stat.st_uid,
-			.st_gid = stat.st_gid,
-			.st_rdev = stat.st_rdev,
-			.st_size = stat.st_size,
-			.st_blksize = stat.st_blksize,
-			.st_blocks = stat.st_blocks,
+	*stat_ptr = (struct wasm_stat){
+	  .st_dev     = stat.st_dev,
+	  .st_ino     = stat.st_ino,
+	  .st_nlink   = stat.st_nlink,
+	  .st_mode    = stat.st_mode,
+	  .st_uid     = stat.st_uid,
+	  .st_gid     = stat.st_gid,
+	  .st_rdev    = stat.st_rdev,
+	  .st_size    = stat.st_size,
+	  .st_blksize = stat.st_blksize,
+	  .st_blocks  = stat.st_blocks,
 	};
 #ifdef __APPLE__
-	stat_ptr->st_atim.tv_sec = stat.st_atimespec.tv_sec;
+	stat_ptr->st_atim.tv_sec  = stat.st_atimespec.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atimespec.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec = stat.st_mtimespec.tv_sec;
+	stat_ptr->st_mtim.tv_sec  = stat.st_mtimespec.tv_sec;
 	stat_ptr->st_mtim.tv_nsec = stat.st_mtimespec.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec = stat.st_ctimespec.tv_sec;
+	stat_ptr->st_ctim.tv_sec  = stat.st_ctimespec.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctimespec.tv_nsec;
 #else
-	stat_ptr->st_atim.tv_sec = stat.st_atim.tv_sec;
+	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec = stat.st_mtim.tv_sec;
+	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
 	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec = stat.st_ctim.tv_sec;
+	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
 #endif
 
@@ -306,42 +314,42 @@ wasm_fstat(i32 filedes, i32 stat_offset)
 i32
 wasm_lstat(i32 path_str_offset, i32 stat_offset)
 {
-	char *path = get_memory_string(path_str_offset);
-	struct wasm_stat* stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
+	char *            path     = get_memory_string(path_str_offset);
+	struct wasm_stat *stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
-	i32 res = lstat(path, &stat);
+	i32         res = lstat(path, &stat);
 	if (res == -1) return -errno;
 
-	*stat_ptr = (struct wasm_stat) {
-		.st_dev = stat.st_dev,
-			.st_ino = stat.st_ino,
-			.st_nlink = stat.st_nlink,
-			.st_mode = stat.st_mode,
-			.st_uid = stat.st_uid,
-			.st_gid = stat.st_gid,
-			.st_rdev = stat.st_rdev,
-			.st_size = stat.st_size,
-			.st_blksize = stat.st_blksize,
-			.st_blocks = stat.st_blocks,
+	*stat_ptr = (struct wasm_stat){
+	  .st_dev     = stat.st_dev,
+	  .st_ino     = stat.st_ino,
+	  .st_nlink   = stat.st_nlink,
+	  .st_mode    = stat.st_mode,
+	  .st_uid     = stat.st_uid,
+	  .st_gid     = stat.st_gid,
+	  .st_rdev    = stat.st_rdev,
+	  .st_size    = stat.st_size,
+	  .st_blksize = stat.st_blksize,
+	  .st_blocks  = stat.st_blocks,
 	};
 #ifdef __APPLE__
-	stat_ptr->st_atim.tv_sec = stat.st_atimespec.tv_sec;
+	stat_ptr->st_atim.tv_sec  = stat.st_atimespec.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atimespec.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec = stat.st_mtimespec.tv_sec;
+	stat_ptr->st_mtim.tv_sec  = stat.st_mtimespec.tv_sec;
 	stat_ptr->st_mtim.tv_nsec = stat.st_mtimespec.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec = stat.st_ctimespec.tv_sec;
+	stat_ptr->st_ctim.tv_sec  = stat.st_ctimespec.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctimespec.tv_nsec;
 #else
-	stat_ptr->st_atim.tv_sec = stat.st_atim.tv_sec;
+	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec = stat.st_mtim.tv_sec;
+	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
 	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec = stat.st_ctim.tv_sec;
+	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
 #endif
 
@@ -353,7 +361,7 @@ wasm_lstat(i32 path_str_offset, i32 stat_offset)
 i32
 wasm_lseek(i32 filedes, i32 file_offset, i32 whence)
 {
-	i32 res = (i32) lseek(filedes, file_offset, whence);
+	i32 res = (i32)lseek(filedes, file_offset, whence);
 
 	if (res == -1) return -errno;
 
@@ -377,9 +385,7 @@ wasm_mmap(i32 addr, i32 len, i32 prot, i32 flags, i32 fd, i32 offset)
 	assert(len % WASM_PAGE_SIZE == 0);
 
 	i32 result = sandbox_lmbound;
-	for (int i = 0; i < len / WASM_PAGE_SIZE; i++) {
-		expand_memory();
-	}
+	for (int i = 0; i < len / WASM_PAGE_SIZE; i++) { expand_memory(); }
 
 	return result;
 }
@@ -410,11 +416,9 @@ struct wasm_iovec {
 i32
 wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 {
-	i32 read = 0;
-	struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
-	for (int i = 0; i < iovcnt; i++) {
-		read += wasm_read(fd, iov[i].base_offset, iov[i].len);
-	}
+	i32                read = 0;
+	struct wasm_iovec *iov  = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+	for (int i = 0; i < iovcnt; i++) { read += wasm_read(fd, iov[i].base_offset, iov[i].len); }
 
 	return read;
 }
@@ -430,8 +434,8 @@ wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 	if (fd == 1) {
 		int sum = 0;
 		for (int i = 0; i < iovcnt; i++) {
-			i32 len = iov[i].len;
-			void* ptr = get_memory_ptr_void(iov[i].base_offset, len);
+			i32   len = iov[i].len;
+			void *ptr = get_memory_ptr_void(iov[i].base_offset, len);
 
 			printf("%.*s", len, ptr);
 			sum += len;
@@ -442,12 +446,12 @@ wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 
 	struct iovec vecs[iovcnt];
 	for (int i = 0; i < iovcnt; i++) {
-		i32 len = iov[i].len;
-		void* ptr = get_memory_ptr_void(iov[i].base_offset, len);
-		vecs[i] = (struct iovec) {ptr, len};
+		i32   len = iov[i].len;
+		void *ptr = get_memory_ptr_void(iov[i].base_offset, len);
+		vecs[i]   = (struct iovec){ptr, len};
 	}
 
-	i32 res = (i32) writev(fd, vecs, iovcnt);
+	i32 res = (i32)writev(fd, vecs, iovcnt);
 	if (res == -1) return -errno;
 
 	return res;
@@ -459,15 +463,15 @@ wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 u32
 wasm_getpid()
 {
-	return (u32) getpid();
+	return (u32)getpid();
 }
 
 
-#define WF_DUPFD  0
-#define WF_GETFD  1
-#define WF_SETFD  2
-#define WF_GETFL  3
-#define WF_SETFL  4
+#define WF_DUPFD 0
+#define WF_GETFD 1
+#define WF_SETFD 2
+#define WF_GETFL 3
+#define WF_SETFL 4
 
 #define WF_SETOWN 8
 #define WF_GETOWN 9
@@ -483,15 +487,14 @@ u32
 wasm_fcntl(u32 fd, u32 cmd, u32 arg_or_lock_ptr)
 {
 	switch (cmd) {
-		case WF_SETFD:
-			//            return fcntl(fd, F_SETFD, arg_or_lock_ptr);
-			return 0;
-		case WF_SETLK:
-			return 0;
-		default:
-			assert(0);
+	case WF_SETFD:
+		//            return fcntl(fd, F_SETFD, arg_or_lock_ptr);
+		return 0;
+	case WF_SETLK:
+		return 0;
+	default:
+		assert(0);
 	}
-
 }
 
 #define SYS_FSYNC 74
@@ -508,8 +511,8 @@ wasm_fsync(u32 filedes)
 u32
 wasm_getcwd(u32 buf_offset, u32 buf_size)
 {
-	char* buf = get_memory_ptr_void(buf_offset, buf_size);
-	char* res = getcwd(buf, buf_size);
+	char *buf = get_memory_ptr_void(buf_offset, buf_size);
+	char *res = getcwd(buf, buf_size);
 
 	if (!res) return 0;
 	return buf_offset;
@@ -519,8 +522,8 @@ wasm_getcwd(u32 buf_offset, u32 buf_size)
 u32
 wasm_unlink(u32 path_str_offset)
 {
-	char* str = get_memory_string(path_str_offset);
-	u32 res = unlink(str);
+	char *str = get_memory_string(path_str_offset);
+	u32   res = unlink(str);
 	if (res == -1) return -errno;
 
 	return 0;
@@ -530,7 +533,7 @@ wasm_unlink(u32 path_str_offset)
 u32
 wasm_geteuid()
 {
-	return (u32) geteuid();
+	return (u32)geteuid();
 }
 
 #define SYS_SET_THREAD_AREA 205
@@ -548,26 +551,26 @@ wasm_get_time(i32 clock_id, i32 timespec_off)
 {
 	clockid_t real_clock;
 	switch (clock_id) {
-		case 0:
-			real_clock = CLOCK_REALTIME;
-			break;
-		case 1:
-			real_clock = CLOCK_MONOTONIC;
-			break;
-		case 2:
-			real_clock = CLOCK_PROCESS_CPUTIME_ID;
-			break;
-		default:
-			assert(0);
+	case 0:
+		real_clock = CLOCK_REALTIME;
+		break;
+	case 1:
+		real_clock = CLOCK_MONOTONIC;
+		break;
+	case 2:
+		real_clock = CLOCK_PROCESS_CPUTIME_ID;
+		break;
+	default:
+		assert(0);
 	}
 
-	struct wasm_time_spec* timespec = get_memory_ptr_void(timespec_off, sizeof(struct wasm_time_spec));
+	struct wasm_time_spec *timespec = get_memory_ptr_void(timespec_off, sizeof(struct wasm_time_spec));
 
-	struct timespec native_timespec = { 0, 0 };
-	int res = clock_gettime(real_clock, &native_timespec);
+	struct timespec native_timespec = {0, 0};
+	int             res             = clock_gettime(real_clock, &native_timespec);
 	if (res == -1) return -errno;
 
-	timespec->sec = native_timespec.tv_sec;
+	timespec->sec     = native_timespec.tv_sec;
 	timespec->nanosec = native_timespec.tv_nsec;
 
 	return res;
@@ -632,7 +635,7 @@ wasm_listen(i32 sockfd, i32 backlog)
 i32
 wasm_sendto(i32 fd, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i32 sockaddr_len)
 {
-	char *buf = get_memory_ptr_void(buff_offset, len);
+	char *           buf  = get_memory_ptr_void(buff_offset, len);
 	struct sockaddr *addr = sockaddr_len ? get_memory_ptr_void(sockaddr_offset, sockaddr_len) : NULL;
 
 	return sendto(fd, buf, len, flags, addr, sockaddr_len);
@@ -641,8 +644,8 @@ wasm_sendto(i32 fd, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i3
 i32
 wasm_recvfrom(i32 fd, i32 buff_offset, i32 size, i32 flags, i32 sockaddr_offset, i32 socklen_offset)
 {
-	char *buf = get_memory_ptr_void(buff_offset, size);
-	socklen_t *len = get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
+	char *           buf  = get_memory_ptr_void(buff_offset, size);
+	socklen_t *      len  = get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
 	struct sockaddr *addr = *len ? get_memory_ptr_void(sockaddr_offset, *len) : NULL;
 
 	return recvfrom(fd, buf, size, flags, addr, addr ? len : NULL);
@@ -652,43 +655,78 @@ i32
 inner_syscall_handler(i32 n, i32 a, i32 b, i32 c, i32 d, i32 e, i32 f)
 {
 	i32 res;
-	switch(n) {
-		case SYS_READ: return wasm_read(a, b, c);
-		case SYS_WRITE: return wasm_write(a, b, c);
-		case SYS_OPEN: return wasm_open(a, b, c);
-		case SYS_CLOSE: return wasm_close(a);
-		case SYS_STAT: return wasm_stat(a, b);
-		case SYS_FSTAT: return wasm_fstat(a, b);
-		case SYS_LSTAT: return wasm_lstat(a, b);
-		case SYS_LSEEK: return wasm_lseek(a, b, c);
-		case SYS_MMAP: return wasm_mmap(a, b, c, d, e, f);
-		case SYS_MUNMAP: return 0;
-		case SYS_BRK: return 0;
-		case SYS_RT_SIGACTION: return 0;
-		case SYS_RT_SIGPROGMASK: return 0;
-		case SYS_IOCTL: return wasm_ioctl(a, b, c);
-		case SYS_READV: return wasm_readv(a, b, c);
-		case SYS_WRITEV: return wasm_writev(a, b, c);
-		case SYS_MADVISE: return 0;
-		case SYS_GETPID: return wasm_getpid();
-		case SYS_FCNTL: return wasm_fcntl(a, b, c);
-		case SYS_FSYNC: return wasm_fsync(a);
-		case SYS_UNLINK: return wasm_unlink(a);
-		case SYS_GETCWD: return wasm_getcwd(a, b);
-		case SYS_GETEUID: return wasm_geteuid();
-		case SYS_SET_THREAD_AREA: return 0;
-		case SYS_SET_TID_ADDRESS: return 0;
-		case SYS_GET_TIME: return wasm_get_time(a, b);
-		case SYS_EXIT_GROUP: return wasm_exit_group(a);
-		case SYS_FCHOWN: return wasm_fchown(a, b, c);
+	switch (n) {
+	case SYS_READ:
+		return wasm_read(a, b, c);
+	case SYS_WRITE:
+		return wasm_write(a, b, c);
+	case SYS_OPEN:
+		return wasm_open(a, b, c);
+	case SYS_CLOSE:
+		return wasm_close(a);
+	case SYS_STAT:
+		return wasm_stat(a, b);
+	case SYS_FSTAT:
+		return wasm_fstat(a, b);
+	case SYS_LSTAT:
+		return wasm_lstat(a, b);
+	case SYS_LSEEK:
+		return wasm_lseek(a, b, c);
+	case SYS_MMAP:
+		return wasm_mmap(a, b, c, d, e, f);
+	case SYS_MUNMAP:
+		return 0;
+	case SYS_BRK:
+		return 0;
+	case SYS_RT_SIGACTION:
+		return 0;
+	case SYS_RT_SIGPROGMASK:
+		return 0;
+	case SYS_IOCTL:
+		return wasm_ioctl(a, b, c);
+	case SYS_READV:
+		return wasm_readv(a, b, c);
+	case SYS_WRITEV:
+		return wasm_writev(a, b, c);
+	case SYS_MADVISE:
+		return 0;
+	case SYS_GETPID:
+		return wasm_getpid();
+	case SYS_FCNTL:
+		return wasm_fcntl(a, b, c);
+	case SYS_FSYNC:
+		return wasm_fsync(a);
+	case SYS_UNLINK:
+		return wasm_unlink(a);
+	case SYS_GETCWD:
+		return wasm_getcwd(a, b);
+	case SYS_GETEUID:
+		return wasm_geteuid();
+	case SYS_SET_THREAD_AREA:
+		return 0;
+	case SYS_SET_TID_ADDRESS:
+		return 0;
+	case SYS_GET_TIME:
+		return wasm_get_time(a, b);
+	case SYS_EXIT_GROUP:
+		return wasm_exit_group(a);
+	case SYS_FCHOWN:
+		return wasm_fchown(a, b, c);
 
-		case SYS_SOCKET: return wasm_socket(a, b, c);
-		case SYS_CONNECT: return wasm_connect(a, b, c);
-		case SYS_ACCEPT: return wasm_accept(a, b, c);
-		case SYS_BIND: return wasm_bind(a, b, c);
-		case SYS_LISTEN: return wasm_listen(a, b);
-		case SYS_SENDTO: return wasm_sendto(a, b, c, d, e, f);
-		case SYS_RECVFROM: return wasm_recvfrom(a, b, c, d, e, f);
+	case SYS_SOCKET:
+		return wasm_socket(a, b, c);
+	case SYS_CONNECT:
+		return wasm_connect(a, b, c);
+	case SYS_ACCEPT:
+		return wasm_accept(a, b, c);
+	case SYS_BIND:
+		return wasm_bind(a, b, c);
+	case SYS_LISTEN:
+		return wasm_listen(a, b);
+	case SYS_SENDTO:
+		return wasm_sendto(a, b, c, d, e, f);
+	case SYS_RECVFROM:
+		return wasm_recvfrom(a, b, c, d, e, f);
 	}
 	printf("syscall %d (%d, %d, %d, %d, %d, %d)\n", n, a, b, c, d, e, f);
 	assert(0);

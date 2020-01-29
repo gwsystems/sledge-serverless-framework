@@ -20,11 +20,13 @@ sandbox_memory_map(struct module *m)
 
 	if (lm_sz + sb_sz > mem_sz) return NULL;
 	assert(round_up_to_page(sb_sz) == sb_sz);
-	unsigned long rw_sz = sb_sz + lm_sz; 
-	void *addr = mmap(NULL, sb_sz + mem_sz + /* guard page */ PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); 
+	unsigned long rw_sz = sb_sz + lm_sz;
+	void *addr = mmap(NULL, sb_sz + mem_sz + /* guard page */ PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1,
+	                  0);
 	if (addr == MAP_FAILED) return NULL;
 
-	void *addr_rw = mmap(addr, sb_sz + lm_sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	void *addr_rw = mmap(addr, sb_sz + lm_sz, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1,
+	                     0);
 	if (addr_rw == MAP_FAILED) {
 		munmap(addr, mem_sz + PAGE_SIZE);
 		return NULL;
@@ -33,9 +35,9 @@ sandbox_memory_map(struct module *m)
 	struct sandbox *s = (struct sandbox *)addr;
 	// can it include sandbox as well?
 	s->linear_start = (char *)addr + sb_sz;
-	s->linear_size = lm_sz;
-	s->mod = m;
-	s->sb_size = sb_sz;
+	s->linear_size  = lm_sz;
+	s->mod          = m;
+	s->sb_size      = sb_sz;
 	module_acquire(m);
 
 	return s;
@@ -45,18 +47,18 @@ static inline void
 sandbox_args_setup(i32 argc)
 {
 	struct sandbox *curr = sandbox_current();
-	char *args = sandbox_args();
+	char *          args = sandbox_args();
 
 	// whatever gregor has, to be able to pass args to a module!
 	curr->args_offset = sandbox_lmbound;
 	assert(sandbox_lmbase == curr->linear_start);
 	expand_memory();
 
-	i32 *array_ptr = get_memory_ptr_void(curr->args_offset, argc * sizeof(i32));
-	i32 string_off = curr->args_offset + (argc * sizeof(i32));
+	i32 *array_ptr  = get_memory_ptr_void(curr->args_offset, argc * sizeof(i32));
+	i32  string_off = curr->args_offset + (argc * sizeof(i32));
 
 	for (int i = 0; i < argc; i++) {
-		char *arg = args + (i * MOD_ARG_MAX_SZ);
+		char * arg    = args + (i * MOD_ARG_MAX_SZ);
 		size_t str_sz = strlen(arg) + 1;
 
 		array_ptr[i] = string_off;
@@ -77,7 +79,7 @@ sb_read_callback(uv_stream_t *s, ssize_t nr, const uv_buf_t *b)
 	if (nr > 0) {
 		if (http_request_parse_sb(c, nr) != 0) return;
 		c->rr_data_len += nr;
-                struct http_request *rh = &c->rqi;
+		struct http_request *rh = &c->rqi;
 		if (!rh->message_end) return;
 	}
 
@@ -120,9 +122,9 @@ sb_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
 	struct sandbox *c = h->data;
 
 #ifndef STANDALONE
-	size_t l = (c->mod->max_rr_sz - c->rr_data_len);
+	size_t l  = (c->mod->max_rr_sz - c->rr_data_len);
 	buf->base = (c->req_resp_data + c->rr_data_len);
-	buf->len = l > suggested ? suggested : l;
+	buf->len  = l > suggested ? suggested : l;
 #endif
 }
 
@@ -135,7 +137,7 @@ sandbox_client_request_get(void)
 	curr->rr_data_len = 0;
 #ifndef USE_HTTP_UVIO
 	int r = 0;
-	r = recv(curr->csock, (curr->req_resp_data), curr->mod->max_req_sz, 0);
+	r     = recv(curr->csock, (curr->req_resp_data), curr->mod->max_req_sz, 0);
 	if (r <= 0) {
 		if (r < 0) perror("recv1");
 		return r;
@@ -146,7 +148,8 @@ sandbox_client_request_get(void)
 		struct http_request *rh = &curr->rqi;
 		if (rh->message_end) break;
 
-		r = recv(curr->csock, (curr->req_resp_data + curr->rr_data_len), curr->mod->max_req_sz - curr->rr_data_len, 0);
+		r = recv(curr->csock, (curr->req_resp_data + curr->rr_data_len),
+		         curr->mod->max_req_sz - curr->rr_data_len, 0);
 		if (r < 0) {
 			perror("recv2");
 			return r;
@@ -168,24 +171,27 @@ static inline int
 sandbox_client_response_set(void)
 {
 #ifndef STANDALONE
-	int sndsz = 0;
-	struct sandbox *curr = sandbox_current();
-	int rsp_hdr_len = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
-	int bodylen = curr->rr_data_len - rsp_hdr_len;
+	int             sndsz       = 0;
+	struct sandbox *curr        = sandbox_current();
+	int             rsp_hdr_len = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
+	int             bodylen     = curr->rr_data_len - rsp_hdr_len;
 
-	memset(curr->req_resp_data, 0, strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN));
+	memset(curr->req_resp_data, 0,
+	       strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN));
 	strncpy(curr->req_resp_data, HTTP_RESP_200OK, strlen(HTTP_RESP_200OK));
 	sndsz += strlen(HTTP_RESP_200OK);
 
 	if (bodylen == 0) goto done;
 	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTTYPE, strlen(HTTP_RESP_CONTTYPE));
 	if (strlen(curr->mod->rspctype) <= 0) {
-		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), HTTP_RESP_CONTTYPE_PLAIN, strlen(HTTP_RESP_CONTTYPE_PLAIN));
+		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), HTTP_RESP_CONTTYPE_PLAIN,
+		        strlen(HTTP_RESP_CONTTYPE_PLAIN));
 	} else {
-		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), curr->mod->rspctype, strlen(curr->mod->rspctype));
+		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), curr->mod->rspctype,
+		        strlen(curr->mod->rspctype));
 	}
 	sndsz += strlen(HTTP_RESP_CONTTYPE);
-	char len[10] = { 0 };
+	char len[10] = {0};
 	sprintf(len, "%d", bodylen);
 	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTLEN, strlen(HTTP_RESP_CONTLEN));
 	strncpy(curr->req_resp_data + sndsz + strlen("Content-length: "), len, strlen(len));
@@ -210,9 +216,11 @@ done:
 		r += s;
 	}
 #else
-	uv_write_t req = { .data = curr, };
+	uv_write_t req = {
+	  .data = curr,
+	};
 	uv_buf_t bufv = uv_buf_init(curr->req_resp_data, sndsz);
-	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, &bufv, 1, sb_write_callback);
+	int      r    = uv_write(&req, (uv_stream_t *)&curr->cuv, &bufv, 1, sb_write_callback);
 	sandbox_block_http();
 #endif
 
@@ -221,8 +229,8 @@ done:
 #endif
 }
 
-//static inline int
-//sandbox_client_response_set(void)
+// static inline int
+// sandbox_client_response_set(void)
 //{
 //#ifndef STANDALONE
 //	struct sandbox *curr = sandbox_current();
@@ -285,7 +293,7 @@ sandbox_entry(void)
 {
 	struct sandbox *curr = sandbox_current();
 	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
-	//        return to sandbox_switch() api.. 
+	//        return to sandbox_switch() api..
 	//        we'd potentially do what we'd in sandbox_switch() api here for cleanup..
 	if (!softint_enabled()) {
 		arch_context_init(&curr->ctxt, 0, 0);
@@ -293,7 +301,7 @@ sandbox_entry(void)
 		softint_enable();
 	}
 	struct module *curr_mod = sandbox_module(curr);
-	int argc = module_nargs(curr_mod);
+	int            argc     = module_nargs(curr_mod);
 	// for stdio
 	int f = io_handle_open(0);
 	assert(f == 0);
@@ -315,7 +323,7 @@ sandbox_entry(void)
 	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&curr->cuv);
 	assert(r == 0);
 	curr->cuv.data = curr;
-	r = uv_tcp_open((uv_tcp_t *)&curr->cuv, curr->csock);
+	r              = uv_tcp_open((uv_tcp_t *)&curr->cuv, curr->csock);
 	assert(r == 0);
 #endif
 	if (sandbox_client_request_get() > 0)
@@ -328,7 +336,7 @@ sandbox_entry(void)
 #endif
 		alloc_linear_memory();
 		// perhaps only initialized for the first instance? or TODO!
-		//module_table_init(curr_mod);
+		// module_table_init(curr_mod);
 		module_globals_init(curr_mod);
 		module_memory_init(curr_mod);
 		sandbox_args_setup(argc);
@@ -359,10 +367,11 @@ sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *a
 	struct sandbox *sb = (struct sandbox *)sandbox_memory_map(mod);
 	if (!sb) return NULL;
 
-	//actual module instantiation!
-	sb->args = (void *)args;
-	sb->stack_size = mod->stack_size;
-	sb->stack_start = mmap(NULL, sb->stack_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
+	// actual module instantiation!
+	sb->args        = (void *)args;
+	sb->stack_size  = mod->stack_size;
+	sb->stack_start = mmap(NULL, sb->stack_size, PROT_READ | PROT_WRITE,
+	                       MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
 	if (sb->stack_start == MAP_FAILED) {
 		perror("mmap");
 		assert(0);
@@ -405,19 +414,19 @@ sandbox_free(struct sandbox *sb)
 	module_release(sb->mod);
 
 	// TODO free(sb->args);
-	void *stkaddr = sb->stack_start;
-	size_t stksz = sb->stack_size;
+	void * stkaddr = sb->stack_start;
+	size_t stksz   = sb->stack_size;
 
 	// depending on the memory type
-	//free_linear_memory(sb->linear_start, sb->linear_size, sb->linear_max_size);
+	// free_linear_memory(sb->linear_start, sb->linear_size, sb->linear_max_size);
 
 	// mmaped memory includes sandbox structure in there.
 	ret = munmap(sb, sz);
 	if (ret) perror("munmap sandbox");
 
 	// remove stack!
-	// for some reason, removing stack seem to cause crash in some cases. 
-	// TODO: debug more. 
+	// for some reason, removing stack seem to cause crash in some cases.
+	// TODO: debug more.
 	ret = munmap(stkaddr, stksz);
 	if (ret) perror("munmap stack");
 }

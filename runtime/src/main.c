@@ -23,12 +23,11 @@ pthread_t rtthd[SBOX_NCORES];
 static unsigned long long
 get_time()
 {
-    struct timeval Tp;
-    int stat;
-    stat = gettimeofday (&Tp, NULL);
-    if (stat != 0)
-      printf ("Error return from gettimeofday: %d", stat);
-    return (Tp.tv_sec * 1000000 + Tp.tv_usec);
+	struct timeval Tp;
+	int            stat;
+	stat = gettimeofday(&Tp, NULL);
+	if (stat != 0) printf("Error return from gettimeofday: %d", stat);
+	return (Tp.tv_sec * 1000000 + Tp.tv_usec);
 }
 
 
@@ -40,11 +39,11 @@ usage(char *cmd)
 }
 
 int
-main(int argc, char** argv)
+main(int argc, char **argv)
 {
 #ifndef STANDALONE
-	int i = 0, rtthd_ret[SBOX_NCORES] = { 0 };
-	memset(rtthd, 0, sizeof(pthread_t)*SBOX_NCORES);
+	int i = 0, rtthd_ret[SBOX_NCORES] = {0};
+	memset(rtthd, 0, sizeof(pthread_t) * SBOX_NCORES);
 
 	if (argc != 2) {
 		usage(argv[0]);
@@ -73,14 +72,15 @@ main(int argc, char** argv)
 
 	ncores = sysconf(_SC_NPROCESSORS_ONLN);
 	if (ncores > 1) {
-		u32 x = ncores - 1;
+		u32 x       = ncores - 1;
 		sbox_ncores = SBOX_NCORES;
 		if (x < SBOX_NCORES) sbox_ncores = x;
 		sbox_core_st = 1;
 	} else {
 		sbox_ncores = 1;
 	}
-	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n", ncores, sbox_ncores, sbox_core_st, MOD_REQ_CORE);
+	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n", ncores, sbox_ncores,
+	         sbox_core_st, MOD_REQ_CORE);
 
 #ifdef NOSTDIO
 	fclose(stdout);
@@ -119,7 +119,7 @@ main(int argc, char** argv)
 		assert(ret == 0);
 	}
 	debuglog("Sandboxing environment ready!\n");
-	
+
 	for (i = 0; i < sbox_ncores; i++) {
 		int ret = pthread_join(rtthd[i], NULL);
 		if (ret) {
@@ -136,12 +136,12 @@ main(int argc, char** argv)
 	arch_context_init(&base_context, 0, 0);
 	uv_loop_init(&uvio);
 
-	int ac = 1;
+	int   ac   = 1;
 	char *args = argv[1];
 	if (argc - 1 > 1) {
-		ac = argc - 1;
+		ac        = argc - 1;
 		char **av = argv + 1;
-		args = malloc(sizeof(char) * MOD_ARG_MAX_SZ * ac);
+		args      = malloc(sizeof(char) * MOD_ARG_MAX_SZ * ac);
 		memset(args, 0, sizeof(char) * MOD_ARG_MAX_SZ * ac);
 
 		for (int i = 0; i < ac; i++) {
@@ -154,10 +154,10 @@ main(int argc, char** argv)
 	struct module *m = module_alloc(args, args, ac, 0, 0, 0, 0, 0, 0);
 	assert(m);
 
-	//unsigned long long st = get_time(), en;
+	// unsigned long long st = get_time(), en;
 	struct sandbox *s = sandbox_alloc(m, args, 0, NULL);
-	//en = get_time();
-	//fprintf(stderr, "%llu\n", en - st);
+	// en = get_time();
+	// fprintf(stderr, "%llu\n", en - st);
 
 	exit(0);
 #endif

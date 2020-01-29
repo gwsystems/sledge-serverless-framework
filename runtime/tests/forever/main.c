@@ -5,7 +5,7 @@
 #define ITERS 50000000
 
 int
-main(int argc, char **argv) __attribute__ ((optnone))
+main(int argc, char **argv) __attribute__((optnone))
 {
 	printf("%s enter\n", argv[0]);
 	int n = 0, e = 1;
@@ -19,7 +19,7 @@ main(int argc, char **argv) __attribute__ ((optnone))
 		n--;
 		while (i-- > 0) {
 			int j = ITERS;
-			while (j-- > 0) __asm__ __volatile__("nop": : :"memory");
+			while (j-- > 0) __asm__ __volatile__("nop" : : : "memory");
 		}
 		printf("%s\n", argv[0]);
 	}
