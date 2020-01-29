@@ -31,23 +31,12 @@ SYS_BUILD_TIMEOUT=0
 
 # Provides help to user on how to use this script
 usage() {
-  echo "usage $0 <setup/run/stop/rm/rma/install_libuv/>"
-}
-
-# It's easier to debug on host, so probably you want to execut awsm outside of the container
-# That means we need the LibUV dependency installed on our host
-install_libuv() {
-  # If using Debian, install LibUV Dependency
-  if [ -f "/etc/debian_version" ]; then
-    if [ "$(dpkg-query -W -f='${Status}' libuv1-dev 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
-      echo "LibUV seems to be missing. Install?"
-      sudo apt-get install libuv1-dev
-    else
-      echo "libuv detected!"
-    fi
-  else
-    echo "You don't seem to be on a Debian-based system, and this script only knows about aptitude. Sorry!"
-  fi
+  echo "usage $0 <setup||run||stop||rm||rma/>"
+  echo "      setup   Build aWsm and a Docker container with toolchain needed to compile your own functions"
+  echo "      run     Start the aWsm Docker image as an interactive container with this repository mounted"
+  echo "      stop    Stop and remove the aWsm Docker container after use"
+  echo "      rm      Remove the aWsm runtime container and image, but leaves the awsm-dev container in place"
+  echo "      rma     Removes all the awsm and awsm-dev containers and images"
 }
 
 # Given a number of seconds, initiates a countdown sequence
@@ -198,9 +187,6 @@ case $1 in
     ;;
   rma)
     envrma
-    ;;
-  install_libuv)
-    install_libuv
     ;;
   *)
     echo "invalid option: $1"
