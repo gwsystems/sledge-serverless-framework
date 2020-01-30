@@ -27,7 +27,7 @@
  */
 
 typedef uint64_t reg_t;
-#define ARCH_NREGS (16 /* GP registers */ + 1 /* for IP */)
+#define ARCH_NREGS       (16 /* GP registers */ + 1 /* for IP */)
 #define ARCH_SIG_JMP_OFF 8
 
 /*

@@ -41,7 +41,7 @@ send_fn(void *d)
 {
 	struct request *r = (struct request *)d;
 
-	char               resp[STR_MAX] = {0};
+	char               resp[STR_MAX] = { 0 };
 	int                fd            = -1;
 	struct sockaddr_in sa;
 
@@ -85,10 +85,10 @@ main(int argc, char *argv[])
 	while (1) {
 		fseek(f, 0, SEEK_SET);
 
-		char line[MSG_MAX] = {0};
+		char line[MSG_MAX] = { 0 };
 		while (fgets(line, MSG_MAX, f) != NULL) {
 			char *msg = NULL, *tok, *src = line;
-			char  ip[STR_MAX] = {0}, port[STR_MAX] = {0};
+			char  ip[STR_MAX] = { 0 }, port[STR_MAX] = { 0 };
 			src = remove_spaces(src);
 
 			if (src[0] == ';') goto next;

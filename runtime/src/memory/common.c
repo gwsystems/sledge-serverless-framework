@@ -23,7 +23,7 @@ add_function_to_table(u32 idx, u32 type_id, char *pointer)
 	// TODO: atomic for multiple concurrent invocations?
 	if (module_indirect_table[idx].type_id == type_id && module_indirect_table[idx].func_pointer == pointer) return;
 
-	module_indirect_table[idx] = (struct indirect_table_entry){.type_id = type_id, .func_pointer = pointer};
+	module_indirect_table[idx] = (struct indirect_table_entry){ .type_id = type_id, .func_pointer = pointer };
 }
 
 // If we are using runtime globals, we need to populate them

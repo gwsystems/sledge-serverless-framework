@@ -191,7 +191,7 @@ sandbox_client_response_set(void)
 		        strlen(curr->mod->rspctype));
 	}
 	sndsz += strlen(HTTP_RESP_CONTTYPE);
-	char len[10] = {0};
+	char len[10] = { 0 };
 	sprintf(len, "%d", bodylen);
 	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTLEN, strlen(HTTP_RESP_CONTLEN));
 	strncpy(curr->req_resp_data + sndsz + strlen("Content-length: "), len, strlen(len));
@@ -217,7 +217,7 @@ done:
 	}
 #else
 	uv_write_t req = {
-	  .data = curr,
+		.data = curr,
 	};
 	uv_buf_t bufv = uv_buf_init(curr->req_resp_data, sndsz);
 	int      r    = uv_write(&req, (uv_stream_t *)&curr->cuv, &bufv, 1, sb_write_callback);

@@ -63,8 +63,8 @@ util_parse_modules_file_json(char *filename)
 	for (int i = 0; i < r; i++) {
 		assert(toks[i].type == JSMN_OBJECT);
 
-		char  mname[MOD_NAME_MAX] = {0};
-		char  mpath[MOD_PATH_MAX] = {0};
+		char  mname[MOD_NAME_MAX] = { 0 };
+		char  mpath[MOD_PATH_MAX] = { 0 };
 		char *rqhdrs;
 		char *rsphdrs;
 		i32   req_sz   = 0;
@@ -78,12 +78,12 @@ util_parse_modules_file_json(char *filename)
 		memset(rqhdrs, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 		rsphdrs = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 		memset(rsphdrs, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		char rqtype[HTTP_HEADERVAL_MAXSZ]  = {0};
-		char rsptype[HTTP_HEADERVAL_MAXSZ] = {0};
+		char rqtype[HTTP_HEADERVAL_MAXSZ]  = { 0 };
+		char rsptype[HTTP_HEADERVAL_MAXSZ] = { 0 };
 
 		for (; j < ntoks;) {
 			int  ntks     = 1;
-			char val[256] = {0}, key[32] = {0};
+			char val[256] = { 0 }, key[32] = { 0 };
 
 			sprintf(val, "%.*s", toks[j + i + 1].end - toks[j + i + 1].start,
 			        filebuf + toks[j + i + 1].start);
@@ -168,7 +168,7 @@ int
 parse_sandbox_file_custom(char *filename)
 {
 	FILE *mf                      = fopen(filename, "r");
-	char  buff[UTIL_MOD_LINE_MAX] = {0};
+	char  buff[UTIL_MOD_LINE_MAX] = { 0 };
 	int   total_boxes             = 0;
 
 	if (!mf) {
@@ -178,7 +178,7 @@ parse_sandbox_file_custom(char *filename)
 	}
 
 	while (fgets(buff, UTIL_MOD_LINE_MAX, mf) != NULL) {
-		char            mname[MOD_NAME_MAX] = {0};
+		char            mname[MOD_NAME_MAX] = { 0 };
 		char *          tok = NULL, *src = buff;
 		struct module * mod  = NULL;
 		struct sandbox *sb   = NULL;
@@ -239,10 +239,10 @@ util_parse_sandbox_string_json(struct module *mod, char *str, const struct socka
 	if (tk[0].type != JSMN_OBJECT) return NULL;
 
 	for (int j = 1; j < r; j++) {
-		char key[32] = {0};
+		char key[32] = { 0 };
 		sprintf(key, "%.*s", tk[j].end - tk[j].start, str + tk[j].start);
 		if (strcmp(key, "module") == 0) {
-			char name[32] = {0};
+			char name[32] = { 0 };
 			sprintf(name, "%.*s", tk[j + 1].end - tk[j + 1].start, str + tk[j + 1].start);
 			if (strcmp(name, mod->name) != 0) return NULL;
 			j++;
@@ -308,7 +308,7 @@ int
 util_parse_modules_file_custom(char *filename)
 {
 	FILE *mf                      = fopen(filename, "r");
-	char  buff[UTIL_MOD_LINE_MAX] = {0};
+	char  buff[UTIL_MOD_LINE_MAX] = { 0 };
 	int   nmods                   = 0;
 
 	if (!mf) {
@@ -318,8 +318,8 @@ util_parse_modules_file_custom(char *filename)
 	}
 
 	while (fgets(buff, UTIL_MOD_LINE_MAX, mf) != NULL) {
-		char  mname[MOD_NAME_MAX] = {0};
-		char  mpath[MOD_PATH_MAX] = {0};
+		char  mname[MOD_NAME_MAX] = { 0 };
+		char  mpath[MOD_PATH_MAX] = { 0 };
 		i32   nargs               = 0;
 		u32   stack_sz            = 0;
 		u32   max_heap            = 0;

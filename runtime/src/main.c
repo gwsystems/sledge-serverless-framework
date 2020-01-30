@@ -42,7 +42,7 @@ int
 main(int argc, char **argv)
 {
 #ifndef STANDALONE
-	int i = 0, rtthd_ret[SBOX_NCORES] = {0};
+	int i = 0, rtthd_ret[SBOX_NCORES] = { 0 };
 	memset(rtthd, 0, sizeof(pthread_t) * SBOX_NCORES);
 
 	if (argc != 2) {

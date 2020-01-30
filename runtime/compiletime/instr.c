@@ -8,7 +8,7 @@
 
 // ROTL and ROTR helper functions
 INLINE u32
-       rotl_u32(u32 n, u32 c_u32)
+rotl_u32(u32 n, u32 c_u32)
 {
 	// WASM requires a modulus here (usually a single bitwise op, but it means we need no assert)
 	unsigned int       c    = c_u32 % (CHAR_BIT * sizeof(n));
@@ -19,7 +19,7 @@ INLINE u32
 }
 
 INLINE u32
-       rotr_u32(u32 n, u32 c_u32)
+rotr_u32(u32 n, u32 c_u32)
 {
 	// WASM requires a modulus here (usually a single bitwise op, but it means we need no assert)
 	unsigned int       c    = c_u32 % (CHAR_BIT * sizeof(n));
@@ -30,7 +30,7 @@ INLINE u32
 }
 
 INLINE u64
-       rotl_u64(u64 n, u64 c_u64)
+rotl_u64(u64 n, u64 c_u64)
 {
 	// WASM requires a modulus here (usually a single bitwise op, but it means we need no assert)
 	unsigned int       c    = c_u64 % (CHAR_BIT * sizeof(n));
@@ -41,7 +41,7 @@ INLINE u64
 }
 
 INLINE u64
-       rotr_u64(u64 n, u64 c_u64)
+rotr_u64(u64 n, u64 c_u64)
 {
 	// WASM requires a modulus here (usually a single bitwise op, but it means we need no assert)
 	unsigned int       c    = c_u64 % (CHAR_BIT * sizeof(n));
@@ -53,56 +53,56 @@ INLINE u64
 
 // Now safe division and remainder
 INLINE u32
-       u32_div(u32 a, u32 b)
+u32_div(u32 a, u32 b)
 {
 	assert(b);
 	return a / b;
 }
 
 INLINE u32
-       u32_rem(u32 a, u32 b)
+u32_rem(u32 a, u32 b)
 {
 	assert(b);
 	return a % b;
 }
 
 INLINE i32
-       i32_div(i32 a, i32 b)
+i32_div(i32 a, i32 b)
 {
 	assert(b && (a != INT32_MIN || b != -1));
 	return a / b;
 }
 
 INLINE i32
-       i32_rem(i32 a, i32 b)
+i32_rem(i32 a, i32 b)
 {
 	assert(b && (a != INT32_MIN || b != -1));
 	return a % b;
 }
 
 INLINE u64
-       u64_div(u64 a, u64 b)
+u64_div(u64 a, u64 b)
 {
 	assert(b);
 	return a / b;
 }
 
 INLINE u64
-       u64_rem(u64 a, u64 b)
+u64_rem(u64 a, u64 b)
 {
 	assert(b);
 	return a % b;
 }
 
 INLINE i64
-       i64_div(i64 a, i64 b)
+i64_div(i64 a, i64 b)
 {
 	assert(b && (a != INT64_MIN || b != -1));
 	return a / b;
 }
 
 INLINE i64
-       i64_rem(i64 a, i64 b)
+i64_rem(i64 a, i64 b)
 {
 	assert(b && (a != INT64_MIN || b != -1));
 	return a % b;

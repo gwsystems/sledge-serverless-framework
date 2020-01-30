@@ -23,7 +23,7 @@ get_f64(i32 offset)
 }
 
 INLINE i8
-       get_i8(i32 offset)
+get_i8(i32 offset)
 {
 	char *mem_as_chars = (char *)sandbox_lmbase;
 	void *address      = &mem_as_chars[offset];
@@ -32,7 +32,7 @@ INLINE i8
 }
 
 INLINE i16
-       get_i16(i32 offset)
+get_i16(i32 offset)
 {
 	char *mem_as_chars = (char *)sandbox_lmbase;
 	void *address      = &mem_as_chars[offset];
@@ -41,7 +41,7 @@ INLINE i16
 }
 
 INLINE i32
-       get_i32(i32 offset)
+get_i32(i32 offset)
 {
 	char *mem_as_chars = (char *)sandbox_lmbase;
 	void *address      = &mem_as_chars[offset];
@@ -50,7 +50,7 @@ INLINE i32
 }
 
 INLINE i64
-       get_i64(i32 offset)
+get_i64(i32 offset)
 {
 	char *mem_as_chars = (char *)sandbox_lmbase;
 	void *address      = &mem_as_chars[offset];
@@ -59,7 +59,7 @@ INLINE i64
 }
 
 INLINE i32
-       get_global_i32(i32 offset)
+get_global_i32(i32 offset)
 {
 	char *mem_as_chars = (char *)sandbox_lmbase;
 	void *address      = &mem_as_chars[offset];
@@ -68,7 +68,7 @@ INLINE i32
 }
 
 INLINE i64
-       get_global_i64(i32 offset)
+get_global_i64(i32 offset)
 {
 	char *mem_as_chars = (char *)sandbox_lmbase;
 	void *address      = &mem_as_chars[offset];

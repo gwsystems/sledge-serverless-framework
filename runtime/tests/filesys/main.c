@@ -7,13 +7,13 @@
 #include <string.h>
 #include <sys/uio.h>
 
-#define BUF_MAX 44
+#define BUF_MAX  44
 #define RDWR_MAX 1
 #if RDWR_MAX > 1
 int
 main(int argc, char **argv) __attribute__((optnone))
 {
-	char buf[RDWR_MAX][BUF_MAX] = {0};
+	char buf[RDWR_MAX][BUF_MAX] = { 0 };
 
 	printf("%s enter [in:%s, out:%s]\n", argv[0], argv[1], argv[2]);
 	int fdr = open(argv[1], O_RDONLY, S_IRUSR | S_IRGRP);
@@ -28,7 +28,7 @@ main(int argc, char **argv) __attribute__((optnone))
 	}
 
 	int          n             = 0;
-	struct iovec iov[RDWR_MAX] = {0};
+	struct iovec iov[RDWR_MAX] = { 0 };
 	for (int i = 0; i < RDWR_MAX; i++) {
 		iov[i].iov_base = buf[i];
 		iov[i].iov_len  = BUF_MAX;
@@ -61,7 +61,7 @@ main(int argc, char **argv) __attribute__((optnone))
 int
 main(int argc, char **argv) __attribute__((optnone))
 {
-	char buf[BUF_MAX] = {0};
+	char buf[BUF_MAX] = { 0 };
 
 	printf("%s enter [in:%s, out:%s]\n", argv[0], argv[1], argv[2]);
 #ifdef USE_OPEN

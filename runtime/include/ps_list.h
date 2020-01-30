@@ -129,14 +129,14 @@ ps_list_ll_rem(struct ps_list *l)
 #define ps_list_is_head(lh, o, lname) (ps_list_obj_get((lh), (o), lname) == (o))
 
 /* functions for if we don't use the default name for the list field */
-#define ps_list_singleton(o, lname) ps_list_ll_empty(&(o)->lname)
-#define ps_list_init(o, lname) ps_list_ll_init(&(o)->lname)
-#define ps_list_next(o, lname) ps_list_obj_get((o)->lname.n, (o), lname)
-#define ps_list_prev(o, lname) ps_list_obj_get((o)->lname.p, (o), lname)
-#define ps_list_add(o, n, lname) ps_list_ll_add(&(o)->lname, &(n)->lname)
-#define ps_list_append(o, n, lname) ps_list_add(ps_list_prev((o), lname), n, lname)
-#define ps_list_rem(o, lname) ps_list_ll_rem(&(o)->lname)
-#define ps_list_head_add(lh, o, lname) ps_list_ll_add((&(lh)->l), &(o)->lname)
+#define ps_list_singleton(o, lname)       ps_list_ll_empty(&(o)->lname)
+#define ps_list_init(o, lname)            ps_list_ll_init(&(o)->lname)
+#define ps_list_next(o, lname)            ps_list_obj_get((o)->lname.n, (o), lname)
+#define ps_list_prev(o, lname)            ps_list_obj_get((o)->lname.p, (o), lname)
+#define ps_list_add(o, n, lname)          ps_list_ll_add(&(o)->lname, &(n)->lname)
+#define ps_list_append(o, n, lname)       ps_list_add(ps_list_prev((o), lname), n, lname)
+#define ps_list_rem(o, lname)             ps_list_ll_rem(&(o)->lname)
+#define ps_list_head_add(lh, o, lname)    ps_list_ll_add((&(lh)->l), &(o)->lname)
 #define ps_list_head_append(lh, o, lname) ps_list_ll_add(((&(lh)->l)->p), &(o)->lname)
 
 /**
@@ -145,22 +145,22 @@ ps_list_ll_rem(struct ps_list *l)
  */
 
 #define ps_list_head_first(lh, type, lname) ps_container(((lh)->l.n), type, lname)
-#define ps_list_head_last(lh, type, lname) ps_container(((lh)->l.p), type, lname)
+#define ps_list_head_last(lh, type, lname)  ps_container(((lh)->l.p), type, lname)
 
 /* If your struct named the list field "list" (as defined by PS_LIST_DEF_NAME */
 #define ps_list_is_head_d(lh, o) ps_list_is_head(lh, o, PS_LIST_DEF_NAME)
-#define ps_list_singleton_d(o) ps_list_singleton(o, PS_LIST_DEF_NAME)
-#define ps_list_init_d(o) ps_list_init(o, PS_LIST_DEF_NAME)
-#define ps_list_next_d(o) ps_list_next(o, PS_LIST_DEF_NAME)
-#define ps_list_prev_d(o) ps_list_prev(o, PS_LIST_DEF_NAME)
-#define ps_list_add_d(o, n) ps_list_add(o, n, PS_LIST_DEF_NAME)
-#define ps_list_append_d(o, n) ps_list_append(o, n, PS_LIST_DEF_NAME)
-#define ps_list_rem_d(o) ps_list_rem(o, PS_LIST_DEF_NAME)
+#define ps_list_singleton_d(o)   ps_list_singleton(o, PS_LIST_DEF_NAME)
+#define ps_list_init_d(o)        ps_list_init(o, PS_LIST_DEF_NAME)
+#define ps_list_next_d(o)        ps_list_next(o, PS_LIST_DEF_NAME)
+#define ps_list_prev_d(o)        ps_list_prev(o, PS_LIST_DEF_NAME)
+#define ps_list_add_d(o, n)      ps_list_add(o, n, PS_LIST_DEF_NAME)
+#define ps_list_append_d(o, n)   ps_list_append(o, n, PS_LIST_DEF_NAME)
+#define ps_list_rem_d(o)         ps_list_rem(o, PS_LIST_DEF_NAME)
 
-#define ps_list_head_last_d(lh, o) ps_list_head_last(lh, o, PS_LIST_DEF_NAME)
+#define ps_list_head_last_d(lh, o)     ps_list_head_last(lh, o, PS_LIST_DEF_NAME)
 #define ps_list_head_first_d(lh, type) ps_list_head_first(lh, type, PS_LIST_DEF_NAME)
-#define ps_list_head_add_d(lh, o) ps_list_head_add(lh, o, PS_LIST_DEF_NAME)
-#define ps_list_head_append_d(lh, o) ps_list_head_append(lh, o, PS_LIST_DEF_NAME)
+#define ps_list_head_add_d(lh, o)      ps_list_head_add(lh, o, PS_LIST_DEF_NAME)
+#define ps_list_head_append_d(lh, o)   ps_list_head_append(lh, o, PS_LIST_DEF_NAME)
 
 /**
  * Iteration API

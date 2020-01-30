@@ -6,7 +6,7 @@
 #include <uv.h>
 #include <util.h>
 
-static struct module *__mod_db[MOD_MAX] = {NULL};
+static struct module *__mod_db[MOD_MAX] = { NULL };
 static int            __mod_free_off    = 0;
 
 struct module *

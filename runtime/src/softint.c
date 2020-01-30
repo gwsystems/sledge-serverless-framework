@@ -17,7 +17,7 @@ __thread static volatile sig_atomic_t alarm_cnt = 0, usr1_cnt = 0;
 
 __thread volatile sig_atomic_t softint_off = 0;
 
-static const int softints[] = {SIGALRM, SIGUSR1};
+static const int softints[] = { SIGALRM, SIGUSR1 };
 
 void
 softint_timer_arm(void)

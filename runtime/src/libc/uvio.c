@@ -9,25 +9,25 @@
 #define GID 0xFE
 
 // Elf auxilary vector values (see google for what those are)
-#define AT_NULL 0
-#define AT_IGNORE 1
-#define AT_EXECFD 2
-#define AT_PHDR 3
-#define AT_PHENT 4
-#define AT_PHNUM 5
-#define AT_PAGESZ 6
-#define AT_BASE 7
-#define AT_FLAGS 8
-#define AT_ENTRY 9
-#define AT_NOTELF 10
-#define AT_UID 11
-#define AT_EUID 12
-#define AT_GID 13
-#define AT_EGID 14
-#define AT_CLKTCK 17
-#define AT_SECURE 23
+#define AT_NULL          0
+#define AT_IGNORE        1
+#define AT_EXECFD        2
+#define AT_PHDR          3
+#define AT_PHENT         4
+#define AT_PHNUM         5
+#define AT_PAGESZ        6
+#define AT_BASE          7
+#define AT_FLAGS         8
+#define AT_ENTRY         9
+#define AT_NOTELF        10
+#define AT_UID           11
+#define AT_EUID          12
+#define AT_GID           13
+#define AT_EGID          14
+#define AT_CLKTCK        17
+#define AT_SECURE        23
 #define AT_BASE_PLATFORM 24
-#define AT_RANDOM 25
+#define AT_RANDOM        25
 
 // offset = a WASM ptr to memory the runtime can use
 void
@@ -43,24 +43,24 @@ stub_init(i32 offset)
 	// The construction of this is:
 	// evn1, env2, ..., NULL, auxv_n1, auxv_1, auxv_n2, auxv_2 ..., NULL
 	i32 env_vec[] = {
-	  // Env variables would live here, but we don't supply any
-	  0,
-	  // We supply only the bare minimum AUX vectors
-	  AT_PAGESZ,
-	  WASM_PAGE_SIZE,
-	  AT_UID,
-	  UID,
-	  AT_EUID,
-	  UID,
-	  AT_GID,
-	  GID,
-	  AT_EGID,
-	  GID,
-	  AT_SECURE,
-	  0,
-	  AT_RANDOM,
-	  (i32)rand(), // It's pretty stupid to use rand here, but w/e
-	  0,
+		// Env variables would live here, but we don't supply any
+		0,
+		// We supply only the bare minimum AUX vectors
+		AT_PAGESZ,
+		WASM_PAGE_SIZE,
+		AT_UID,
+		UID,
+		AT_EUID,
+		UID,
+		AT_GID,
+		GID,
+		AT_EGID,
+		GID,
+		AT_SECURE,
+		0,
+		AT_RANDOM,
+		(i32)rand(), // It's pretty stupid to use rand here, but w/e
+		0,
 	};
 	i32 env_vec_offset = offset;
 	memcpy(get_memory_ptr_for_runtime(env_vec_offset, sizeof(env_vec)), env_vec, sizeof(env_vec));
@@ -172,21 +172,21 @@ wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 	return ret;
 }
 
-#define WO_RDONLY 00
-#define WO_WRONLY 01
-#define WO_RDWR 02
-#define WO_CREAT 0100
-#define WO_EXCL 0200
-#define WO_NOCTTY 0400
-#define WO_TRUNC 01000
-#define WO_APPEND 02000
-#define WO_NONBLOCK 04000
-#define WO_DSYNC 010000
-#define WO_SYNC 04010000
-#define WO_RSYNC 04010000
+#define WO_RDONLY    00
+#define WO_WRONLY    01
+#define WO_RDWR      02
+#define WO_CREAT     0100
+#define WO_EXCL      0200
+#define WO_NOCTTY    0400
+#define WO_TRUNC     01000
+#define WO_APPEND    02000
+#define WO_NONBLOCK  04000
+#define WO_DSYNC     010000
+#define WO_SYNC      04010000
+#define WO_RSYNC     04010000
 #define WO_DIRECTORY 0200000
-#define WO_NOFOLLOW 0400000
-#define WO_CLOEXEC 02000000
+#define WO_NOFOLLOW  0400000
+#define WO_CLOEXEC   02000000
 
 #define SYS_OPEN 2
 i32
@@ -314,16 +314,16 @@ wasm_stat(u32 path_str_offset, i32 stat_offset)
 	if (res == -1) return -errno;
 
 	*stat_ptr = (struct wasm_stat){
-	  .st_dev     = stat.st_dev,
-	  .st_ino     = stat.st_ino,
-	  .st_nlink   = stat.st_nlink,
-	  .st_mode    = stat.st_mode,
-	  .st_uid     = stat.st_uid,
-	  .st_gid     = stat.st_gid,
-	  .st_rdev    = stat.st_rdev,
-	  .st_size    = stat.st_size,
-	  .st_blksize = stat.st_blksize,
-	  .st_blocks  = stat.st_blocks,
+		.st_dev     = stat.st_dev,
+		.st_ino     = stat.st_ino,
+		.st_nlink   = stat.st_nlink,
+		.st_mode    = stat.st_mode,
+		.st_uid     = stat.st_uid,
+		.st_gid     = stat.st_gid,
+		.st_rdev    = stat.st_rdev,
+		.st_size    = stat.st_size,
+		.st_blksize = stat.st_blksize,
+		.st_blocks  = stat.st_blocks,
 	};
 #ifdef __APPLE__
 	stat_ptr->st_atim.tv_sec  = stat.st_atimespec.tv_sec;
@@ -360,16 +360,16 @@ wasm_fstat(i32 filedes, i32 stat_offset)
 	if (res == -1) return -errno;
 
 	*stat_ptr = (struct wasm_stat){
-	  .st_dev     = stat.st_dev,
-	  .st_ino     = stat.st_ino,
-	  .st_nlink   = stat.st_nlink,
-	  .st_mode    = stat.st_mode,
-	  .st_uid     = stat.st_uid,
-	  .st_gid     = stat.st_gid,
-	  .st_rdev    = stat.st_rdev,
-	  .st_size    = stat.st_size,
-	  .st_blksize = stat.st_blksize,
-	  .st_blocks  = stat.st_blocks,
+		.st_dev     = stat.st_dev,
+		.st_ino     = stat.st_ino,
+		.st_nlink   = stat.st_nlink,
+		.st_mode    = stat.st_mode,
+		.st_uid     = stat.st_uid,
+		.st_gid     = stat.st_gid,
+		.st_rdev    = stat.st_rdev,
+		.st_size    = stat.st_size,
+		.st_blksize = stat.st_blksize,
+		.st_blocks  = stat.st_blocks,
 	};
 #ifdef __APPLE__
 	stat_ptr->st_atim.tv_sec  = stat.st_atimespec.tv_sec;
@@ -406,16 +406,16 @@ wasm_lstat(i32 path_str_offset, i32 stat_offset)
 	if (res == -1) return -errno;
 
 	*stat_ptr = (struct wasm_stat){
-	  .st_dev     = stat.st_dev,
-	  .st_ino     = stat.st_ino,
-	  .st_nlink   = stat.st_nlink,
-	  .st_mode    = stat.st_mode,
-	  .st_uid     = stat.st_uid,
-	  .st_gid     = stat.st_gid,
-	  .st_rdev    = stat.st_rdev,
-	  .st_size    = stat.st_size,
-	  .st_blksize = stat.st_blksize,
-	  .st_blocks  = stat.st_blocks,
+		.st_dev     = stat.st_dev,
+		.st_ino     = stat.st_ino,
+		.st_nlink   = stat.st_nlink,
+		.st_mode    = stat.st_mode,
+		.st_uid     = stat.st_uid,
+		.st_gid     = stat.st_gid,
+		.st_rdev    = stat.st_rdev,
+		.st_size    = stat.st_size,
+		.st_blksize = stat.st_blksize,
+		.st_blocks  = stat.st_blocks,
 	};
 #ifdef __APPLE__
 	stat_ptr->st_atim.tv_sec  = stat.st_atimespec.tv_sec;
@@ -510,7 +510,7 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 		int                len = 0, r = 0;
 		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 		for (int i = 0; i < iovcnt; i += RDWR_VEC_MAX) {
-			struct iovec bufs[RDWR_VEC_MAX] = {0};
+			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
 			int          j                  = 0;
 			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
 				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
@@ -551,7 +551,7 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 
 	for (int i = 0; i < iovcnt; i += RDWR_VEC_MAX) {
 		uv_fs_t  req                = UV_FS_REQ_INIT();
-		uv_buf_t bufs[RDWR_VEC_MAX] = {0}; // avoid mallocs here!
+		uv_buf_t bufs[RDWR_VEC_MAX] = { 0 }; // avoid mallocs here!
 		int      j                  = 0;
 
 		for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
@@ -593,7 +593,7 @@ wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 		return len;
 #else
 		for (int i = 0; i < iovcnt; i += RDWR_VEC_MAX) {
-			struct iovec bufs[RDWR_VEC_MAX] = {0};
+			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
 			int j = 0;
 			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
 				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
@@ -615,7 +615,7 @@ wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 
 	for (int i = 0; i < iovcnt; i += RDWR_VEC_MAX) {
 		uv_fs_t  req                = UV_FS_REQ_INIT();
-		uv_buf_t bufs[RDWR_VEC_MAX] = {0}; // avoid mallocs here!
+		uv_buf_t bufs[RDWR_VEC_MAX] = { 0 }; // avoid mallocs here!
 		int      j                  = 0;
 
 		for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
@@ -658,8 +658,8 @@ wasm_getpid()
 #define WF_SETSIG 10
 #define WF_GETSIG 11
 
-#define WF_GETLK 5
-#define WF_SETLK 6
+#define WF_GETLK  5
+#define WF_SETLK  6
 #define WF_SETLKW 7
 
 #define SYS_FCNTL 72
@@ -760,7 +760,7 @@ wasm_get_time(i32 clock_id, i32 timespec_off)
 
 	struct wasm_time_spec *timespec = get_memory_ptr_void(timespec_off, sizeof(struct wasm_time_spec));
 
-	struct timespec native_timespec = {0, 0};
+	struct timespec native_timespec = { 0, 0 };
 	int             res             = clock_gettime(real_clock, &native_timespec);
 	if (res == -1) return -errno;
 
@@ -796,11 +796,11 @@ wasm_fchown(i32 fd, u32 owner, u32 group)
 }
 
 // networking syscalls
-#define SYS_SOCKET 41
+#define SYS_SOCKET  41
 #define SYS_CONNECT 42
-#define SYS_ACCEPT 43
-#define SYS_BIND 49
-#define SYS_LISTEN 50
+#define SYS_ACCEPT  43
+#define SYS_BIND    49
+#define SYS_LISTEN  50
 
 static void
 wasm_connection_callback(uv_stream_t *srv, int status)
@@ -858,7 +858,7 @@ wasm_connect(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 	uv_handle_type       t = ((uv_handle_t *)h)->type;
 
 	if (t == UV_TCP) {
-		uv_connect_t req = {.data = c};
+		uv_connect_t req = { .data = c };
 		debuglog("[%p] connect\n", c);
 		int r = uv_tcp_connect(&req, (uv_tcp_t *)h, get_memory_ptr_void(sockaddr_offset, addrlen),
 		                       wasm_connect_callback);
@@ -962,7 +962,7 @@ wasm_listen(i32 sockfd, i32 backlog)
 	return c->retval;
 }
 
-#define SYS_SENDTO 44
+#define SYS_SENDTO   44
 #define SYS_RECVFROM 45
 
 void
@@ -1024,7 +1024,7 @@ wasm_sendto(i32 fd, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i3
 
 	if (t == UV_TCP) {
 		uv_write_t req = {
-		  .data = c,
+			.data = c,
 		};
 		uv_buf_t b = uv_buf_init(buf, len);
 		debuglog("[%p] tcp\n", c);
@@ -1035,7 +1035,7 @@ wasm_sendto(i32 fd, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i3
 		return c->retval;
 	} else if (t == UV_UDP) {
 		uv_udp_send_t req = {
-		  .data = c,
+			.data = c,
 		};
 		uv_buf_t b = uv_buf_init(buf, len);
 		debuglog("[%p] udp\n", c);
