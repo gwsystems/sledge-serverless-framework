@@ -27,7 +27,7 @@
  */
 
 typedef uint64_t reg_t;
-#define ARCH_NREGS (16 /* GP registers */ + 1 /* for IP */)
+#define ARCH_NREGS       (16 /* GP registers */ + 1 /* for IP */)
 #define ARCH_SIG_JMP_OFF 8
 
 /*
@@ -37,11 +37,11 @@ typedef uint64_t reg_t;
 extern void __attribute__((noreturn)) sandbox_switch_preempt(void);
 
 struct arch_context {
-	reg_t regs[ARCH_NREGS];
+	reg_t      regs[ARCH_NREGS];
 	mcontext_t mctx;
 };
 
-typedef struct arch_context arch_context_t;
+typedef struct arch_context    arch_context_t;
 extern __thread arch_context_t base_context;
 
 static void
@@ -63,7 +63,7 @@ arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 	if (ctx->regs[5]) {
 		mc->gregs[REG_RSP] = ctx->regs[5];
 		mc->gregs[REG_RIP] = ctx->regs[16] + ARCH_SIG_JMP_OFF;
-		ctx->regs[5] = 0;
+		ctx->regs[5]       = 0;
 
 		return 1;
 	} else {
@@ -74,34 +74,30 @@ arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 	return 0;
 }
 
-static void __attribute__((noinline))
-arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
+static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
 {
-
 	memset(&actx->mctx, 0, sizeof(mcontext_t));
 	memset((void *)actx->regs, 0, sizeof(reg_t) * ARCH_NREGS);
 
 	if (sp) {
-		/* 
+		/*
 		 * context_switch conventions: bp is expected to be on top of the stack
-		 * when co-op context switching.. 
+		 * when co-op context switching..
 		 *
-		 * so push sp on this new stack and use 
+		 * so push sp on this new stack and use
 		 * that new sp as sp for switching to sandbox!
 		 */
-		asm volatile (
-				"movq %%rsp, %%rbx\n\t"		\
-				"movq %%rax, %%rsp\n\t"		\
-				"pushq %%rax\n\t"		\
-				"movq %%rsp, %%rax\n\t"		\
-				"movq %%rbx, %%rsp\n\t"		\
-				: "=a" (sp)
-				: "a" (sp)
-				: "memory", "cc", "rbx"
-			     );
+		asm volatile("movq %%rsp, %%rbx\n\t"
+		             "movq %%rax, %%rsp\n\t"
+		             "pushq %%rax\n\t"
+		             "movq %%rsp, %%rax\n\t"
+		             "movq %%rbx, %%rsp\n\t"
+		             : "=a"(sp)
+		             : "a"(sp)
+		             : "memory", "cc", "rbx");
 	}
 
-	*(actx->regs + 5) = sp;
+	*(actx->regs + 5)  = sp;
 	*(actx->regs + 16) = ip;
 }
 
@@ -128,30 +124,27 @@ arch_context_switch(arch_context_t *ca, arch_context_t *na)
 
 	/* TODO: slowpath: signal the current pthread if resuming a preempted sandbox! */
 
-	asm volatile (						\
-			"pushq %%rbp\n\t"			\
-			"movq %%rsp, %%rbp\n\t"			\
-			"movq $2f, 128(%%rax)\n\t"		\
-			"movq %%rsp, 40(%%rax)\n\t"		\
-			"cmpq $0, 40(%%rbx)\n\t"		\
-			"je 1f\n\t"				\
-			"movq 40(%%rbx), %%rsp\n\t"		\
-			"jmpq *128(%%rbx)\n\t"			\
-			"1:\n\t"				\
-			"call sandbox_switch_preempt\n\t"	\
-			".align 8\n\t"				\
-			"2:\n\t"				\
-			"movq $0, 40(%%rbx)\n\t"		\
-			".align 8\n\t"				\
-			"3:\n\t"				\
-			"popq %%rbp\n\t"			\
-			:
-			: "a" (cr), "b" (nr)
-			: "memory", "cc", "rcx", "rdx", "rsi", "rdi", 
-			  "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
-			  "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
-			  "xmm8", "xmm9", "xmm10","xmm11","xmm12","xmm13","xmm14","xmm15"
-		     );
+	asm volatile("pushq %%rbp\n\t"
+	             "movq %%rsp, %%rbp\n\t"
+	             "movq $2f, 128(%%rax)\n\t"
+	             "movq %%rsp, 40(%%rax)\n\t"
+	             "cmpq $0, 40(%%rbx)\n\t"
+	             "je 1f\n\t"
+	             "movq 40(%%rbx), %%rsp\n\t"
+	             "jmpq *128(%%rbx)\n\t"
+	             "1:\n\t"
+	             "call sandbox_switch_preempt\n\t"
+	             ".align 8\n\t"
+	             "2:\n\t"
+	             "movq $0, 40(%%rbx)\n\t"
+	             ".align 8\n\t"
+	             "3:\n\t"
+	             "popq %%rbp\n\t"
+	             :
+	             : "a"(cr), "b"(nr)
+	             : "memory", "cc", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
+	               "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11",
+	               "xmm12", "xmm13", "xmm14", "xmm15");
 
 	return 0;
 }

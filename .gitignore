@@ -54,3 +54,9 @@ dkms.conf
 runtime/tags
 runtime/bin
 runtime/tests/tmp/
+
+# Swap Files
+*.swp
+
+# Editor Configs
+.vscode

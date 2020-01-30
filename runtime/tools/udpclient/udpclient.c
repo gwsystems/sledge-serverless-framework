@@ -28,12 +28,12 @@ struct request {
 static char *
 remove_spaces(char *str)
 {
-        int i = 0;
-        while (isspace(*str)) str++;
-        i = strlen(str);
-        while (isspace(str[i-1])) str[i-1]='\0';
+	int i = 0;
+	while (isspace(*str)) str++;
+	i = strlen(str);
+	while (isspace(str[i - 1])) str[i - 1] = '\0';
 
-        return str;
+	return str;
 }
 
 void *
@@ -41,8 +41,8 @@ send_fn(void *d)
 {
 	struct request *r = (struct request *)d;
 
-	char resp[STR_MAX] = { 0 };
-	int fd = -1;
+	char               resp[STR_MAX] = { 0 };
+	int                fd            = -1;
 	struct sockaddr_in sa;
 
 	sa.sin_family      = AF_INET;
@@ -53,17 +53,14 @@ send_fn(void *d)
 		return NULL;
 	}
 
-	if (sendto(fd, r->msg, strlen(r->msg), 0, (struct sockaddr*)&sa, sizeof(sa)) < 0 &&
-			errno != EINTR) {
+	if (sendto(fd, r->msg, strlen(r->msg), 0, (struct sockaddr *)&sa, sizeof(sa)) < 0 && errno != EINTR) {
 		perror("sendto");
 		return NULL;
 	}
 
-	//todo: select rcv from!
+	// todo: select rcv from!
 	int sa_len = sizeof(sa);
-	if (recvfrom(fd, resp, STR_MAX, 0, (struct sockaddr *)&sa, &sa_len) < 0) {
-		perror("recvfrom");
-	}
+	if (recvfrom(fd, resp, STR_MAX, 0, (struct sockaddr *)&sa, &sa_len) < 0) { perror("recvfrom"); }
 	printf("Done[%s]!\n", resp);
 	close(fd);
 	free(r);
@@ -71,9 +68,9 @@ send_fn(void *d)
 	return NULL;
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
-
 	if (argc != 2) {
 		printf("Usage: %s <sandbox_file>\n", argv[0]);
 		return -1;
@@ -91,7 +88,7 @@ int main(int argc, char *argv[])
 		char line[MSG_MAX] = { 0 };
 		while (fgets(line, MSG_MAX, f) != NULL) {
 			char *msg = NULL, *tok, *src = line;
-			char ip[STR_MAX] = { 0 }, port[STR_MAX] = { 0 };
+			char  ip[STR_MAX] = { 0 }, port[STR_MAX] = { 0 };
 			src = remove_spaces(src);
 
 			if (src[0] == ';') goto next;
@@ -120,7 +117,7 @@ int main(int argc, char *argv[])
 				goto next;
 			}
 
-next:
+		next:
 			memset(line, 0, MSG_MAX);
 			fflush(stdin);
 			fflush(stdout);
@@ -128,6 +125,6 @@ next:
 	}
 
 	fclose(f);
-	
+
 	return 0;
 }

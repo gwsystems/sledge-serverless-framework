@@ -9,7 +9,7 @@ static inline int
 softint_mask(int sig)
 {
 	sigset_t set;
-	int ret;
+	int      ret;
 
 	assert(sig == SIGALRM || sig == SIGUSR1);
 	/* all threads created by the calling thread will have sig blocked */
@@ -29,7 +29,7 @@ static inline int
 softint_unmask(int sig)
 {
 	sigset_t set;
-	int ret;
+	int      ret;
 
 	assert(sig == SIGALRM || sig == SIGUSR1);
 	/* all threads created by the calling thread will have sig unblocked */
@@ -50,7 +50,8 @@ extern __thread volatile sig_atomic_t softint_off;
 static inline void
 softint_disable(void)
 {
-	while (__sync_bool_compare_and_swap(&softint_off, 0, 1) == false) ;
+	while (__sync_bool_compare_and_swap(&softint_off, 0, 1) == false)
+		;
 }
 
 static inline void

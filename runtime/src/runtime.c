@@ -12,8 +12,8 @@
 #include <http_api.h>
 
 struct deque_sandbox *glb_dq;
-pthread_mutex_t glbq_mtx = PTHREAD_MUTEX_INITIALIZER;
-int epfd;
+pthread_mutex_t       glbq_mtx = PTHREAD_MUTEX_INITIALIZER;
+int                   epfd;
 
 // per-thread (per-core) run and completion queue.. (using doubly-linked-lists)
 __thread static struct ps_list_head runq;
@@ -35,7 +35,7 @@ static inline void
 sandbox_local_run(struct sandbox *s)
 {
 	assert(ps_list_singleton_d(s));
-//	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s, s->mod->name);
+	//	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s, s->mod->name);
 	ps_list_head_append_d(&runq, s);
 }
 
@@ -95,7 +95,7 @@ sandbox_schedule(int interrupt)
 		// this is in an interrupt context, don't steal work here!
 		if (interrupt) return NULL;
 		if (sandbox_pull() == 0) {
-			//debuglog("[null: null]\n");
+			// debuglog("[null: null]\n");
 			return NULL;
 		}
 	}
@@ -164,9 +164,9 @@ sandbox_block(void)
 	softint_disable();
 	struct sandbox *c = sandbox_current();
 	ps_list_rem_d(c);
-	c->state = SANDBOX_BLOCKED;
+	c->state          = SANDBOX_BLOCKED;
 	struct sandbox *s = sandbox_schedule(0);
-	debuglog("[%p: %s, %p: %s]\n", c, c->mod->name, s, s ? s->mod->name: "");
+	debuglog("[%p: %s, %p: %s]\n", c, c->mod->name, s, s ? s->mod->name : "");
 	softint_enable();
 	sandbox_switch(s);
 #else
@@ -179,26 +179,26 @@ sandbox_block_http(void)
 {
 #ifdef USE_HTTP_UVIO
 #ifdef USE_HTTP_SYNC
-	// realistically, we're processing all async I/O on this core when a sandbox blocks on http processing, not great!
-	// if there is a way (TODO), perhaps RUN_ONCE and check if your I/O is processed, if yes, return
-	// else do async block!
+	// realistically, we're processing all async I/O on this core when a sandbox blocks on http processing, not
+	// great! if there is a way (TODO), perhaps RUN_ONCE and check if your I/O is processed, if yes, return else do
+	// async block!
 	uv_run(runtime_uvio(), UV_RUN_DEFAULT);
 #else
 	sandbox_block();
 #endif
 #else
 	assert(0);
-	//it should not be called if not using uvio for http
+	// it should not be called if not using uvio for http
 #endif
 }
 
-void __attribute__((noinline)) __attribute__((noreturn))
-sandbox_switch_preempt(void)
+void __attribute__((noinline)) __attribute__((noreturn)) sandbox_switch_preempt(void)
 {
 	pthread_kill(pthread_self(), SIGUSR1);
 
 	assert(0); // should not get here..
-	while (1) ;
+	while (1)
+		;
 }
 static inline void
 sandbox_local_stop(struct sandbox *s)
@@ -220,13 +220,13 @@ sandbox_run_func(void *data)
 
 	ps_list_head_init(&runq);
 	ps_list_head_init(&endq);
-	softint_off = 0;
+	softint_off  = 0;
 	next_context = NULL;
 #ifndef PREEMPT_DISABLE
 	softint_unmask(SIGALRM);
 	softint_unmask(SIGUSR1);
 #endif
-	uv_loop_init(&uvio);	
+	uv_loop_init(&uvio);
 	in_callback = 0;
 
 	while (1) {
@@ -245,7 +245,7 @@ void
 sandbox_run(sbox_request_t *s)
 {
 #ifndef STANDALONE
-	// for now, a pull model... 
+	// for now, a pull model...
 	// sandbox_run adds to the global ready queue..
 	// each sandboxing thread pulls off of that global ready queue..
 	debuglog("[%p: %s]\n", s, s->mod->name);
@@ -268,13 +268,13 @@ sandbox_exit(void)
 	softint_disable();
 	sandbox_local_stop(curr);
 	curr->state = SANDBOX_RETURNED;
-	// free resources from "main function execution", as stack still in use. 
+	// free resources from "main function execution", as stack still in use.
 	struct sandbox *n = sandbox_schedule(0);
 	assert(n != curr);
 	softint_enable();
-	//unmap linear memory only!
+	// unmap linear memory only!
 	munmap(curr->linear_start, SBOX_MAX_MEM + PAGE_SIZE);
-	//sandbox_local_end(curr);
+	// sandbox_local_end(curr);
 	sandbox_switch(n);
 #else
 	sandbox_switch(NULL);
@@ -286,7 +286,7 @@ runtime_accept_thdfn(void *d)
 {
 #ifndef STANDALONE
 	struct epoll_event *epevts = (struct epoll_event *)malloc(EPOLL_MAX * sizeof(struct epoll_event));
-	int nreqs = 0;
+	int                 nreqs  = 0;
 	while (1) {
 		int ready = epoll_wait(epfd, epevts, EPOLL_MAX, -1);
 		for (int i = 0; i < ready; i++) {
@@ -296,18 +296,18 @@ runtime_accept_thdfn(void *d)
 			}
 
 			struct sockaddr_in client;
-			socklen_t client_len = sizeof(client);
-			struct module *m = (struct module *)epevts[i].data.ptr;
+			socklen_t          client_len = sizeof(client);
+			struct module *    m          = (struct module *)epevts[i].data.ptr;
 			assert(m);
 			int es = m->srvsock;
-			int s = accept(es, (struct sockaddr *)&client, &client_len);
+			int s  = accept(es, (struct sockaddr *)&client, &client_len);
 			if (s < 0) {
 				perror("accept");
 				assert(0);
 			}
 			nreqs++;
 
-			//struct sandbox *sb = sandbox_alloc(m, m->name, s, (const struct sockaddr *)&client);
+			// struct sandbox *sb = sandbox_alloc(m, m->name, s, (const struct sockaddr *)&client);
 			sbox_request_t *sb = sbox_request_alloc(m, m->name, s, (const struct sockaddr *)&client);
 			assert(sb);
 		}
@@ -324,9 +324,9 @@ runtime_init(void)
 {
 	epfd = epoll_create1(0);
 	assert(epfd >= 0);
-	glb_dq = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));	
+	glb_dq = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
 	assert(glb_dq);
-	deque_init_sandbox(glb_dq, SBOX_MAX_REQS); 
+	deque_init_sandbox(glb_dq, SBOX_MAX_REQS);
 
 	softint_mask(SIGUSR1);
 	softint_mask(SIGALRM);
@@ -343,7 +343,7 @@ runtime_thd_init(void)
 	CPU_SET(MOD_REQ_CORE, &cs);
 
 	pthread_t iothd;
-	int ret = pthread_create(&iothd, NULL, runtime_accept_thdfn, NULL);
+	int       ret = pthread_create(&iothd, NULL, runtime_accept_thdfn, NULL);
 	assert(ret == 0);
 	ret = pthread_setaffinity_np(iothd, sizeof(cpu_set_t), &cs);
 	assert(ret == 0);

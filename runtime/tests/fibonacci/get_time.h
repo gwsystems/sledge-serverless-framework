@@ -22,12 +22,11 @@ get_time()
 
   return ret;
 #else
-    struct timeval Tp;
-    int stat;
-    stat = gettimeofday (&Tp, NULL);
-    if (stat != 0)
-      printf ("Error return from gettimeofday: %d", stat);
-    return (Tp.tv_sec * 1000000 + Tp.tv_usec);
+	struct timeval Tp;
+	int            stat;
+	stat = gettimeofday(&Tp, NULL);
+	if (stat != 0) printf("Error return from gettimeofday: %d", stat);
+	return (Tp.tv_sec * 1000000 + Tp.tv_usec);
 #endif
 }
 
