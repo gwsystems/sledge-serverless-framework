@@ -281,6 +281,15 @@ sandbox_exit(void)
 #endif
 }
 
+/**
+ * @brief Execution Loop of the listener core, handles HTTP requests, allocates sandbox request objects, and pushes the sandbox object to the global dequeue
+ * @param d Unknown
+ * @return NULL
+ * 
+ * Used Globals:
+ * epfd - the epoll file descriptor
+ * 
+ */
 void *
 runtime_accept_thdfn(void *d)
 {
@@ -319,6 +328,9 @@ runtime_accept_thdfn(void *d)
 	return NULL;
 }
 
+/**
+ * Initialize runtime global state, mask signals, and init http server
+ */
 void
 runtime_init(void)
 {
@@ -326,6 +338,8 @@ runtime_init(void)
 	assert(epfd >= 0);
 	glb_dq = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
 	assert(glb_dq);
+
+	// Note: Below is a Macro
 	deque_init_sandbox(glb_dq, SBOX_MAX_REQS);
 
 	softint_mask(SIGUSR1);
@@ -334,6 +348,9 @@ runtime_init(void)
 	http_init();
 }
 
+/**
+ * Initializes the listener thread, pinned to core 0, and starts to listen for requests
+ */
 void
 runtime_thd_init(void)
 {

@@ -12,13 +12,15 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+// TODO: I think this define is unused
 #define MOD_LINE_MAX 1024
 
-i32 logfd = -1;
+i32 logfd = -1; 	  // Log File Descriptor
+u32 ncores = 0; 	  // Number of cores
+u32 sbox_ncores = 0;  // Number of Sandboxing Cores
+u32 sbox_core_st = 0; // First Sandbox Core 
 
-u32 ncores = 0, sbox_ncores = 0, sbox_core_st = 0;
-
-pthread_t rtthd[SBOX_NCORES];
+pthread_t rtthd[SBOX_NCORES]; // An array of runtime threads
 
 static unsigned long long
 get_time()

@@ -221,6 +221,9 @@ http_request_parse_sb(struct sandbox *s, size_t l)
 	return 0;
 }
 
+/**
+ * Configure Callback Functions for HTTP Events
+ */
 void
 http_init(void)
 {
