@@ -142,8 +142,8 @@ typedef enum
 
 #define RDWR_VEC_MAX 16
 
-#define MOD_REQ_CORE  0                                  // core dedicated to check module requests..
-#define SBOX_NCORES   (NCORES > 1 ? NCORES - 1 : NCORES) // number of sandboxing threads
+#define MOD_REQ_CORE  0                                  // Dedicated Listener Core
+#define SBOX_NCORES   (NCORES > 1 ? NCORES - 1 : NCORES) // If multicore, use all but the dedicated listener core
 #define SBOX_MAX_REQS (1 << 19)                          // random!
 
 #define SBOX_RESP_STRSZ 32

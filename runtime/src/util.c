@@ -23,6 +23,10 @@ util_remove_spaces(char *str)
 }
 
 
+/**
+ * Parses a JSON file and allocates one or more new modules
+ * @param filename The path of the JSON file
+ */
 int
 util_parse_modules_file_json(char *filename)
 {
