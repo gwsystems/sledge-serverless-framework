@@ -127,41 +127,10 @@ void start_worker_threads(){
 	exit(-1);
 }
 
-void execute_standalone(int argc, char **argv){
-	arch_context_init(&base_context, 0, 0);
-	uv_loop_init(&uvio);
-
-	int   ac   = 1;
-	char *args = argv[1];
-	if (argc - 1 > 1) {
-		ac        = argc - 1;
-		char **av = argv + 1;
-		args      = malloc(sizeof(char) * MOD_ARG_MAX_SZ * ac);
-		memset(args, 0, sizeof(char) * MOD_ARG_MAX_SZ * ac);
-
-		for (int i = 0; i < ac; i++) {
-			char *a = args + (i * MOD_ARG_MAX_SZ * sizeof(char));
-			strcpy(a, av[i]);
-		}
-	}
-
-	/* in current dir! */
-	struct module *m = module_alloc(args, args, ac, 0, 0, 0, 0, 0, 0);
-	assert(m);
-
-	// unsigned long long st = get_time(), en;
-	struct sandbox *s = sandbox_alloc(m, args, 0, NULL);
-	// en = get_time();
-	// fprintf(stderr, "%llu\n", en - st);
-
-	exit(0);
-}
-
 int
 main(int argc, char **argv)
 {
 	printf("Starting Awsm\n");
-#ifndef STANDALONE
 	if (argc != 2) {
 		usage(argv[0]);
 		exit(-1);
@@ -182,8 +151,4 @@ main(int argc, char **argv)
 
 	runtime_thd_init();
 	start_worker_threads();
-
-#else /* STANDALONE */
-	execute_standalone();
-#endif
 }

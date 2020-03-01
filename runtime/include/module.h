@@ -24,8 +24,6 @@ struct module {
 
 	u32 refcnt; // ref count how many instances exist here.
 
-	// stand-alone vs serverless
-#ifndef STANDALONE
 	struct sockaddr_in srvaddr;
 	int                srvsock, srvport;
 	// unfortunately, using UV for accepting connections is not great!
@@ -40,7 +38,6 @@ struct module {
 	char          rqctype[HTTP_HEADERVAL_MAXSZ];
 	char          rspctype[HTTP_HEADERVAL_MAXSZ];
 	char          resphdrs[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
-#endif
 };
 
 struct module *module_alloc(char *mod_name, char *mod_path, i32 nargs, u32 stack_sz, u32 max_heap, u32 timeout,
@@ -53,7 +50,6 @@ struct module *module_find_by_sock(int sock);
 static inline void
 module_http_info(struct module *m, int nrq, char *rqs, char rqtype[], int nrs, char *rs, char rsptype[])
 {
-#ifndef STANDALONE
 	assert(m);
 	m->nreqhdrs  = nrq;
 	m->nresphdrs = nrs;
@@ -61,7 +57,6 @@ module_http_info(struct module *m, int nrq, char *rqs, char rqtype[], int nrs, c
 	memcpy(m->resphdrs, rs, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 	strcpy(m->rqctype, rqtype);
 	strcpy(m->rspctype, rsptype);
-#endif
 }
 
 static inline int

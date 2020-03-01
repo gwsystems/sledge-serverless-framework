@@ -51,21 +51,11 @@ sandbox_pull(void)
 		sbox_request_t *s = sandbox_deque_steal();
 
 		if (!s) break;
-#ifndef STANDALONE
-#ifdef SBOX_SCALE_ALLOC
 		struct sandbox *sb = sandbox_alloc(s->mod, s->args, s->sock, s->addr);
 		assert(sb);
 		free(s);
 		sb->state = SANDBOX_RUNNABLE;
 		sandbox_local_run(sb);
-#else
-		assert(s->state == SANDBOX_RUNNABLE);
-		sandbox_local_run(s);
-#endif
-#else
-		assert(s->state == SANDBOX_RUNNABLE);
-		sandbox_local_run(s);
-#endif
 		n++;
 	}
 
@@ -77,7 +67,6 @@ static __thread unsigned int in_callback;
 void
 sandbox_io_nowait(void)
 {
-#ifdef USE_UVIO
 	// non-zero if more callbacks are expected
 	in_callback = 1;
 	int n = uv_run(runtime_uvio(), UV_RUN_NOWAIT), i = 0;
@@ -86,7 +75,6 @@ sandbox_io_nowait(void)
 		uv_run(runtime_uvio(), UV_RUN_NOWAIT);
 	}
 	in_callback = 0;
-#endif
 	// zero, so there is nothing (don't block!)
 }
 
@@ -149,7 +137,6 @@ sandbox_schedule_io(void)
 void
 sandbox_wakeup(sandbox_t *s)
 {
-#ifndef STANDALONE
 	softint_disable();
 	debuglog("[%p: %s]\n", s, s->mod->name);
 	if (s->state != SANDBOX_BLOCKED) goto done;
@@ -159,13 +146,11 @@ sandbox_wakeup(sandbox_t *s)
 	ps_list_head_append_d(&local_run_queue, s);
 done:
 	softint_enable();
-#endif
 }
 
 void
 sandbox_block(void)
 {
-#ifndef STANDALONE
 	assert(in_callback == 0);
 	softint_disable();
 	struct sandbox *c = sandbox_current();
@@ -175,9 +160,6 @@ sandbox_block(void)
 	debuglog("[%p: %s, %p: %s]\n", c, c->mod->name, s, s ? s->mod->name : "");
 	softint_enable();
 	sandbox_switch(s);
-#else
-	uv_run(runtime_uvio(), UV_RUN_DEFAULT);
-#endif
 }
 
 void
@@ -250,25 +232,17 @@ sandbox_run_func(void *data)
 void
 sandbox_run(sbox_request_t *s)
 {
-#ifndef STANDALONE
 	// for now, a pull model...
 	// sandbox_run adds to the global ready queue..
 	// each sandboxing thread pulls off of that global ready queue..
 	debuglog("[%p: %s]\n", s, s->mod->name);
-#ifndef SBOX_SCALE_ALLOC
-	s->state = SANDBOX_RUNNABLE;
-#endif
 	sandbox_deque_push(s);
-#else
-	sandbox_switch(s);
-#endif
 }
 
 // perhaps respond to request
 void
 sandbox_exit(void)
 {
-#ifndef STANDALONE
 	struct sandbox *current_sandbox = sandbox_current();
 	assert(current_sandbox);
 	softint_disable();
@@ -282,9 +256,6 @@ sandbox_exit(void)
 	munmap(current_sandbox->linear_start, SBOX_MAX_MEM + PAGE_SIZE);
 	// sandbox_local_end(current_sandbox);
 	sandbox_switch(n);
-#else
-	sandbox_switch(NULL);
-#endif
 }
 
 /**
@@ -299,7 +270,6 @@ sandbox_exit(void)
 void *
 runtime_accept_thdfn(void *d)
 {
-#ifndef STANDALONE
 	struct epoll_event *epoll_events = (struct epoll_event *)malloc(EPOLL_MAX * sizeof(struct epoll_event));
 	int                 total_requests  = 0;
 	while (true) {
@@ -331,7 +301,6 @@ runtime_accept_thdfn(void *d)
 	}
 
 	free(epoll_events);
-#endif
 
 	return NULL;
 }
