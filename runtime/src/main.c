@@ -12,15 +12,12 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-// TODO: I think this define is unused
-#define MOD_LINE_MAX 1024
-
-i32 logfd = -1; 	  // Log File Descriptor
-u32 ncores = 0; 	  // Number of cores
-u32 sbox_ncores = 0;  // Number of Sandboxing Cores
-u32 sbox_core_st = 0; // First Sandbox Core 
-
-pthread_t rtthd[SBOX_NCORES]; // An array of runtime threads
+i32 log_file_descriptor = -1;
+u32 total_online_processors = 0;
+u32 total_worker_processors = 0;
+u32 first_worker_processor = 0;
+int worker_threads_argument[SBOX_NCORES] = { 0 }; // This is always empty, as we don't pass an argument
+pthread_t worker_threads[SBOX_NCORES];
 
 static unsigned long long
 get_time()
@@ -63,68 +60,46 @@ void set_resource_limits_to_max(){
 	}
 }
 
-int
-main(int argc, char **argv)
-{
-	printf("Starting Awsm\n");
-#ifndef STANDALONE
-	// Array of arguments passed to the start_routine via pthread_create
-	// This is always empty, as we don't pass an argument
-	int rtthd_ret[SBOX_NCORES] = { 0 }; 
-
-	// Initialize the array of runtime threads
-	memset(rtthd, 0, sizeof(pthread_t) * SBOX_NCORES);
-
-	if (argc != 2) {
-		usage(argv[0]);
-		exit(-1);
-	}
-
-	set_resource_limits_to_max();
-
+void allocate_available_cores(){
 	// Find the number of processors currently online
-	ncores = sysconf(_SC_NPROCESSORS_ONLN);
+	total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
 
 	// If multicore, we'll pin one core as a listener and run sandbox threads on all others
-	// If single core, we'll do everything on that one core
-	if (ncores > 1) {
-		u32 x       = ncores - 1;
-		sbox_ncores = SBOX_NCORES;
-		if (x < SBOX_NCORES) sbox_ncores = x;
-		sbox_core_st = 1;
+	if (total_online_processors > 1) {
+		first_worker_processor = 1;
+		// SBOX_NCORES can be used as a cap on the number of cores to use
+		// But if there are few cores that SBOX_NCORES, just use what is available
+		u32 max_possible_workers = total_online_processors - 1;
+		total_worker_processors = (max_possible_workers >= SBOX_NCORES) ? SBOX_NCORES : max_possible_workers;
 	} else {
-		sbox_ncores = 1;
+		// If single core, we'll do everything on CPUID 0
+		first_worker_processor = 0;
+		total_worker_processors = 1;
 	}
-	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n", ncores, sbox_ncores,
-	         sbox_core_st, MOD_REQ_CORE);
+	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n", total_online_processors, total_worker_processors,
+	         first_worker_processor, MOD_REQ_CORE);
+}
 
 // If NOSTIO is defined, close stdin, stdout, stderr, and write to logfile named awesome.log. Otherwise, log to STDOUT
 // NOSTIO = No Standard Input/Output?
+void process_nostio(){
 #ifdef NOSTDIO
 	fclose(stdout);
 	fclose(stderr);
 	fclose(stdin);
-	logfd = open(LOGFILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
-	if (logfd < 0) {
+	log_file_descriptor = open(LOGFILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
+	if (log_file_descriptor < 0) {
 		perror("open");
 		exit(-1);
 	}
 #else
-	logfd = 1;
+	log_file_descriptor = 1;
 #endif
+}
 
-	runtime_init();
-
-	debuglog("Parsing modules file [%s]\n", argv[1]);
-	if (util_parse_modules_file_json(argv[1])) {
-		printf("failed to parse modules file[%s]\n", argv[1]);
-		exit(-1);
-	}
-
-	runtime_thd_init();
-
-	for (int i = 0; i < sbox_ncores; i++) {
-		int ret = pthread_create(&rtthd[i], NULL, sandbox_run_func, (void *)&rtthd_ret[i]);
+void start_worker_threads(){
+	for (int i = 0; i < total_worker_processors; i++) {
+		int ret = pthread_create(&worker_threads[i], NULL, sandbox_run_func, (void *)&worker_threads_argument[i]);
 		if (ret) {
 			errno = ret;
 			perror("pthread_create");
@@ -133,14 +108,14 @@ main(int argc, char **argv)
 
 		cpu_set_t cs;
 		CPU_ZERO(&cs);
-		CPU_SET(sbox_core_st + i, &cs);
-		ret = pthread_setaffinity_np(rtthd[i], sizeof(cs), &cs);
+		CPU_SET(first_worker_processor + i, &cs);
+		ret = pthread_setaffinity_np(worker_threads[i], sizeof(cs), &cs);
 		assert(ret == 0);
 	}
 	debuglog("Sandboxing environment ready!\n");
 
-	for (int i = 0; i < sbox_ncores; i++) {
-		int ret = pthread_join(rtthd[i], NULL);
+	for (int i = 0; i < total_worker_processors; i++) {
+		int ret = pthread_join(worker_threads[i], NULL);
 		if (ret) {
 			errno = ret;
 			perror("pthread_join");
@@ -148,10 +123,11 @@ main(int argc, char **argv)
 		}
 	}
 
-	// runtime threads run forever!! so join should not return!!
-	printf("\nOh no..!! This can't be happening..!!\n");
+	printf("\nWorker Threads unexpectedly returned!!\n");
 	exit(-1);
-#else /* STANDALONE */
+}
+
+void execute_standalone(int argc, char **argv){
 	arch_context_init(&base_context, 0, 0);
 	uv_loop_init(&uvio);
 
@@ -179,5 +155,35 @@ main(int argc, char **argv)
 	// fprintf(stderr, "%llu\n", en - st);
 
 	exit(0);
+}
+
+int
+main(int argc, char **argv)
+{
+	printf("Starting Awsm\n");
+#ifndef STANDALONE
+	if (argc != 2) {
+		usage(argv[0]);
+		exit(-1);
+	}
+
+	memset(worker_threads, 0, sizeof(pthread_t) * SBOX_NCORES);
+
+	set_resource_limits_to_max();
+	allocate_available_cores();
+	process_nostio();
+	runtime_init();
+
+	debuglog("Parsing modules file [%s]\n", argv[1]);
+	if (util_parse_modules_file_json(argv[1])) {
+		printf("failed to parse modules file[%s]\n", argv[1]);
+		exit(-1);
+	}
+
+	runtime_thd_init();
+	start_worker_threads();
+
+#else /* STANDALONE */
+	execute_standalone();
 #endif
 }

@@ -74,7 +74,7 @@ module_server_init(struct module *m)
 	accept_evt.data.ptr = (void *)m;
 	accept_evt.events   = EPOLLIN;
 
-	if (epoll_ctl(epfd, EPOLL_CTL_ADD, m->srvsock, &accept_evt) < 0) assert(0);
+	if (epoll_ctl(epoll_file_descriptor, EPOLL_CTL_ADD, m->srvsock, &accept_evt) < 0) assert(0);
 #endif
 }
 

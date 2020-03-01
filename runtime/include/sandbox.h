@@ -120,10 +120,10 @@ sbox_request_alloc(struct module *mod, char *args, int sock, const struct sockad
 	s->addr = (struct sockaddr *)addr;
 	sandbox_run(s);
 	return s;
-#else
+#else /* SBOX_SCALE_ALLOC */
 	return sandbox_alloc(mod, args, sock, addr);
 #endif
-#else
+#else /* STANDALONE */
 	return sandbox_alloc(mod, args, sock, addr);
 #endif
 }
@@ -208,8 +208,8 @@ void sandbox_response(void);
 // should have been called with stack allocated and sandbox_current() set!
 void                         sandbox_entry(void);
 void                         sandbox_exit(void);
-extern struct deque_sandbox *glb_dq;
-extern pthread_mutex_t       glbq_mtx;
+extern struct deque_sandbox *global_deque;
+extern pthread_mutex_t       global_deque_mutex;
 
 static inline int
 sandbox_deque_push(sbox_request_t *s)
@@ -217,11 +217,11 @@ sandbox_deque_push(sbox_request_t *s)
 	int ret;
 
 #if NCORES == 1
-	pthread_mutex_lock(&glbq_mtx);
+	pthread_mutex_lock(&global_deque_mutex);
 #endif
-	ret = deque_push_sandbox(glb_dq, &s);
+	ret = deque_push_sandbox(global_deque, &s);
 #if NCORES == 1
-	pthread_mutex_unlock(&glbq_mtx);
+	pthread_mutex_unlock(&global_deque_mutex);
 #endif
 
 	return ret;
@@ -233,11 +233,11 @@ sandbox_deque_pop(sbox_request_t **s)
 	int ret;
 
 #if NCORES == 1
-	pthread_mutex_lock(&glbq_mtx);
+	pthread_mutex_lock(&global_deque_mutex);
 #endif
-	ret = deque_pop_sandbox(glb_dq, s);
+	ret = deque_pop_sandbox(global_deque, s);
 #if NCORES == 1
-	pthread_mutex_unlock(&glbq_mtx);
+	pthread_mutex_unlock(&global_deque_mutex);
 #endif
 
 	return ret;
@@ -252,7 +252,7 @@ sandbox_deque_steal(void)
 	sandbox_deque_pop(&s);
 #else
 	// TODO: check! is there a sandboxing thread on same core as udp-server thread?
-	int r = deque_steal_sandbox(glb_dq, &s);
+	int r = deque_steal_sandbox(global_deque, &s);
 	if (r) s = NULL;
 #endif
 

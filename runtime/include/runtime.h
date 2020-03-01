@@ -8,9 +8,9 @@
 #include <sys/epoll.h> // for epoll_create1(), epoll_ctl(), struct epoll_event
 
 // global queue for stealing (work-stealing-deque)
-extern struct deque_sandbox *glb_dq;
-extern pthread_mutex_t       glbq_mtx;
-extern int                   epfd;
+extern struct deque_sandbox *global_deque;
+extern pthread_mutex_t       global_deque_mutex;
+extern int                   epoll_file_descriptor;
 
 void alloc_linear_memory(void);
 void expand_memory(void);
@@ -30,7 +30,7 @@ get_memory_string(u32 offset)
 	char *naive_ptr = get_memory_ptr_for_runtime(offset, 1);
 	int   i         = 0;
 
-	while (1) {
+	while (true) {
 		// Keep bounds checking the waters over and over until we know it's safe (we find a terminating
 		// character)
 		char ith_element = get_memory_ptr_for_runtime(offset, i + 1)[i];

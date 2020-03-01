@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -244,7 +245,7 @@ skip:
 int
 main(int argc, char **argv)
 {
-	while (1) {
+	while (true) {
 		int s = 0;
 
 		printf("Test? (0 = exit)\n");
