@@ -84,6 +84,7 @@ struct sandbox_request {
 	char *           args;
 	int              sock;
 	struct sockaddr *addr;
+	unsigned long long int start_time_in_cycles;
 };
 typedef struct sandbox_request sbox_request_t;
 #else
@@ -108,7 +109,12 @@ typedef struct sandbox sandbox_t;
 void                   sandbox_run(sbox_request_t *s);
 
 static inline sbox_request_t *
-sbox_request_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr)
+sbox_request_alloc(
+	struct module *mod, 
+	char *args, 
+	int sock, 
+	const struct sockaddr *addr, 
+	unsigned long long int start_time_in_cycles)
 {
 #ifndef STANDALONE
 #ifdef SBOX_SCALE_ALLOC
@@ -118,6 +124,7 @@ sbox_request_alloc(struct module *mod, char *args, int sock, const struct sockad
 	s->args = args;
 	s->sock = sock;
 	s->addr = (struct sockaddr *)addr;
+	s->start_time_in_cycles = start_time_in_cycles;
 	sandbox_run(s);
 	return s;
 #else /* SBOX_SCALE_ALLOC */
@@ -147,50 +154,56 @@ sandbox_current_set(struct sandbox *sbox)
 	module_indirect_table = sbox->mod->indirect_table;
 }
 
+/**
+ * @brief Safety checks around linear memory base and bounds and the Wasm function indirect table
+ */
 static inline void
 sandbox_current_check(void)
 {
 	struct sandbox *c = sandbox_current();
-
 	assert(c && c->linear_start == sandbox_lmbase && c->linear_size == sandbox_lmbound);
 	assert(c->mod->indirect_table == module_indirect_table);
 }
 
+/**
+ * @return the module of the current sandbox
+ */
 static inline struct module *
 sandbox_module(struct sandbox *s)
 {
 	if (!s) return NULL;
-
 	return s->mod;
 }
 
 extern void sandbox_local_end(struct sandbox *s);
+
+/**
+ * @brief Switches to the next sandbox, placing the current sandbox of the completion queue if in RETURNED state
+ * @param next The Sandbox Context to switch to or NULL
+ * @return void
+ */
 static inline void
-sandbox_switch(struct sandbox *next)
+sandbox_switch(struct sandbox *next_sandbox)
 {
-	arch_context_t *n = next == NULL ? NULL : &next->ctxt;
-
-	// disable interrupts (signals)
+	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
 	softint_disable();
-	// switch sandbox (register context & base/bound/table)
-	struct sandbox *curr = sandbox_current();
-	arch_context_t *c    = curr == NULL ? NULL : &curr->ctxt;
-	sandbox_current_set(next);
-	if (curr && curr->state == SANDBOX_RETURNED) sandbox_local_end(curr);
-	// save current's registers and restore next's registers.
-	next_context = n;
-	arch_context_switch(c, n);
-	next_context = NULL;
-
-	// enable interrupts (signals)
+	struct sandbox *current_sandbox = sandbox_current();
+	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
+	sandbox_current_set(next_sandbox);
+	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
+	if (current_sandbox && current_sandbox->state == SANDBOX_RETURNED) sandbox_local_end(current_sandbox);
+	next_context = next_register_context;
+	arch_context_switch(current_register_context, next_register_context);
 	softint_enable();
 }
 
+/**
+ * @return the arguments of the current sandbox
+ */
 static inline char *
 sandbox_args(void)
 {
 	struct sandbox *c = sandbox_current();
-
 	return (char *)c->args;
 }
 

@@ -15,8 +15,8 @@ struct deque_sandbox *global_deque;
 pthread_mutex_t       global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
 int                   epoll_file_descriptor;
 
-__thread static struct ps_list_head runq; // per-thread(core) run queue (doubly-linked list)
-__thread static struct ps_list_head endq; // per-thread(core) completion queue (doubly-linked list)
+__thread static struct ps_list_head local_run_queue;
+__thread static struct ps_list_head local_completion_queue;
 
 // current sandbox that is active..
 __thread sandbox_t *current_sandbox = NULL;
@@ -31,7 +31,7 @@ __thread arch_context_t base_context;
 __thread uv_loop_t uvio;
 
 /**
- * Append the sandbox to the runqueue
+ * Append the sandbox to the local_run_queueueue
  * @param s sandbox to add
  */
 static inline void
@@ -39,7 +39,7 @@ sandbox_local_run(struct sandbox *s)
 {
 	assert(ps_list_singleton_d(s));
 	//	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s, s->mod->name);
-	ps_list_head_append_d(&runq, s);
+	ps_list_head_append_d(&local_run_queue, s);
 }
 
 static inline int
@@ -94,7 +94,7 @@ struct sandbox *
 sandbox_schedule(int interrupt)
 {
 	struct sandbox *s = NULL;
-	if (ps_list_head_empty(&runq)) {
+	if (ps_list_head_empty(&local_run_queue)) {
 		// this is in an interrupt context, don't steal work here!
 		if (interrupt) return NULL;
 		if (sandbox_pull() == 0) {
@@ -103,25 +103,28 @@ sandbox_schedule(int interrupt)
 		}
 	}
 
-	s = ps_list_head_first_d(&runq, struct sandbox);
+	s = ps_list_head_first_d(&local_run_queue, struct sandbox);
 
 	assert(s->state != SANDBOX_RETURNED);
 	// round-robin
 	ps_list_rem_d(s);
-	ps_list_head_append_d(&runq, s);
+	ps_list_head_append_d(&local_run_queue, s);
 	debuglog("[%p: %s]\n", s, s->mod->name);
 
 	return s;
 }
 
+/**
+ * @brief Remove and free n requests from the completion queue
+ * @param number_to_free The number of requests to free
+ * @return void
+ */
 static inline void
-sandbox_local_free(unsigned int n)
+sandbox_local_free(unsigned int number_to_free)
 {
-	int i = 0;
-
-	while (i < n && !ps_list_head_empty(&endq)) {
-		i++;
-		struct sandbox *s = ps_list_head_first_d(&endq, struct sandbox);
+	for (int i = 0; i < number_to_free; i++){
+		if (ps_list_head_empty(&local_completion_queue)) break;
+		struct sandbox *s = ps_list_head_first_d(&local_completion_queue, struct sandbox);
 		if (!s) break;
 		ps_list_rem_d(s);
 		sandbox_free(s);
@@ -153,7 +156,7 @@ sandbox_wakeup(sandbox_t *s)
 	assert(s->state == SANDBOX_BLOCKED);
 	assert(ps_list_singleton_d(s));
 	s->state = SANDBOX_RUNNABLE;
-	ps_list_head_append_d(&runq, s);
+	ps_list_head_append_d(&local_run_queue, s);
 done:
 	softint_enable();
 #endif
@@ -213,7 +216,7 @@ void
 sandbox_local_end(struct sandbox *s)
 {
 	assert(ps_list_singleton_d(s));
-	ps_list_head_append_d(&endq, s);
+	ps_list_head_append_d(&local_completion_queue, s);
 }
 
 void *
@@ -221,8 +224,8 @@ sandbox_run_func(void *data)
 {
 	arch_context_init(&base_context, 0, 0);
 
-	ps_list_head_init(&runq);
-	ps_list_head_init(&endq);
+	ps_list_head_init(&local_run_queue);
+	ps_list_head_init(&local_completion_queue);
 	softint_off  = 0;
 	next_context = NULL;
 #ifndef PREEMPT_DISABLE
@@ -301,6 +304,7 @@ runtime_accept_thdfn(void *d)
 	int                 total_requests  = 0;
 	while (true) {
 		int ready = epoll_wait(epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
+		unsigned long long int start_time_in_cycles = rdtsc();
 		for (int i = 0; i < ready; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
@@ -318,10 +322,10 @@ runtime_accept_thdfn(void *d)
 				assert(0);
 			}
 			total_requests++;
-			printf("Handling Request %d\n", total_requests);
+			printf("Received Request %d at %lld\n", total_requests, start_time_in_cycles);
 
 			// struct sandbox *sb = sandbox_alloc(m, m->name, s, (const struct sockaddr *)&client);
-			sbox_request_t *sb = sbox_request_alloc(m, m->name, s, (const struct sockaddr *)&client);
+			sbox_request_t *sb = sbox_request_alloc(m, m->name, s, (const struct sockaddr *)&client, start_time_in_cycles);
 			assert(sb);
 		}
 	}
