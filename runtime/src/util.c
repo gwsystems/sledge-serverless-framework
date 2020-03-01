@@ -212,7 +212,8 @@ parse_sandbox_file_custom(char *filename)
 			assert(0);
 		}
 
-		sb = sandbox_alloc(mod, args, 0, NULL);
+		// TODO: Adding 0 as start time to match new signature. Unsure how this function is used... -SPM
+		sb = sandbox_alloc(mod, args, 0, NULL, 0);
 		assert(sb);
 		total_boxes++;
 
@@ -262,7 +263,8 @@ util_parse_sandbox_string_json(struct module *mod, char *str, const struct socka
 				*(args + ((k - 1) * MOD_ARG_MAX_SZ) + g->end - g->start) = '\0';
 			}
 
-			struct sandbox *sb = sandbox_alloc(mod, args, 0, addr);
+			// TODO: Adding 0 as start time to match new signature. Unsure how this function is used... -SPM
+			struct sandbox *sb = sandbox_alloc(mod, args, 0, addr, 0);
 			assert(sb);
 
 			return sb;
@@ -296,7 +298,8 @@ util_parse_sandbox_string_custom(struct module *mod, char *str, const struct soc
 		assert(ntoks < MOD_MAX_ARGS);
 	}
 
-	struct sandbox *sb = sandbox_alloc(mod, args, 0, addr);
+	// TODO: Adding 0 as start time to match new signature. Unsure how this function is used... -SPM
+	struct sandbox *sb = sandbox_alloc(mod, args, 0, addr, 0);
 	assert(sb);
 
 	return sb;
