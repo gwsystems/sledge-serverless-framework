@@ -1,4 +1,3 @@
-#ifdef USE_UVIO
 #include <runtime.h>
 #include <sandbox.h>
 #include <uv.h>
@@ -105,10 +104,6 @@ u32
 wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 {
 	if (filedes == 0) {
-#ifdef STANDALONE
-		char *buf = get_memory_ptr_void(buf_offset, nbyte);
-		return read(filedes, buf, nbyte);
-#else
 		char *               buf = get_memory_ptr_void(buf_offset, nbyte);
 		struct sandbox *     s   = sandbox_current();
 		struct http_request *r   = &s->rqi;
@@ -118,7 +113,6 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 		r->bodyrlen += l;
 		r->bodylen -= l;
 		return l;
-#endif
 	}
 	int f = io_handle_fd(filedes);
 	// TODO: read on other file types
@@ -142,10 +136,6 @@ i32
 wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 {
 	if (fd == 1 || fd == 2) {
-#ifdef STANDALONE
-		char *buf = get_memory_ptr_void(buf_offset, buf_size);
-		return write(fd, buf, buf_size);
-#else
 		char *          buf = get_memory_ptr_void(buf_offset, buf_size);
 		struct sandbox *s   = sandbox_current();
 		int             l   = s->mod->max_resp_sz - s->rr_data_len;
@@ -155,7 +145,6 @@ wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 		s->rr_data_len += l;
 
 		return l;
-#endif
 	}
 	int f = io_handle_fd(fd);
 	// TODO: read on other file types
@@ -506,24 +495,6 @@ i32
 wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 {
 	if (fd == 0) {
-#ifdef STANDALONE
-		int                len = 0, r = 0;
-		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
-		for (int i = 0; i < iovcnt; i += RDWR_VEC_MAX) {
-			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
-			int          j                  = 0;
-			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
-				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
-				bufs[j].iov_len  = iov[i + j].len;
-			}
-
-			r = readv(fd, bufs, j);
-			if (r <= 0) break;
-			len += r;
-		}
-
-		return r < 0 ? r : len;
-#else
 		// both 1 and 2 go to client.
 		int len = 0;
 		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
@@ -542,7 +513,6 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 		r->bodyrlen += len;
 
 		return len;
-#endif
 	}
 	// TODO: read on other file types
 	int                gret = 0;
@@ -579,7 +549,6 @@ wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 {
 	struct sandbox *c = sandbox_current();
 	if (fd == 1 || fd == 2) {
-#ifndef STANDALONE
 		// both 1 and 2 go to client.
 		int                len = 0;
 		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
@@ -591,22 +560,6 @@ wasm_writev(i32 fd, i32 iov_offset, i32 iovcnt)
 		}
 
 		return len;
-#else
-		for (int i = 0; i < iovcnt; i += RDWR_VEC_MAX) {
-			struct iovec bufs[RDWR_VEC_MAX] = { 0 };
-			int j = 0;
-			for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
-				bufs[j].iov_base = get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len);
-				bufs[j].iov_len = iov[i + j].len;
-			}
-
-			r = writev(fd, bufs, j);
-			if (r <= 0) break;
-			len += r;
-		}
-
-		return r < 0 ? r : len;
-#endif
 	}
 	// TODO: read on other file types
 	int                d    = io_handle_fd(fd);
@@ -1193,5 +1146,3 @@ inner_syscall_handler(i32 n, i32 a, i32 b, i32 c, i32 d, i32 e, i32 f)
 
 	return 0;
 }
-
-#endif

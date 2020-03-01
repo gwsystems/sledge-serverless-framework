@@ -58,7 +58,6 @@ struct sandbox {
 	i32   retval;
 
 	struct io_handle handles[SBOX_MAX_OPEN];
-#ifndef STANDALONE
 	struct sockaddr      client; // client requesting connection!
 	int                  csock;
 	uv_tcp_t             cuv;
@@ -66,7 +65,6 @@ struct sandbox {
 	http_parser          hp;
 	struct http_request  rqi;
 	struct http_response rsi;
-#endif
 
 	char *  read_buf;
 	ssize_t read_len, read_size;
@@ -77,8 +75,6 @@ struct sandbox {
 	char    req_resp_data[1]; // of rr_data_sz, following sandbox mem..
 } PAGE_ALIGNED;
 
-#ifndef STANDALONE
-#ifdef SBOX_SCALE_ALLOC
 struct sandbox_request {
 	struct module *  mod;
 	char *           args;
@@ -87,12 +83,6 @@ struct sandbox_request {
 	unsigned long long int start_time_in_cycles;
 };
 typedef struct sandbox_request sbox_request_t;
-#else
-typedef struct sandbox sbox_request_t;
-#endif
-#else
-typedef struct sandbox sbox_request_t;
-#endif
 
 DEQUE_PROTOTYPE(sandbox, sbox_request_t *);
 
@@ -116,8 +106,7 @@ sbox_request_alloc(
 	const struct sockaddr *addr, 
 	unsigned long long int start_time_in_cycles)
 {
-#ifndef STANDALONE
-#ifdef SBOX_SCALE_ALLOC
+	// sandbox_alloc seems to be 
 	sbox_request_t *s = malloc(sizeof(sbox_request_t));
 	assert(s);
 	s->mod  = mod;
@@ -127,12 +116,6 @@ sbox_request_alloc(
 	s->start_time_in_cycles = start_time_in_cycles;
 	sandbox_run(s);
 	return s;
-#else /* SBOX_SCALE_ALLOC */
-	return sandbox_alloc(mod, args, sock, addr);
-#endif
-#else /* STANDALONE */
-	return sandbox_alloc(mod, args, sock, addr);
-#endif
 }
 
 static inline struct sandbox *

@@ -11,11 +11,7 @@ static inline struct sandbox *
 sandbox_memory_map(struct module *m)
 {
 	unsigned long mem_sz = SBOX_MAX_MEM; // 4GB
-#ifndef STANDALONE
 	unsigned long sb_sz = sizeof(struct sandbox) + m->max_rr_sz;
-#else
-	unsigned long sb_sz = sizeof(struct sandbox);
-#endif
 	unsigned long lm_sz = WASM_PAGE_SIZE * WASM_START_PAGES;
 
 	if (lm_sz + sb_sz > mem_sz) return NULL;
@@ -73,7 +69,6 @@ sandbox_args_setup(i32 argc)
 static inline void
 sb_read_callback(uv_stream_t *s, ssize_t nr, const uv_buf_t *b)
 {
-#ifndef STANDALONE
 	struct sandbox *c = s->data;
 
 	if (nr > 0) {
@@ -85,7 +80,6 @@ sb_read_callback(uv_stream_t *s, ssize_t nr, const uv_buf_t *b)
 
 	uv_read_stop(s);
 	sandbox_wakeup(c);
-#endif
 }
 
 static inline void
@@ -105,7 +99,6 @@ sb_shutdown_callback(uv_shutdown_t *req, int status)
 static inline void
 sb_write_callback(uv_write_t *w, int status)
 {
-#ifndef STANDALONE
 	struct sandbox *c = w->data;
 	if (status < 0) {
 		c->cuvsr.data = c;
@@ -113,27 +106,21 @@ sb_write_callback(uv_write_t *w, int status)
 		return;
 	}
 	sandbox_wakeup(c);
-#endif
 }
 
 static inline void
 sb_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
 {
 	struct sandbox *c = h->data;
-
-#ifndef STANDALONE
 	size_t l  = (c->mod->max_rr_sz - c->rr_data_len);
 	buf->base = (c->req_resp_data + c->rr_data_len);
 	buf->len  = l > suggested ? suggested : l;
-#endif
 }
 
 static inline int
 sandbox_client_request_get(void)
 {
-#ifndef STANDALONE
 	struct sandbox *curr = sandbox_current();
-
 	curr->rr_data_len = 0;
 #ifndef USE_HTTP_UVIO
 	int r = 0;
@@ -160,17 +147,12 @@ sandbox_client_request_get(void)
 	sandbox_block_http();
 	if (curr->rr_data_len == 0) return 0;
 #endif
-
 	return 1;
-#else
-	return 1;
-#endif
 }
 
 static inline int
 sandbox_client_response_set(void)
 {
-#ifndef STANDALONE
 	int             sndsz       = 0;
 	struct sandbox *curr        = sandbox_current();
 	int             rsp_hdr_len = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
@@ -223,10 +205,7 @@ done:
 	int      r    = uv_write(&req, (uv_stream_t *)&curr->cuv, &bufv, 1, sb_write_callback);
 	sandbox_block_http();
 #endif
-
-
 	return 0;
-#endif
 }
 
 // static inline int
@@ -310,16 +289,11 @@ sandbox_entry(void)
 	f = io_handle_open(2);
 	assert(f == 2);
 
-#ifndef STANDALONE
 	http_parser_init(&curr->hp, HTTP_REQUEST);
 	curr->hp.data = curr;
 	// NOTE: if more headers, do offset by that!
 	int rsp_hdr_len = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
 #ifdef USE_HTTP_UVIO
-#ifndef USE_UVIO
-	printf("UVIO not enabled!\n");
-	assert(0);
-#endif
 	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&curr->cuv);
 	assert(r == 0);
 	curr->cuv.data = curr;
@@ -327,13 +301,8 @@ sandbox_entry(void)
 	assert(r == 0);
 #endif
 	if (sandbox_client_request_get() > 0)
-#endif
 	{
-#ifndef STANDALONE
 		curr->rr_data_len = rsp_hdr_len; // TODO: do this on first write to body.
-#else
-		curr->rr_data_len = 0;
-#endif
 		alloc_linear_memory();
 		// perhaps only initialized for the first instance? or TODO!
 		// module_table_init(curr_mod);
@@ -346,13 +315,11 @@ sandbox_entry(void)
 		sandbox_client_response_set();
 	}
 
-#ifndef STANDALONE
 #ifdef USE_HTTP_UVIO
 	uv_close((uv_handle_t *)&curr->cuv, sb_close_callback);
 	sandbox_block_http();
 #else
 	close(curr->csock);
-#endif
 #endif
 	sandbox_exit();
 }
@@ -376,22 +343,12 @@ sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *a
 		perror("mmap");
 		assert(0);
 	}
-#ifndef STANDALONE
 	sb->csock = sock;
 	if (addr) memcpy(&sb->client, addr, sizeof(struct sockaddr));
-#endif
 	for (int i = 0; i < SBOX_MAX_OPEN; i++) sb->handles[i].fd = -1;
 	ps_list_init_d(sb);
 
 	arch_context_init(&sb->ctxt, (reg_t)sandbox_entry, (reg_t)(sb->stack_start + sb->stack_size));
-#ifdef STANDALONE
-	sandbox_run(sb);
-#else
-#ifndef SBOX_SCALE_ALLOC
-	sandbox_run(sb);
-#endif
-#endif
-
 	return sb;
 }
 
@@ -408,9 +365,8 @@ sandbox_free(struct sandbox *sb)
 	if (sb->state != SANDBOX_RETURNED) return;
 
 	int sz = sizeof(struct sandbox);
-#ifndef STANDALONE
+
 	sz += sb->mod->max_rr_sz;
-#endif
 	module_release(sb->mod);
 
 	// TODO free(sb->args);

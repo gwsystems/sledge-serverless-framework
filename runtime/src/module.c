@@ -23,24 +23,18 @@ module_find_by_name(char *name)
 struct module *
 module_find_by_sock(int sock)
 {
-#ifndef STANDALONE
 	int f = __mod_free_off;
 	for (int i = 0; i < f; i++) {
 		assert(__mod_db[i]);
 		if (__mod_db[i]->srvsock == sock) return __mod_db[i];
 	}
-#endif
 	return NULL;
 }
 
 static inline int
 module_add(struct module *m)
 {
-#ifdef STANDALONE
-	assert(module_find_by_name(m->name) == NULL);
-#else
 	assert(m->srvsock == -1);
-#endif
 
 	int f = __sync_fetch_and_add(&__mod_free_off, 1);
 	assert(f < MOD_MAX);
@@ -52,7 +46,6 @@ module_add(struct module *m)
 static inline void
 module_server_init(struct module *m)
 {
-#ifndef STANDALONE
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
 	assert(fd > 0);
 	m->srvaddr.sin_family      = AF_INET;
@@ -75,7 +68,6 @@ module_server_init(struct module *m)
 	accept_evt.events   = EPOLLIN;
 
 	if (epoll_ctl(epoll_file_descriptor, EPOLL_CTL_ADD, m->srvsock, &accept_evt) < 0) assert(0);
-#endif
 }
 
 struct module *
@@ -111,7 +103,6 @@ module_alloc(char *modname, char *modpath, i32 nargs, u32 stacksz, u32 maxheap, 
 	mod->stack_size = round_up_to_page(stacksz == 0 ? WASM_STACK_SIZE : stacksz);
 	mod->max_memory = maxheap == 0 ? ((u64)WASM_PAGE_SIZE * WASM_MAX_PAGES) : maxheap;
 	mod->timeout    = timeout;
-#ifndef STANDALONE
 	mod->srvsock = -1;
 	mod->srvport = port;
 	if (req_sz == 0) req_sz = MOD_REQ_RESP_DEFAULT;
@@ -119,7 +110,6 @@ module_alloc(char *modname, char *modpath, i32 nargs, u32 stacksz, u32 maxheap, 
 	mod->max_req_sz  = req_sz;
 	mod->max_resp_sz = resp_sz;
 	mod->max_rr_sz   = round_up_to_page(req_sz > resp_sz ? req_sz : resp_sz);
-#endif
 
 	struct indirect_table_entry *cache_tbl = module_indirect_table;
 	// assumption: modules are created before enabling preemption and before running runtime-sandboxing threads..
@@ -150,9 +140,7 @@ module_free(struct module *mod)
 	if (mod->dl_handle == NULL) return;
 	if (mod->refcnt) return;
 
-#ifndef STANDALONE
 	close(mod->srvsock);
-#endif
 	dlclose(mod->dl_handle);
 	free(mod);
 }
