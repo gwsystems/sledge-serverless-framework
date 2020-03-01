@@ -15,9 +15,8 @@ struct deque_sandbox *glb_dq;
 pthread_mutex_t       glbq_mtx = PTHREAD_MUTEX_INITIALIZER;
 int                   epfd;
 
-// per-thread (per-core) run and completion queue.. (using doubly-linked-lists)
-__thread static struct ps_list_head runq;
-__thread static struct ps_list_head endq;
+__thread static struct ps_list_head runq; // per-thread(core) run queue (doubly-linked list)
+__thread static struct ps_list_head endq; // per-thread(core) completion queue (doubly-linked list)
 
 // current sandbox that is active..
 __thread sandbox_t *current_sandbox = NULL;
@@ -31,6 +30,10 @@ __thread arch_context_t base_context;
 // libuv i/o loop handle per sandboxing thread!
 __thread uv_loop_t uvio;
 
+/**
+ * Append the sandbox to the runqueue
+ * @param s sandbox to add
+ */
 static inline void
 sandbox_local_run(struct sandbox *s)
 {
