@@ -16,7 +16,7 @@ i32 log_file_descriptor = -1;
 u32 total_online_processors = 0;
 u32 total_worker_processors = 0;
 u32 first_worker_processor = 0;
-int worker_threads_argument[SBOX_NCORES] = { 0 }; // This is always empty, as we don't pass an argument
+int worker_threads_argument[SBOX_NCORES] = { 0 };  // The worker sets its argument to -1 on error
 pthread_t worker_threads[SBOX_NCORES];
 
 static unsigned long long

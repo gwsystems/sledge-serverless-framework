@@ -31,7 +31,7 @@ __thread arch_context_t base_context;
 __thread uv_loop_t uvio;
 
 /**
- * Append the sandbox to the local_run_queueueue
+ * Append the sandbox to the local_run_queue
  * @param s sandbox to add
  */
 static inline void
@@ -42,24 +42,28 @@ sandbox_local_run(struct sandbox *s)
 	ps_list_head_append_d(&local_run_queue, s);
 }
 
+/**
+ * Pulls up to 1..n sandbox requests, allocates them as sandboxes, sets them as runnable and places them on the local runqueue, and then frees the sandbox requests
+ * The batch size pulled at once is set by SBOX_PULL_MAX
+ * @return the number of sandbox requests pulled
+ */
 static inline int
 sandbox_pull(void)
 {
-	int n = 0;
+	int total_sandboxes_pulled = 0;
 
-	while (n < SBOX_PULL_MAX) {
-		sbox_request_t *s = sandbox_deque_steal();
-
-		if (!s) break;
-		struct sandbox *sb = sandbox_alloc(s->mod, s->args, s->sock, s->addr);
-		assert(sb);
-		free(s);
-		sb->state = SANDBOX_RUNNABLE;
-		sandbox_local_run(sb);
-		n++;
+	while (total_sandboxes_pulled < SBOX_PULL_MAX) {
+		sbox_request_t *sandbox_request;
+		if ((sandbox_request = sandbox_deque_steal()) == NULL) break;
+		struct sandbox *sandbox = sandbox_alloc(sandbox_request->mod, sandbox_request->args, sandbox_request->sock, sandbox_request->addr, sandbox_request->start_time);
+		assert(sandbox);
+		free(sandbox_request);
+		sandbox->state = SANDBOX_RUNNABLE;
+		sandbox_local_run(sandbox);
+		total_sandboxes_pulled++;
 	}
 
-	return n;
+	return total_sandboxes_pulled;
 }
 
 static __thread unsigned int in_callback;
@@ -229,14 +233,15 @@ sandbox_run_func(void *data)
 	pthread_exit(data);
 }
 
+/**
+ * Push the Sandbox Request to the Global Dequeue
+ * @param s The sandbox request we're pushing
+ **/
 void
-sandbox_run(sbox_request_t *s)
+sandbox_run(sbox_request_t *sandbox_request)
 {
-	// for now, a pull model...
-	// sandbox_run adds to the global ready queue..
-	// each sandboxing thread pulls off of that global ready queue..
-	debuglog("[%p: %s]\n", s, s->mod->name);
-	sandbox_deque_push(s);
+	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->mod->name);
+	sandbox_deque_push(sandbox_request);
 }
 
 // perhaps respond to request
@@ -274,7 +279,7 @@ runtime_accept_thdfn(void *d)
 	int                 total_requests  = 0;
 	while (true) {
 		int ready = epoll_wait(epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
-		unsigned long long int start_time_in_cycles = rdtsc();
+		u64 start_time = rdtsc();
 		for (int i = 0; i < ready; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
@@ -292,10 +297,9 @@ runtime_accept_thdfn(void *d)
 				assert(0);
 			}
 			total_requests++;
-			printf("Received Request %d at %lld\n", total_requests, start_time_in_cycles);
+			printf("Received Request %d at %lu\n", total_requests, start_time);
 
-			// struct sandbox *sb = sandbox_alloc(m, m->name, s, (const struct sockaddr *)&client);
-			sbox_request_t *sb = sbox_request_alloc(m, m->name, s, (const struct sockaddr *)&client, start_time_in_cycles);
+			sbox_request_t *sb = sbox_request_alloc(m, m->name, s, (const struct sockaddr *)&client, start_time);
 			assert(sb);
 		}
 	}

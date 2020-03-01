@@ -80,14 +80,14 @@ struct sandbox_request {
 	char *           args;
 	int              sock;
 	struct sockaddr *addr;
-	unsigned long long int start_time_in_cycles;
+	u64 start_time; // cycles
 };
 typedef struct sandbox_request sbox_request_t;
 
 DEQUE_PROTOTYPE(sandbox, sbox_request_t *);
 
 // a runtime resource, malloc on this!
-struct sandbox *sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr);
+struct sandbox *sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr, u64 start_time);
 // should free stack and heap resources.. also any I/O handles.
 void sandbox_free(struct sandbox *sbox);
 
@@ -104,7 +104,7 @@ sbox_request_alloc(
 	char *args, 
 	int sock, 
 	const struct sockaddr *addr, 
-	unsigned long long int start_time_in_cycles)
+	u64 start_time)
 {
 	// sandbox_alloc seems to be 
 	sbox_request_t *s = malloc(sizeof(sbox_request_t));
@@ -113,7 +113,7 @@ sbox_request_alloc(
 	s->args = args;
 	s->sock = sock;
 	s->addr = (struct sockaddr *)addr;
-	s->start_time_in_cycles = start_time_in_cycles;
+	s->start_time = start_time;
 	sandbox_run(s);
 	return s;
 }
@@ -239,6 +239,9 @@ sandbox_deque_pop(sbox_request_t **s)
 	return ret;
 }
 
+/**
+ * @returns A Sandbox Request or NULL
+ **/
 static inline sbox_request_t *
 sandbox_deque_steal(void)
 {

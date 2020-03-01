@@ -325,7 +325,7 @@ sandbox_entry(void)
 }
 
 struct sandbox *
-sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr)
+sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr, u64 start_time)
 {
 	if (!module_is_valid(mod)) return NULL;
 
@@ -333,6 +333,9 @@ sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *a
 	// perhaps, main should be in its own sandbox, when it is not running any sandbox.
 	struct sandbox *sb = (struct sandbox *)sandbox_memory_map(mod);
 	if (!sb) return NULL;
+
+	// Assign the start time from the request
+	sb->start_time = start_time;
 
 	// actual module instantiation!
 	sb->args        = (void *)args;
