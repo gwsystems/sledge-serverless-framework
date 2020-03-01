@@ -82,7 +82,7 @@ extern __thread struct indirect_table_entry *module_indirect_table;
 // for sandbox linear memory isolation
 extern __thread void *sandbox_lmbase;
 extern __thread u32   sandbox_lmbound;
-extern i32            logfd;
+extern i32            log_file_descriptor;
 
 // functions in the module to lookup and call per sandbox.
 typedef i32 (*mod_main_fn_t)(i32 a, i32 b);
@@ -124,7 +124,7 @@ typedef enum
 
 #ifdef DEBUG
 #ifdef NOSTDIO
-#define debuglog(fmt, ...) dprintf(logfd, "(%d,%lu) %s: " fmt, sched_getcpu(), pthread_self(), __func__, ##__VA_ARGS__)
+#define debuglog(fmt, ...) dprintf(log_file_descriptor, "(%d,%lu) %s: " fmt, sched_getcpu(), pthread_self(), __func__, ##__VA_ARGS__)
 #else
 #define debuglog(fmt, ...) printf("(%d,%lu) %s: " fmt, sched_getcpu(), pthread_self(), __func__, ##__VA_ARGS__)
 #endif

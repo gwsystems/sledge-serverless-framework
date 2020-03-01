@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <string.h>
 #include <netinet/in.h>
@@ -82,7 +83,7 @@ main(int argc, char *argv[])
 		return -1;
 	}
 
-	while (1) {
+	while (true) {
 		fseek(f, 0, SEEK_SET);
 
 		char line[MSG_MAX] = { 0 };

@@ -11,9 +11,9 @@
 #include <uv.h>
 #include <http_api.h>
 
-struct deque_sandbox *glb_dq;
-pthread_mutex_t       glbq_mtx = PTHREAD_MUTEX_INITIALIZER;
-int                   epfd;
+struct deque_sandbox *global_deque;
+pthread_mutex_t       global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
+int                   epoll_file_descriptor;
 
 __thread static struct ps_list_head runq; // per-thread(core) run queue (doubly-linked list)
 __thread static struct ps_list_head endq; // per-thread(core) completion queue (doubly-linked list)
@@ -200,7 +200,7 @@ void __attribute__((noinline)) __attribute__((noreturn)) sandbox_switch_preempt(
 	pthread_kill(pthread_self(), SIGUSR1);
 
 	assert(0); // should not get here..
-	while (1)
+	while (true)
 		;
 }
 static inline void
@@ -232,7 +232,7 @@ sandbox_run_func(void *data)
 	uv_loop_init(&uvio);
 	in_callback = 0;
 
-	while (1) {
+	while (true) {
 		struct sandbox *s = sandbox_schedule_io();
 		while (s) {
 			sandbox_switch(s);
@@ -266,18 +266,18 @@ void
 sandbox_exit(void)
 {
 #ifndef STANDALONE
-	struct sandbox *curr = sandbox_current();
-	assert(curr);
+	struct sandbox *current_sandbox = sandbox_current();
+	assert(current_sandbox);
 	softint_disable();
-	sandbox_local_stop(curr);
-	curr->state = SANDBOX_RETURNED;
+	sandbox_local_stop(current_sandbox);
+	current_sandbox->state = SANDBOX_RETURNED;
 	// free resources from "main function execution", as stack still in use.
 	struct sandbox *n = sandbox_schedule(0);
-	assert(n != curr);
+	assert(n != current_sandbox);
 	softint_enable();
 	// unmap linear memory only!
-	munmap(curr->linear_start, SBOX_MAX_MEM + PAGE_SIZE);
-	// sandbox_local_end(curr);
+	munmap(current_sandbox->linear_start, SBOX_MAX_MEM + PAGE_SIZE);
+	// sandbox_local_end(current_sandbox);
 	sandbox_switch(n);
 #else
 	sandbox_switch(NULL);
@@ -290,26 +290,26 @@ sandbox_exit(void)
  * @return NULL
  * 
  * Used Globals:
- * epfd - the epoll file descriptor
+ * epoll_file_descriptor - the epoll file descriptor
  * 
  */
 void *
 runtime_accept_thdfn(void *d)
 {
 #ifndef STANDALONE
-	struct epoll_event *epevts = (struct epoll_event *)malloc(EPOLL_MAX * sizeof(struct epoll_event));
-	int                 nreqs  = 0;
-	while (1) {
-		int ready = epoll_wait(epfd, epevts, EPOLL_MAX, -1);
+	struct epoll_event *epoll_events = (struct epoll_event *)malloc(EPOLL_MAX * sizeof(struct epoll_event));
+	int                 total_requests  = 0;
+	while (true) {
+		int ready = epoll_wait(epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
 		for (int i = 0; i < ready; i++) {
-			if (epevts[i].events & EPOLLERR) {
+			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
 				assert(0);
 			}
 
 			struct sockaddr_in client;
 			socklen_t          client_len = sizeof(client);
-			struct module *    m          = (struct module *)epevts[i].data.ptr;
+			struct module *    m          = (struct module *)epoll_events[i].data.ptr;
 			assert(m);
 			int es = m->srvsock;
 			int s  = accept(es, (struct sockaddr *)&client, &client_len);
@@ -317,7 +317,8 @@ runtime_accept_thdfn(void *d)
 				perror("accept");
 				assert(0);
 			}
-			nreqs++;
+			total_requests++;
+			printf("Handling Request %d\n", total_requests);
 
 			// struct sandbox *sb = sandbox_alloc(m, m->name, s, (const struct sockaddr *)&client);
 			sbox_request_t *sb = sbox_request_alloc(m, m->name, s, (const struct sockaddr *)&client);
@@ -325,7 +326,7 @@ runtime_accept_thdfn(void *d)
 		}
 	}
 
-	free(epevts);
+	free(epoll_events);
 #endif
 
 	return NULL;
@@ -337,13 +338,13 @@ runtime_accept_thdfn(void *d)
 void
 runtime_init(void)
 {
-	epfd = epoll_create1(0);
-	assert(epfd >= 0);
-	glb_dq = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
-	assert(glb_dq);
+	epoll_file_descriptor = epoll_create1(0);
+	assert(epoll_file_descriptor >= 0);
+	global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
+	assert(global_deque);
 
 	// Note: Below is a Macro
-	deque_init_sandbox(glb_dq, SBOX_MAX_REQS);
+	deque_init_sandbox(global_deque, SBOX_MAX_REQS);
 
 	softint_mask(SIGUSR1);
 	softint_mask(SIGALRM);

@@ -85,7 +85,7 @@ skip:
 	return;
 }
 
-extern pthread_t rtthd[];
+extern pthread_t worker_threads[];
 
 static inline void
 softint_handler(int sig, siginfo_t *si, void *u)
@@ -103,11 +103,11 @@ softint_handler(int sig, siginfo_t *si, void *u)
 			int rt = 0;
 			// deliver signal to all other runtime threads..
 			for (int i = 0; i < SBOX_NCORES; i++) {
-				if (pthread_self() == rtthd[i]) {
+				if (pthread_self() == worker_threads[i]) {
 					rt = 1;
 					continue;
 				}
-				pthread_kill(rtthd[i], SIGALRM);
+				pthread_kill(worker_threads[i], SIGALRM);
 			}
 			assert(rt == 1);
 		} else {
