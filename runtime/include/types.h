@@ -106,14 +106,12 @@ typedef enum
 #define MOD_TBL_FN  "populate_table"
 #define MOD_LIBC_FN "wasmf___init_libc"
 
-#define MOD_MAX_ARGS   16
-#define MOD_ARG_MAX_SZ 64
-#define MOD_MAX        1024
-
-#define MOD_NAME_MAX 32
-#define MOD_PATH_MAX 256
-
-#define JSON_ELE_MAX 16
+#define MOD_MAX_ARGS     16 // Max number of arguments
+#define MOD_ARG_MAX_SZ   64 // Max size of a single argument
+#define MOD_MAX        1024 // Max size of a single module in JSON
+#define MOD_NAME_MAX 	 32 // Max module name length
+#define MOD_PATH_MAX 	256	// Max module path length
+#define JSON_ELE_MAX 	 16 // Max number of elements defined in JSON
 
 // FIXME: some naive work-stealing here..
 #define SBOX_PULL_MAX 1
@@ -143,7 +141,10 @@ typedef enum
 #define RDWR_VEC_MAX 16
 
 #define MOD_REQ_CORE  0                                  // Dedicated Listener Core
-#define SBOX_NCORES   (NCORES > 1 ? NCORES - 1 : NCORES) // If multicore, use all but the dedicated listener core
+
+// If multicore, use all but the dedicated listener core
+// If there are fewer cores than this, main dynamically overrides this and uses all available
+#define SBOX_NCORES   (NCORES > 1 ? NCORES - 1 : NCORES) 
 #define SBOX_MAX_REQS (1 << 19)                          // random!
 
 #define SBOX_RESP_STRSZ 32

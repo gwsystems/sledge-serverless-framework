@@ -43,8 +43,13 @@ usage(char *cmd)
 int
 main(int argc, char **argv)
 {
+	printf("Starting Awsm\n");
 #ifndef STANDALONE
-	int i = 0, rtthd_ret[SBOX_NCORES] = { 0 };
+	// Array of arguments passed to the start_routine via pthread_create
+	// This is always empty, as we don't pass an argument
+	int rtthd_ret[SBOX_NCORES] = { 0 }; 
+
+	// Initialize the array of runtime threads
 	memset(rtthd, 0, sizeof(pthread_t) * SBOX_NCORES);
 
 	if (argc != 2) {
@@ -52,6 +57,8 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
+	// Sets the process data segment (RLIMIT_DATA) and # file descriptors 
+	// (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
 	struct rlimit r;
 	if (getrlimit(RLIMIT_DATA, &r) < 0) {
 		perror("getrlimit RLIMIT_DATA");
@@ -72,7 +79,11 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
+	// Find the number of processors currently online
 	ncores = sysconf(_SC_NPROCESSORS_ONLN);
+
+	// If multicore, we'll pin one core as a listener and run sandbox threads on all others
+	// If single core, we'll do everything on that one core
 	if (ncores > 1) {
 		u32 x       = ncores - 1;
 		sbox_ncores = SBOX_NCORES;
@@ -84,6 +95,8 @@ main(int argc, char **argv)
 	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n", ncores, sbox_ncores,
 	         sbox_core_st, MOD_REQ_CORE);
 
+// If NOSTIO is defined, close stdin, stdout, stderr, and write to logfile named awesome.log. Otherwise, log to STDOUT
+// NOSTIO = No Standard Input/Output?
 #ifdef NOSTDIO
 	fclose(stdout);
 	fclose(stderr);
@@ -98,15 +111,16 @@ main(int argc, char **argv)
 #endif
 
 	runtime_init();
+
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 	if (util_parse_modules_file_json(argv[1])) {
 		printf("failed to parse modules file[%s]\n", argv[1]);
-
 		exit(-1);
 	}
+
 	runtime_thd_init();
 
-	for (i = 0; i < sbox_ncores; i++) {
+	for (int i = 0; i < sbox_ncores; i++) {
 		int ret = pthread_create(&rtthd[i], NULL, sandbox_run_func, (void *)&rtthd_ret[i]);
 		if (ret) {
 			errno = ret;
@@ -122,7 +136,7 @@ main(int argc, char **argv)
 	}
 	debuglog("Sandboxing environment ready!\n");
 
-	for (i = 0; i < sbox_ncores; i++) {
+	for (int i = 0; i < sbox_ncores; i++) {
 		int ret = pthread_join(rtthd[i], NULL);
 		if (ret) {
 			errno = ret;

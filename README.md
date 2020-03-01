@@ -63,7 +63,7 @@ To stop the Docker container:
 
 ## Running your first serverless function
 
-An aWsm serverless function consists of a shared library (*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:. 
+An aWsm serverless function consists of a shared library (\*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:
 
 ```json
 {
@@ -81,11 +81,11 @@ An aWsm serverless function consists of a shared library (*.so) and a JSON confi
 }
 ```
 
-The `port` and `name` fields are used to determine the path where our serverless function will be served served. 
+The `port` and `name` fields are used to determine the path where our serverless function will be served served.
 
 In our case, we are running the aWsm runtime on localhost, so our function is available at `http://localhost:10000/fibonacci`
 
-Our fibonacci function will parse a single argument from the HTTP POST body that we send. The expected Content-Type  is "text/plain" and the buffer is sized to 1024 bytes for both the request and response. This is sufficient for our simple Fibonacci function, but this must be changed and sized for other functions, such as image processing.
+Our fibonacci function will parse a single argument from the HTTP POST body that we send. The expected Content-Type is "text/plain" and the buffer is sized to 1024 bytes for both the request and response. This is sufficient for our simple Fibonacci function, but this must be changed and sized for other functions, such as image processing.
 
 Now that we understand roughly how the aWsm runtime interacts with serverless function, let's run Fibonacci!
 
@@ -115,8 +115,8 @@ You should receive the following in response. The serverless function says that 
 
 ```bash
 HTTP/1.1 200 OK
-Content-length: 3           
-Content-type: text/plain                      
+Content-length: 3
+Content-type: text/plain
 
 55
 ```
