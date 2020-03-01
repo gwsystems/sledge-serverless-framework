@@ -11,6 +11,12 @@
 
 #define UTIL_MOD_LINE_MAX 1024
 
+
+/**
+ * Removes leading and trailing spaces from a string
+ * @param str source string
+ * @return string without leading or training spaces
+ **/
 static char *
 util_remove_spaces(char *str)
 {
@@ -26,6 +32,7 @@ util_remove_spaces(char *str)
 /**
  * Parses a JSON file and allocates one or more new modules
  * @param filename The path of the JSON file
+ * @return RC 0 on Success. -1 on Error
  */
 int
 util_parse_modules_file_json(char *filename)
@@ -162,12 +169,14 @@ util_parse_modules_file_json(char *filename)
 	return 0;
 }
 
-/*
+/**
  * TEST data file should contain:
  * module_name:<arg1,arg2,arg3...>
  * and if your arg has to contain a ',', woops i can't deal with that for now!
  * if the first character in a line is ";", then the line is ignored!
- */
+ * @param filename
+ * @return RC 0 on Success. -1 on Error
+ **/
 int
 parse_sandbox_file_custom(char *filename)
 {
@@ -227,7 +236,13 @@ parse_sandbox_file_custom(char *filename)
 	return 0;
 }
 
-
+/**
+ * ???
+ * @param mod
+ * @param str
+ * @param addr
+ * @return sandbox
+ **/
 struct sandbox *
 util_parse_sandbox_string_json(struct module *mod, char *str, const struct sockaddr *addr)
 {
@@ -276,6 +291,13 @@ util_parse_sandbox_string_json(struct module *mod, char *str, const struct socka
 	return NULL;
 }
 
+/**
+ * ???
+ * @param mod
+ * @param str
+ * @param addr
+ * @return sandbox
+ **/
 struct sandbox *
 util_parse_sandbox_string_custom(struct module *mod, char *str, const struct sockaddr *addr)
 {
@@ -305,12 +327,13 @@ util_parse_sandbox_string_custom(struct module *mod, char *str, const struct soc
 	return sb;
 }
 
-/*
+/**
  * Each line in the file should be like:
- *
  * module_path:module_name:module_nargs:module_stack_size:module_max_heap_size[:moreargs::argn\n]
  * if the first character in a line is ";", then the line is ignored!
- */
+ * @param filename
+ * @return RC
+ **/
 int
 util_parse_modules_file_custom(char *filename)
 {

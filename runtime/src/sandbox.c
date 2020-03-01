@@ -150,6 +150,10 @@ sandbox_client_request_get(void)
 	return 1;
 }
 
+/**
+ * Sends Response Back to Client
+ * @return RC. -1 on Failure
+ **/
 static inline int
 sandbox_client_response_set(void)
 {
@@ -182,6 +186,9 @@ sandbox_client_response_set(void)
 
 done:
 	assert(sndsz == curr->rr_data_len);
+	// Get End Timestamp
+	curr->total_time = rdtsc() - curr->start_time;
+	printf("Function returned in %lu cycles\n", curr->total_time);
 
 #ifndef USE_HTTP_UVIO
 	int r = send(curr->csock, curr->req_resp_data, sndsz, 0);
@@ -207,65 +214,6 @@ done:
 #endif
 	return 0;
 }
-
-// static inline int
-// sandbox_client_response_set(void)
-//{
-//#ifndef STANDALONE
-//	struct sandbox *curr = sandbox_current();
-//
-//	int bodylen = curr->rr_data_len;
-//	if (bodylen > 0) {
-//		http_response_body_set(curr->req_resp_data, bodylen);
-//		char len[16] = { 0 };
-//		sprintf(len, "%d", bodylen);
-//		//content-length = body length
-//		char *key = curr->req_resp_data + curr->rr_data_len;
-//		int lenlen = strlen("content-length: "), dlen = strlen(len);
-//		strcpy(key, "content-length: ");
-//		strncat(key + lenlen, len, dlen);
-//		strncat(key + lenlen + dlen, "\r\n", 2);
-//		http_response_header_set(key, lenlen + dlen + 2);
-//		curr->rr_data_len += lenlen + dlen + 2;
-//
-//		//content-type as set in the headers.
-//		key = curr->req_resp_data + curr->rr_data_len;
-//		strcpy(key, "content-type: ");
-//		lenlen = strlen("content-type: ");
-//		dlen = strlen(curr->mod->rspctype);
-//		if (dlen == 0) {
-//			int l = strlen("text/plain\r\n\r\n");
-//			strncat(key + lenlen, "text/plain\r\n\r\n", l);
-//			http_response_header_set(key, lenlen + l);
-//			curr->rr_data_len += lenlen + l;
-//		} else {
-//			strncat(key + lenlen, curr->mod->rspctype, dlen);
-//			strncat(key + lenlen + dlen, "\r\n\r\n", 4);
-//			http_response_header_set(key, lenlen + dlen + 4);
-//			curr->rr_data_len += lenlen + dlen + 4;
-//		}
-//		//TODO - other headers requested in module!
-//	}
-//
-//	char *st = curr->req_resp_data + curr->rr_data_len;
-//	strcpy(st, "HTTP/1.1 200 OK\r\n");
-//	curr->rr_data_len += strlen("HTTP/1.1 200 OK\r\n");
-//
-//	http_response_status_set(st, strlen("HTTP/1.1 200 OK\r\n"));
-//	int n = http_response_vector();
-//#ifndef USE_HTTP_UVIO
-//	int r = writev(curr->csock, curr->rsi.bufs, n);
-//	if (r < 0) perror("writev");
-//#else
-//	uv_write_t req = { .data = curr, };
-//	int r = uv_write(&req, (uv_stream_t *)&curr->cuv, curr->rsi.bufs, n, sb_write_callback);
-//	sandbox_block_http();
-//#endif
-//	return 0;
-//#else
-//	return 0;
-//#endif
-//}
 
 void
 sandbox_entry(void)
