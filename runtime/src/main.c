@@ -32,12 +32,35 @@ get_time()
 	return (Tp.tv_sec * 1000000 + Tp.tv_usec);
 }
 
-
 static void
 usage(char *cmd)
 {
 	printf("%s <modules_file>\n", cmd);
 	debuglog("%s <modules_file>\n", cmd);
+}
+
+// Sets the process data segment (RLIMIT_DATA) and # file descriptors 
+// (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
+void set_resource_limits_to_max(){
+	struct rlimit resource_limit;
+	if (getrlimit(RLIMIT_DATA, &resource_limit) < 0) {
+		perror("getrlimit RLIMIT_DATA");
+		exit(-1);
+	}
+	resource_limit.rlim_cur = resource_limit.rlim_max;
+	if (setrlimit(RLIMIT_DATA, &resource_limit) < 0) {
+		perror("setrlimit RLIMIT_DATA");
+		exit(-1);
+	}
+	if (getrlimit(RLIMIT_NOFILE, &resource_limit) < 0) {
+		perror("getrlimit RLIMIT_NOFILE");
+		exit(-1);
+	}
+	resource_limit.rlim_cur = resource_limit.rlim_max;
+	if (setrlimit(RLIMIT_NOFILE, &resource_limit) < 0) {
+		perror("setrlimit RLIMIT_NOFILE");
+		exit(-1);
+	}
 }
 
 int
@@ -57,27 +80,7 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
-	// Sets the process data segment (RLIMIT_DATA) and # file descriptors 
-	// (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
-	struct rlimit r;
-	if (getrlimit(RLIMIT_DATA, &r) < 0) {
-		perror("getrlimit RLIMIT_DATA");
-		exit(-1);
-	}
-	r.rlim_cur = r.rlim_max;
-	if (setrlimit(RLIMIT_DATA, &r) < 0) {
-		perror("setrlimit RLIMIT_DATA");
-		exit(-1);
-	}
-	if (getrlimit(RLIMIT_NOFILE, &r) < 0) {
-		perror("getrlimit RLIMIT_NOFILE");
-		exit(-1);
-	}
-	r.rlim_cur = r.rlim_max;
-	if (setrlimit(RLIMIT_NOFILE, &r) < 0) {
-		perror("setrlimit RLIMIT_NOFILE");
-		exit(-1);
-	}
+	set_resource_limits_to_max();
 
 	// Find the number of processors currently online
 	ncores = sysconf(_SC_NPROCESSORS_ONLN);
