@@ -68,6 +68,9 @@ sandbox_pull(void)
 
 static __thread unsigned int in_callback;
 
+/**
+ * Run all outstanding events in the libuv event loop
+ **/
 void
 sandbox_io_nowait(void)
 {
@@ -82,10 +85,13 @@ sandbox_io_nowait(void)
 	// zero, so there is nothing (don't block!)
 }
 
+/**
+ * @param interrupt seems to be treated as boolean to indicate is_interrupt or not
+ * @returns A sandbox???
+ **/
 struct sandbox *
 sandbox_schedule(int interrupt)
 {
-	struct sandbox *s = NULL;
 	if (ps_list_head_empty(&local_run_queue)) {
 		// this is in an interrupt context, don't steal work here!
 		if (interrupt) return NULL;
@@ -95,15 +101,15 @@ sandbox_schedule(int interrupt)
 		}
 	}
 
-	s = ps_list_head_first_d(&local_run_queue, struct sandbox);
+	struct sandbox *sandbox = ps_list_head_first_d(&local_run_queue, struct sandbox);
 
-	assert(s->state != SANDBOX_RETURNED);
+	assert(sandbox->state != SANDBOX_RETURNED);
 	// round-robin
-	ps_list_rem_d(s);
-	ps_list_head_append_d(&local_run_queue, s);
-	debuglog("[%p: %s]\n", s, s->mod->name);
+	ps_list_rem_d(sandbox);
+	ps_list_head_append_d(&local_run_queue, sandbox);
+	debuglog("[%p: %s]\n", sandbox, sandbox->mod->name);
 
-	return s;
+	return sandbox;
 }
 
 /**
@@ -123,6 +129,11 @@ sandbox_local_free(unsigned int number_to_free)
 	}
 }
 
+
+/**
+ * ???
+ * @return sandbox
+ **/
 struct sandbox *
 sandbox_schedule_io(void)
 {
@@ -138,6 +149,11 @@ sandbox_schedule_io(void)
 	return s;
 }
 
+
+/**
+ * ???
+ * @param s sandbox
+ **/
 void
 sandbox_wakeup(sandbox_t *s)
 {
@@ -152,6 +168,10 @@ done:
 	softint_enable();
 }
 
+
+/**
+ * ???
+ **/
 void
 sandbox_block(void)
 {
@@ -166,6 +186,10 @@ sandbox_block(void)
 	sandbox_switch(s);
 }
 
+
+/**
+ * ???
+ **/
 void
 sandbox_block_http(void)
 {
@@ -184,6 +208,10 @@ sandbox_block_http(void)
 #endif
 }
 
+
+/**
+ * ???
+ **/
 void __attribute__((noinline)) __attribute__((noreturn)) sandbox_switch_preempt(void)
 {
 	pthread_kill(pthread_self(), SIGUSR1);
@@ -192,19 +220,32 @@ void __attribute__((noinline)) __attribute__((noreturn)) sandbox_switch_preempt(
 	while (true)
 		;
 }
+
+/**
+ * ???
+ * @param s sandbox
+ **/
 static inline void
 sandbox_local_stop(struct sandbox *s)
 {
 	ps_list_rem_d(s);
 }
 
+/**
+ * Adds sandbox to the completion queue
+ * @param sandbox
+ **/
 void
-sandbox_local_end(struct sandbox *s)
+sandbox_local_end(struct sandbox *sandbox)
 {
-	assert(ps_list_singleton_d(s));
-	ps_list_head_append_d(&local_completion_queue, s);
+	assert(ps_list_singleton_d(sandbox));
+	ps_list_head_append_d(&local_completion_queue, sandbox);
 }
 
+/**
+ * ???
+ * @param data - argument provided by pthread API. We set to -1 on error
+ **/
 void *
 sandbox_run_func(void *data)
 {
@@ -244,7 +285,9 @@ sandbox_run(sbox_request_t *sandbox_request)
 	sandbox_deque_push(sandbox_request);
 }
 
-// perhaps respond to request
+/**
+ * ???
+ **/
 void
 sandbox_exit(void)
 {

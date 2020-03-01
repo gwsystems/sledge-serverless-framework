@@ -19,7 +19,10 @@ u32 first_worker_processor = 0;
 int worker_threads_argument[SBOX_NCORES] = { 0 };  // The worker sets its argument to -1 on error
 pthread_t worker_threads[SBOX_NCORES];
 
-static unsigned long long
+/**
+ * @return timestamp in usec
+ **/
+static u64
 get_time()
 {
 	struct timeval Tp;
@@ -29,6 +32,10 @@ get_time()
 	return (Tp.tv_sec * 1000000 + Tp.tv_usec);
 }
 
+/**
+ * Returns instructions on use of CLI if used incorrectly
+ * @param cmd - The command the user entered
+ **/
 static void
 usage(char *cmd)
 {
@@ -36,8 +43,10 @@ usage(char *cmd)
 	debuglog("%s <modules_file>\n", cmd);
 }
 
-// Sets the process data segment (RLIMIT_DATA) and # file descriptors 
-// (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
+/**
+ * Sets the process data segment (RLIMIT_DATA) and # file descriptors 
+ * (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
+ **/
 void set_resource_limits_to_max(){
 	struct rlimit resource_limit;
 	if (getrlimit(RLIMIT_DATA, &resource_limit) < 0) {
@@ -60,6 +69,9 @@ void set_resource_limits_to_max(){
 	}
 }
 
+/**
+ * Check the number of cores and the compiler flags and allocate available cores
+ **/
 void allocate_available_cores(){
 	// Find the number of processors currently online
 	total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
@@ -80,8 +92,11 @@ void allocate_available_cores(){
 	         first_worker_processor, MOD_REQ_CORE);
 }
 
-// If NOSTIO is defined, close stdin, stdout, stderr, and write to logfile named awesome.log. Otherwise, log to STDOUT
-// NOSTIO = No Standard Input/Output?
+/** 
+ * If NOSTIO is defined, close stdin, stdout, stderr, and write to logfile named awesome.log. 
+ * Otherwise, log to STDOUT
+ * NOSTIO = No Standard Input/Output?
+ **/
 void process_nostio(){
 #ifdef NOSTDIO
 	fclose(stdout);
@@ -97,6 +112,9 @@ void process_nostio(){
 #endif
 }
 
+/**
+ * Starts all worker threads and sleeps forever on pthread_join, which should never return
+ **/
 void start_worker_threads(){
 	for (int i = 0; i < total_worker_processors; i++) {
 		int ret = pthread_create(&worker_threads[i], NULL, sandbox_run_func, (void *)&worker_threads_argument[i]);

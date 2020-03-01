@@ -13,12 +13,16 @@
 #include <arch/context.h>
 #include <softint.h>
 
-__thread static volatile sig_atomic_t alarm_cnt = 0, usr1_cnt = 0;
+__thread static volatile sig_atomic_t alarm_cnt = 0;
+__thread static volatile sig_atomic_t usr1_cnt = 0;
 
 __thread volatile sig_atomic_t softint_off = 0;
 
 static const int softints[] = { SIGALRM, SIGUSR1 };
 
+/**
+ * Arms the periodic timers
+ **/
 void
 softint_timer_arm(void)
 {
@@ -37,6 +41,9 @@ softint_timer_arm(void)
 #endif
 }
 
+/**
+ * Disarms the periodic timers
+ **/
 void
 softint_timer_disarm(void)
 {
@@ -53,6 +60,10 @@ softint_timer_disarm(void)
 	}
 }
 
+/**
+ * ???
+ * @param u ???
+ **/
 static inline void
 softint_alarm_schedule(void *u)
 {
@@ -87,6 +98,12 @@ skip:
 
 extern pthread_t worker_threads[];
 
+/**
+ * ???
+ * @param sig Signal Type
+ * @param si ???
+ * @param u ???
+ **/
 static inline void
 softint_handler(int sig, siginfo_t *si, void *u)
 {
@@ -159,6 +176,9 @@ softint_handler(int sig, siginfo_t *si, void *u)
 #endif
 }
 
+/**
+ * ???
+ **/
 void
 softint_init(void)
 {
