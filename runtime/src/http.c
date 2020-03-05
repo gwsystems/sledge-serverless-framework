@@ -42,7 +42,7 @@ http_on_url(http_parser *parser, const char *at, size_t length)
 	struct sandbox *     s = parser->data;
 	struct http_request *r = &s->rqi;
 
-	assert(strncmp(s->mod->name, (at + 1), length - 1) == 0);
+	assert(strncmp(s->module->name, (at + 1), length - 1) == 0);
 	return 0;
 }
 
@@ -83,7 +83,7 @@ http_on_body(http_parser *parser, const char *at, size_t length)
 	struct sandbox *     s = parser->data;
 	struct http_request *r = &s->rqi;
 
-	assert(r->bodylen + length <= s->mod->max_req_sz);
+	assert(r->bodylen + length <= s->module->max_request_size);
 	if (!r->body)
 		r->body = (char *)at;
 	else
@@ -122,7 +122,7 @@ http_response_body_set_sb(struct sandbox *c, char *body, int len)
 {
 	struct http_response *r = &c->rsi;
 
-	assert(len <= c->mod->max_resp_sz);
+	assert(len <= c->module->max_response_size);
 	r->body    = body;
 	r->bodylen = len;
 

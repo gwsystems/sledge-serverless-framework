@@ -33,7 +33,7 @@ void
 stub_init(i32 offset)
 {
 	// What program name will we put in the auxiliary vectors
-	char *program_name = sandbox_current()->mod->name;
+	char *program_name = sandbox_current()->module->name;
 	// Copy the program name into WASM accessible memory
 	i32 program_name_offset = offset;
 	strcpy(get_memory_ptr_for_runtime(offset, sizeof(program_name)), program_name);
@@ -64,7 +64,7 @@ stub_init(i32 offset)
 	i32 env_vec_offset = offset;
 	memcpy(get_memory_ptr_for_runtime(env_vec_offset, sizeof(env_vec)), env_vec, sizeof(env_vec));
 
-	module_libc_init(sandbox_current()->mod, env_vec_offset, program_name_offset);
+	module_libc_init(sandbox_current()->module, env_vec_offset, program_name_offset);
 }
 
 // Emulated syscall implementations
@@ -138,7 +138,7 @@ wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 	if (fd == 1 || fd == 2) {
 		char *          buf = get_memory_ptr_void(buf_offset, buf_size);
 		struct sandbox *s   = sandbox_current();
-		int             l   = s->mod->max_resp_sz - s->rr_data_len;
+		int             l   = s->module->max_response_size - s->rr_data_len;
 		l                   = l > buf_size ? buf_size : l;
 		if (l == 0) return 0;
 		memcpy(s->req_resp_data + s->rr_data_len, buf, l);

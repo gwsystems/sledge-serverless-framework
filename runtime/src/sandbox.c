@@ -8,10 +8,10 @@
 #include <http_api.h>
 
 static inline struct sandbox *
-sandbox_memory_map(struct module *m)
+sandbox_memory_map(struct module *module)
 {
 	unsigned long mem_sz = SBOX_MAX_MEM; // 4GB
-	unsigned long sb_sz = sizeof(struct sandbox) + m->max_rr_sz;
+	unsigned long sb_sz = sizeof(struct sandbox) + module->max_request_or_response_size;
 	unsigned long lm_sz = WASM_PAGE_SIZE * WASM_START_PAGES;
 
 	if (lm_sz + sb_sz > mem_sz) return NULL;
@@ -32,9 +32,9 @@ sandbox_memory_map(struct module *m)
 	// can it include sandbox as well?
 	s->linear_start = (char *)addr + sb_sz;
 	s->linear_size  = lm_sz;
-	s->mod          = m;
+	s->module          = module;
 	s->sb_size      = sb_sz;
-	module_acquire(m);
+	module_acquire(module);
 
 	return s;
 }
@@ -112,7 +112,7 @@ static inline void
 sb_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
 {
 	struct sandbox *c = h->data;
-	size_t l  = (c->mod->max_rr_sz - c->rr_data_len);
+	size_t l  = (c->module->max_request_or_response_size - c->rr_data_len);
 	buf->base = (c->req_resp_data + c->rr_data_len);
 	buf->len  = l > suggested ? suggested : l;
 }
@@ -124,7 +124,7 @@ sandbox_client_request_get(void)
 	curr->rr_data_len = 0;
 #ifndef USE_HTTP_UVIO
 	int r = 0;
-	r     = recv(curr->csock, (curr->req_resp_data), curr->mod->max_req_sz, 0);
+	r     = recv(curr->csock, (curr->req_resp_data), curr->module->max_request_size, 0);
 	if (r <= 0) {
 		if (r < 0) perror("recv1");
 		return r;
@@ -136,7 +136,7 @@ sandbox_client_request_get(void)
 		if (rh->message_end) break;
 
 		r = recv(curr->csock, (curr->req_resp_data + curr->rr_data_len),
-		         curr->mod->max_req_sz - curr->rr_data_len, 0);
+		         curr->module->max_request_size - curr->rr_data_len, 0);
 		if (r < 0) {
 			perror("recv2");
 			return r;
@@ -169,12 +169,12 @@ sandbox_client_response_set(void)
 
 	if (bodylen == 0) goto done;
 	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTTYPE, strlen(HTTP_RESP_CONTTYPE));
-	if (strlen(curr->mod->rspctype) <= 0) {
+	if (strlen(curr->module->response_content_type) <= 0) {
 		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), HTTP_RESP_CONTTYPE_PLAIN,
 		        strlen(HTTP_RESP_CONTTYPE_PLAIN));
 	} else {
-		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), curr->mod->rspctype,
-		        strlen(curr->mod->rspctype));
+		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), curr->module->response_content_type,
+		        strlen(curr->module->response_content_type));
 	}
 	sndsz += strlen(HTTP_RESP_CONTTYPE);
 	char len[10] = { 0 };
@@ -228,7 +228,7 @@ sandbox_entry(void)
 		softint_enable();
 	}
 	struct module *curr_mod = sandbox_module(curr);
-	int            argc     = module_nargs(curr_mod);
+	int            argc     = module_argument_count(curr_mod);
 	// for stdio
 	int f = io_handle_open(0);
 	assert(f == 0);
@@ -273,13 +273,13 @@ sandbox_entry(void)
 }
 
 struct sandbox *
-sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr, u64 start_time)
+sandbox_alloc(struct module *module, char *args, int sock, const struct sockaddr *addr, u64 start_time)
 {
-	if (!module_is_valid(mod)) return NULL;
+	if (!module_is_valid(module)) return NULL;
 
 	// FIXME: don't use malloc. huge security problem!
 	// perhaps, main should be in its own sandbox, when it is not running any sandbox.
-	struct sandbox *sb = (struct sandbox *)sandbox_memory_map(mod);
+	struct sandbox *sb = (struct sandbox *)sandbox_memory_map(module);
 	if (!sb) return NULL;
 
 	// Assign the start time from the request
@@ -287,7 +287,7 @@ sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *a
 
 	// actual module instantiation!
 	sb->args        = (void *)args;
-	sb->stack_size  = mod->stack_size;
+	sb->stack_size  = module->stack_size;
 	sb->stack_start = mmap(NULL, sb->stack_size, PROT_READ | PROT_WRITE,
 	                       MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
 	if (sb->stack_start == MAP_FAILED) {
@@ -317,8 +317,8 @@ sandbox_free(struct sandbox *sb)
 
 	int sz = sizeof(struct sandbox);
 
-	sz += sb->mod->max_rr_sz;
-	module_release(sb->mod);
+	sz += sb->module->max_request_or_response_size;
+	module_release(sb->module);
 
 	// TODO free(sb->args);
 	void * stkaddr = sb->stack_start;
