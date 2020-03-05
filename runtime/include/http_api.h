@@ -2,13 +2,13 @@
 #define SRFT_HTTP_API_H
 
 #include <http.h>
-int http_request_body_get_sb(struct sandbox *s, char **body);
-int http_request_parse_sb(struct sandbox *s, size_t l);
+int http_request_body_get_sb(struct sandbox *sandbox, char **body);
+int http_request_parse_sb(struct sandbox *sandbox, size_t l);
 
-int http_response_header_set_sb(struct sandbox *s, char *h, int len);
-int http_response_body_set_sb(struct sandbox *s, char *body, int len);
-int http_response_status_set_sb(struct sandbox *s, char *status, int len);
-int http_response_vector_sb(struct sandbox *s);
+int http_response_header_set_sb(struct sandbox *sandbox, char *h, int len);
+int http_response_body_set_sb(struct sandbox *sandbox, char *body, int len);
+int http_response_status_set_sb(struct sandbox *sandbox, char *status, int len);
+int http_response_vector_sb(struct sandbox *sandbox);
 
 void http_init(void);
 

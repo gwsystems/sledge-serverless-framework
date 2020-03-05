@@ -5,180 +5,225 @@
 
 http_parser_settings settings;
 
+/**
+ * Sets the HTTP Request's message_begin and last_was_value flags to true
+ * @param parser
+ **/
 static inline int
 http_on_msg_begin(http_parser *parser)
 {
-	struct sandbox *     s = parser->data;
-	struct http_request *r = &s->rqi;
+	struct sandbox *     sandbox = parser->data;
+	struct http_request *http_request = &sandbox->http_request;
 
-	r->message_begin  = 1;
-	r->last_was_value = 1; // should always start with a header..
+	http_request->message_begin  = 1;
+	http_request->last_was_value = 1; // should always start with a header..
 	return 0;
 }
 
+/**
+ * Sets the HTTP Request's message_end flag to true
+ * @param parser
+ **/
 static inline int
 http_on_msg_end(http_parser *parser)
 {
-	struct sandbox *     s = parser->data;
-	struct http_request *r = &s->rqi;
+	struct sandbox *     sandbox = parser->data;
+	struct http_request *http_request = &sandbox->http_request;
 
-	r->message_end = 1;
+	http_request->message_end = 1;
 	return 0;
 }
 
+/**
+ * Sets the HTTP Request's header_end flag to true
+ * @param parser
+ **/
 static inline int
 http_on_header_end(http_parser *parser)
 {
-	struct sandbox *     s = parser->data;
-	struct http_request *r = &s->rqi;
+	struct sandbox *     sandbox = parser->data;
+	struct http_request *http_request = &sandbox->http_request;
 
-	r->header_end = 1;
+	http_request->header_end = 1;
 	return 0;
 }
 
+/**
+ * ???
+ * @param parser
+ * @param at
+ * @param length
+ * @returns 0
+ **/
 static inline int
 http_on_url(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     s = parser->data;
-	struct http_request *r = &s->rqi;
+	struct sandbox *     sandbox = parser->data;
 
-	assert(strncmp(s->module->name, (at + 1), length - 1) == 0);
+	assert(strncmp(sandbox->module->name, (at + 1), length - 1) == 0);
 	return 0;
 }
 
+/**
+ * ???
+ * @param parser
+ * @param at
+ * @param length
+ * @returns 0
+ **/
 static inline int
 http_on_header_field(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     s = parser->data;
-	struct http_request *r = &s->rqi;
+	struct sandbox *     sandbox = parser->data;
+	struct http_request *http_request = &sandbox->http_request;
 
-	if (r->last_was_value) r->nheaders++;
-	assert(r->nheaders <= HTTP_HEADERS_MAX);
+	if (http_request->last_was_value) http_request->nheaders++;
+	assert(http_request->nheaders <= HTTP_HEADERS_MAX);
 	assert(length < HTTP_HEADER_MAXSZ);
 
-	r->last_was_value               = 0;
-	r->headers[r->nheaders - 1].key = (char *)at; // it is from the sandbox's req_resp_data, should persist.
+	http_request->last_was_value               = 0;
+	http_request->headers[http_request->nheaders - 1].key = (char *)at; // it is from the sandbox's req_resp_data, should persist.
 
 	return 0;
 }
 
+/**
+ * ???
+ * @param parser
+ * @param at
+ * @param length
+ * @returns 0
+ **/
 static inline int
 http_on_header_value(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     s = parser->data;
-	struct http_request *r = &s->rqi;
+	struct sandbox *     sandbox = parser->data;
+	struct http_request *http_request = &sandbox->http_request;
 
-	r->last_was_value = 1;
-	assert(r->nheaders <= HTTP_HEADERS_MAX);
+	http_request->last_was_value = 1;
+	assert(http_request->nheaders <= HTTP_HEADERS_MAX);
 	assert(length < HTTP_HEADERVAL_MAXSZ);
 
-	r->headers[r->nheaders - 1].val = (char *)at; // it is from the sandbox's req_resp_data, should persist.
+	http_request->headers[http_request->nheaders - 1].val = (char *)at; // it is from the sandbox's req_resp_data, should persist.
 
 	return 0;
 }
 
+/**
+ * ???
+ * @param parser
+ * @param at
+ * @param length
+ * @returns 0
+ **/
 static inline int
 http_on_body(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     s = parser->data;
-	struct http_request *r = &s->rqi;
+	struct sandbox *     sandbox = parser->data;
+	struct http_request *http_request = &sandbox->http_request;
 
-	assert(r->bodylen + length <= s->module->max_request_size);
-	if (!r->body)
-		r->body = (char *)at;
+	assert(http_request->bodylen + length <= sandbox->module->max_request_size);
+	if (!http_request->body)
+		http_request->body = (char *)at;
 	else
-		assert(r->body + r->bodylen == at);
+		assert(http_request->body + http_request->bodylen == at);
 
-	r->bodylen += length;
+	http_request->bodylen += length;
 
 	return 0;
 }
 
+/**
+ * Gets the HTTP Request body from a Sandbox
+ * @param sandbox the sandbox we want the body from
+ * @param b pointer that we'll assign to the http_request body
+ * @returns the length of the http_request's body
+ **/
 int
-http_request_body_get_sb(struct sandbox *s, char **b)
+http_request_body_get_sb(struct sandbox *sandbox, char **b)
 {
-	struct http_request *r = &s->rqi;
+	struct http_request *http_request = &sandbox->http_request;
 
-	*b = r->body;
-	return r->bodylen;
+	*b = http_request->body;
+	return http_request->bodylen;
 }
 
 int
-http_response_header_set_sb(struct sandbox *c, char *key, int len)
+http_response_header_set_sb(struct sandbox *sandbox, char *key, int len)
 {
 	// by now, req_resp_data should only be containing response!
-	struct http_response *r = &c->rsi;
+	struct http_response *http_response = &sandbox->http_response;
 
-	assert(r->nheaders < HTTP_HEADERS_MAX);
-	r->nheaders++;
-	r->headers[r->nheaders - 1].hdr = key;
-	r->headers[r->nheaders - 1].len = len;
+	assert(http_response->nheaders < HTTP_HEADERS_MAX);
+	http_response->nheaders++;
+	http_response->headers[http_response->nheaders - 1].hdr = key;
+	http_response->headers[http_response->nheaders - 1].len = len;
 
 	return 0;
 }
 
 int
-http_response_body_set_sb(struct sandbox *c, char *body, int len)
+http_response_body_set_sb(struct sandbox *sandbox, char *body, int len)
 {
-	struct http_response *r = &c->rsi;
+	struct http_response *http_response = &sandbox->http_response;
 
-	assert(len <= c->module->max_response_size);
-	r->body    = body;
-	r->bodylen = len;
+	assert(len <= sandbox->module->max_response_size);
+	http_response->body    = body;
+	http_response->bodylen = len;
 
 	return 0;
 }
 
 int
-http_response_status_set_sb(struct sandbox *c, char *status, int len)
+http_response_status_set_sb(struct sandbox *sandbox, char *status, int len)
 {
-	struct http_response *r = &c->rsi;
+	struct http_response *http_response = &sandbox->http_response;
 
-	r->status = status;
-	r->stlen  = len;
+	http_response->status = status;
+	http_response->stlen  = len;
 
 	return 0;
 }
 
 int
-http_response_vector_sb(struct sandbox *c)
+http_response_vector_sb(struct sandbox *sandbox)
 {
 	int nb = 0;
-	struct http_response *r = &c->rsi;
+	struct http_response *http_response = &sandbox->http_response;
 
 #ifdef USE_HTTP_UVIO
 
-	r->bufs[nb] = uv_buf_init(r->status, r->stlen);
+	http_response->bufs[nb] = uv_buf_init(http_response->status, http_response->stlen);
 	nb++;
-	for (int i = 0; i < r->nheaders; i++) {
-		r->bufs[nb] = uv_buf_init(r->headers[i].hdr, r->headers[i].len);
+	for (int i = 0; i < http_response->nheaders; i++) {
+		http_response->bufs[nb] = uv_buf_init(http_response->headers[i].hdr, http_response->headers[i].len);
 		nb++;
 	}
 
-	if (r->body) {
-		r->bufs[nb] = uv_buf_init(r->body, r->bodylen);
+	if (http_response->body) {
+		http_response->bufs[nb] = uv_buf_init(http_response->body, http_response->bodylen);
 		nb++;
-		r->bufs[nb] = uv_buf_init(r->status + r->stlen - 2, 2); // for crlf
+		http_response->bufs[nb] = uv_buf_init(http_response->status + http_response->stlen - 2, 2); // for crlf
 		nb++;
 	}
 #else
-	r->bufs[nb].iov_base = r->status;
-	r->bufs[nb].iov_len  = r->stlen;
+	http_response->bufs[nb].iov_base = http_response->status;
+	http_response->bufs[nb].iov_len  = http_response->stlen;
 	nb++;
 
-	for (int i = 0; i < r->nheaders; i++) {
-		r->bufs[nb].iov_base = r->headers[i].hdr;
-		r->bufs[nb].iov_len  = r->headers[i].len;
+	for (int i = 0; i < http_response->nheaders; i++) {
+		http_response->bufs[nb].iov_base = http_response->headers[i].hdr;
+		http_response->bufs[nb].iov_len  = http_response->headers[i].len;
 		nb++;
 	}
 
-	if (r->body) {
-		r->bufs[nb].iov_base = r->body;
-		r->bufs[nb].iov_len  = r->bodylen;
+	if (http_response->body) {
+		http_response->bufs[nb].iov_base = http_response->body;
+		http_response->bufs[nb].iov_len  = http_response->bodylen;
 		nb++;
 
-		r->bufs[nb].iov_base = r->status + r->stlen - 2;
-		r->bufs[nb].iov_len  = 2;
+		http_response->bufs[nb].iov_base = http_response->status + http_response->stlen - 2;
+		http_response->bufs[nb].iov_len  = 2;
 		nb++;
 	}
 #endif
@@ -187,9 +232,9 @@ http_response_vector_sb(struct sandbox *c)
 }
 
 int
-http_request_parse_sb(struct sandbox *s, size_t l)
+http_request_parse_sb(struct sandbox *sandbox, size_t l)
 {
-	http_parser_execute(&s->hp, &settings, s->req_resp_data + s->rr_data_len, l);
+	http_parser_execute(&sandbox->http_parser, &settings, sandbox->req_resp_data + sandbox->rr_data_len, l);
 	return 0;
 }
 

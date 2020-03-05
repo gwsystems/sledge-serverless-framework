@@ -275,17 +275,6 @@ sandbox_run_func(void *data)
 }
 
 /**
- * Push the Sandbox Request to the Global Dequeue
- * @param s The sandbox request we're pushing
- **/
-void
-sandbox_run(sbox_request_t *sandbox_request)
-{
-	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
-	sandbox_deque_push(sandbox_request);
-}
-
-/**
  * ???
  **/
 void

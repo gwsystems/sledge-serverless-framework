@@ -104,12 +104,12 @@ u32
 wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 {
 	if (filedes == 0) {
-		char *               buf = get_memory_ptr_void(buf_offset, nbyte);
+		char *               buffer = get_memory_ptr_void(buf_offset, nbyte);
 		struct sandbox *     s   = sandbox_current();
-		struct http_request *r   = &s->rqi;
+		struct http_request *r   = &s->http_request;
 		if (r->bodylen <= 0) return 0;
 		int l = nbyte > r->bodylen ? r->bodylen : nbyte;
-		memcpy(buf, r->body + r->bodyrlen, l);
+		memcpy(buffer, r->body + r->bodyrlen, l);
 		r->bodyrlen += l;
 		r->bodylen -= l;
 		return l;
@@ -117,10 +117,10 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 	int f = io_handle_fd(filedes);
 	// TODO: read on other file types
 	uv_fs_t req = UV_FS_REQ_INIT();
-	char *  buf = get_memory_ptr_void(buf_offset, nbyte);
+	char *  buffer = get_memory_ptr_void(buf_offset, nbyte);
 
 	debuglog("[%p] start[%d:%d, n%d]\n", uv_fs_get_data(&req), filedes, f, nbyte);
-	uv_buf_t bufv = uv_buf_init(buf, nbyte);
+	uv_buf_t bufv = uv_buf_init(buffer, nbyte);
 	uv_fs_read(runtime_uvio(), &req, f, &bufv, 1, -1, wasm_fs_callback);
 	sandbox_block();
 
@@ -136,12 +136,12 @@ i32
 wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 {
 	if (fd == 1 || fd == 2) {
-		char *          buf = get_memory_ptr_void(buf_offset, buf_size);
+		char *          buffer = get_memory_ptr_void(buf_offset, buf_size);
 		struct sandbox *s   = sandbox_current();
 		int             l   = s->module->max_response_size - s->rr_data_len;
 		l                   = l > buf_size ? buf_size : l;
 		if (l == 0) return 0;
-		memcpy(s->req_resp_data + s->rr_data_len, buf, l);
+		memcpy(s->req_resp_data + s->rr_data_len, buffer, l);
 		s->rr_data_len += l;
 
 		return l;
@@ -149,9 +149,9 @@ wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 	int f = io_handle_fd(fd);
 	// TODO: read on other file types
 	uv_fs_t req = UV_FS_REQ_INIT();
-	char *  buf = get_memory_ptr_void(buf_offset, buf_size);
+	char *  buffer = get_memory_ptr_void(buf_offset, buf_size);
 
-	uv_buf_t bufv = uv_buf_init(buf, buf_size);
+	uv_buf_t bufv = uv_buf_init(buffer, buf_size);
 	uv_fs_write(runtime_uvio(), &req, f, &bufv, 1, -1, wasm_fs_callback);
 	sandbox_block();
 
@@ -499,7 +499,7 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 		int len = 0;
 		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 		struct sandbox *s = sandbox_current();
-		struct http_request *r = &s->rqi;
+		struct http_request *r = &s->http_request;
 		if (r->bodylen <= 0) return 0;
 		for (int i = 0; i < iovcnt; i++) {
 			int l = iov[i].len > r->bodylen ? r->bodylen : iov[i].len;
@@ -652,8 +652,8 @@ wasm_fsync(u32 fd)
 u32
 wasm_getcwd(u32 buf_offset, u32 buf_size)
 {
-	char *buf = get_memory_ptr_void(buf_offset, buf_size);
-	char *res = getcwd(buf, buf_size);
+	char *buffer = get_memory_ptr_void(buf_offset, buf_size);
+	char *res = getcwd(buffer, buf_size);
 
 	if (!res) return 0;
 	return buf_offset;
@@ -919,11 +919,11 @@ wasm_listen(i32 sockfd, i32 backlog)
 #define SYS_RECVFROM 45
 
 void
-wasm_read_callback(uv_stream_t *s, ssize_t nread, const uv_buf_t *buf)
+wasm_read_callback(uv_stream_t *s, ssize_t nread, const uv_buf_t *buffer)
 {
 	struct sandbox *c = s->data;
 
-	debuglog("[%p] %ld %p\n", c, nread, buf);
+	debuglog("[%p] %ld %p\n", c, nread, buffer);
 	if (nread < 0) c->retval = -EIO;
 	c->read_len = nread;
 	debuglog("[%p] %ld\n", c, c->read_len);
@@ -942,11 +942,11 @@ wasm_write_callback(uv_write_t *req, int status)
 }
 
 void
-wasm_udp_recv_callback(uv_udp_t *h, ssize_t nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned flags)
+wasm_udp_recv_callback(uv_udp_t *h, ssize_t nread, const uv_buf_t *buffer, const struct sockaddr *addr, unsigned flags)
 {
 	struct sandbox *c = h->data;
 
-	debuglog("[%p] %ld %p\n", c, nread, buf);
+	debuglog("[%p] %ld %p\n", c, nread, buffer);
 	if (nread < 0) c->retval = -EIO;
 	c->read_len = nread;
 	debuglog("[%p] %ld\n", c, c->read_len);
@@ -967,7 +967,7 @@ wasm_udp_send_callback(uv_udp_send_t *req, int status)
 i32
 wasm_sendto(i32 fd, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i32 sockaddr_len)
 {
-	char *buf = get_memory_ptr_void(buff_offset, len);
+	char *buffer = get_memory_ptr_void(buff_offset, len);
 	// TODO: only support "send" api for now
 	assert(sockaddr_len == 0);
 	struct sandbox *     c = sandbox_current();
@@ -979,7 +979,7 @@ wasm_sendto(i32 fd, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i3
 		uv_write_t req = {
 			.data = c,
 		};
-		uv_buf_t b = uv_buf_init(buf, len);
+		uv_buf_t b = uv_buf_init(buffer, len);
 		debuglog("[%p] tcp\n", c);
 		int ret = uv_write(&req, (uv_stream_t *)h, &b, 1, wasm_write_callback);
 		sandbox_block();
@@ -990,7 +990,7 @@ wasm_sendto(i32 fd, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i3
 		uv_udp_send_t req = {
 			.data = c,
 		};
-		uv_buf_t b = uv_buf_init(buf, len);
+		uv_buf_t b = uv_buf_init(buffer, len);
 		debuglog("[%p] udp\n", c);
 		// TODO: sockaddr!
 		int r = uv_udp_send(&req, (uv_udp_t *)h, &b, 1, NULL, wasm_udp_send_callback);
@@ -1005,19 +1005,19 @@ wasm_sendto(i32 fd, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i3
 }
 
 static inline void
-wasm_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
+wasm_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buffer)
 {
 	struct sandbox *s = h->data;
 
 	// just let it use what is passed from caller!
-	buf->base = s->read_buf;
-	buf->len  = s->read_size;
+	buffer->base = s->read_buf;
+	buffer->len  = s->read_size;
 }
 
 i32
 wasm_recvfrom(i32 fd, i32 buff_offset, i32 size, i32 flags, i32 sockaddr_offset, i32 socklen_offset)
 {
-	char *     buf = get_memory_ptr_void(buff_offset, size);
+	char *     buffer = get_memory_ptr_void(buff_offset, size);
 	socklen_t *len = get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
 	// TODO: only support "recv" api for now
 	assert(*len == 0);
@@ -1030,7 +1030,7 @@ wasm_recvfrom(i32 fd, i32 buff_offset, i32 size, i32 flags, i32 sockaddr_offset,
 	// and there will only be one system call pending..
 	// so we keep the read buffer pointers in sandbox structure..
 	// for use in the callbacks..
-	c->read_buf  = buf;
+	c->read_buf  = buffer;
 	c->read_size = size;
 	c->read_len  = 0;
 	c->retval    = 0;
