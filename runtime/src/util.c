@@ -11,7 +11,6 @@
 
 #define UTIL_MOD_LINE_MAX 1024
 
-
 /**
  * Removes leading and trailing spaces from a string
  * @param str source string
@@ -31,120 +30,126 @@ util_remove_spaces(char *str)
 
 /**
  * Parses a JSON file and allocates one or more new modules
- * @param filename The path of the JSON file
+ * @param file_name The path of the JSON file
  * @return RC 0 on Success. -1 on Error
  */
 int
-util_parse_modules_file_json(char *filename)
+util_parse_modules_file_json(char *file_name)
 {
-	struct stat sb;
-	memset(&sb, 0, sizeof(struct stat));
-	if (stat(filename, &sb) < 0) {
+	// Use stat to get file attributes and make sure file is there and OK
+	struct stat stat_buffer;
+	memset(&stat_buffer, 0, sizeof(struct stat));
+	if (stat(file_name, &stat_buffer) < 0) {
 		perror("stat");
 		return -1;
 	}
 
-	FILE *mf = fopen(filename, "r");
-	if (!mf) {
+	// Open the file
+	FILE *module_file = fopen(file_name, "r");
+	if (!module_file) {
 		perror("fopen");
 		return -1;
 	}
 
-	char *filebuf = malloc(sb.st_size);
-	memset(filebuf, 0, sb.st_size);
-	int ret = fread(filebuf, sizeof(char), sb.st_size, mf);
-	debuglog("size read: %d content: %s\n", ret, filebuf);
-	if (ret != sb.st_size) {
+	// Initialize a Buffer, Read the file into the buffer, and then check that the buffer size equals the file size
+	char *file_buffer = malloc(stat_buffer.st_size);
+	memset(file_buffer, 0, stat_buffer.st_size);
+	int total_chars_read = fread(file_buffer, sizeof(char), stat_buffer.st_size, module_file);
+	debuglog("size read: %d content: %s\n", total_chars_read, file_buffer);
+	if (total_chars_read != stat_buffer.st_size) {
 		perror("fread");
 		return -1;
 	}
-	fclose(mf);
 
-	jsmn_parser modp;
-	jsmn_init(&modp);
-	jsmntok_t toks[MOD_MAX * JSON_ELE_MAX];
+	// Close the file
+	fclose(module_file);
 
-	int r = jsmn_parse(&modp, filebuf, strlen(filebuf), toks, sizeof(toks) / sizeof(toks[0]));
-	if (r < 0) {
+	// Initialize the Jasmine Parser and an array to hold the tokens
+	jsmn_parser module_parser;
+	jsmn_init(&module_parser);
+	jsmntok_t tokens[MOD_MAX * JSON_ELE_MAX];
+
+	// Use Jasmine to parse the JSON
+	int total_tokens = jsmn_parse(&module_parser, file_buffer, strlen(file_buffer), tokens, sizeof(tokens) / sizeof(tokens[0]));
+	if (total_tokens < 0) {
 		debuglog("jsmn_parse: invalid JSON?\n");
 		return -1;
 	}
 
-	int nmods = 0;
-	for (int i = 0; i < r; i++) {
-		assert(toks[i].type == JSMN_OBJECT);
+	int module_count = 0;
+	for (int i = 0; i < total_tokens; i++) {
+		assert(tokens[i].type == JSMN_OBJECT);
 
-		char  mname[MOD_NAME_MAX] = { 0 };
-		char  mpath[MOD_PATH_MAX] = { 0 };
-		char *rqhdrs;
-		char *rsphdrs;
-		i32   req_sz   = 0;
-		i32   resp_sz  = 0;
-		i32   nargs    = 0;
+		char  module_name[MOD_NAME_MAX] = { 0 };
+		char  module_path[MOD_PATH_MAX] = { 0 };
+		char *request_headers = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+		memset(request_headers, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+		char *reponse_headers = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+		memset(reponse_headers, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+		i32   request_size   = 0;
+		i32   response_size  = 0;
+		i32   argument_count    = 0;
 		u32   port     = 0;
-		i32   isactive = 0;
-		i32   nreqs = 0, nresps = 0;
-		int   j = 1, ntoks = 2 * toks[i].size;
-		rqhdrs = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		memset(rqhdrs, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		rsphdrs = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		memset(rsphdrs, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		char rqtype[HTTP_HEADERVAL_MAXSZ]  = { 0 };
-		char rsptype[HTTP_HEADERVAL_MAXSZ] = { 0 };
+		i32   is_active = 0;
+		i32   request_count = 0;
+		i32   response_count = 0;
+		int   j = 1;
+		int   ntoks = 2 * tokens[i].size;
+		char  request_content_type[HTTP_HEADERVAL_MAXSZ]  = { 0 };
+		char  response_content_type[HTTP_HEADERVAL_MAXSZ] = { 0 };
 
-		for (; j < ntoks;) {
+		for (; j < ntoks; ) {
 			int  ntks     = 1;
-			char val[256] = { 0 }, key[32] = { 0 };
+			char key[32] = { 0 };
+			char val[256] = { 0 };
 
-			sprintf(val, "%.*s", toks[j + i + 1].end - toks[j + i + 1].start,
-			        filebuf + toks[j + i + 1].start);
-			sprintf(key, "%.*s", toks[j + i].end - toks[j + i].start, filebuf + toks[j + i].start);
+			sprintf(val, "%.*s", tokens[j + i + 1].end - tokens[j + i + 1].start,
+			        file_buffer + tokens[j + i + 1].start);
+			sprintf(key, "%.*s", tokens[j + i].end - tokens[j + i].start, file_buffer + tokens[j + i].start);
 			if (strcmp(key, "name") == 0) {
-				strcpy(mname, val);
+				strcpy(module_name, val);
 			} else if (strcmp(key, "path") == 0) {
-				strcpy(mpath, val);
+				strcpy(module_path, val);
 			} else if (strcmp(key, "port") == 0) {
 				port = atoi(val);
 			} else if (strcmp(key, "argsize") == 0) {
-				nargs = atoi(val);
+				argument_count = atoi(val);
 			} else if (strcmp(key, "active") == 0) {
-				isactive = (strcmp(val, "yes") == 0);
+				is_active = (strcmp(val, "yes") == 0);
 			} else if (strcmp(key, "http-req-headers") == 0) {
-				assert(toks[i + j + 1].type == JSMN_ARRAY);
+				assert(tokens[i + j + 1].type == JSMN_ARRAY);
+				assert(tokens[i + j + 1].size <= HTTP_HEADERS_MAX);
 
-				assert(toks[i + j + 1].size <= HTTP_HEADERS_MAX);
-
-				nreqs = toks[i + j + 1].size;
-				ntks += nreqs;
-				ntoks += nreqs;
-				for (int k = 1; k <= toks[i + j + 1].size; k++) {
-					jsmntok_t *g = &toks[i + j + k + 1];
-					char *     r = rqhdrs + ((k - 1) * HTTP_HEADER_MAXSZ);
+				request_count = tokens[i + j + 1].size;
+				ntks += request_count;
+				ntoks += request_count;
+				for (int k = 1; k <= tokens[i + j + 1].size; k++) {
+					jsmntok_t *g = &tokens[i + j + k + 1];
+					char *     r = request_headers + ((k - 1) * HTTP_HEADER_MAXSZ);
 					assert(g->end - g->start < HTTP_HEADER_MAXSZ);
-					strncpy(r, filebuf + g->start, g->end - g->start);
+					strncpy(r, file_buffer + g->start, g->end - g->start);
 				}
 			} else if (strcmp(key, "http-resp-headers") == 0) {
-				assert(toks[i + j + 1].type == JSMN_ARRAY);
+				assert(tokens[i + j + 1].type == JSMN_ARRAY);
+				assert(tokens[i + j + 1].size <= HTTP_HEADERS_MAX);
 
-				assert(toks[i + j + 1].size <= HTTP_HEADERS_MAX);
-
-				nresps = toks[i + j + 1].size;
-				ntks += nresps;
-				for (int k = 1; k <= toks[i + j + 1].size; k++) {
-					char *     r = rsphdrs + ((k - 1) * HTTP_HEADER_MAXSZ);
-					jsmntok_t *g = &toks[i + j + k + 1];
+				response_count = tokens[i + j + 1].size;
+				ntks += response_count;
+				ntoks += response_count;
+				for (int k = 1; k <= tokens[i + j + 1].size; k++) {
+					jsmntok_t *g = &tokens[i + j + k + 1];
+					char *     r = reponse_headers + ((k - 1) * HTTP_HEADER_MAXSZ);
 					assert(g->end - g->start < HTTP_HEADER_MAXSZ);
-					strncpy(r, filebuf + g->start, g->end - g->start);
+					strncpy(r, file_buffer + g->start, g->end - g->start);
 				}
-				ntoks += nresps;
 			} else if (strcmp(key, "http-req-size") == 0) {
-				req_sz = atoi(val);
+				request_size = atoi(val);
 			} else if (strcmp(key, "http-resp-size") == 0) {
-				resp_sz = atoi(val);
+				response_size = atoi(val);
 			} else if (strcmp(key, "http-req-content-type") == 0) {
-				strcpy(rqtype, val);
+				strcpy(request_content_type, val);
 			} else if (strcmp(key, "http-resp-content-type") == 0) {
-				strcpy(rsptype, val);
+				strcpy(response_content_type, val);
 			} else {
 				debuglog("Invalid (%s,%s)\n", key, val);
 			}
@@ -152,245 +157,20 @@ util_parse_modules_file_json(char *filename)
 		}
 		i += ntoks;
 		// do not load if it is not active
-		if (isactive == 0) continue;
+		if (is_active == 0) continue;
 
-		struct module *m = module_alloc(mname, mpath, nargs, 0, 0, 0, port, req_sz, resp_sz);
-		assert(m);
-		module_http_info(m, nreqs, rqhdrs, rqtype, nresps, rsphdrs, rsptype);
-		nmods++;
-		free(rqhdrs);
-		free(rsphdrs);
+		// Allocate a module based on the values from the JSON
+		struct module *module = module_alloc(module_name, module_path, argument_count, 0, 0, 0, port, request_size, response_size);
+		assert(module);
+		module_http_info(module, request_count, request_headers, request_content_type, response_count, reponse_headers, response_content_type);
+		module_count++;
+		free(request_headers);
+		free(reponse_headers);
 	}
 
-	free(filebuf);
-	assert(nmods);
-	debuglog("Loaded %d module%s!\n", nmods, nmods > 1 ? "s" : "");
-
-	return 0;
-}
-
-/**
- * TEST data file should contain:
- * module_name:<arg1,arg2,arg3...>
- * and if your arg has to contain a ',', woops i can't deal with that for now!
- * if the first character in a line is ";", then the line is ignored!
- * @param filename
- * @return RC 0 on Success. -1 on Error
- **/
-int
-parse_sandbox_file_custom(char *filename)
-{
-	FILE *mf                      = fopen(filename, "r");
-	char  buff[UTIL_MOD_LINE_MAX] = { 0 };
-	int   total_boxes             = 0;
-
-	if (!mf) {
-		perror("fopen");
-
-		return -1;
-	}
-
-	while (fgets(buff, UTIL_MOD_LINE_MAX, mf) != NULL) {
-		char            mname[MOD_NAME_MAX] = { 0 };
-		char *          tok = NULL, *src = buff;
-		struct module * mod  = NULL;
-		struct sandbox *sb   = NULL;
-		char *          args = NULL;
-
-		src = util_remove_spaces(src);
-		if (src[0] == ';') goto next;
-
-		if ((tok = strtok_r(src, ":", &src))) {
-			int ntoks = 0;
-			strncpy(mname, tok, MOD_NAME_MAX);
-
-			mod = module_find_by_name(mname);
-			assert(mod);
-			if (mod->nargs > 0) {
-				args = (char *)malloc(mod->nargs * MOD_ARG_MAX_SZ);
-				assert(args);
-
-				while ((tok = strtok_r(src, ",", &src))) {
-					strncpy(args + (ntoks * MOD_ARG_MAX_SZ), tok, MOD_ARG_MAX_SZ);
-					ntoks++;
-
-					assert(ntoks < MOD_MAX_ARGS);
-				}
-			}
-		} else {
-			assert(0);
-		}
-
-		// TODO: Adding 0 as start time to match new signature. Unsure how this function is used... -SPM
-		sb = sandbox_alloc(mod, args, 0, NULL, 0);
-		assert(sb);
-		total_boxes++;
-
-	next:
-		memset(buff, 0, UTIL_MOD_LINE_MAX);
-	}
-
-	assert(total_boxes);
-	debuglog("Instantiated %d sandbox%s!\n", total_boxes, total_boxes > 1 ? "es" : "");
-
-	return 0;
-}
-
-/**
- * ???
- * @param mod
- * @param str
- * @param addr
- * @return sandbox
- **/
-struct sandbox *
-util_parse_sandbox_string_json(struct module *mod, char *str, const struct sockaddr *addr)
-{
-	jsmn_parser sp;
-	jsmntok_t   tk[JSON_ELE_MAX];
-	jsmn_init(&sp);
-
-	int r = jsmn_parse(&sp, str, strlen(str), tk, sizeof(tk) / sizeof(tk[0]));
-	if (r < 1) {
-		debuglog("Failed to parse string:%s\n", str);
-		return NULL;
-	}
-
-	if (tk[0].type != JSMN_OBJECT) return NULL;
-
-	for (int j = 1; j < r; j++) {
-		char key[32] = { 0 };
-		sprintf(key, "%.*s", tk[j].end - tk[j].start, str + tk[j].start);
-		if (strcmp(key, "module") == 0) {
-			char name[32] = { 0 };
-			sprintf(name, "%.*s", tk[j + 1].end - tk[j + 1].start, str + tk[j + 1].start);
-			if (strcmp(name, mod->name) != 0) return NULL;
-			j++;
-		} else if (strcmp(key, "args") == 0) {
-			if (tk[j + 1].type != JSMN_ARRAY) return NULL;
-
-			char *args = malloc(tk[j + 1].size * MOD_ARG_MAX_SZ);
-			assert(args);
-
-			for (int k = 1; k <= tk[j + 1].size; k++) {
-				jsmntok_t *g = &tk[j + k + 1];
-				strncpy(args + ((k - 1) * MOD_ARG_MAX_SZ), str + g->start, g->end - g->start);
-				*(args + ((k - 1) * MOD_ARG_MAX_SZ) + g->end - g->start) = '\0';
-			}
-
-			// TODO: Adding 0 as start time to match new signature. Unsure how this function is used... -SPM
-			struct sandbox *sb = sandbox_alloc(mod, args, 0, addr, 0);
-			assert(sb);
-
-			return sb;
-		} else {
-			return NULL;
-		}
-	}
-
-	return NULL;
-}
-
-/**
- * ???
- * @param mod
- * @param str
- * @param addr
- * @return sandbox
- **/
-struct sandbox *
-util_parse_sandbox_string_custom(struct module *mod, char *str, const struct sockaddr *addr)
-{
-	char *tok = NULL, *src = str;
-
-	src = util_remove_spaces(src);
-	if (src[0] == ';') return NULL;
-
-	if (!(tok = strtok_r(src, ":", &src))) return NULL;
-
-	if (strcmp(mod->name, tok)) return NULL;
-	assert(mod->nargs >= 0 && mod->nargs < MOD_MAX_ARGS);
-
-	char *args = (char *)malloc(mod->nargs * MOD_ARG_MAX_SZ);
-	assert(args);
-	int ntoks = 0;
-	while ((tok = strtok_r(src, ",", &src))) {
-		strncpy(args + (ntoks * MOD_ARG_MAX_SZ), tok, MOD_ARG_MAX_SZ);
-		ntoks++;
-		assert(ntoks < MOD_MAX_ARGS);
-	}
-
-	// TODO: Adding 0 as start time to match new signature. Unsure how this function is used... -SPM
-	struct sandbox *sb = sandbox_alloc(mod, args, 0, addr, 0);
-	assert(sb);
-
-	return sb;
-}
-
-/**
- * Each line in the file should be like:
- * module_path:module_name:module_nargs:module_stack_size:module_max_heap_size[:moreargs::argn\n]
- * if the first character in a line is ";", then the line is ignored!
- * @param filename
- * @return RC
- **/
-int
-util_parse_modules_file_custom(char *filename)
-{
-	FILE *mf                      = fopen(filename, "r");
-	char  buff[UTIL_MOD_LINE_MAX] = { 0 };
-	int   nmods                   = 0;
-
-	if (!mf) {
-		perror("fopen");
-
-		return -1;
-	}
-
-	while (fgets(buff, UTIL_MOD_LINE_MAX, mf) != NULL) {
-		char  mname[MOD_NAME_MAX] = { 0 };
-		char  mpath[MOD_PATH_MAX] = { 0 };
-		i32   nargs               = 0;
-		u32   stack_sz            = 0;
-		u32   max_heap            = 0;
-		u32   timeout             = 0;
-		char *tok = NULL, *src = buff;
-		u32   port  = 0;
-		i32   ntoks = 0;
-
-		src = util_remove_spaces(src);
-		if (src[0] == ';') goto next;
-		while ((tok = strtok_r(src, ":", &src))) {
-			switch (ntoks) {
-			case MOD_ARG_MODPATH:
-				strncpy(mpath, tok, MOD_PATH_MAX);
-				break;
-			case MOD_ARG_MODPORT:
-				port = atoi(tok);
-			case MOD_ARG_MODNAME:
-				strncpy(mname, tok, MOD_NAME_MAX);
-				break;
-			case MOD_ARG_MODNARGS:
-				nargs = atoi(tok);
-				break;
-			default:
-				break;
-			}
-			ntoks++;
-		}
-		assert(ntoks >= MOD_ARG_MAX);
-
-		struct module *m = module_alloc(mname, mpath, nargs, 0, 0, 0, port, 0, 0);
-		assert(m);
-		nmods++;
-
-	next:
-		memset(buff, 0, UTIL_MOD_LINE_MAX);
-	}
-
-	assert(nmods);
-	debuglog("Loaded %d module%s!\n", nmods, nmods > 1 ? "s" : "");
-	fclose(mf);
+	free(file_buffer);
+	assert(module_count);
+	debuglog("Loaded %d module%s!\n", module_count, module_count > 1 ? "s" : "");
 
 	return 0;
 }
