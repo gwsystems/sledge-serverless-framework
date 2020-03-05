@@ -25,8 +25,8 @@ struct module {
 	u32 reference_count; // ref count how many instances exist here.
 
 	struct sockaddr_in socket_address;
-	int                socket_descriptor; 
-	int 			   port;
+	int                socket_descriptor;
+	int                port;
 
 	// unfortunately, using UV for accepting connections is not great!
 	// on_connection, to create a new accepted connection, will have to
@@ -39,9 +39,9 @@ struct module {
 	unsigned long max_request_size;
 	unsigned long max_response_size;
 	// Equals the largest of either max_request_size or max_response_size
-	unsigned long max_request_or_response_size; 
-	int           request_header_count; 
-	int			  response_header_count;
+	unsigned long max_request_or_response_size;
+	int           request_header_count;
+	int           response_header_count;
 	char          request_headers[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
 	char          request_content_type[HTTP_HEADERVAL_MAXSZ];
 	char          response_content_type[HTTP_HEADERVAL_MAXSZ];
@@ -57,17 +57,11 @@ struct module *module_find_by_socket_descriptor(int sock);
 
 
 static inline void
-module_http_info(
-	struct module *module, 
-	int request_count, 
-	char *request_headers, 
-	char request_content_type[], 
-	int response_count, 
-	char *response_headers, 
-	char response_content_type[])
+module_http_info(struct module *module, int request_count, char *request_headers, char request_content_type[],
+                 int response_count, char *response_headers, char response_content_type[])
 {
 	assert(module);
-	module->request_header_count  = request_count;
+	module->request_header_count = request_count;
 	memcpy(module->request_headers, request_headers, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 	strcpy(module->request_content_type, request_content_type);
 	module->response_header_count = response_count;

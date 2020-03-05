@@ -105,8 +105,8 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 {
 	if (filedes == 0) {
 		char *               buffer = get_memory_ptr_void(buf_offset, nbyte);
-		struct sandbox *     s   = sandbox_current();
-		struct http_request *r   = &s->http_request;
+		struct sandbox *     s      = sandbox_current();
+		struct http_request *r      = &s->http_request;
 		if (r->bodylen <= 0) return 0;
 		int l = nbyte > r->bodylen ? r->bodylen : nbyte;
 		memcpy(buffer, r->body + r->bodyrlen, l);
@@ -116,7 +116,7 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 	}
 	int f = io_handle_fd(filedes);
 	// TODO: read on other file types
-	uv_fs_t req = UV_FS_REQ_INIT();
+	uv_fs_t req    = UV_FS_REQ_INIT();
 	char *  buffer = get_memory_ptr_void(buf_offset, nbyte);
 
 	debuglog("[%p] start[%d:%d, n%d]\n", uv_fs_get_data(&req), filedes, f, nbyte);
@@ -137,9 +137,9 @@ wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 {
 	if (fd == 1 || fd == 2) {
 		char *          buffer = get_memory_ptr_void(buf_offset, buf_size);
-		struct sandbox *s   = sandbox_current();
-		int             l   = s->module->max_response_size - s->rr_data_len;
-		l                   = l > buf_size ? buf_size : l;
+		struct sandbox *s      = sandbox_current();
+		int             l      = s->module->max_response_size - s->rr_data_len;
+		l                      = l > buf_size ? buf_size : l;
 		if (l == 0) return 0;
 		memcpy(s->req_resp_data + s->rr_data_len, buffer, l);
 		s->rr_data_len += l;
@@ -148,7 +148,7 @@ wasm_write(i32 fd, i32 buf_offset, i32 buf_size)
 	}
 	int f = io_handle_fd(fd);
 	// TODO: read on other file types
-	uv_fs_t req = UV_FS_REQ_INIT();
+	uv_fs_t req    = UV_FS_REQ_INIT();
 	char *  buffer = get_memory_ptr_void(buf_offset, buf_size);
 
 	uv_buf_t bufv = uv_buf_init(buffer, buf_size);
@@ -324,13 +324,13 @@ wasm_stat(u32 path_str_offset, i32 stat_offset)
 	stat_ptr->st_ctim.tv_sec  = stat.st_ctimespec.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctimespec.tv_nsec;
 #else
-	stat_ptr->st_atim.tv_sec = stat.st_atim.tv_sec;
+	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec = stat.st_mtim.tv_sec;
+	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
 	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec = stat.st_ctim.tv_sec;
+	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
 #endif
 
@@ -370,13 +370,13 @@ wasm_fstat(i32 filedes, i32 stat_offset)
 	stat_ptr->st_ctim.tv_sec  = stat.st_ctimespec.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctimespec.tv_nsec;
 #else
-	stat_ptr->st_atim.tv_sec = stat.st_atim.tv_sec;
+	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec = stat.st_mtim.tv_sec;
+	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
 	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec = stat.st_ctim.tv_sec;
+	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
 #endif
 
@@ -416,13 +416,13 @@ wasm_lstat(i32 path_str_offset, i32 stat_offset)
 	stat_ptr->st_ctim.tv_sec  = stat.st_ctimespec.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctimespec.tv_nsec;
 #else
-	stat_ptr->st_atim.tv_sec = stat.st_atim.tv_sec;
+	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec = stat.st_mtim.tv_sec;
+	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
 	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec = stat.st_ctim.tv_sec;
+	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
 #endif
 
@@ -496,10 +496,10 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 {
 	if (fd == 0) {
 		// both 1 and 2 go to client.
-		int len = 0;
-		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
-		struct sandbox *s = sandbox_current();
-		struct http_request *r = &s->http_request;
+		int                  len = 0;
+		struct wasm_iovec *  iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+		struct sandbox *     s   = sandbox_current();
+		struct http_request *r   = &s->http_request;
 		if (r->bodylen <= 0) return 0;
 		for (int i = 0; i < iovcnt; i++) {
 			int l = iov[i].len > r->bodylen ? r->bodylen : iov[i].len;
@@ -653,7 +653,7 @@ u32
 wasm_getcwd(u32 buf_offset, u32 buf_size)
 {
 	char *buffer = get_memory_ptr_void(buf_offset, buf_size);
-	char *res = getcwd(buffer, buf_size);
+	char *res    = getcwd(buffer, buf_size);
 
 	if (!res) return 0;
 	return buf_offset;
@@ -1018,7 +1018,7 @@ i32
 wasm_recvfrom(i32 fd, i32 buff_offset, i32 size, i32 flags, i32 sockaddr_offset, i32 socklen_offset)
 {
 	char *     buffer = get_memory_ptr_void(buff_offset, size);
-	socklen_t *len = get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
+	socklen_t *len    = get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
 	// TODO: only support "recv" api for now
 	assert(*len == 0);
 	struct sandbox *     c = sandbox_current();

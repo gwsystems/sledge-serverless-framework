@@ -38,13 +38,14 @@ static inline void
 sandbox_local_run(struct sandbox *s)
 {
 	assert(ps_list_singleton_d(s));
-	//	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s, s->module->name);
+	//	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s,
+	// s->module->name);
 	ps_list_head_append_d(&local_run_queue, s);
 }
 
 /**
- * Pulls up to 1..n sandbox requests, allocates them as sandboxes, sets them as runnable and places them on the local runqueue, and then frees the sandbox requests
- * The batch size pulled at once is set by SBOX_PULL_MAX
+ * Pulls up to 1..n sandbox requests, allocates them as sandboxes, sets them as runnable and places them on the local
+ * runqueue, and then frees the sandbox requests The batch size pulled at once is set by SBOX_PULL_MAX
  * @return the number of sandbox requests pulled
  */
 static inline int
@@ -55,7 +56,9 @@ sandbox_pull(void)
 	while (total_sandboxes_pulled < SBOX_PULL_MAX) {
 		sbox_request_t *sandbox_request;
 		if ((sandbox_request = sandbox_deque_steal()) == NULL) break;
-		struct sandbox *sandbox = sandbox_alloc(sandbox_request->module, sandbox_request->args, sandbox_request->sock, sandbox_request->addr, sandbox_request->start_time);
+		struct sandbox *sandbox = sandbox_alloc(sandbox_request->module, sandbox_request->args,
+		                                        sandbox_request->sock, sandbox_request->addr,
+		                                        sandbox_request->start_time);
 		assert(sandbox);
 		free(sandbox_request);
 		sandbox->state = SANDBOX_RUNNABLE;
@@ -120,7 +123,7 @@ sandbox_schedule(int interrupt)
 static inline void
 sandbox_local_free(unsigned int number_to_free)
 {
-	for (int i = 0; i < number_to_free; i++){
+	for (int i = 0; i < number_to_free; i++) {
 		if (ps_list_head_empty(&local_completion_queue)) break;
 		struct sandbox *s = ps_list_head_first_d(&local_completion_queue, struct sandbox);
 		if (!s) break;
@@ -296,21 +299,22 @@ sandbox_exit(void)
 }
 
 /**
- * @brief Execution Loop of the listener core, handles HTTP requests, allocates sandbox request objects, and pushes the sandbox object to the global dequeue
+ * @brief Execution Loop of the listener core, handles HTTP requests, allocates sandbox request objects, and pushes the
+ * sandbox object to the global dequeue
  * @param d Unknown
  * @return NULL
- * 
+ *
  * Used Globals:
  * epoll_file_descriptor - the epoll file descriptor
- * 
+ *
  */
 void *
 runtime_accept_thdfn(void *d)
 {
-	struct epoll_event *epoll_events = (struct epoll_event *)malloc(EPOLL_MAX * sizeof(struct epoll_event));
-	int                 total_requests  = 0;
+	struct epoll_event *epoll_events   = (struct epoll_event *)malloc(EPOLL_MAX * sizeof(struct epoll_event));
+	int                 total_requests = 0;
 	while (true) {
-		int ready = epoll_wait(epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
+		int ready      = epoll_wait(epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
 		u64 start_time = rdtsc();
 		for (int i = 0; i < ready; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
@@ -331,7 +335,8 @@ runtime_accept_thdfn(void *d)
 			total_requests++;
 			printf("Received Request %d at %lu\n", total_requests, start_time);
 
-			sbox_request_t *sb = sbox_request_alloc(m, m->name, s, (const struct sockaddr *)&client, start_time);
+			sbox_request_t *sb = sbox_request_alloc(m, m->name, s, (const struct sockaddr *)&client,
+			                                        start_time);
 			assert(sb);
 		}
 	}

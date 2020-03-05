@@ -14,7 +14,7 @@
 #include <softint.h>
 
 __thread static volatile sig_atomic_t SIGALRM_count = 0;
-__thread static volatile sig_atomic_t SIGUSR_count = 0;
+__thread static volatile sig_atomic_t SIGUSR_count  = 0;
 
 __thread volatile sig_atomic_t softint_off = 0;
 
@@ -69,8 +69,8 @@ softint_alarm_schedule(void *user_context_raw)
 {
 	softint_disable(); // no nesting!
 
-	struct sandbox *curr = sandbox_current();
-	ucontext_t *    user_context   = (ucontext_t *)user_context_raw;
+	struct sandbox *curr         = sandbox_current();
+	ucontext_t *    user_context = (ucontext_t *)user_context_raw;
 
 	// no sandboxes running..so nothing to preempt..let the "main" scheduler run its course.
 	if (curr == NULL) goto done;
@@ -113,8 +113,8 @@ softint_handler(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 #ifdef PREEMPT_DISABLE
 	assert(0);
 #else
-	struct sandbox *curr = sandbox_current();
-	ucontext_t *    user_context   = (ucontext_t *)user_context_raw;
+	struct sandbox *curr         = sandbox_current();
+	ucontext_t *    user_context = (ucontext_t *)user_context_raw;
 
 	switch (signal_type) {
 	case SIGALRM: {

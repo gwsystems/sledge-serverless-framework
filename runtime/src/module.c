@@ -101,8 +101,9 @@ module_server_init(struct module *module)
 
 /**
  * Module Mega Setup Function
- * Creates a new module, invokes tbl_init_fn to initialize the indirect table, adds it to the module DB, and starts listening for HTTP Requests
- * 
+ * Creates a new module, invokes tbl_init_fn to initialize the indirect table, adds it to the module DB, and starts
+ *listening for HTTP Requests
+ *
  * @param name
  * @param path
  * @param argument_count
@@ -114,8 +115,8 @@ module_server_init(struct module *module)
  * @returns A new module or NULL in case of failure
  **/
 struct module *
-module_alloc(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 timeout, int port, int request_size,
-             int response_size)
+module_alloc(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 timeout, int port,
+             int request_size, int response_size)
 {
 	struct module *module = (struct module *)malloc(sizeof(struct module));
 	if (!module) return NULL;
@@ -146,28 +147,30 @@ module_alloc(char *name, char *path, i32 argument_count, u32 stack_size, u32 max
 	strncpy(module->name, name, MOD_NAME_MAX);
 	strncpy(module->path, path, MOD_PATH_MAX);
 
-	module->argument_count      = argument_count;
-	module->stack_size = round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size);
-	module->max_memory = max_memory == 0 ? ((u64)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
-	module->timeout    = timeout;
+	module->argument_count    = argument_count;
+	module->stack_size        = round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size);
+	module->max_memory        = max_memory == 0 ? ((u64)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
+	module->timeout           = timeout;
 	module->socket_descriptor = -1;
-	module->port = port;
+	module->port              = port;
 	if (request_size == 0) request_size = MOD_REQ_RESP_DEFAULT;
 	if (response_size == 0) response_size = MOD_REQ_RESP_DEFAULT;
-	module->max_request_size  = request_size;
-	module->max_response_size = response_size;
-	module->max_request_or_response_size   = round_up_to_page(request_size > response_size ? request_size : response_size);
+	module->max_request_size             = request_size;
+	module->max_response_size            = response_size;
+	module->max_request_or_response_size = round_up_to_page(request_size > response_size ? request_size
+	                                                                                     : response_size);
 
 	// module_indirect_table is a thread-local struct
 	struct indirect_table_entry *cache_tbl = module_indirect_table;
-	
-	// assumption: All modules are created at program start before we enable preemption or enable the execution of any worker threads
-	// We are checking that thread-local module_indirect_table is NULL to prove that we aren't yet preempting
-	// If we want to be able to do this later, we can possibly defer module_table_init until the first invocation 
+
+	// assumption: All modules are created at program start before we enable preemption or enable the execution of
+	// any worker threads We are checking that thread-local module_indirect_table is NULL to prove that we aren't
+	// yet preempting If we want to be able to do this later, we can possibly defer module_table_init until the
+	// first invocation
 	assert(cache_tbl == NULL);
-	
-	// TODO: determine why we have to set the module_indirect_table state before calling table init and then restore the existing value
-	// What is the relationship between these things?
+
+	// TODO: determine why we have to set the module_indirect_table state before calling table init and then restore
+	// the existing value What is the relationship between these things?
 	module_indirect_table = module->indirect_table;
 	module_table_init(module);
 	module_indirect_table = cache_tbl;
