@@ -12,16 +12,18 @@ struct http_header {
 	char *val;
 };
 
-struct http_resp_header {
-	char *hdr;
-	int   len;
+struct http_response_header {
+	char *header;
+	int   length;
 };
 
 struct http_request {
 	struct http_header headers[HTTP_HEADERS_MAX];
-	int                nheaders;
+	int                header_count;
 	char *             body;
-	int                bodylen, bodyrlen;
+	int                body_length;
+	// TODO: What does bodyrlen mean? Does this suggest that I've misunderstood what bodylen was?
+	int bodyrlen;
 	// additional for http-parser
 	int last_was_value;
 	int header_end;
@@ -29,12 +31,12 @@ struct http_request {
 };
 
 struct http_response {
-	struct http_resp_header headers[HTTP_HEADERS_MAX];
-	int                     nheaders;
-	char *                  body;
-	int                     bodylen;
-	char *                  status;
-	int                     stlen;
+	struct http_response_header headers[HTTP_HEADERS_MAX];
+	int                         header_count;
+	char *                      body;
+	int                         body_length;
+	char *                      status;
+	int                         status_length;
 #ifdef USE_HTTP_UVIO
 	uv_buf_t bufs[HTTP_HEADERS_MAX * 2 + 3]; // max headers, one line for status code, remaining for body!
 #else

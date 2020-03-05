@@ -107,11 +107,11 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 		char *               buffer = get_memory_ptr_void(buf_offset, nbyte);
 		struct sandbox *     s      = sandbox_current();
 		struct http_request *r      = &s->http_request;
-		if (r->bodylen <= 0) return 0;
-		int l = nbyte > r->bodylen ? r->bodylen : nbyte;
+		if (r->body_length <= 0) return 0;
+		int l = nbyte > r->body_length ? r->body_length : nbyte;
 		memcpy(buffer, r->body + r->bodyrlen, l);
 		r->bodyrlen += l;
-		r->bodylen -= l;
+		r->body_length -= l;
 		return l;
 	}
 	int f = io_handle_fd(filedes);
@@ -500,15 +500,15 @@ wasm_readv(i32 fd, i32 iov_offset, i32 iovcnt)
 		struct wasm_iovec *  iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 		struct sandbox *     s   = sandbox_current();
 		struct http_request *r   = &s->http_request;
-		if (r->bodylen <= 0) return 0;
+		if (r->body_length <= 0) return 0;
 		for (int i = 0; i < iovcnt; i++) {
-			int l = iov[i].len > r->bodylen ? r->bodylen : iov[i].len;
+			int l = iov[i].len > r->body_length ? r->body_length : iov[i].len;
 			if (l <= 0) break;
 			char *b = get_memory_ptr_void(iov[i].base_offset, iov[i].len);
 			// http request body!
 			memcpy(b, r->body + r->bodyrlen + len, l);
 			len += l;
-			r->bodylen -= l;
+			r->body_length -= l;
 		}
 		r->bodyrlen += len;
 
