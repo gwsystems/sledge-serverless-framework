@@ -23,10 +23,10 @@ free_linear_memory(void *base, u32 bound, u32 max)
 void
 expand_memory(void)
 {
-	struct sandbox *curr = sandbox_current();
+	struct sandbox *sandbox = sandbox_current();
 
 	// max_pages = 0 => no limit: FIXME
-	assert((curr->sb_size + sandbox_lmbound) / WASM_PAGE_SIZE < WASM_MAX_PAGES);
+	assert((sandbox->sandbox_size + sandbox_lmbound) / WASM_PAGE_SIZE < WASM_MAX_PAGES);
 	// Remap the relevant wasm page to readable
 	char *mem_as_chars = sandbox_lmbase;
 	char *page_address = &mem_as_chars[sandbox_lmbound];
@@ -38,9 +38,9 @@ expand_memory(void)
 		exit(1);
 	}
 
-	// TODO: check curr->linear_max_size
+	// TODO: check sandbox->linear_max_size
 	sandbox_lmbound += WASM_PAGE_SIZE;
-	curr->linear_size = sandbox_lmbound;
+	sandbox->linear_size = sandbox_lmbound;
 }
 
 INLINE char *
