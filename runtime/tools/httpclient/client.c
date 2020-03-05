@@ -174,16 +174,16 @@ connect_n_send(void)
 		return -1;
 	}
 
-	struct sockaddr_in srvaddr;
-	srvaddr.sin_family = AF_INET;
-	srvaddr.sin_port   = htons(SERVER_PORT);
-	if (inet_aton(SERVER_ADDR, &srvaddr.sin_addr) == 0) {
+	struct sockaddr_in socket_address;
+	socket_address.sin_family = AF_INET;
+	socket_address.sin_port   = htons(SERVER_PORT);
+	if (inet_aton(SERVER_ADDR, &socket_address.sin_addr) == 0) {
 		perror("inet_addr");
 		close(sock);
 		return -1;
 	}
 
-	if (connect(sock, (struct sockaddr *)&srvaddr, sizeof(srvaddr)) < 0) {
+	if (connect(sock, (struct sockaddr *)&socket_address, sizeof(socket_address)) < 0) {
 		perror("connect");
 		close(sock);
 		return -1;
