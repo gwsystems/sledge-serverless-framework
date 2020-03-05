@@ -38,7 +38,7 @@ static inline void
 sandbox_local_run(struct sandbox *s)
 {
 	assert(ps_list_singleton_d(s));
-	//	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s, s->mod->name);
+	//	fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s, s->module->name);
 	ps_list_head_append_d(&local_run_queue, s);
 }
 
@@ -55,7 +55,7 @@ sandbox_pull(void)
 	while (total_sandboxes_pulled < SBOX_PULL_MAX) {
 		sbox_request_t *sandbox_request;
 		if ((sandbox_request = sandbox_deque_steal()) == NULL) break;
-		struct sandbox *sandbox = sandbox_alloc(sandbox_request->mod, sandbox_request->args, sandbox_request->sock, sandbox_request->addr, sandbox_request->start_time);
+		struct sandbox *sandbox = sandbox_alloc(sandbox_request->module, sandbox_request->args, sandbox_request->sock, sandbox_request->addr, sandbox_request->start_time);
 		assert(sandbox);
 		free(sandbox_request);
 		sandbox->state = SANDBOX_RUNNABLE;
@@ -107,7 +107,7 @@ sandbox_schedule(int interrupt)
 	// round-robin
 	ps_list_rem_d(sandbox);
 	ps_list_head_append_d(&local_run_queue, sandbox);
-	debuglog("[%p: %s]\n", sandbox, sandbox->mod->name);
+	debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 
 	return sandbox;
 }
@@ -158,7 +158,7 @@ void
 sandbox_wakeup(sandbox_t *s)
 {
 	softint_disable();
-	debuglog("[%p: %s]\n", s, s->mod->name);
+	debuglog("[%p: %s]\n", s, s->module->name);
 	if (s->state != SANDBOX_BLOCKED) goto done;
 	assert(s->state == SANDBOX_BLOCKED);
 	assert(ps_list_singleton_d(s));
@@ -181,7 +181,7 @@ sandbox_block(void)
 	ps_list_rem_d(c);
 	c->state          = SANDBOX_BLOCKED;
 	struct sandbox *s = sandbox_schedule(0);
-	debuglog("[%p: %s, %p: %s]\n", c, c->mod->name, s, s ? s->mod->name : "");
+	debuglog("[%p: %s, %p: %s]\n", c, c->module->name, s, s ? s->module->name : "");
 	softint_enable();
 	sandbox_switch(s);
 }
@@ -281,7 +281,7 @@ sandbox_run_func(void *data)
 void
 sandbox_run(sbox_request_t *sandbox_request)
 {
-	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->mod->name);
+	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
 	sandbox_deque_push(sandbox_request);
 }
 
@@ -360,12 +360,14 @@ runtime_init(void)
 {
 	epoll_file_descriptor = epoll_create1(0);
 	assert(epoll_file_descriptor >= 0);
+
+	// Allocate and Initialize the global deque
 	global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
 	assert(global_deque);
-
 	// Note: Below is a Macro
 	deque_init_sandbox(global_deque, SBOX_MAX_REQS);
 
+	// Mask Signals
 	softint_mask(SIGUSR1);
 	softint_mask(SIGALRM);
 

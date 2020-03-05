@@ -17,12 +17,12 @@ struct module {
 
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
 
-	i32 nargs;
+	i32 argument_count;
 	u32 stack_size; // a specification?
 	u64 max_memory; // perhaps a specification of the module. (max 4GB)
 	u32 timeout;    // again part of the module specification.
 
-	u32 refcnt; // ref count how many instances exist here.
+	u32 reference_count; // ref count how many instances exist here.
 
 	struct sockaddr_in srvaddr;
 	int                srvsock, srvport;
@@ -32,94 +32,108 @@ struct module {
 	// rest of the connection is handled in sandboxing threads, with per-core(per-thread) tls data-structures.
 	// so, using direct epoll for accepting connections.
 	//	uv_handle_t srvuv;
-	unsigned long max_req_sz, max_resp_sz, max_rr_sz; // req/resp from http, (resp size including headers!)..
-	int           nreqhdrs, nresphdrs;
-	char          reqhdrs[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
-	char          rqctype[HTTP_HEADERVAL_MAXSZ];
-	char          rspctype[HTTP_HEADERVAL_MAXSZ];
-	char          resphdrs[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
+
+	// req/resp from http, (resp size including headers!)..
+	unsigned long max_request_size;
+	unsigned long max_response_size;
+	// Equals the largest of either max_request_size or max_response_size
+	unsigned long max_request_or_response_size; 
+	int           request_header_count; 
+	int			  response_header_count;
+	char          request_headers[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
+	char          request_content_type[HTTP_HEADERVAL_MAXSZ];
+	char          response_content_type[HTTP_HEADERVAL_MAXSZ];
+	char          response_headers[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
 };
 
-struct module *module_alloc(char *mod_name, char *mod_path, i32 nargs, u32 stack_sz, u32 max_heap, u32 timeout,
+struct module *module_alloc(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout,
                             int port, int req_sz, int resp_sz);
-// frees only if refcnt == 0
-void           module_free(struct module *mod);
+// frees only if reference_count == 0
+void           module_free(struct module *module);
 struct module *module_find_by_name(char *name);
 struct module *module_find_by_sock(int sock);
 
+
 static inline void
-module_http_info(struct module *m, int nrq, char *rqs, char rqtype[], int nrs, char *rs, char rsptype[])
+module_http_info(
+	struct module *module, 
+	int request_count, 
+	char *request_headers, 
+	char request_content_type[], 
+	int response_count, 
+	char *response_headers, 
+	char response_content_type[])
 {
-	assert(m);
-	m->nreqhdrs  = nrq;
-	m->nresphdrs = nrs;
-	memcpy(m->reqhdrs, rqs, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-	memcpy(m->resphdrs, rs, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-	strcpy(m->rqctype, rqtype);
-	strcpy(m->rspctype, rsptype);
+	assert(module);
+	module->request_header_count  = request_count;
+	memcpy(module->request_headers, request_headers, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+	strcpy(module->request_content_type, request_content_type);
+	module->response_header_count = response_count;
+	memcpy(module->response_headers, response_headers, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+	strcpy(module->response_content_type, response_content_type);
 }
 
 static inline int
-module_is_valid(struct module *mod)
+module_is_valid(struct module *module)
 {
-	if (mod && mod->dl_handle && mod->entry_fn) return 1;
+	if (module && module->dl_handle && module->entry_fn) return 1;
 
 	return 0;
 }
 
 static inline void
-module_globals_init(struct module *mod)
+module_globals_init(struct module *module)
 {
 	// called in a sandbox.
-	mod->glb_init_fn();
+	module->glb_init_fn();
 }
 
 static inline void
-module_table_init(struct module *mod)
+module_table_init(struct module *module)
 {
 	// called at module creation time (once only per module).
-	mod->tbl_init_fn();
+	module->tbl_init_fn();
 }
 
 static inline void
-module_libc_init(struct module *mod, i32 env, i32 args)
+module_libc_init(struct module *module, i32 env, i32 args)
 {
 	// called in a sandbox.
-	mod->libc_init_fn(env, args);
+	module->libc_init_fn(env, args);
 }
 
 static inline void
-module_memory_init(struct module *mod)
+module_memory_init(struct module *module)
 {
 	// called in a sandbox.
-	mod->mem_init_fn();
+	module->mem_init_fn();
 }
 
 static inline i32
-module_entry(struct module *mod, i32 argc, i32 argv)
+module_entry(struct module *module, i32 argc, i32 argv)
 {
-	return mod->entry_fn(argc, argv);
+	return module->entry_fn(argc, argv);
 }
 
 // instantiate this module.
 static inline void
-module_acquire(struct module *mod)
+module_acquire(struct module *module)
 {
 	// FIXME: atomic.
-	mod->refcnt++;
+	module->reference_count++;
 }
 
 static inline void
-module_release(struct module *mod)
+module_release(struct module *module)
 {
 	// FIXME: atomic.
-	mod->refcnt--;
+	module->reference_count--;
 }
 
 static inline i32
-module_nargs(struct module *mod)
+module_argument_count(struct module *module)
 {
-	return mod->nargs;
+	return module->argument_count;
 }
 
 #endif /* SFRT_MODULE_H */

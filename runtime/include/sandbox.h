@@ -51,10 +51,10 @@ struct sandbox {
 	u64 remaining_time;
 	u64 start_time;
 
-	struct module *mod; // which module is this an instance of?
+	struct module *module; // which module is this an instance of?
 
 	i32   args_offset; // actual placement of args in the sandbox.
-	void *args;        // args from request, must be of module->nargs size.
+	void *args;        // args from request, must be of module->argument_count size.
 	i32   retval;
 
 	struct io_handle handles[SBOX_MAX_OPEN];
@@ -71,12 +71,12 @@ struct sandbox {
 
 	struct ps_list list;
 
-	ssize_t rr_data_len;      // <= max(mod->max_rr_sz)
+	ssize_t rr_data_len;      // <= max(module->max_request_or_response_size)
 	char    req_resp_data[1]; // of rr_data_sz, following sandbox mem..
 } PAGE_ALIGNED;
 
 struct sandbox_request {
-	struct module *  mod;
+	struct module *  module;
 	char *           args;
 	int              sock;
 	struct sockaddr *addr;
@@ -87,7 +87,7 @@ typedef struct sandbox_request sbox_request_t;
 DEQUE_PROTOTYPE(sandbox, sbox_request_t *);
 
 // a runtime resource, malloc on this!
-struct sandbox *sandbox_alloc(struct module *mod, char *args, int sock, const struct sockaddr *addr, u64 start_time);
+struct sandbox *sandbox_alloc(struct module *module, char *args, int sock, const struct sockaddr *addr, u64 start_time);
 // should free stack and heap resources.. also any I/O handles.
 void sandbox_free(struct sandbox *sbox);
 
@@ -100,7 +100,7 @@ void                   sandbox_run(sbox_request_t *s);
 
 static inline sbox_request_t *
 sbox_request_alloc(
-	struct module *mod, 
+	struct module *module, 
 	char *args, 
 	int sock, 
 	const struct sockaddr *addr, 
@@ -109,7 +109,7 @@ sbox_request_alloc(
 	// sandbox_alloc seems to be 
 	sbox_request_t *s = malloc(sizeof(sbox_request_t));
 	assert(s);
-	s->mod  = mod;
+	s->module  = module;
 	s->args = args;
 	s->sock = sock;
 	s->addr = (struct sockaddr *)addr;
@@ -134,7 +134,7 @@ sandbox_current_set(struct sandbox *sbox)
 	sandbox_lmbase  = sbox->linear_start;
 	sandbox_lmbound = sbox->linear_size;
 	// TODO: module table or sandbox table?
-	module_indirect_table = sbox->mod->indirect_table;
+	module_indirect_table = sbox->module->indirect_table;
 }
 
 /**
@@ -145,7 +145,7 @@ sandbox_current_check(void)
 {
 	struct sandbox *c = sandbox_current();
 	assert(c && c->linear_start == sandbox_lmbase && c->linear_size == sandbox_lmbound);
-	assert(c->mod->indirect_table == module_indirect_table);
+	assert(c->module->indirect_table == module_indirect_table);
 }
 
 /**
@@ -155,7 +155,7 @@ static inline struct module *
 sandbox_module(struct sandbox *s)
 {
 	if (!s) return NULL;
-	return s->mod;
+	return s->module;
 }
 
 extern void sandbox_local_end(struct sandbox *s);
