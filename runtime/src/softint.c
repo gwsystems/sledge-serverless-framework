@@ -13,28 +13,28 @@
 #include <arch/context.h>
 #include <softint.h>
 
-__thread static volatile sig_atomic_t alarm_cnt = 0;
-__thread static volatile sig_atomic_t usr1_cnt = 0;
+__thread static volatile sig_atomic_t SIGALRM_count = 0;
+__thread static volatile sig_atomic_t SIGUSR_count = 0;
 
 __thread volatile sig_atomic_t softint_off = 0;
 
 static const int softints[] = { SIGALRM, SIGUSR1 };
 
 /**
- * Arms the periodic timers
+ * Arms the Interval Timer to start in 10ms and then trigger a SIGALRM every 5ms
  **/
 void
 softint_timer_arm(void)
 {
 #ifndef PREEMPT_DISABLE
-	struct itimerval it;
+	struct itimerval interval_timer;
 
-	memset(&it, 0, sizeof(struct itimerval));
-	it.it_value.tv_usec    = SOFTINT_TIMER_START_USEC;
-	it.it_interval.tv_usec = SOFTINT_TIMER_PERIOD_USEC;
+	memset(&interval_timer, 0, sizeof(struct itimerval));
+	interval_timer.it_value.tv_usec    = SOFTINT_TIMER_START_USEC;
+	interval_timer.it_interval.tv_usec = SOFTINT_TIMER_PERIOD_USEC;
 
-	int ret = setitimer(ITIMER_REAL, &it, NULL);
-	if (ret) {
+	int return_code = setitimer(ITIMER_REAL, &interval_timer, NULL);
+	if (return_code) {
 		perror("setitimer");
 		exit(1);
 	}
@@ -42,35 +42,36 @@ softint_timer_arm(void)
 }
 
 /**
- * Disarms the periodic timers
+ * Disarm the Interval Timer
  **/
 void
 softint_timer_disarm(void)
 {
-	struct itimerval it;
+	struct itimerval interval_timer;
 
-	memset(&it, 0, sizeof(struct itimerval));
-	it.it_value.tv_sec     = 0;
-	it.it_interval.tv_usec = 0;
+	memset(&interval_timer, 0, sizeof(struct itimerval));
+	interval_timer.it_value.tv_sec     = 0;
+	interval_timer.it_interval.tv_usec = 0;
 
-	int ret = setitimer(ITIMER_REAL, &it, NULL);
-	if (ret) {
+	int return_code = setitimer(ITIMER_REAL, &interval_timer, NULL);
+	if (return_code) {
 		perror("setitimer");
 		exit(1);
 	}
 }
 
 /**
- * ???
- * @param u ???
+ * Preempt the current sandbox and start executing the next sandbox
+ * @param user_context_raw void* to a user_context struct
  **/
 static inline void
-softint_alarm_schedule(void *u)
+softint_alarm_schedule(void *user_context_raw)
 {
 	softint_disable(); // no nesting!
 
 	struct sandbox *curr = sandbox_current();
-	ucontext_t *    uc   = (ucontext_t *)u;
+	ucontext_t *    user_context   = (ucontext_t *)user_context_raw;
+
 	// no sandboxes running..so nothing to preempt..let the "main" scheduler run its course.
 	if (curr == NULL) goto done;
 
@@ -78,13 +79,13 @@ softint_alarm_schedule(void *u)
 	struct sandbox *next = sandbox_schedule(1);
 	if (next == NULL) goto done;
 	if (next == curr) goto done; // only this sandbox to schedule.. return to it!
-	// save the current sandbox, state from uc!
-	arch_mcontext_save(&curr->ctxt, &uc->uc_mcontext);
+	// save the current sandbox, state from user_context!
+	arch_mcontext_save(&curr->ctxt, &user_context->uc_mcontext);
 
-	// sandbox_current_set on it. restore through *uc..
+	// sandbox_current_set on it. restore through *user_context..
 	sandbox_current_set(next);
 
-	if (arch_mcontext_restore(&uc->uc_mcontext, &next->ctxt)) goto skip;
+	if (arch_mcontext_restore(&user_context->uc_mcontext, &next->ctxt)) goto skip;
 	// reset if SIGALRM happens before SIGUSR1 and if don't preempt..OR
 	// perhaps switch here for SIGUSR1 and see if we can clear that signal
 	// so it doesn't get called on SIGALRM return..
@@ -99,24 +100,26 @@ skip:
 extern pthread_t worker_threads[];
 
 /**
- * ???
- * @param sig Signal Type
- * @param si ???
- * @param u ???
+ * The handler function for Software Interrupts (signals)
+ * SIGALRM is executed periodically by an interval timer, causing preemption of the current sandbox
+ * SIGUSR1 does ??????
+ * @param signal_type
+ * @param signal_info data structure containing signal info
+ * @param user_context_raw void* to a user_context struct
  **/
 static inline void
-softint_handler(int sig, siginfo_t *si, void *u)
+softint_handler(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 {
 #ifdef PREEMPT_DISABLE
 	assert(0);
 #else
 	struct sandbox *curr = sandbox_current();
-	ucontext_t *    uc   = (ucontext_t *)u;
+	ucontext_t *    user_context   = (ucontext_t *)user_context_raw;
 
-	switch (sig) {
+	switch (signal_type) {
 	case SIGALRM: {
 		// if interrupts are disabled.. increment a per_thread counter and return
-		if (si->si_code == SI_KERNEL) {
+		if (signal_info->si_code == SI_KERNEL) {
 			int rt = 0;
 			// deliver signal to all other runtime threads..
 			for (int i = 0; i < SBOX_NCORES; i++) {
@@ -128,16 +131,16 @@ softint_handler(int sig, siginfo_t *si, void *u)
 			}
 			assert(rt == 1);
 		} else {
-			assert(si->si_code == SI_TKILL);
+			assert(signal_info->si_code == SI_TKILL);
 		}
-		// debuglog("alrm:%d\n", alarm_cnt);
+		// debuglog("alrm:%d\n", SIGALRM_count);
 
-		alarm_cnt++;
+		SIGALRM_count++;
 		// softints per-core..
 		if (curr && curr->state == SANDBOX_RETURNED) return;
 		if (next_context) return;
 		if (!softint_enabled()) return;
-		softint_alarm_schedule(u);
+		softint_alarm_schedule(user_context_raw);
 
 		break;
 	}
@@ -146,28 +149,17 @@ softint_handler(int sig, siginfo_t *si, void *u)
 		assert(!softint_enabled());
 		/* we set current before calling pthread_kill! */
 		assert(next_context && (&curr->ctxt == next_context));
-		assert(si->si_code == SI_TKILL);
-		// debuglog("usr1:%d\n", usr1_cnt);
+		assert(signal_info->si_code == SI_TKILL);
+		// debuglog("usr1:%d\n", SIGUSR_count);
 
-		usr1_cnt++;
+		SIGUSR_count++;
 		// do not save current sandbox.. it is in co-operative switch..
 		// pick the next from "next_context"..
 		// assert its "sp" to be zero in regs..
 		// memcpy from next context..
-		arch_mcontext_restore(&uc->uc_mcontext, &curr->ctxt);
+		arch_mcontext_restore(&user_context->uc_mcontext, &curr->ctxt);
 		next_context = NULL;
 		softint_enable();
-		break;
-	}
-	case SIGPIPE:
-	case SIGILL:
-	case SIGFPE:
-	case SIGSEGV: {
-		// determine if the crash was in the sandbox..
-		// if (pthread_self() == one_of_the_runtime_threads), a sandbox crashed.. kill it.
-		// another check there could be if it is in linear memory or outside, if outside it could repeat with
-		// other sandboxes.. so perhaps restart that thread or start a fresh thread??. else, shoot yourself in
-		// the head!..
 		break;
 	}
 	default:
@@ -177,19 +169,20 @@ softint_handler(int sig, siginfo_t *si, void *u)
 }
 
 /**
- * ???
+ * Initialize software Interrupts
+ * Register sonftint_handler to execute on SIGALRM and SIGUSR1
  **/
 void
 softint_init(void)
 {
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(struct sigaction));
-	sa.sa_sigaction = softint_handler;
-	sa.sa_flags     = SA_SIGINFO | SA_RESTART;
+	struct sigaction signal_action;
+	memset(&signal_action, 0, sizeof(struct sigaction));
+	signal_action.sa_sigaction = softint_handler;
+	signal_action.sa_flags     = SA_SIGINFO | SA_RESTART;
 
 	for (int i = 0; i < (sizeof(softints) / sizeof(softints[0])); i++) {
-		int ret = sigaction(softints[i], &sa, NULL);
-		if (ret) {
+		int return_code = sigaction(softints[i], &signal_action, NULL);
+		if (return_code) {
 			perror("sigaction");
 			exit(1);
 		}
