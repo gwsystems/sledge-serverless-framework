@@ -57,7 +57,7 @@ struct sandbox {
 	void *args;        // args from request, must be of module->argument_count size.
 	i32   retval;
 
-	struct io_handle handles[SBOX_MAX_OPEN];
+	struct io_handle     handles[SBOX_MAX_OPEN];
 	struct sockaddr      client; // client requesting connection!
 	int                  csock;
 	uv_tcp_t             cuv;
@@ -80,7 +80,7 @@ struct sandbox_request {
 	char *           args;
 	int              sock;
 	struct sockaddr *addr;
-	u64 start_time; // cycles
+	u64              start_time; // cycles
 };
 typedef struct sandbox_request sbox_request_t;
 
@@ -109,19 +109,14 @@ typedef struct sandbox sandbox_t;
  * @return the new sandbox request
  **/
 static inline sbox_request_t *
-sbox_request_alloc(
-	struct module *module, 
-	char *args, 
-	int sock, 
-	const struct sockaddr *addr, 
-	u64 start_time)
+sbox_request_alloc(struct module *module, char *args, int sock, const struct sockaddr *addr, u64 start_time)
 {
 	sbox_request_t *sandbox_request = malloc(sizeof(sbox_request_t));
 	assert(sandbox_request);
-	sandbox_request->module  = module;
-	sandbox_request->args = args;
-	sandbox_request->sock = sock;
-	sandbox_request->addr = (struct sockaddr *)addr;
+	sandbox_request->module     = module;
+	sandbox_request->args       = args;
+	sandbox_request->sock       = sock;
+	sandbox_request->addr       = (struct sockaddr *)addr;
 	sandbox_request->start_time = start_time;
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
@@ -193,7 +188,7 @@ sandbox_switch(struct sandbox *next_sandbox)
 {
 	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
 	softint_disable();
-	struct sandbox *current_sandbox = sandbox_current();
+	struct sandbox *current_sandbox          = sandbox_current();
 	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
 	sandbox_current_set(next_sandbox);
 	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
@@ -233,7 +228,7 @@ extern pthread_mutex_t       global_deque_mutex;
 
 /**
  * Pushes a sandbox request to the global deque
- * @para 
+ * @para
  **/
 static inline int
 sandbox_deque_push(sbox_request_t *sandbox_request)
@@ -305,7 +300,7 @@ io_handle_open(int fd)
 {
 	struct sandbox *sandbox = sandbox_current();
 	if (fd < 0) return fd;
-	int i            = io_handle_preopen();
+	int i                  = io_handle_preopen();
 	sandbox->handles[i].fd = fd; // well, per sandbox.. so synchronization necessary!
 	return i;
 }
@@ -330,7 +325,7 @@ io_handle_preopen_set(int idx, int fd)
 /**
  * Get the file descriptor of the sandbox's ith io_handle
  * @param idx index into the sandbox's handles table
- * @returns any libuv handle 
+ * @returns any libuv handle
  **/
 static inline int
 io_handle_fd(int idx)
@@ -341,7 +336,7 @@ io_handle_fd(int idx)
 }
 
 /**
- * Close the sandbox's ith io_handle 
+ * Close the sandbox's ith io_handle
  * @param idx index of the handle to close
  **/
 static inline void
@@ -353,9 +348,9 @@ io_handle_close(int idx)
 }
 
 /**
- * Get the Libuv handle located at idx of the sandbox ith io_handle 
+ * Get the Libuv handle located at idx of the sandbox ith io_handle
  * @param idx index of the handle containing uvh???
- * @returns any libuv handle 
+ * @returns any libuv handle
  **/
 static inline union uv_any_handle *
 io_handle_uv_get(int idx)

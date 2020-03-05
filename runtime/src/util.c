@@ -70,7 +70,8 @@ util_parse_modules_file_json(char *file_name)
 	jsmntok_t tokens[MOD_MAX * JSON_ELE_MAX];
 
 	// Use Jasmine to parse the JSON
-	int total_tokens = jsmn_parse(&module_parser, file_buffer, strlen(file_buffer), tokens, sizeof(tokens) / sizeof(tokens[0]));
+	int total_tokens = jsmn_parse(&module_parser, file_buffer, strlen(file_buffer), tokens,
+	                              sizeof(tokens) / sizeof(tokens[0]));
 	if (total_tokens < 0) {
 		debuglog("jsmn_parse: invalid JSON?\n");
 		return -1;
@@ -82,30 +83,31 @@ util_parse_modules_file_json(char *file_name)
 
 		char  module_name[MOD_NAME_MAX] = { 0 };
 		char  module_path[MOD_PATH_MAX] = { 0 };
-		char *request_headers = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+		char *request_headers           = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 		memset(request_headers, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 		char *reponse_headers = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
 		memset(reponse_headers, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		i32   request_size   = 0;
-		i32   response_size  = 0;
-		i32   argument_count    = 0;
-		u32   port     = 0;
-		i32   is_active = 0;
-		i32   request_count = 0;
-		i32   response_count = 0;
-		int   j = 1;
-		int   ntoks = 2 * tokens[i].size;
-		char  request_content_type[HTTP_HEADERVAL_MAXSZ]  = { 0 };
-		char  response_content_type[HTTP_HEADERVAL_MAXSZ] = { 0 };
+		i32  request_size                                = 0;
+		i32  response_size                               = 0;
+		i32  argument_count                              = 0;
+		u32  port                                        = 0;
+		i32  is_active                                   = 0;
+		i32  request_count                               = 0;
+		i32  response_count                              = 0;
+		int  j                                           = 1;
+		int  ntoks                                       = 2 * tokens[i].size;
+		char request_content_type[HTTP_HEADERVAL_MAXSZ]  = { 0 };
+		char response_content_type[HTTP_HEADERVAL_MAXSZ] = { 0 };
 
-		for (; j < ntoks; ) {
+		for (; j < ntoks;) {
 			int  ntks     = 1;
-			char key[32] = { 0 };
+			char key[32]  = { 0 };
 			char val[256] = { 0 };
 
 			sprintf(val, "%.*s", tokens[j + i + 1].end - tokens[j + i + 1].start,
 			        file_buffer + tokens[j + i + 1].start);
-			sprintf(key, "%.*s", tokens[j + i].end - tokens[j + i].start, file_buffer + tokens[j + i].start);
+			sprintf(key, "%.*s", tokens[j + i].end - tokens[j + i].start,
+			        file_buffer + tokens[j + i].start);
 			if (strcmp(key, "name") == 0) {
 				strcpy(module_name, val);
 			} else if (strcmp(key, "path") == 0) {
@@ -160,9 +162,11 @@ util_parse_modules_file_json(char *file_name)
 		if (is_active == 0) continue;
 
 		// Allocate a module based on the values from the JSON
-		struct module *module = module_alloc(module_name, module_path, argument_count, 0, 0, 0, port, request_size, response_size);
+		struct module *module = module_alloc(module_name, module_path, argument_count, 0, 0, 0, port,
+		                                     request_size, response_size);
 		assert(module);
-		module_http_info(module, request_count, request_headers, request_content_type, response_count, reponse_headers, response_content_type);
+		module_http_info(module, request_count, request_headers, request_content_type, response_count,
+		                 reponse_headers, response_content_type);
 		module_count++;
 		free(request_headers);
 		free(reponse_headers);

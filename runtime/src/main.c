@@ -12,11 +12,11 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-i32 log_file_descriptor = -1;
-u32 total_online_processors = 0;
-u32 total_worker_processors = 0;
-u32 first_worker_processor = 0;
-int worker_threads_argument[SBOX_NCORES] = { 0 };  // The worker sets its argument to -1 on error
+i32       log_file_descriptor                  = -1;
+u32       total_online_processors              = 0;
+u32       total_worker_processors              = 0;
+u32       first_worker_processor               = 0;
+int       worker_threads_argument[SBOX_NCORES] = { 0 }; // The worker sets its argument to -1 on error
 pthread_t worker_threads[SBOX_NCORES];
 
 /**
@@ -44,10 +44,12 @@ usage(char *cmd)
 }
 
 /**
- * Sets the process data segment (RLIMIT_DATA) and # file descriptors 
+ * Sets the process data segment (RLIMIT_DATA) and # file descriptors
  * (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
  **/
-void set_resource_limits_to_max(){
+void
+set_resource_limits_to_max()
+{
 	struct rlimit resource_limit;
 	if (getrlimit(RLIMIT_DATA, &resource_limit) < 0) {
 		perror("getrlimit RLIMIT_DATA");
@@ -72,7 +74,9 @@ void set_resource_limits_to_max(){
 /**
  * Check the number of cores and the compiler flags and allocate available cores
  **/
-void allocate_available_cores(){
+void
+allocate_available_cores()
+{
 	// Find the number of processors currently online
 	total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
 
@@ -82,22 +86,24 @@ void allocate_available_cores(){
 		// SBOX_NCORES can be used as a cap on the number of cores to use
 		// But if there are few cores that SBOX_NCORES, just use what is available
 		u32 max_possible_workers = total_online_processors - 1;
-		total_worker_processors = (max_possible_workers >= SBOX_NCORES) ? SBOX_NCORES : max_possible_workers;
+		total_worker_processors  = (max_possible_workers >= SBOX_NCORES) ? SBOX_NCORES : max_possible_workers;
 	} else {
 		// If single core, we'll do everything on CPUID 0
-		first_worker_processor = 0;
+		first_worker_processor  = 0;
 		total_worker_processors = 1;
 	}
-	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n", total_online_processors, total_worker_processors,
-	         first_worker_processor, MOD_REQ_CORE);
+	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n", total_online_processors,
+	         total_worker_processors, first_worker_processor, MOD_REQ_CORE);
 }
 
-/** 
- * If NOSTIO is defined, close stdin, stdout, stderr, and write to logfile named awesome.log. 
+/**
+ * If NOSTIO is defined, close stdin, stdout, stderr, and write to logfile named awesome.log.
  * Otherwise, log to STDOUT
  * NOSTIO = No Standard Input/Output?
  **/
-void process_nostio(){
+void
+process_nostio()
+{
 #ifdef NOSTDIO
 	fclose(stdout);
 	fclose(stderr);
@@ -115,9 +121,12 @@ void process_nostio(){
 /**
  * Starts all worker threads and sleeps forever on pthread_join, which should never return
  **/
-void start_worker_threads(){
+void
+start_worker_threads()
+{
 	for (int i = 0; i < total_worker_processors; i++) {
-		int ret = pthread_create(&worker_threads[i], NULL, sandbox_run_func, (void *)&worker_threads_argument[i]);
+		int ret = pthread_create(&worker_threads[i], NULL, sandbox_run_func,
+		                         (void *)&worker_threads_argument[i]);
 		if (ret) {
 			errno = ret;
 			perror("pthread_create");

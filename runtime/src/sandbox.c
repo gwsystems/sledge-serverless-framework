@@ -18,19 +18,19 @@ sandbox_memory_map(struct module *module)
 	unsigned long memory_size = SBOX_MAX_MEM; // 4GB
 
 	// Why do we add max_request_or_response_size?
-	unsigned long sandbox_size = sizeof(struct sandbox) + module->max_request_or_response_size;
+	unsigned long sandbox_size       = sizeof(struct sandbox) + module->max_request_or_response_size;
 	unsigned long linear_memory_size = WASM_PAGE_SIZE * WASM_START_PAGES;
 
 	if (linear_memory_size + sandbox_size > memory_size) return NULL;
 	assert(round_up_to_page(sandbox_size) == sandbox_size);
 
 	// What does mmap do exactly with fd -1?
-	void *addr = mmap(NULL, sandbox_size + memory_size + /* guard page */ PAGE_SIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1,
-	                  0);
+	void *addr = mmap(NULL, sandbox_size + memory_size + /* guard page */ PAGE_SIZE, PROT_NONE,
+	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (addr == MAP_FAILED) return NULL;
 
-	void *addr_rw = mmap(addr, sandbox_size + linear_memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1,
-	                     0);
+	void *addr_rw = mmap(addr, sandbox_size + linear_memory_size, PROT_READ | PROT_WRITE,
+	                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	if (addr_rw == MAP_FAILED) {
 		munmap(addr, memory_size + PAGE_SIZE);
 		return NULL;
@@ -40,8 +40,8 @@ sandbox_memory_map(struct module *module)
 	// can it include sandbox as well?
 	sandbox->linear_start = (char *)addr + sandbox_size;
 	sandbox->linear_size  = linear_memory_size;
-	sandbox->module          = module;
-	sandbox->sandbox_size      = sandbox_size;
+	sandbox->module       = module;
+	sandbox->sandbox_size = sandbox_size;
 	module_acquire(module);
 
 	return sandbox;
@@ -120,16 +120,16 @@ static inline void
 sb_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
 {
 	struct sandbox *sandbox = h->data;
-	size_t l  = (sandbox->module->max_request_or_response_size - sandbox->rr_data_len);
-	buf->base = (sandbox->req_resp_data + sandbox->rr_data_len);
-	buf->len  = l > suggested ? suggested : l;
+	size_t          l       = (sandbox->module->max_request_or_response_size - sandbox->rr_data_len);
+	buf->base               = (sandbox->req_resp_data + sandbox->rr_data_len);
+	buf->len                = l > suggested ? suggested : l;
 }
 
 static inline int
 sandbox_client_request_get(void)
 {
 	struct sandbox *curr = sandbox_current();
-	curr->rr_data_len = 0;
+	curr->rr_data_len    = 0;
 #ifndef USE_HTTP_UVIO
 	int r = 0;
 	r     = recv(curr->csock, (curr->req_resp_data), curr->module->max_request_size, 0);
@@ -235,8 +235,8 @@ sandbox_entry(void)
 		next_context = NULL;
 		softint_enable();
 	}
-	struct module *curr_mod = sandbox_module(curr);
-	int            argument_count     = module_argument_count(curr_mod);
+	struct module *curr_mod       = sandbox_module(curr);
+	int            argument_count = module_argument_count(curr_mod);
 	// for stdio
 	int f = io_handle_open(0);
 	assert(f == 0);
@@ -256,8 +256,7 @@ sandbox_entry(void)
 	r              = uv_tcp_open((uv_tcp_t *)&curr->cuv, curr->csock);
 	assert(r == 0);
 #endif
-	if (sandbox_client_request_get() > 0)
-	{
+	if (sandbox_client_request_get() > 0) {
 		curr->rr_data_len = rsp_hdr_len; // TODO: do this on first write to body.
 		alloc_linear_memory();
 		// perhaps only initialized for the first instance? or TODO!
@@ -297,7 +296,7 @@ sandbox_alloc(struct module *module, char *args, int sock, const struct sockaddr
 	sandbox->args        = (void *)args;
 	sandbox->stack_size  = module->stack_size;
 	sandbox->stack_start = mmap(NULL, sandbox->stack_size, PROT_READ | PROT_WRITE,
-	                       MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
+	                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
 	if (sandbox->stack_start == MAP_FAILED) {
 		perror("mmap");
 		assert(0);
