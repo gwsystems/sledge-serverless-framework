@@ -322,7 +322,7 @@ runtime_accept_thdfn(void *d)
 			socklen_t          client_len = sizeof(client);
 			struct module *    m          = (struct module *)epoll_events[i].data.ptr;
 			assert(m);
-			int es = m->srvsock;
+			int es = m->socket_descriptor;
 			int s  = accept(es, (struct sockaddr *)&client, &client_len);
 			if (s < 0) {
 				perror("accept");

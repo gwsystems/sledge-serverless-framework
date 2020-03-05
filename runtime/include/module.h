@@ -8,7 +8,7 @@ struct module {
 	char name[MOD_NAME_MAX];
 	char path[MOD_PATH_MAX];
 
-	void *        dl_handle;
+	void *        dynamic_library_handle; // Handle to the *.so of the serverless function
 	mod_main_fn_t entry_fn;
 	mod_glb_fn_t  glb_init_fn;
 	mod_mem_fn_t  mem_init_fn;
@@ -24,8 +24,10 @@ struct module {
 
 	u32 reference_count; // ref count how many instances exist here.
 
-	struct sockaddr_in srvaddr;
-	int                srvsock, srvport;
+	struct sockaddr_in socket_address;
+	int                socket_descriptor; 
+	int 			   port;
+
 	// unfortunately, using UV for accepting connections is not great!
 	// on_connection, to create a new accepted connection, will have to
 	// init a tcp handle, which requires a uvloop. cannot use main as
@@ -51,7 +53,7 @@ struct module *module_alloc(char *mod_name, char *mod_path, i32 argument_count, 
 // frees only if reference_count == 0
 void           module_free(struct module *module);
 struct module *module_find_by_name(char *name);
-struct module *module_find_by_sock(int sock);
+struct module *module_find_by_socket_descriptor(int sock);
 
 
 static inline void
@@ -73,14 +75,23 @@ module_http_info(
 	strcpy(module->response_content_type, response_content_type);
 }
 
+/**
+ * Validate module, defined as having a non-NULL dynamical library handle and entry function pointer
+ * @param module
+ * @return 1 if valid. 0 if invalid
+ **/
 static inline int
 module_is_valid(struct module *module)
 {
-	if (module && module->dl_handle && module->entry_fn) return 1;
+	if (module && module->dynamic_library_handle && module->entry_fn) return 1;
 
 	return 0;
 }
 
+/**
+ * Invoke a module's glb_init_fn
+ * @param module
+ **/
 static inline void
 module_globals_init(struct module *module)
 {
@@ -88,6 +99,10 @@ module_globals_init(struct module *module)
 	module->glb_init_fn();
 }
 
+/**
+ * Invoke a module's tbl_init_fn
+ * @param module
+ **/
 static inline void
 module_table_init(struct module *module)
 {
@@ -95,6 +110,10 @@ module_table_init(struct module *module)
 	module->tbl_init_fn();
 }
 
+/**
+ * Invoke a module's libc_init_fn
+ * @param module
+ **/
 static inline void
 module_libc_init(struct module *module, i32 env, i32 args)
 {
@@ -102,6 +121,10 @@ module_libc_init(struct module *module, i32 env, i32 args)
 	module->libc_init_fn(env, args);
 }
 
+/**
+ * Invoke a module's mem_init_fn
+ * @param module
+ **/
 static inline void
 module_memory_init(struct module *module)
 {
@@ -109,27 +132,45 @@ module_memory_init(struct module *module)
 	module->mem_init_fn();
 }
 
+/**
+ * Invoke a module's entry function, forwarding on argc and argv
+ * @param module
+ * @param argc standard UNIX count of arguments
+ * @param argv standard UNIX vector of arguments
+ **/
 static inline i32
 module_entry(struct module *module, i32 argc, i32 argv)
 {
 	return module->entry_fn(argc, argv);
 }
 
-// instantiate this module.
+/**
+ * Increment a modules reference count
+ * @param module
+ **/
 static inline void
 module_acquire(struct module *module)
 {
-	// FIXME: atomic.
+	// TODO: atomic.
 	module->reference_count++;
 }
 
+/**
+ * Decrement a modules reference count
+ * @param module
+ **/
 static inline void
 module_release(struct module *module)
 {
-	// FIXME: atomic.
+	// TODO: atomic.
 	module->reference_count--;
 }
 
+/**
+ * Get a module's argument count
+ * @param module
+ * @returns the number of arguments
+ **/
 static inline i32
 module_argument_count(struct module *module)
 {
