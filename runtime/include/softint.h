@@ -6,18 +6,18 @@
 #include <signal.h>
 
 static inline int
-softint_mask(int sig)
+softint_mask(int signal)
 {
 	sigset_t set;
-	int      ret;
+	int      return_code;
 
-	assert(sig == SIGALRM || sig == SIGUSR1);
-	/* all threads created by the calling thread will have sig blocked */
+	assert(signal == SIGALRM || signal == SIGUSR1);
+	/* all threads created by the calling thread will have signal blocked */
 	sigemptyset(&set);
-	sigaddset(&set, sig);
-	ret = pthread_sigmask(SIG_BLOCK, &set, NULL);
-	if (ret != 0) {
-		errno = ret;
+	sigaddset(&set, signal);
+	return_code = pthread_sigmask(SIG_BLOCK, &set, NULL);
+	if (return_code != 0) {
+		errno = return_code;
 		perror("pthread_sigmask");
 		exit(-1);
 	}
@@ -26,18 +26,18 @@ softint_mask(int sig)
 }
 
 static inline int
-softint_unmask(int sig)
+softint_unmask(int signal)
 {
 	sigset_t set;
-	int      ret;
+	int      return_code;
 
-	assert(sig == SIGALRM || sig == SIGUSR1);
-	/* all threads created by the calling thread will have sig unblocked */
+	assert(signal == SIGALRM || signal == SIGUSR1);
+	/* all threads created by the calling thread will have signal unblocked */
 	sigemptyset(&set);
-	sigaddset(&set, sig);
-	ret = pthread_sigmask(SIG_UNBLOCK, &set, NULL);
-	if (ret != 0) {
-		errno = ret;
+	sigaddset(&set, signal);
+	return_code = pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+	if (return_code != 0) {
+		errno = return_code;
 		perror("pthread_sigmask");
 		exit(-1);
 	}
