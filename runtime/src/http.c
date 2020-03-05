@@ -12,7 +12,7 @@ http_parser_settings settings;
 static inline int
 http_on_msg_begin(http_parser *parser)
 {
-	struct sandbox *     sandbox = parser->data;
+	struct sandbox *     sandbox      = parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 	http_request->message_begin  = 1;
@@ -27,7 +27,7 @@ http_on_msg_begin(http_parser *parser)
 static inline int
 http_on_msg_end(http_parser *parser)
 {
-	struct sandbox *     sandbox = parser->data;
+	struct sandbox *     sandbox      = parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 	http_request->message_end = 1;
@@ -41,7 +41,7 @@ http_on_msg_end(http_parser *parser)
 static inline int
 http_on_header_end(http_parser *parser)
 {
-	struct sandbox *     sandbox = parser->data;
+	struct sandbox *     sandbox      = parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 	http_request->header_end = 1;
@@ -58,7 +58,7 @@ http_on_header_end(http_parser *parser)
 static inline int
 http_on_url(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     sandbox = parser->data;
+	struct sandbox *sandbox = parser->data;
 
 	assert(strncmp(sandbox->module->name, (at + 1), length - 1) == 0);
 	return 0;
@@ -74,15 +74,16 @@ http_on_url(http_parser *parser, const char *at, size_t length)
 static inline int
 http_on_header_field(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     sandbox = parser->data;
+	struct sandbox *     sandbox      = parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
-	if (http_request->last_was_value) http_request->nheaders++;
-	assert(http_request->nheaders <= HTTP_HEADERS_MAX);
+	if (http_request->last_was_value) http_request->header_count++;
+	assert(http_request->header_count <= HTTP_HEADERS_MAX);
 	assert(length < HTTP_HEADER_MAXSZ);
 
-	http_request->last_was_value               = 0;
-	http_request->headers[http_request->nheaders - 1].key = (char *)at; // it is from the sandbox's req_resp_data, should persist.
+	http_request->last_was_value                              = 0;
+	http_request->headers[http_request->header_count - 1].key = (char *)
+	  at; // it is from the sandbox's req_resp_data, should persist.
 
 	return 0;
 }
@@ -97,14 +98,15 @@ http_on_header_field(http_parser *parser, const char *at, size_t length)
 static inline int
 http_on_header_value(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     sandbox = parser->data;
+	struct sandbox *     sandbox      = parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 	http_request->last_was_value = 1;
-	assert(http_request->nheaders <= HTTP_HEADERS_MAX);
+	assert(http_request->header_count <= HTTP_HEADERS_MAX);
 	assert(length < HTTP_HEADERVAL_MAXSZ);
 
-	http_request->headers[http_request->nheaders - 1].val = (char *)at; // it is from the sandbox's req_resp_data, should persist.
+	http_request->headers[http_request->header_count - 1].val = (char *)
+	  at; // it is from the sandbox's req_resp_data, should persist.
 
 	return 0;
 }
@@ -119,16 +121,16 @@ http_on_header_value(http_parser *parser, const char *at, size_t length)
 static inline int
 http_on_body(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     sandbox = parser->data;
+	struct sandbox *     sandbox      = parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
-	assert(http_request->bodylen + length <= sandbox->module->max_request_size);
+	assert(http_request->body_length + length <= sandbox->module->max_request_size);
 	if (!http_request->body)
 		http_request->body = (char *)at;
 	else
-		assert(http_request->body + http_request->bodylen == at);
+		assert(http_request->body + http_request->body_length == at);
 
-	http_request->bodylen += length;
+	http_request->body_length += length;
 
 	return 0;
 }
@@ -136,93 +138,121 @@ http_on_body(http_parser *parser, const char *at, size_t length)
 /**
  * Gets the HTTP Request body from a Sandbox
  * @param sandbox the sandbox we want the body from
- * @param b pointer that we'll assign to the http_request body
+ * @param body pointer that we'll assign to the http_request body
  * @returns the length of the http_request's body
  **/
 int
-http_request_body_get_sb(struct sandbox *sandbox, char **b)
+http_request_body_get_sb(struct sandbox *sandbox, char **body)
 {
 	struct http_request *http_request = &sandbox->http_request;
 
-	*b = http_request->body;
-	return http_request->bodylen;
+	*body = http_request->body;
+	return http_request->body_length;
 }
 
+/**
+ * Set an HTTP Response Header on a Sandbox
+ * @param sandbox the sandbox we want to set the request header on
+ * @param header string of the header that we want to set
+ * @param length the length of the header string
+ * @returns 0 (abends program in case of error)
+ **/
 int
-http_response_header_set_sb(struct sandbox *sandbox, char *key, int len)
+http_response_header_set_sb(struct sandbox *sandbox, char *header, int length)
 {
 	// by now, req_resp_data should only be containing response!
 	struct http_response *http_response = &sandbox->http_response;
 
-	assert(http_response->nheaders < HTTP_HEADERS_MAX);
-	http_response->nheaders++;
-	http_response->headers[http_response->nheaders - 1].hdr = key;
-	http_response->headers[http_response->nheaders - 1].len = len;
+	assert(http_response->header_count < HTTP_HEADERS_MAX);
+	http_response->header_count++;
+	http_response->headers[http_response->header_count - 1].header = header;
+	http_response->headers[http_response->header_count - 1].length = length;
 
 	return 0;
 }
 
+/**
+ * Set an HTTP Response Body on a Sandbox
+ * @param sandbox the sandbox we want to set the request header on
+ * @param body string of the body that we want to set
+ * @param length the length of the header string
+ * @returns 0 (abends program in case of error)
+ **/
 int
-http_response_body_set_sb(struct sandbox *sandbox, char *body, int len)
+http_response_body_set_sb(struct sandbox *sandbox, char *body, int length)
 {
 	struct http_response *http_response = &sandbox->http_response;
 
-	assert(len <= sandbox->module->max_response_size);
-	http_response->body    = body;
-	http_response->bodylen = len;
+	assert(length <= sandbox->module->max_response_size);
+	http_response->body        = body;
+	http_response->body_length = length;
 
 	return 0;
 }
 
+/**
+ * Set an HTTP Response Status on a Sandbox
+ * @param sandbox the sandbox we want to set the request status on
+ * @param status string of the status we want to set
+ * @param length the length of the status
+ * @returns 0 (abends program in case of error)
+ **/
 int
-http_response_status_set_sb(struct sandbox *sandbox, char *status, int len)
+http_response_status_set_sb(struct sandbox *sandbox, char *status, int length)
 {
 	struct http_response *http_response = &sandbox->http_response;
 
-	http_response->status = status;
-	http_response->stlen  = len;
+	http_response->status        = status;
+	http_response->status_length = length;
 
 	return 0;
 }
 
+/**
+ * ???
+ * @param sandbox the sandbox we want to set the request status on
+ * @returns ???
+ **/
 int
 http_response_vector_sb(struct sandbox *sandbox)
 {
-	int nb = 0;
+	int                   nb            = 0;
 	struct http_response *http_response = &sandbox->http_response;
 
 #ifdef USE_HTTP_UVIO
 
-	http_response->bufs[nb] = uv_buf_init(http_response->status, http_response->stlen);
+	http_response->bufs[nb] = uv_buf_init(http_response->status, http_response->status_length);
 	nb++;
-	for (int i = 0; i < http_response->nheaders; i++) {
-		http_response->bufs[nb] = uv_buf_init(http_response->headers[i].hdr, http_response->headers[i].len);
+	for (int i = 0; i < http_response->header_count; i++) {
+		http_response->bufs[nb] = uv_buf_init(http_response->headers[i].header,
+		                                      http_response->headers[i].length);
 		nb++;
 	}
 
 	if (http_response->body) {
-		http_response->bufs[nb] = uv_buf_init(http_response->body, http_response->bodylen);
+		http_response->bufs[nb] = uv_buf_init(http_response->body, http_response->body_length);
 		nb++;
-		http_response->bufs[nb] = uv_buf_init(http_response->status + http_response->stlen - 2, 2); // for crlf
+		http_response->bufs[nb] = uv_buf_init(http_response->status + http_response->status_length - 2,
+		                                      2); // for crlf
 		nb++;
 	}
 #else
 	http_response->bufs[nb].iov_base = http_response->status;
-	http_response->bufs[nb].iov_len  = http_response->stlen;
+	http_response->bufs[nb].iov_len  = http_response->status_length;
 	nb++;
 
-	for (int i = 0; i < http_response->nheaders; i++) {
-		http_response->bufs[nb].iov_base = http_response->headers[i].hdr;
-		http_response->bufs[nb].iov_len  = http_response->headers[i].len;
+	for (int i = 0; i < http_response->header_count; i++) {
+		http_response->bufs[nb].iov_base = http_response->headers[i].header;
+		http_response->bufs[nb].iov_len  = http_response->headers[i].length;
 		nb++;
 	}
 
 	if (http_response->body) {
 		http_response->bufs[nb].iov_base = http_response->body;
-		http_response->bufs[nb].iov_len  = http_response->bodylen;
+		http_response->bufs[nb].iov_len  = http_response->body_length;
 		nb++;
 
-		http_response->bufs[nb].iov_base = http_response->status + http_response->stlen - 2;
+		http_response->bufs[nb].iov_base = http_response->status + http_response->status_length - 2;
 		http_response->bufs[nb].iov_len  = 2;
 		nb++;
 	}
@@ -231,10 +261,18 @@ http_response_vector_sb(struct sandbox *sandbox)
 	return nb;
 }
 
+/**
+ * ???
+ * @param sandbox the sandbox we want to set the request status on
+ * @param length
+ * @returns 0
+ *
+ * Global State: settings
+ **/
 int
-http_request_parse_sb(struct sandbox *sandbox, size_t l)
+http_request_parse_sb(struct sandbox *sandbox, size_t length)
 {
-	http_parser_execute(&sandbox->http_parser, &settings, sandbox->req_resp_data + sandbox->rr_data_len, l);
+	http_parser_execute(&sandbox->http_parser, &settings, sandbox->req_resp_data + sandbox->rr_data_len, length);
 	return 0;
 }
 

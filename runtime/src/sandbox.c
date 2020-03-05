@@ -168,14 +168,14 @@ sandbox_client_response_set(void)
 	int             sndsz       = 0;
 	struct sandbox *curr        = sandbox_current();
 	int             rsp_hdr_len = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
-	int             bodylen     = curr->rr_data_len - rsp_hdr_len;
+	int             body_length = curr->rr_data_len - rsp_hdr_len;
 
 	memset(curr->req_resp_data, 0,
 	       strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN));
 	strncpy(curr->req_resp_data, HTTP_RESP_200OK, strlen(HTTP_RESP_200OK));
 	sndsz += strlen(HTTP_RESP_200OK);
 
-	if (bodylen == 0) goto done;
+	if (body_length == 0) goto done;
 	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTTYPE, strlen(HTTP_RESP_CONTTYPE));
 	if (strlen(curr->module->response_content_type) <= 0) {
 		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), HTTP_RESP_CONTTYPE_PLAIN,
@@ -186,11 +186,11 @@ sandbox_client_response_set(void)
 	}
 	sndsz += strlen(HTTP_RESP_CONTTYPE);
 	char len[10] = { 0 };
-	sprintf(len, "%d", bodylen);
+	sprintf(len, "%d", body_length);
 	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTLEN, strlen(HTTP_RESP_CONTLEN));
 	strncpy(curr->req_resp_data + sndsz + strlen("Content-length: "), len, strlen(len));
 	sndsz += strlen(HTTP_RESP_CONTLEN);
-	sndsz += bodylen;
+	sndsz += body_length;
 
 done:
 	assert(sndsz == curr->rr_data_len);
