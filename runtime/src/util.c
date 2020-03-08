@@ -162,10 +162,10 @@ util_parse_modules_file_json(char *file_name)
 		if (is_active == 0) continue;
 
 		// Allocate a module based on the values from the JSON
-		struct module *module = module_alloc(module_name, module_path, argument_count, 0, 0, 0, port,
+		struct module *module = module__new(module_name, module_path, argument_count, 0, 0, 0, port,
 		                                     request_size, response_size);
 		assert(module);
-		module_http_info(module, request_count, request_headers, request_content_type, response_count,
+		module__set_http_info(module, request_count, request_headers, request_content_type, response_count,
 		                 reponse_headers, response_content_type);
 		module_count++;
 		free(request_headers);

@@ -127,7 +127,7 @@ allocate_sandbox_memory(struct module *module)
 	sandbox->linear_memory_size  = linear_memory_size;
 	sandbox->module       = module;
 	sandbox->sandbox_size = sandbox_size;
-	module_acquire(module);
+	module__acquire(module);
 
 	return sandbox;
 }
@@ -284,7 +284,7 @@ sandbox_main(void)
 		softint_enable();
 	}
 	struct module *current_module       = get_sandbox_module(current_sandbox);
-	int            argument_count = module_argument_count(current_module);
+	int            argument_count = module__get_argument_count(current_module);
 	// for stdio
 
 	// Try to initialize file descriptors 0, 1, and 2 as io handles 0, 1, 2
@@ -309,7 +309,7 @@ sandbox_main(void)
 #ifdef USE_HTTP_UVIO
 
 	// Initialize libuv TCP stream
-	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&current_sandbox->client_libuv_stream);
+	int r = uv_tcp_init(get_thread_libuv_handle(), (uv_tcp_t *)&current_sandbox->client_libuv_stream);
 	assert(r == 0);
 
 	// Set the current sandbox as the data the libuv callbacks have access to
@@ -329,15 +329,15 @@ sandbox_main(void)
 		// Allocate the WebAssembly Sandbox
 		alloc_linear_memory();
 		// perhaps only initialized for the first instance? or TODO!
-		// module_table_init(current_module);
-		module_globals_init(current_module);
-		module_memory_init(current_module);
+		// module__initialize_table(current_module);
+		module__initialize_globals(current_module);
+		module__initialize_memory(current_module);
 
 		// Copy the arguments into the WebAssembly sandbox
 		setup_sandbox_arguments(argument_count);
 
 		// Executing the function within the WebAssembly sandbox
-		current_sandbox->return_value = module_entry(current_module, argument_count, current_sandbox->arguments_offset);
+		current_sandbox->return_value = module__main(current_module, argument_count, current_sandbox->arguments_offset);
 
 		// Retrieve the result from the WebAssembly sandbox, construct the HTTP response, and send to client
 		build_and_send_current_sandbox_client_response();
@@ -357,7 +357,7 @@ sandbox_main(void)
 struct sandbox *
 allocate_sandbox(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time)
 {
-	if (!module_is_valid(module)) return NULL;
+	if (!module__is_valid(module)) return NULL;
 
 	// FIXME: don't use malloc. huge security problem!
 	// perhaps, main should be in its own sandbox, when it is not running any sandbox.
@@ -401,7 +401,7 @@ free_sandbox(struct sandbox *sandbox)
 	int sz = sizeof(struct sandbox);
 
 	sz += sandbox->module->max_request_or_response_size;
-	module_release(sandbox->module);
+	module__release(sandbox->module);
 
 	// TODO free(sandbox->arguments);
 	void * stkaddr = sandbox->stack_start;
