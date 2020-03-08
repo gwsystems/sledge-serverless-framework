@@ -8,6 +8,7 @@
 
 // In-memory representation of all active modules
 static struct module *__mod_db[MOD_MAX] = { NULL };
+// TODO: What is this?
 static int            __mod_free_off    = 0;
 
 /**
@@ -52,6 +53,7 @@ module_add(struct module *module)
 {
 	assert(module->socket_descriptor == -1);
 
+	// TODO: Where does this function code from?
 	int f = __sync_fetch_and_add(&__mod_free_off, 1);
 	assert(f < MOD_MAX);
 	__mod_db[f] = module;
@@ -90,9 +92,9 @@ module_server_init(struct module *module)
 	// Listen to the interface? Check that it is live?
 	if (listen(socket_descriptor, MOD_BACKLOG) < 0) assert(0);
 
-	module->socket_descriptor = socket_descriptor;
 
-	// Register the socket descriptor with our global epoll instance to monitor for incoming HTTP requests
+	// Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP requests
+	module->socket_descriptor = socket_descriptor;
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)module;
 	accept_evt.events   = EPOLLIN;
@@ -101,7 +103,7 @@ module_server_init(struct module *module)
 
 /**
  * Module Mega Setup Function
- * Creates a new module, invokes tbl_init_fn to initialize the indirect table, adds it to the module DB, and starts
+ * Creates a new module, invokes initialize_tables to initialize the indirect table, adds it to the module DB, and starts
  *listening for HTTP Requests
  *
  * @param name
@@ -128,20 +130,20 @@ module_alloc(char *name, char *path, i32 argument_count, u32 stack_size, u32 max
 	if (module->dynamic_library_handle == NULL) goto dl_open_error;
 
 	// Resolve the symbols in the dynamic library *.so file
-	module->entry_fn = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MOD_MAIN_FN);
-	if (module->entry_fn == NULL) goto dl_error;
+	module->main = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MOD_MAIN_FN);
+	if (module->main == NULL) goto dl_error;
 
-	module->glb_init_fn = (mod_glb_fn_t)dlsym(module->dynamic_library_handle, MOD_GLB_FN);
-	if (module->glb_init_fn == NULL) goto dl_error;
+	module->initialize_globals = (mod_glb_fn_t)dlsym(module->dynamic_library_handle, MOD_GLB_FN);
+	if (module->initialize_globals == NULL) goto dl_error;
 
-	module->mem_init_fn = (mod_mem_fn_t)dlsym(module->dynamic_library_handle, MOD_MEM_FN);
-	if (module->mem_init_fn == NULL) goto dl_error;
+	module->initialize_memory = (mod_mem_fn_t)dlsym(module->dynamic_library_handle, MOD_MEM_FN);
+	if (module->initialize_memory == NULL) goto dl_error;
 
-	module->tbl_init_fn = (mod_tbl_fn_t)dlsym(module->dynamic_library_handle, MOD_TBL_FN);
-	if (module->tbl_init_fn == NULL) goto dl_error;
+	module->initialize_tables = (mod_tbl_fn_t)dlsym(module->dynamic_library_handle, MOD_TBL_FN);
+	if (module->initialize_tables == NULL) goto dl_error;
 
-	module->libc_init_fn = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MOD_LIBC_FN);
-	if (module->libc_init_fn == NULL) goto dl_error;
+	module->initialize_libc = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MOD_LIBC_FN);
+	if (module->initialize_libc == NULL) goto dl_error;
 
 	// Set fields in the module struct
 	strncpy(module->name, name, MOD_NAME_MAX);
@@ -195,6 +197,7 @@ dl_open_error:
 /**
  * Module Mega Teardown Function
  * Closes the socket and dynamic library, and then frees the module
+ * Returns harmlessly if there are outstanding references
  * @param module - the module to teardown
  **/
 void
