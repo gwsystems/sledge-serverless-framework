@@ -7,13 +7,98 @@
 #include <uv.h>
 #include <http_api.h>
 
+/***********************************
+ * Libuv Callbacks
+ ***********************************/
+
+/**
+ *  TODO: is there some weird edge case where a UNICODE character might be split between reads? Do we care?
+ * Called after libuv has read a chunk of data
+ * Parses data read by the libuv stream chunk-by-chunk until the message is complete
+ * Then stops the stream and wakes up the sandbox
+ * @param stream
+ * @param number_read bytes read
+ * @param buffer unused
+ **/
+static inline void
+on_libuv_read_parse_http_request(uv_stream_t *stream, ssize_t number_read, const uv_buf_t *buffer)
+{
+	struct sandbox *sandbox = stream->data;
+
+	// Parse the chunks libuv has read on our behalf until we've parse to message end
+	if (number_read > 0) {
+		if (http_request_parse_sb(sandbox, number_read) != 0) return;
+		sandbox->request_response_data_length += number_read;
+		struct http_request *rh = &sandbox->http_request;
+		if (!rh->message_end) return;
+	}
+	
+	// When the entire message has been read, stop the stream and wakeup the sandbox
+	uv_read_stop(stream);
+	wakeup_sandbox(sandbox);
+}
+
+/**
+ * On libuv close, executes this callback to wake the blocked sandbox back up 
+ * @param stream
+ **/
+static inline void
+on_libuv_close_wakeup_sakebox(uv_handle_t *stream)
+{
+	struct sandbox *sandbox = stream->data;
+	wakeup_sandbox(sandbox);
+}
+
+/**
+ * On libuv shutdown, executes this callback to wake the blocked sandbox back up
+ * @param req shutdown request
+ * @param status unused in callback
+ **/
+static inline void
+on_libuv_shutdown_wakeup_sakebox(uv_shutdown_t *req, int status)
+{
+	struct sandbox *sandbox = req->data;
+	wakeup_sandbox(sandbox);
+}
+
+/**
+ * On libuv write, executes this callback to wake the blocked sandbox back up
+ * In case of error, shutdown the sandbox
+ * @param write shutdown request
+ * @param status status code
+ **/
+static inline void
+on_libuv_write_wakeup_sandbox(uv_write_t *write, int status)
+{
+	struct sandbox *sandbox = write->data;
+	if (status < 0) {
+		sandbox->client_libuv_shutdown_request.data = sandbox;
+		uv_shutdown(&sandbox->client_libuv_shutdown_request, (uv_stream_t *)&sandbox->client_libuv_stream, on_libuv_shutdown_wakeup_sakebox);
+		return;
+	}
+	wakeup_sandbox(sandbox);
+}
+
+static inline void
+on_libuv_allocate_setup_request_response_data(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
+{
+	struct sandbox *sandbox = h->data;
+	size_t          l       = (sandbox->module->max_request_or_response_size - sandbox->request_response_data_length);
+	buf->base               = (sandbox->request_response_data + sandbox->request_response_data_length);
+	buf->len                = l > suggested ? suggested : l;
+}
+
+/***********************************
+ * End of Libuv Callbacks
+ ***********************************/
+
 /**
  * Allocates the memory for a sandbox to run a module
  * @param module the module that we want to run
  * @returns the resulting sandbox or NULL if mmap failed
  **/
 static inline struct sandbox *
-sandbox_memory_map(struct module *module)
+allocate_sandbox_memory(struct module *module)
 {
 	unsigned long memory_size = SBOX_MAX_MEM; // 4GB
 
@@ -24,7 +109,7 @@ sandbox_memory_map(struct module *module)
 	if (linear_memory_size + sandbox_size > memory_size) return NULL;
 	assert(round_up_to_page(sandbox_size) == sandbox_size);
 
-	// What does mmap do exactly with fd -1?
+	// What does mmap do exactly with file_descriptor -1?
 	void *addr = mmap(NULL, sandbox_size + memory_size + /* guard page */ PAGE_SIZE, PROT_NONE,
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (addr == MAP_FAILED) return NULL;
@@ -38,8 +123,8 @@ sandbox_memory_map(struct module *module)
 
 	struct sandbox *sandbox = (struct sandbox *)addr;
 	// can it include sandbox as well?
-	sandbox->linear_start = (char *)addr + sandbox_size;
-	sandbox->linear_size  = linear_memory_size;
+	sandbox->linear_memory_start = (char *)addr + sandbox_size;
+	sandbox->linear_memory_size  = linear_memory_size;
 	sandbox->module       = module;
 	sandbox->sandbox_size = sandbox_size;
 	module_acquire(module);
@@ -47,22 +132,27 @@ sandbox_memory_map(struct module *module)
 	return sandbox;
 }
 
+/**
+ * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
+ * TODO: why do we have to pass argument count explicitly? Can't we just get this off the sandbox?
+ * @param argument_count
+ **/
 static inline void
-sandbox_args_setup(i32 argument_count)
+setup_sandbox_arguments(i32 argument_count)
 {
-	struct sandbox *curr = sandbox_current();
-	char *          args = sandbox_args();
+	struct sandbox *curr = get_current_sandbox();
+	char *          arguments = get_current_sandbox_arguments();
 
-	// whatever gregor has, to be able to pass args to a module!
-	curr->args_offset = sandbox_lmbound;
-	assert(sandbox_lmbase == curr->linear_start);
+	// whatever gregor has, to be able to pass arguments to a module!
+	curr->arguments_offset = sandbox_lmbound;
+	assert(sandbox_lmbase == curr->linear_memory_start);
 	expand_memory();
 
-	i32 *array_ptr  = get_memory_ptr_void(curr->args_offset, argument_count * sizeof(i32));
-	i32  string_off = curr->args_offset + (argument_count * sizeof(i32));
+	i32 *array_ptr  = get_memory_ptr_void(curr->arguments_offset, argument_count * sizeof(i32));
+	i32  string_off = curr->arguments_offset + (argument_count * sizeof(i32));
 
 	for (int i = 0; i < argument_count; i++) {
-		char * arg    = args + (i * MOD_ARG_MAX_SZ);
+		char * arg    = arguments + (i * MOD_ARG_MAX_SZ);
 		size_t str_sz = strlen(arg) + 1;
 
 		array_ptr[i] = string_off;
@@ -74,86 +164,40 @@ sandbox_args_setup(i32 argument_count)
 	stub_init(string_off);
 }
 
-static inline void
-sb_read_callback(uv_stream_t *s, ssize_t nr, const uv_buf_t *b)
-{
-	struct sandbox *sandbox = s->data;
-
-	if (nr > 0) {
-		if (http_request_parse_sb(sandbox, nr) != 0) return;
-		sandbox->rr_data_len += nr;
-		struct http_request *rh = &sandbox->http_request;
-		if (!rh->message_end) return;
-	}
-
-	uv_read_stop(s);
-	sandbox_wakeup(sandbox);
-}
-
-static inline void
-sb_close_callback(uv_handle_t *s)
-{
-	struct sandbox *sandbox = s->data;
-	sandbox_wakeup(sandbox);
-}
-
-static inline void
-sb_shutdown_callback(uv_shutdown_t *req, int status)
-{
-	struct sandbox *sandbox = req->data;
-	sandbox_wakeup(sandbox);
-}
-
-static inline void
-sb_write_callback(uv_write_t *w, int status)
-{
-	struct sandbox *sandbox = w->data;
-	if (status < 0) {
-		sandbox->cuvsr.data = sandbox;
-		uv_shutdown(&sandbox->cuvsr, (uv_stream_t *)&sandbox->cuv, sb_shutdown_callback);
-		return;
-	}
-	sandbox_wakeup(sandbox);
-}
-
-static inline void
-sb_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
-{
-	struct sandbox *sandbox = h->data;
-	size_t          l       = (sandbox->module->max_request_or_response_size - sandbox->rr_data_len);
-	buf->base               = (sandbox->req_resp_data + sandbox->rr_data_len);
-	buf->len                = l > suggested ? suggested : l;
-}
-
+/**
+ * Receive and Parse the Request for the current sandbox
+ * @return 1 on success, < 0 on failure. 
+ * TODO: What does 0 mean? 
+ **/
 static inline int
-sandbox_client_request_get(void)
+receive_and_parse_current_sandbox_client_request(void)
 {
-	struct sandbox *curr = sandbox_current();
-	curr->rr_data_len    = 0;
+	struct sandbox *curr = get_current_sandbox();
+	curr->request_response_data_length    = 0;
 #ifndef USE_HTTP_UVIO
 	int r = 0;
-	r     = recv(curr->csock, (curr->req_resp_data), curr->module->max_request_size, 0);
+	r     = recv(curr->client_socket_descriptor, (curr->request_response_data), curr->module->max_request_size, 0);
 	if (r <= 0) {
 		if (r < 0) perror("recv1");
 		return r;
 	}
 	while (r > 0) {
 		if (http_request_parse(r) != 0) return -1;
-		curr->rr_data_len += r;
+		curr->request_response_data_length += r;
 		struct http_request *rh = &curr->http_request;
 		if (rh->message_end) break;
 
-		r = recv(curr->csock, (curr->req_resp_data + curr->rr_data_len),
-		         curr->module->max_request_size - curr->rr_data_len, 0);
+		r = recv(curr->client_socket_descriptor, (curr->request_response_data + curr->request_response_data_length),
+		         curr->module->max_request_size - curr->request_response_data_length, 0);
 		if (r < 0) {
 			perror("recv2");
 			return r;
 		}
 	}
 #else
-	int r = uv_read_start((uv_stream_t *)&curr->cuv, sb_alloc_callback, sb_read_callback);
+	int r = uv_read_start((uv_stream_t *)&curr->client_libuv_stream, on_libuv_allocate_setup_request_response_data, on_libuv_read_parse_http_request);
 	sandbox_block_http();
-	if (curr->rr_data_len == 0) return 0;
+	if (curr->request_response_data_length == 0) return 0;
 #endif
 	return 1;
 }
@@ -163,49 +207,49 @@ sandbox_client_request_get(void)
  * @return RC. -1 on Failure
  **/
 static inline int
-sandbox_client_response_set(void)
+build_and_send_current_sandbox_client_response(void)
 {
 	int             sndsz       = 0;
-	struct sandbox *curr        = sandbox_current();
-	int             rsp_hdr_len = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
-	int             body_length = curr->rr_data_len - rsp_hdr_len;
+	struct sandbox *curr        = get_current_sandbox();
+	int             response_header_length = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
+	int             body_length = curr->request_response_data_length - response_header_length;
 
-	memset(curr->req_resp_data, 0,
+	memset(curr->request_response_data, 0,
 	       strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN));
-	strncpy(curr->req_resp_data, HTTP_RESP_200OK, strlen(HTTP_RESP_200OK));
+	strncpy(curr->request_response_data, HTTP_RESP_200OK, strlen(HTTP_RESP_200OK));
 	sndsz += strlen(HTTP_RESP_200OK);
 
 	if (body_length == 0) goto done;
-	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTTYPE, strlen(HTTP_RESP_CONTTYPE));
+	strncpy(curr->request_response_data + sndsz, HTTP_RESP_CONTTYPE, strlen(HTTP_RESP_CONTTYPE));
 	if (strlen(curr->module->response_content_type) <= 0) {
-		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), HTTP_RESP_CONTTYPE_PLAIN,
+		strncpy(curr->request_response_data + sndsz + strlen("Content-type: "), HTTP_RESP_CONTTYPE_PLAIN,
 		        strlen(HTTP_RESP_CONTTYPE_PLAIN));
 	} else {
-		strncpy(curr->req_resp_data + sndsz + strlen("Content-type: "), curr->module->response_content_type,
+		strncpy(curr->request_response_data + sndsz + strlen("Content-type: "), curr->module->response_content_type,
 		        strlen(curr->module->response_content_type));
 	}
 	sndsz += strlen(HTTP_RESP_CONTTYPE);
 	char len[10] = { 0 };
 	sprintf(len, "%d", body_length);
-	strncpy(curr->req_resp_data + sndsz, HTTP_RESP_CONTLEN, strlen(HTTP_RESP_CONTLEN));
-	strncpy(curr->req_resp_data + sndsz + strlen("Content-length: "), len, strlen(len));
+	strncpy(curr->request_response_data + sndsz, HTTP_RESP_CONTLEN, strlen(HTTP_RESP_CONTLEN));
+	strncpy(curr->request_response_data + sndsz + strlen("Content-length: "), len, strlen(len));
 	sndsz += strlen(HTTP_RESP_CONTLEN);
 	sndsz += body_length;
 
 done:
-	assert(sndsz == curr->rr_data_len);
+	assert(sndsz == curr->request_response_data_length);
 	// Get End Timestamp
 	curr->total_time = rdtsc() - curr->start_time;
 	printf("Function returned in %lu cycles\n", curr->total_time);
 
 #ifndef USE_HTTP_UVIO
-	int r = send(curr->csock, curr->req_resp_data, sndsz, 0);
+	int r = send(curr->client_socket_descriptor, curr->request_response_data, sndsz, 0);
 	if (r < 0) {
 		perror("send");
 		return -1;
 	}
 	while (r < sndsz) {
-		int s = send(curr->csock, curr->req_resp_data + r, sndsz - r, 0);
+		int s = send(curr->client_socket_descriptor, curr->request_response_data + r, sndsz - r, 0);
 		if (s < 0) {
 			perror("send");
 			return -1;
@@ -216,84 +260,115 @@ done:
 	uv_write_t req = {
 		.data = curr,
 	};
-	uv_buf_t bufv = uv_buf_init(curr->req_resp_data, sndsz);
-	int      r    = uv_write(&req, (uv_stream_t *)&curr->cuv, &bufv, 1, sb_write_callback);
+	uv_buf_t bufv = uv_buf_init(curr->request_response_data, sndsz);
+	int      r    = uv_write(&req, (uv_stream_t *)&curr->client_libuv_stream, &bufv, 1, on_libuv_write_wakeup_sandbox);
 	sandbox_block_http();
 #endif
 	return 0;
 }
 
+/**
+ * Sandbox execution logic
+ * Handles setup, request parsing, WebAssembly initialization, function execution, response building and sending, and cleanup
+ **/
 void
-sandbox_entry(void)
+sandbox_main(void)
 {
-	struct sandbox *curr = sandbox_current();
+	struct sandbox *current_sandbox = get_current_sandbox();
 	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
-	//        return to sandbox_switch() api..
-	//        we'd potentially do what we'd in sandbox_switch() api here for cleanup..
+	//        return to switch_to_sandbox() api..
+	//        we'd potentially do what we'd in switch_to_sandbox() api here for cleanup..
 	if (!softint_enabled()) {
-		arch_context_init(&curr->ctxt, 0, 0);
+		arch_context_init(&current_sandbox->ctxt, 0, 0);
 		next_context = NULL;
 		softint_enable();
 	}
-	struct module *curr_mod       = sandbox_module(curr);
-	int            argument_count = module_argument_count(curr_mod);
+	struct module *current_module       = get_sandbox_module(current_sandbox);
+	int            argument_count = module_argument_count(current_module);
 	// for stdio
-	int f = io_handle_open(0);
+
+	// Try to initialize file descriptors 0, 1, and 2 as io handles 0, 1, 2
+	// We need to check that we get what we expect, as these IO handles may theoretically have been taken
+	// TODO: why do the file descriptors have to match the io handles?
+	int f = initialize_io_handle_and_set_file_descriptor_in_current_sandbox(0);
 	assert(f == 0);
-	f = io_handle_open(1);
+	f = initialize_io_handle_and_set_file_descriptor_in_current_sandbox(1);
 	assert(f == 1);
-	f = io_handle_open(2);
+	f = initialize_io_handle_and_set_file_descriptor_in_current_sandbox(2);
 	assert(f == 2);
 
-	http_parser_init(&curr->http_parser, HTTP_REQUEST);
-	curr->http_parser.data = curr;
+	// Initialize the HTTP-Parser for a request
+	http_parser_init(&current_sandbox->http_parser, HTTP_REQUEST);
+
+	// Set the current_sandbox as the data the http-parser has access to
+	current_sandbox->http_parser.data = current_sandbox;
+	
 	// NOTE: if more headers, do offset by that!
-	int rsp_hdr_len = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
+	int response_header_length = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
+
 #ifdef USE_HTTP_UVIO
-	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&curr->cuv);
+
+	// Initialize libuv TCP stream
+	int r = uv_tcp_init(runtime_uvio(), (uv_tcp_t *)&current_sandbox->client_libuv_stream);
 	assert(r == 0);
-	curr->cuv.data = curr;
-	r              = uv_tcp_open((uv_tcp_t *)&curr->cuv, curr->csock);
+
+	// Set the current sandbox as the data the libuv callbacks have access to
+	current_sandbox->client_libuv_stream.data = current_sandbox;
+
+	// Open the libuv TCP stream
+	r              = uv_tcp_open((uv_tcp_t *)&current_sandbox->client_libuv_stream, current_sandbox->client_socket_descriptor);
 	assert(r == 0);
 #endif
-	if (sandbox_client_request_get() > 0) {
-		curr->rr_data_len = rsp_hdr_len; // TODO: do this on first write to body.
+
+	// If the HTTP Request returns 1, we've successfully received and parsed the HTTP request, so execute it!
+	if (receive_and_parse_current_sandbox_client_request() > 0) {
+
+		//
+		current_sandbox->request_response_data_length = response_header_length; // TODO: do this on first write to body.
+
+		// Allocate the WebAssembly Sandbox
 		alloc_linear_memory();
 		// perhaps only initialized for the first instance? or TODO!
-		// module_table_init(curr_mod);
-		module_globals_init(curr_mod);
-		module_memory_init(curr_mod);
-		sandbox_args_setup(argument_count);
+		// module_table_init(current_module);
+		module_globals_init(current_module);
+		module_memory_init(current_module);
 
-		curr->retval = module_entry(curr_mod, argument_count, curr->args_offset);
+		// Copy the arguments into the WebAssembly sandbox
+		setup_sandbox_arguments(argument_count);
 
-		sandbox_client_response_set();
+		// Executing the function within the WebAssembly sandbox
+		current_sandbox->return_value = module_entry(current_module, argument_count, current_sandbox->arguments_offset);
+
+		// Retrieve the result from the WebAssembly sandbox, construct the HTTP response, and send to client
+		build_and_send_current_sandbox_client_response();
 	}
 
+	// Cleanup connection and exit sandbox
+
 #ifdef USE_HTTP_UVIO
-	uv_close((uv_handle_t *)&curr->cuv, sb_close_callback);
+	uv_close((uv_handle_t *)&current_sandbox->client_libuv_stream, on_libuv_close_wakeup_sakebox);
 	sandbox_block_http();
 #else
-	close(curr->csock);
+	close(current_sandbox->client_socket_descriptor);
 #endif
-	sandbox_exit();
+	exit_current_sandbox();
 }
 
 struct sandbox *
-sandbox_alloc(struct module *module, char *args, int sock, const struct sockaddr *addr, u64 start_time)
+allocate_sandbox(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time)
 {
 	if (!module_is_valid(module)) return NULL;
 
 	// FIXME: don't use malloc. huge security problem!
 	// perhaps, main should be in its own sandbox, when it is not running any sandbox.
-	struct sandbox *sandbox = (struct sandbox *)sandbox_memory_map(module);
+	struct sandbox *sandbox = (struct sandbox *)allocate_sandbox_memory(module);
 	if (!sandbox) return NULL;
 
 	// Assign the start time from the request
 	sandbox->start_time = start_time;
 
 	// actual module instantiation!
-	sandbox->args        = (void *)args;
+	sandbox->arguments        = (void *)arguments;
 	sandbox->stack_size  = module->stack_size;
 	sandbox->stack_start = mmap(NULL, sandbox->stack_size, PROT_READ | PROT_WRITE,
 	                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
@@ -301,38 +376,39 @@ sandbox_alloc(struct module *module, char *args, int sock, const struct sockaddr
 		perror("mmap");
 		assert(0);
 	}
-	sandbox->csock = sock;
-	if (addr) memcpy(&sandbox->client, addr, sizeof(struct sockaddr));
-	for (int i = 0; i < SBOX_MAX_OPEN; i++) sandbox->handles[i].fd = -1;
+	sandbox->client_socket_descriptor = socket_descriptor;
+	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
+	for (int i = 0; i < SBOX_MAX_OPEN; i++) sandbox->handles[i].file_descriptor = -1;
 	ps_list_init_d(sandbox);
 
-	arch_context_init(&sandbox->ctxt, (reg_t)sandbox_entry, (reg_t)(sandbox->stack_start + sandbox->stack_size));
+	// Setup the sandbox's context, stack, and instruction pointer
+	arch_context_init(&sandbox->ctxt, (reg_t)sandbox_main, (reg_t)(sandbox->stack_start + sandbox->stack_size));
 	return sandbox;
 }
 
 void
-sandbox_free(struct sandbox *sandbox)
+free_sandbox(struct sandbox *sandbox)
 {
 	int ret;
 
 	// you have to context switch away to free a sandbox.
-	if (!sandbox || sandbox == sandbox_current()) return;
+	if (!sandbox || sandbox == get_current_sandbox()) return;
 
 	// again sandbox should be done and waiting for the parent.
 	// TODO: this needs to be enhanced. you may be killing a sandbox when its in any other execution states.
-	if (sandbox->state != SANDBOX_RETURNED) return;
+	if (sandbox->state != RETURNED) return;
 
 	int sz = sizeof(struct sandbox);
 
 	sz += sandbox->module->max_request_or_response_size;
 	module_release(sandbox->module);
 
-	// TODO free(sandbox->args);
+	// TODO free(sandbox->arguments);
 	void * stkaddr = sandbox->stack_start;
 	size_t stksz   = sandbox->stack_size;
 
 	// depending on the memory type
-	// free_linear_memory(sandbox->linear_start, sandbox->linear_size, sandbox->linear_max_size);
+	// free_linear_memory(sandbox->linear_memory_start, sandbox->linear_memory_size, sandbox->linear_memory_max_size);
 
 	// mmaped memory includes sandbox structure in there.
 	ret = munmap(sandbox, sz);

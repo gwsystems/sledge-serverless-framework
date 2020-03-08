@@ -69,21 +69,21 @@ softint_alarm_schedule(void *user_context_raw)
 {
 	softint_disable(); // no nesting!
 
-	struct sandbox *curr         = sandbox_current();
+	struct sandbox *curr         = get_current_sandbox();
 	ucontext_t *    user_context = (ucontext_t *)user_context_raw;
 
 	// no sandboxes running..so nothing to preempt..let the "main" scheduler run its course.
 	if (curr == NULL) goto done;
 
 	// find a next sandbox to run..
-	struct sandbox *next = sandbox_schedule(1);
+	struct sandbox *next = get_next_sandbox_from_local_run_queue(1);
 	if (next == NULL) goto done;
 	if (next == curr) goto done; // only this sandbox to schedule.. return to it!
 	// save the current sandbox, state from user_context!
 	arch_mcontext_save(&curr->ctxt, &user_context->uc_mcontext);
 
-	// sandbox_current_set on it. restore through *user_context..
-	sandbox_current_set(next);
+	// set_current_sandbox on it. restore through *user_context..
+	set_current_sandbox(next);
 
 	if (arch_mcontext_restore(&user_context->uc_mcontext, &next->ctxt)) goto skip;
 	// reset if SIGALRM happens before SIGUSR1 and if don't preempt..OR
@@ -113,7 +113,7 @@ softint_handler(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 #ifdef PREEMPT_DISABLE
 	assert(0);
 #else
-	struct sandbox *curr         = sandbox_current();
+	struct sandbox *curr         = get_current_sandbox();
 	ucontext_t *    user_context = (ucontext_t *)user_context_raw;
 
 	switch (signal_type) {
@@ -137,7 +137,7 @@ softint_handler(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 
 		SIGALRM_count++;
 		// softints per-core..
-		if (curr && curr->state == SANDBOX_RETURNED) return;
+		if (curr && curr->state == RETURNED) return;
 		if (next_context) return;
 		if (!softint_enabled()) return;
 		softint_alarm_schedule(user_context_raw);

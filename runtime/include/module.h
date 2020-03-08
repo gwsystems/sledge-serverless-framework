@@ -50,7 +50,7 @@ struct module {
 };
 
 struct module *module_find_by_name(char *name);
-struct module *module_find_by_socket_descriptor(int sock);
+struct module *module_find_by_socket_descriptor(int socket_descriptor);
 struct module *module_alloc(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout, int port, int req_sz, int resp_sz);
 void           module_free(struct module *module);
 
@@ -120,10 +120,10 @@ module_table_init(struct module *module)
  * @param module
  **/
 static inline void
-module_libc_init(struct module *module, i32 env, i32 args)
+module_libc_init(struct module *module, i32 env, i32 arguments)
 {
 	// called in a sandbox.
-	module->initialize_libc(env, args);
+	module->initialize_libc(env, arguments);
 }
 
 /**

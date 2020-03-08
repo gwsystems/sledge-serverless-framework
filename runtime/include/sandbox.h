@@ -11,18 +11,15 @@
 #include <http.h>
 
 struct io_handle {
-	int                 fd;
-	struct stat         s_cache;
-	union uv_any_handle uvh;
+	int                 file_descriptor;
+	union uv_any_handle libuv_handle;
 };
 
 typedef enum
 {
-	SANDBOX_FREE,
-	SANDBOX_RUNNABLE,
-	SANDBOX_BLOCKED,
-	SANDBOX_WOKEN,    // for race in block()/wakeup()
-	SANDBOX_RETURNED, // waiting for parent to read status?
+	RUNNABLE,
+	BLOCKED,
+	RETURNED
 } sandbox_state_t;
 
 /*
@@ -31,67 +28,72 @@ typedef enum
  */
 extern void __attribute__((noreturn)) sandbox_switch_preempt(void);
 
+// TODO: linear_memory_max_size is not really used
+
 struct sandbox {
 	sandbox_state_t state;
 
-	void *linear_start; // after sandbox struct
-	u32   linear_size;  // from after sandbox struct
-	u32   linear_max_size;
-	u32   sandbox_size;
+	u32   sandbox_size; // The struct plus enough buffer to hold the request or response (sized off largest)
+	
+	void *linear_memory_start; // after sandbox struct
+	u32   linear_memory_size;  // from after sandbox struct
+	u32   linear_memory_max_size;
 
 	void *stack_start; // guess we need a mechanism for stack allocation.
 	u32   stack_size;  // and to set the size of it.
 
 	arch_context_t ctxt; // register context for context switch.
 
-	// TODO: are all these necessary?
+	// TODO: Refactor to usefully track across scheduler
 	u64 actual_deadline;
 	u64 expected_deadline;
 	u64 total_time;
 	u64 remaining_time;
 	u64 start_time;
 
-	struct module *module; // which module is this an instance of?
+	struct module *module; // the module this is an instance of
 
-	i32   args_offset; // actual placement of args in the sandbox.
-	void *args;        // args from request, must be of module->argument_count size.
-	i32   retval;
+	i32   arguments_offset; // actual placement of arguments in the sandbox.
+	void *arguments;        // arguments from request, must be of module->argument_count size.
+	i32   return_value;
 
 	struct io_handle     handles[SBOX_MAX_OPEN];
-	struct sockaddr      client; // client requesting connection!
-	int                  csock;
-	uv_tcp_t             cuv;
-	uv_shutdown_t        cuvsr;
+	struct sockaddr      client_address; // client requesting connection!
+	int                  client_socket_descriptor;
+	uv_tcp_t             client_libuv_stream;
+	uv_shutdown_t        client_libuv_shutdown_request;
+
 	http_parser          http_parser;
 	struct http_request  http_request;
 	struct http_response http_response;
 
-	char *  read_buf;
-	ssize_t read_len, read_size;
+	char *  read_buffer;
+	ssize_t read_length, read_size;
 
+	// TODO: Is this used?
 	struct ps_list list;
 
-	ssize_t rr_data_len;      // <= max(module->max_request_or_response_size)
-	char    req_resp_data[1]; // of rr_data_sz, following sandbox mem..
+	ssize_t request_response_data_length;      // <= max(module->max_request_or_response_size)
+	char    request_response_data[1]; // of rr_data_sz, following sandbox mem..
 } PAGE_ALIGNED;
 
 struct sandbox_request {
 	struct module *  module;
-	char *           args;
-	int              sock;
-	struct sockaddr *addr;
+	char *           arguments;
+	int              socket_descriptor;
+	struct sockaddr *socket_address;
 	u64              start_time; // cycles
 };
-typedef struct sandbox_request sbox_request_t;
+typedef struct sandbox_request sandbox_request_t;
 
-DEQUE_PROTOTYPE(sandbox, sbox_request_t *);
+DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
 
-static inline int sandbox_deque_push(sbox_request_t *sandbox_request);
+static inline int add_sandbox_request_to_global_dequeue(sandbox_request_t *sandbox_request);
 
 // a runtime resource, malloc on this!
-struct sandbox *sandbox_alloc(struct module *module, char *args, int sock, const struct sockaddr *addr, u64 start_time);
+struct sandbox *allocate_sandbox(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time);
 // should free stack and heap resources.. also any I/O handles.
-void sandbox_free(struct sandbox *sandbox);
+void free_sandbox(struct sandbox *sandbox);
 
 extern __thread struct sandbox *current_sandbox;
 // next_sandbox only used in SIGUSR1
@@ -102,25 +104,25 @@ typedef struct sandbox sandbox_t;
 /**
  * Allocates a new Sandbox Request and places it on the Global Deque
  * @param module the module we want to request
- * @param args the arguments that we'll pass to the serverless function
- * @param sock
- * @param addr
+ * @param arguments the arguments that we'll pass to the serverless function
+ * @param socket_descriptor
+ * @param socket_address
  * @param start_time the timestamp of when we receives the request from the network (in cycles)
  * @return the new sandbox request
  **/
-static inline sbox_request_t *
-sbox_request_alloc(struct module *module, char *args, int sock, const struct sockaddr *addr, u64 start_time)
+static inline sandbox_request_t *
+allocate_sandbox_request(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time)
 {
-	sbox_request_t *sandbox_request = malloc(sizeof(sbox_request_t));
+	sandbox_request_t *sandbox_request = malloc(sizeof(sandbox_request_t));
 	assert(sandbox_request);
 	sandbox_request->module     = module;
-	sandbox_request->args       = args;
-	sandbox_request->sock       = sock;
-	sandbox_request->addr       = (struct sockaddr *)addr;
+	sandbox_request->arguments       = arguments;
+	sandbox_request->socket_descriptor       = socket_descriptor;
+	sandbox_request->socket_address       = (struct sockaddr *)socket_address;
 	sandbox_request->start_time = start_time;
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
-	sandbox_deque_push(sandbox_request);
+	add_sandbox_request_to_global_dequeue(sandbox_request);
 	return sandbox_request;
 }
 
@@ -129,7 +131,7 @@ sbox_request_alloc(struct module *module, char *args, int sock, const struct soc
  * @returns the current sandbox executing on this thread
  **/
 static inline struct sandbox *
-sandbox_current(void)
+get_current_sandbox(void)
 {
 	return current_sandbox;
 }
@@ -139,15 +141,15 @@ sandbox_current(void)
  * @param sandbox the sandbox we are setting this thread to run
  **/
 static inline void
-sandbox_current_set(struct sandbox *sandbox)
+set_current_sandbox(struct sandbox *sandbox)
 {
 	// FIXME: critical-section.
 	current_sandbox = sandbox;
 	if (sandbox == NULL) return;
 
 	// Thread Local State about the Current Sandbox
-	sandbox_lmbase  = sandbox->linear_start;
-	sandbox_lmbound = sandbox->linear_size;
+	sandbox_lmbase  = sandbox->linear_memory_start;
+	sandbox_lmbound = sandbox->linear_memory_size;
 	// TODO: module table or sandbox table?
 	module_indirect_table = sandbox->module->indirect_table;
 }
@@ -157,10 +159,10 @@ sandbox_current_set(struct sandbox *sandbox)
  * This includes lmbase, lmbound, and module_indirect_table
  */
 static inline void
-sandbox_current_check(void)
+check_current_sandbox(void)
 {
-	struct sandbox *sandbox = sandbox_current();
-	assert(sandbox && sandbox->linear_start == sandbox_lmbase && sandbox->linear_size == sandbox_lmbound);
+	struct sandbox *sandbox = get_current_sandbox();
+	assert(sandbox && sandbox->linear_memory_start == sandbox_lmbase && sandbox->linear_memory_size == sandbox_lmbound);
 	assert(sandbox->module->indirect_table == module_indirect_table);
 }
 
@@ -170,13 +172,13 @@ sandbox_current_check(void)
  * @return the module of the provided sandbox
  */
 static inline struct module *
-sandbox_module(struct sandbox *sandbox)
+get_sandbox_module(struct sandbox *sandbox)
 {
 	if (!sandbox) return NULL;
 	return sandbox->module;
 }
 
-extern void sandbox_local_end(struct sandbox *sandbox);
+extern void add_sandbox_to_completion_queue(struct sandbox *sandbox);
 
 /**
  * @brief Switches to the next sandbox, placing the current sandbox of the completion queue if in RETURNED state
@@ -184,15 +186,15 @@ extern void sandbox_local_end(struct sandbox *sandbox);
  * @return void
  */
 static inline void
-sandbox_switch(struct sandbox *next_sandbox)
+switch_to_sandbox(struct sandbox *next_sandbox)
 {
 	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
 	softint_disable();
-	struct sandbox *current_sandbox          = sandbox_current();
+	struct sandbox *current_sandbox          = get_current_sandbox();
 	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
-	sandbox_current_set(next_sandbox);
+	set_current_sandbox(next_sandbox);
 	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
-	if (current_sandbox && current_sandbox->state == SANDBOX_RETURNED) sandbox_local_end(current_sandbox);
+	if (current_sandbox && current_sandbox->state == RETURNED) add_sandbox_to_completion_queue(current_sandbox);
 	next_context = next_register_context;
 	arch_context_switch(current_register_context, next_register_context);
 	softint_enable();
@@ -203,35 +205,35 @@ sandbox_switch(struct sandbox *next_sandbox)
  * @return the arguments of the current sandbox
  */
 static inline char *
-sandbox_args(void)
+get_current_sandbox_arguments(void)
 {
-	struct sandbox *sandbox = sandbox_current();
-	return (char *)sandbox->args;
+	struct sandbox *sandbox = get_current_sandbox();
+	return (char *)sandbox->arguments;
 }
 
-void *          sandbox_run_func(void *data);
-struct sandbox *sandbox_schedule(int interrupt);
-void            sandbox_block(void);
-void            sandbox_wakeup(sandbox_t *sb);
-// called in sandbox_entry() before and after fn() execution
+void *          sandbox_worker_main(void *data);
+struct sandbox *get_next_sandbox_from_local_run_queue(int interrupt);
+void            block_current_sandbox(void);
+void            wakeup_sandbox(sandbox_t *sb);
+// called in sandbox_main() before and after fn() execution
 // for http request/response processing using uvio
 void sandbox_block_http(void);
 void sandbox_response(void);
 
 // should be the entry-point for each sandbox so it can do per-sandbox mem/etc init.
-// should have been called with stack allocated and sandbox_current() set!
-void                         sandbox_entry(void);
-void                         sandbox_exit(void);
+// should have been called with stack allocated and get_current_sandbox() set!
+void                         sandbox_main(void);
+void                         exit_current_sandbox(void);
 extern struct deque_sandbox *global_deque;
 extern pthread_mutex_t       global_deque_mutex;
 
 
 /**
  * Pushes a sandbox request to the global deque
- * @para
+ * @param sandbox_request 
  **/
 static inline int
-sandbox_deque_push(sbox_request_t *sandbox_request)
+add_sandbox_request_to_global_dequeue(sandbox_request_t *sandbox_request)
 {
 	int return_code;
 
@@ -246,8 +248,12 @@ sandbox_deque_push(sbox_request_t *sandbox_request)
 	return return_code;
 }
 
+/**
+ * Pops a sandbox request from the global deque
+ * @param sandbox_request the pointer which we want to set to the sandbox request
+ **/
 static inline int
-sandbox_deque_pop(sbox_request_t **sandbox_request)
+pop_sandbox_request_from_global_dequeue(sandbox_request_t **sandbox_request)
 {
 	int return_code;
 
@@ -258,20 +264,20 @@ sandbox_deque_pop(sbox_request_t **sandbox_request)
 #if NCORES == 1
 	pthread_mutex_unlock(&global_deque_mutex);
 #endif
-
 	return return_code;
 }
 
 /**
+ * TODO: What does this do?
  * @returns A Sandbox Request or NULL
  **/
-static inline sbox_request_t *
-sandbox_deque_steal(void)
+static inline sandbox_request_t *
+steal_sandbox_request_from_global_dequeue(void)
 {
-	sbox_request_t *sandbox_request = NULL;
+	sandbox_request_t *sandbox_request = NULL;
 
 #if NCORES == 1
-	sandbox_deque_pop(&sandbox_request);
+	pop_sandbox_request_from_global_dequeue(&sandbox_request);
 #else
 	// TODO: check! is there a sandboxing thread on same core as udp-server thread?
 	int r = deque_steal_sandbox(global_deque, &sandbox_request);
@@ -281,83 +287,93 @@ sandbox_deque_steal(void)
 	return sandbox_request;
 }
 
+/**
+ * Initializes and returns an IO handle on the current sandbox ready for use
+ * @return index of handle we preopened or -1 if all handles are exhausted
+ **/
 static inline int
-io_handle_preopen(void)
+initialize_io_handle_in_current_sandbox(void)
 {
-	struct sandbox *sandbox = sandbox_current();
-	int             i;
-	for (i = 0; i < SBOX_MAX_OPEN; i++) {
-		if (sandbox->handles[i].fd < 0) break;
+	struct sandbox *sandbox = get_current_sandbox();
+	int             handle_index;
+	for (handle_index = 0; handle_index < SBOX_MAX_OPEN; handle_index++) {
+		if (sandbox->handles[handle_index].file_descriptor < 0) break;
 	}
-	if (i == SBOX_MAX_OPEN) return -1;
-	sandbox->handles[i].fd = SBOX_PREOPEN_MAGIC;
-	memset(&sandbox->handles[i].uvh, 0, sizeof(union uv_any_handle));
-	return i;
+	if (handle_index == SBOX_MAX_OPEN) return -1;
+	sandbox->handles[handle_index].file_descriptor = SBOX_PREOPEN_MAGIC;
+	memset(&sandbox->handles[handle_index].libuv_handle, 0, sizeof(union uv_any_handle));
+	return handle_index;
 }
 
+/**
+ * Initializes and returns an IO handle on the current sandbox ready for use
+ * @param file_descriptor what we'll set on the IO handle after initialization
+ * @return index of handle we preopened or -1 if all handles are exhausted
+ **/
 static inline int
-io_handle_open(int fd)
+initialize_io_handle_and_set_file_descriptor_in_current_sandbox(int file_descriptor)
 {
-	struct sandbox *sandbox = sandbox_current();
-	if (fd < 0) return fd;
-	int i                  = io_handle_preopen();
-	sandbox->handles[i].fd = fd; // well, per sandbox.. so synchronization necessary!
-	return i;
+	struct sandbox *sandbox = get_current_sandbox();
+	if (file_descriptor < 0) return file_descriptor;
+	int handle_index                  = initialize_io_handle_in_current_sandbox();
+	if (handle_index != -1) sandbox->handles[handle_index].file_descriptor = file_descriptor; // well, per sandbox.. so synchronization necessary!
+	return handle_index;
 }
 
 /**
  * Sets the file descriptor of the sandbox's ith io_handle
- * Returns error condition if the fd to set does not contain sandbox preopen magin
- * @param idx index of the sandbox handles we want to set
- * @param fd the file descripter we want to set it to
- * @returns the idx that was set or -1 in case of error
+ * Returns error condition if the file_descriptor to set does not contain sandbox preopen magin
+ * @param handle_index index of the sandbox handles we want to set
+ * @param file_descriptor the file descripter we want to set it to
+ * @returns the index that was set or -1 in case of error
  **/
 static inline int
-io_handle_preopen_set(int idx, int fd)
+set_current_sandbox_file_descriptor(int handle_index, int file_descriptor)
 {
-	struct sandbox *sandbox = sandbox_current();
-	if (idx >= SBOX_MAX_OPEN || idx < 0) return -1;
-	if (fd < 0 || sandbox->handles[idx].fd != SBOX_PREOPEN_MAGIC) return -1;
-	sandbox->handles[idx].fd = fd;
-	return idx;
+	struct sandbox *sandbox = get_current_sandbox();
+	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return -1;
+	if (file_descriptor < 0 || sandbox->handles[handle_index].file_descriptor != SBOX_PREOPEN_MAGIC) return -1;
+	sandbox->handles[handle_index].file_descriptor = file_descriptor;
+	return handle_index;
 }
 
 /**
  * Get the file descriptor of the sandbox's ith io_handle
- * @param idx index into the sandbox's handles table
- * @returns any libuv handle
+ * @param handle_index index into the sandbox's handles table
+ * @returns file descriptor
  **/
 static inline int
-io_handle_fd(int idx)
+get_current_sandbox_file_descriptor(int handle_index)
 {
-	struct sandbox *sandbox = sandbox_current();
-	if (idx >= SBOX_MAX_OPEN || idx < 0) return -1;
-	return sandbox->handles[idx].fd;
+	struct sandbox *sandbox = get_current_sandbox();
+	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return -1;
+	return sandbox->handles[handle_index].file_descriptor;
 }
 
 /**
  * Close the sandbox's ith io_handle
- * @param idx index of the handle to close
+ * @param handle_index index of the handle to close
  **/
 static inline void
-io_handle_close(int idx)
+close_current_sandbox_file_descriptor(int handle_index)
 {
-	struct sandbox *sandbox = sandbox_current();
-	if (idx >= SBOX_MAX_OPEN || idx < 0) return;
-	sandbox->handles[idx].fd = -1;
+	struct sandbox *sandbox = get_current_sandbox();
+	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return;
+	// TODO: Do we actually need to call some sort of close function here?
+	sandbox->handles[handle_index].file_descriptor = -1;
 }
 
 /**
  * Get the Libuv handle located at idx of the sandbox ith io_handle
- * @param idx index of the handle containing uvh???
+ * @param handle_index index of the handle containing libuv_handle???
  * @returns any libuv handle
  **/
 static inline union uv_any_handle *
-io_handle_uv_get(int idx)
+get_current_sandbox_libuv_handle(int handle_index)
 {
-	struct sandbox *sandbox = sandbox_current();
-	if (idx >= SBOX_MAX_OPEN || idx < 0) return NULL;
-	return &sandbox->handles[idx].uvh;
+	struct sandbox *sandbox = get_current_sandbox();
+	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return NULL;
+	return &sandbox->handles[handle_index].libuv_handle;
 }
 
 #endif /* SFRT_SANDBOX_H */

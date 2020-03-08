@@ -11,15 +11,15 @@
 extern int                   epoll_file_descriptor;
 extern struct deque_sandbox *global_deque;
 extern pthread_mutex_t       global_deque_mutex;
-extern __thread uv_loop_t    uvio;
+extern __thread uv_loop_t    uvio_handle;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);
 void         free_linear_memory(void *base, u32 bound, u32 max);
 INLINE char *get_function_from_table(u32 idx, u32 type_id);
 INLINE char *get_memory_ptr_for_runtime(u32 offset, u32 bounds_check);
-void         runtime_init(void);
-void         runtime_thd_init(void);
+void         initialize_runtime(void);
+void         initialize_listener_thread(void);
 void         stub_init(i32 offset);
 
 /**
@@ -61,7 +61,7 @@ get_memory_string(u32 offset)
 static inline uv_loop_t *
 runtime_uvio(void)
 {
-	return &uvio;
+	return &uvio_handle;
 }
 
 /**
