@@ -113,7 +113,7 @@ typedef enum
 #define MOD_PATH_MAX 	256	// Max module path length
 #define JSON_ELE_MAX 	 16 // Max number of elements defined in JSON
 
-// FIXME: some naive work-stealing here..
+// This is the max number of standboxes that get pulled onto the local runqueue in a single batch
 #define SBOX_PULL_MAX 1
 
 #define SBOX_MAX_OPEN      32
