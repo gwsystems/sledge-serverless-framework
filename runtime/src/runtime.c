@@ -11,6 +11,8 @@
 #include <uv.h>
 #include <http_api.h>
 
+#include "sandbox_request.h"
+
 /***************************
  * Shared Process State    *
  **************************/
