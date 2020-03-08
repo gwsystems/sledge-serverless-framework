@@ -2,19 +2,15 @@
 #define SRFT_HTTP_API_H
 
 #include <http.h>
+
+/***************************************************
+ * General HTTP Request Functions                  *
+ **************************************************/
 int http_request_body_get_sb(struct sandbox *sandbox, char **body);
-int http_request_parse_sb(struct sandbox *sandbox, size_t l);
-
-int http_response_header_set_sb(struct sandbox *sandbox, char *h, int length);
-int http_response_body_set_sb(struct sandbox *sandbox, char *body, int length);
-int http_response_status_set_sb(struct sandbox *sandbox, char *status, int length);
-int http_response_vector_sb(struct sandbox *sandbox);
-
-void http_init(void);
 
 /**
- * Gets the request of the body
- * @param body pointer of pointer that we want to set to the http_request's body
+ * Gets the HTTP Request body from the current sandbox
+ * @param body pointer that we'll assign to the http_request body
  * @returns the length of the http_request's body
  **/
 static inline int
@@ -22,6 +18,14 @@ http_request_body_get(char **body)
 {
 	return http_request_body_get_sb(sandbox_current(), body);
 }
+
+/***************************************************
+ * General HTTP Response Functions                 *
+ **************************************************/
+int http_response_header_set_sb(struct sandbox *sandbox, char *h, int length);
+int http_response_body_set_sb(struct sandbox *sandbox, char *body, int length);
+int http_response_status_set_sb(struct sandbox *sandbox, char *status, int length);
+int http_response_vector_sb(struct sandbox *sandbox);
 
 /**
  * Set an HTTP Response Header on the current sandbox
@@ -60,8 +64,8 @@ http_response_status_set(char *status, int length)
 }
 
 /**
- * ??? on the current sandbox
- * @returns ???
+ * Encode the current sandbox's HTTP Response as an array of buffers
+ * @returns the number of buffers used to store the HTTP Response
  **/
 static inline int
 http_response_vector(void)
@@ -69,9 +73,15 @@ http_response_vector(void)
 	return http_response_vector_sb(sandbox_current());
 }
 
+/***********************************************************************
+ * http-parser Setup and Excute                                        *
+ **********************************************************************/
+void http_init(void);
+int http_request_parse_sb(struct sandbox *sandbox, size_t l);
+
 /**
- * ???
- * @param length ????
+ * Parse the current sandbox's req_resp_data up to length
+ * @param length
  * @returns 0
  **/
 static inline int

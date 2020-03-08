@@ -9,12 +9,7 @@
 /* all in-memory ptrs.. don't mess around with that! */
 struct http_header {
 	char *key;
-	char *val;
-};
-
-struct http_response_header {
-	char *header;
-	int   length;
+	char *value;
 };
 
 struct http_request {
@@ -22,12 +17,18 @@ struct http_request {
 	int                header_count;
 	char *             body;
 	int                body_length;
-	// TODO: What does bodyrlen mean? Does this suggest that I've misunderstood what bodylen was?
-	int bodyrlen;
+	// TODO: What does bodyrlen mean? Does this suggest that I've misunderstood what body_length is?
+	int 			   bodyrlen;
 	// additional for http-parser
-	int last_was_value;
-	int header_end;
-	int message_begin, message_end;
+	int last_was_value; // http-parser flag used to help the http-parser callbacks differentiate between header fields and values to know when to allocate a new header
+	int header_end;     // boolean flag set when header processing is complete
+	int message_begin;  // boolean flag set when body processing begins
+	int message_end;    // boolean flag set when body processing is complete
+};
+
+struct http_response_header {
+	char *header;
+	int   length;
 };
 
 struct http_response {
