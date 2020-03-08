@@ -125,7 +125,7 @@ void
 start_worker_threads()
 {
 	for (int i = 0; i < total_worker_processors; i++) {
-		int ret = pthread_create(&worker_threads[i], NULL, sandbox_run_func,
+		int ret = pthread_create(&worker_threads[i], NULL, sandbox_worker_main,
 		                         (void *)&worker_threads_argument[i]);
 		if (ret) {
 			errno = ret;
@@ -168,7 +168,7 @@ main(int argc, char **argv)
 	set_resource_limits_to_max();
 	allocate_available_cores();
 	process_nostio();
-	runtime_init();
+	initialize_runtime();
 
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 	if (util_parse_modules_file_json(argv[1])) {
@@ -176,6 +176,6 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
-	runtime_thd_init();
+	initialize_listener_thread();
 	start_worker_threads();
 }

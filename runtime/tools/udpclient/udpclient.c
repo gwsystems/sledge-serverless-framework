@@ -43,27 +43,27 @@ send_fn(void *d)
 	struct request *r = (struct request *)d;
 
 	char               resp[STR_MAX] = { 0 };
-	int                fd            = -1;
+	int                file_descriptor            = -1;
 	struct sockaddr_in sa;
 
 	sa.sin_family      = AF_INET;
 	sa.sin_port        = htons(atoi(r->port));
 	sa.sin_addr.s_addr = inet_addr(r->ip);
-	if ((fd = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
+	if ((file_descriptor = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
 		perror("Establishing socket");
 		return NULL;
 	}
 
-	if (sendto(fd, r->msg, strlen(r->msg), 0, (struct sockaddr *)&sa, sizeof(sa)) < 0 && errno != EINTR) {
+	if (sendto(file_descriptor, r->msg, strlen(r->msg), 0, (struct sockaddr *)&sa, sizeof(sa)) < 0 && errno != EINTR) {
 		perror("sendto");
 		return NULL;
 	}
 
 	// todo: select rcv from!
 	int sa_len = sizeof(sa);
-	if (recvfrom(fd, resp, STR_MAX, 0, (struct sockaddr *)&sa, &sa_len) < 0) { perror("recvfrom"); }
+	if (recvfrom(file_descriptor, resp, STR_MAX, 0, (struct sockaddr *)&sa, &sa_len) < 0) { perror("recvfrom"); }
 	printf("Done[%s]!\n", resp);
-	close(fd);
+	close(file_descriptor);
 	free(r);
 
 	return NULL;

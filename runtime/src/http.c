@@ -38,7 +38,7 @@ http_request_body_get_sb(struct sandbox *sandbox, char **body)
 int
 http_response_header_set_sb(struct sandbox *sandbox, char *header, int length)
 {
-	// by now, req_resp_data should only be containing response!
+	// by now, request_response_data should only be containing response!
 	struct http_response *http_response = &sandbox->http_response;
 
 	assert(http_response->header_count < HTTP_HEADERS_MAX);
@@ -197,7 +197,7 @@ http_on_header_field(http_parser *parser, const char *at, size_t length)
 	assert(length < HTTP_HEADER_MAXSZ);
 
 	http_request->last_was_value               = 0;
-	http_request->headers[http_request->header_count - 1].key = (char *)at; // it is from the sandbox's req_resp_data, should persist.
+	http_request->headers[http_request->header_count - 1].key = (char *)at; // it is from the sandbox's request_response_data, should persist.
 
 	return 0;
 }
@@ -220,7 +220,7 @@ http_on_header_value(http_parser *parser, const char *at, size_t length)
 	assert(http_request->header_count <= HTTP_HEADERS_MAX);
 	assert(length < HTTP_HEADERVAL_MAXSZ);
 
-	http_request->headers[http_request->header_count - 1].value = (char *)at; // it is from the sandbox's req_resp_data, should persist.
+	http_request->headers[http_request->header_count - 1].value = (char *)at; // it is from the sandbox's request_response_data, should persist.
 
 	return 0;
 }
@@ -300,9 +300,9 @@ http_init(void)
 }
 
 /**
- * Run the http-parser on the sandbox's req_resp_data using the configured settings global
+ * Run the http-parser on the sandbox's request_response_data using the configured settings global
  * @param sandbox the sandbox containing the req_resp data that we want to parse
- * @param length The size of the req_resp_data that we want to parse
+ * @param length The size of the request_response_data that we want to parse
  * @returns 0
  * 
  * Global State: settings
@@ -310,7 +310,7 @@ http_init(void)
 int
 http_request_parse_sb(struct sandbox *sandbox, size_t length)
 {
-	// TODO: Why is our start address sandbox->req_resp_data + sandbox->rr_data_len?
-	http_parser_execute(&sandbox->http_parser, &settings, sandbox->req_resp_data + sandbox->rr_data_len, length);
+	// TODO: Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
+	http_parser_execute(&sandbox->http_parser, &settings, sandbox->request_response_data + sandbox->request_response_data_length, length);
 	return 0;
 }

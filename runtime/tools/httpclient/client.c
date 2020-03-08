@@ -167,9 +167,9 @@ char img[] = {
 int
 connect_n_send(void)
 {
-	int sock;
+	int socket_descriptor;
 
-	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+	if ((socket_descriptor = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("socket");
 		return -1;
 	}
@@ -179,13 +179,13 @@ connect_n_send(void)
 	socket_address.sin_port   = htons(SERVER_PORT);
 	if (inet_aton(SERVER_ADDR, &socket_address.sin_addr) == 0) {
 		perror("inet_addr");
-		close(sock);
+		close(socket_descriptor);
 		return -1;
 	}
 
-	if (connect(sock, (struct sockaddr *)&socket_address, sizeof(socket_address)) < 0) {
+	if (connect(socket_descriptor, (struct sockaddr *)&socket_address, sizeof(socket_address)) < 0) {
 		perror("connect");
-		close(sock);
+		close(socket_descriptor);
 		return -1;
 	}
 
@@ -205,29 +205,29 @@ connect_n_send(void)
 	assert(resp);
 	memset(resp, 0, RESP_MAX);
 
-	//	int fd = open("tmp_cli.png", O_CREAT | O_RDWR | O_TRUNC, S_IRWXU | S_IRWXO | S_IRWXG);
-	//        if (fd < 0) {
+	//	int file_descriptor = open("tmp_cli.png", O_CREAT | O_RDWR | O_TRUNC, S_IRWXU | S_IRWXO | S_IRWXG);
+	//        if (file_descriptor < 0) {
 	//                perror("open");
 	//                goto skip;
 	//        }
 	//
-	//        int sz = write(fd, img, sizeof(img));
+	//        int sz = write(file_descriptor, img, sizeof(img));
 	//        if (sz < 0) {
 	//                perror("write");
 	//        }
-	//        close(fd);
+	//        close(file_descriptor);
 
 skip:
 	printf("Sending..\n");
-	if (send(sock, req, len, 0) < 0) {
+	if (send(socket_descriptor, req, len, 0) < 0) {
 		perror("send");
-		close(sock);
+		close(socket_descriptor);
 		return -1;
 	}
 
 	printf("Receiving..\n");
 	int r = 0, rcvd = 0;
-	while ((r = recv(sock, resp + rcvd, RESP_MAX, 0)) > 0) {
+	while ((r = recv(socket_descriptor, resp + rcvd, RESP_MAX, 0)) > 0) {
 		rcvd += r;
 		if (r < RESP_MAX) break;
 		resp = (char *)realloc(resp, rcvd + RESP_MAX);
@@ -238,7 +238,7 @@ skip:
 	printf("Response: %s\n", resp);
 	free(resp);
 	free(req);
-	close(sock);
+	close(socket_descriptor);
 	return 0;
 }
 

@@ -16,7 +16,7 @@ int http_request_body_get_sb(struct sandbox *sandbox, char **body);
 static inline int
 http_request_body_get(char **body)
 {
-	return http_request_body_get_sb(sandbox_current(), body);
+	return http_request_body_get_sb(get_current_sandbox(), body);
 }
 
 /***************************************************
@@ -36,7 +36,7 @@ int http_response_vector_sb(struct sandbox *sandbox);
 static inline int
 http_response_header_set(char *header, int length)
 {
-	return http_response_header_set_sb(sandbox_current(), header, length);
+	return http_response_header_set_sb(get_current_sandbox(), header, length);
 }
 
 /**
@@ -48,7 +48,7 @@ http_response_header_set(char *header, int length)
 static inline int
 http_response_body_set(char *body, int length)
 {
-	return http_response_body_set_sb(sandbox_current(), body, length);
+	return http_response_body_set_sb(get_current_sandbox(), body, length);
 }
 
 /**
@@ -60,7 +60,7 @@ http_response_body_set(char *body, int length)
 static inline int
 http_response_status_set(char *status, int length)
 {
-	return http_response_status_set_sb(sandbox_current(), status, length);
+	return http_response_status_set_sb(get_current_sandbox(), status, length);
 }
 
 /**
@@ -70,7 +70,7 @@ http_response_status_set(char *status, int length)
 static inline int
 http_response_vector(void)
 {
-	return http_response_vector_sb(sandbox_current());
+	return http_response_vector_sb(get_current_sandbox());
 }
 
 /***********************************************************************
@@ -80,14 +80,14 @@ void http_init(void);
 int http_request_parse_sb(struct sandbox *sandbox, size_t l);
 
 /**
- * Parse the current sandbox's req_resp_data up to length
+ * Parse the current sandbox's request_response_data up to length
  * @param length
  * @returns 0
  **/
 static inline int
 http_request_parse(size_t length)
 {
-	return http_request_parse_sb(sandbox_current(), length);
+	return http_request_parse_sb(get_current_sandbox(), length);
 }
 
 #endif /* SRFT_HTTP_API_H */
