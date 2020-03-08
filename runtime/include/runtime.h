@@ -21,12 +21,13 @@ INLINE char *get_memory_ptr_for_runtime(u32 offset, u32 bounds_check);
 void         initialize_runtime(void);
 void         initialize_listener_thread(void);
 void         stub_init(i32 offset);
+void        *worker_thread_main(void *return_code);
 
 /**
- * ???
- * @param offset ????
- * @param bounds_check ???
- * @return ???
+ * TODO: ???
+ * @param offset TODO: ????
+ * @param bounds_check TODO: ???
+ * @return TODO: ???
  **/
 static inline void *
 get_memory_ptr_void(u32 offset, u32 bounds_check)
@@ -35,9 +36,9 @@ get_memory_ptr_void(u32 offset, u32 bounds_check)
 }
 
 /**
- * ???
- * @param offset ????
- * @return ???
+ * TODO: ???
+ * @param offset TODO: ????
+ * @return TODO: ???
  **/
 static inline char *
 get_memory_string(u32 offset)
@@ -56,10 +57,10 @@ get_memory_string(u32 offset)
 }
 
 /**
- * Get uvio
+ * Get global libuv handle
  **/
 static inline uv_loop_t *
-runtime_uvio(void)
+get_thread_libuv_handle(void)
 {
 	return &uvio_handle;
 }

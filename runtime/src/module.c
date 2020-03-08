@@ -6,6 +6,10 @@
 #include <uv.h>
 #include <util.h>
 
+/***************************************
+ * Module Database
+ ***************************************/
+
 // In-memory representation of all active modules
 static struct module *__mod_db[MOD_MAX] = { NULL };
 // TODO: What is this?
@@ -17,7 +21,7 @@ static int            __mod_free_off    = 0;
  * @return module or NULL if no match found
  **/
 struct module *
-module_find_by_name(char *name)
+find_module_by_name(char *name)
 {
 	int f = __mod_free_off;
 	for (int i = 0; i < f; i++) {
@@ -33,7 +37,7 @@ module_find_by_name(char *name)
  * @return module or NULL if no match found
  **/
 struct module *
-module_find_by_socket_descriptor(int socket_descriptor)
+find_module_by_socket_descriptor(int socket_descriptor)
 {
 	int f = __mod_free_off;
 	for (int i = 0; i < f; i++) {
@@ -49,7 +53,7 @@ module_find_by_socket_descriptor(int socket_descriptor)
  * @return 0 on success. Aborts program on failure
  **/
 static inline int
-module_add(struct module *module)
+add_module(struct module *module)
 {
 	assert(module->socket_descriptor == -1);
 
@@ -61,12 +65,16 @@ module_add(struct module *module)
 	return 0;
 }
 
+/***************************************
+ * Module "Methods"
+ ***************************************/
+
 /**
  * Start the module as a server listening at module->port
  * @param module
  **/
 static inline void
-module_server_init(struct module *module)
+module__initialize_as_server(struct module *module)
 {
 	// Allocate a new socket
 	int socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
@@ -102,7 +110,30 @@ module_server_init(struct module *module)
 }
 
 /**
- * Module Mega Setup Function
+ * Module Mega Teardown Function
+ * Closes the socket and dynamic library, and then frees the module
+ * Returns harmlessly if there are outstanding references
+ * @param module - the module to teardown
+ **/
+void
+module__free(struct module *module)
+{
+	if (module == NULL) return;
+	if (module->dynamic_library_handle == NULL) return;
+
+	// Do not free if we still have oustanding references
+	if (module->reference_count) return;
+
+	// TODO: What about the module database? Do we need to do any cleanup there?
+
+	close(module->socket_descriptor);
+	dlclose(module->dynamic_library_handle);
+	free(module);
+}
+
+
+/**
+ * Module Contructor
  * Creates a new module, invokes initialize_tables to initialize the indirect table, adds it to the module DB, and starts
  *listening for HTTP Requests
  *
@@ -117,7 +148,7 @@ module_server_init(struct module *module)
  * @returns A new module or NULL in case of failure
  **/
 struct module *
-module_alloc(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 timeout, int port,
+module__new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 timeout, int port,
              int request_size, int response_size)
 {
 	struct module *module = (struct module *)malloc(sizeof(struct module));
@@ -167,21 +198,21 @@ module_alloc(char *name, char *path, i32 argument_count, u32 stack_size, u32 max
 
 	// assumption: All modules are created at program start before we enable preemption or enable the execution of
 	// any worker threads We are checking that thread-local module_indirect_table is NULL to prove that we aren't
-	// yet preempting If we want to be able to do this later, we can possibly defer module_table_init until the
+	// yet preempting If we want to be able to do this later, we can possibly defer module__initialize_table until the
 	// first invocation
 	assert(cache_tbl == NULL);
 
 	// TODO: determine why we have to set the module_indirect_table state before calling table init and then restore
 	// the existing value What is the relationship between these things?
 	module_indirect_table = module->indirect_table;
-	module_table_init(module);
+	module__initialize_table(module);
 	module_indirect_table = cache_tbl;
 
 	// Add the module to the in-memory module DB
-	module_add(module);
+	add_module(module);
 
 	// Start listening for requests
-	module_server_init(module);
+	module__initialize_as_server(module);
 
 	return module;
 
@@ -194,24 +225,3 @@ dl_open_error:
 	return NULL;
 }
 
-/**
- * Module Mega Teardown Function
- * Closes the socket and dynamic library, and then frees the module
- * Returns harmlessly if there are outstanding references
- * @param module - the module to teardown
- **/
-void
-module_free(struct module *module)
-{
-	if (module == NULL) return;
-	if (module->dynamic_library_handle == NULL) return;
-
-	// Do not free if we still have oustanding references
-	if (module->reference_count) return;
-
-	// TODO: What about the module database? Do we need to do any cleanup there?
-
-	close(module->socket_descriptor);
-	dlclose(module->dynamic_library_handle);
-	free(module);
-}
