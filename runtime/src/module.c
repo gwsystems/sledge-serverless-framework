@@ -11,9 +11,9 @@
  ***************************************/
 
 // In-memory representation of all active modules
-static struct module *__mod_db[MOD_MAX] = { NULL };
+static struct module *module_database[MOD_MAX] = { NULL };
 // First free in module
-static int            __mod_free_off    = 0;
+static int            module_database_free_offset    = 0;
 
 /**
  * Given a name, find the associated module
@@ -21,12 +21,12 @@ static int            __mod_free_off    = 0;
  * @return module or NULL if no match found
  **/
 struct module *
-find_module_by_name(char *name)
+module_database__find_by_name(char *name)
 {
-	int f = __mod_free_off;
+	int f = module_database_free_offset;
 	for (int i = 0; i < f; i++) {
-		assert(__mod_db[i]);
-		if (strcmp(__mod_db[i]->name, name) == 0) return __mod_db[i];
+		assert(module_database[i]);
+		if (strcmp(module_database[i]->name, name) == 0) return module_database[i];
 	}
 	return NULL;
 }
@@ -37,12 +37,12 @@ find_module_by_name(char *name)
  * @return module or NULL if no match found
  **/
 struct module *
-find_module_by_socket_descriptor(int socket_descriptor)
+module_database__find_by_socket_descriptor(int socket_descriptor)
 {
-	int f = __mod_free_off;
+	int f = module_database_free_offset;
 	for (int i = 0; i < f; i++) {
-		assert(__mod_db[i]);
-		if (__mod_db[i]->socket_descriptor == socket_descriptor) return __mod_db[i];
+		assert(module_database[i]);
+		if (module_database[i]->socket_descriptor == socket_descriptor) return module_database[i];
 	}
 	return NULL;
 }
@@ -53,14 +53,14 @@ find_module_by_socket_descriptor(int socket_descriptor)
  * @return 0 on success. Aborts program on failure
  **/
 static inline int
-add_module(struct module *module)
+module_database__add(struct module *module)
 {
 	assert(module->socket_descriptor == -1);
 
 	// __sync_fetch_and_add is provided by GCC
-	int f = __sync_fetch_and_add(&__mod_free_off, 1);
+	int f = __sync_fetch_and_add(&module_database_free_offset, 1);
 	assert(f < MOD_MAX);
-	__mod_db[f] = module;
+	module_database[f] = module;
 
 	return 0;
 }
@@ -209,7 +209,7 @@ module__new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_
 	module_indirect_table = cache_tbl;
 
 	// Add the module to the in-memory module DB
-	add_module(module);
+	module_database__add(module);
 
 	// Start listening for requests
 	module__initialize_as_server(module);
