@@ -11,6 +11,7 @@
 #include <uv.h>
 #include <http_api.h>
 
+#include "http_parser_settings.h"
 #include "sandbox_request.h"
 
 /***************************
@@ -20,6 +21,7 @@
 struct deque_sandbox *global_deque;
 pthread_mutex_t       global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
 int                   epoll_file_descriptor;
+http_parser_settings  global__http_parser_settings;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -44,8 +46,9 @@ initialize_runtime(void)
 	softint_mask(SIGUSR1);
 	softint_mask(SIGALRM);
 
-	// Initialize http-parser
-	http_init();
+	// Initialize http_parser_settings global
+	http_parser_settings__initialize(&global__http_parser_settings);
+	http_parser_settings__register_callbacks(&global__http_parser_settings);	
 }
 
 /********************************

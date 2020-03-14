@@ -27,7 +27,7 @@ on_libuv_read_parse_http_request(uv_stream_t *stream, ssize_t number_read, const
 
 	// Parse the chunks libuv has read on our behalf until we've parse to message end
 	if (number_read > 0) {
-		if (http_request_parse_sb(sandbox, number_read) != 0) return;
+		if (sandbox__parse_http_request(sandbox, number_read) != 0) return;
 		sandbox->request_response_data_length += number_read;
 		struct http_request *rh = &sandbox->http_request;
 		if (!rh->message_end) return;
@@ -181,7 +181,7 @@ receive_and_parse_current_sandbox_client_request(void)
 		return r;
 	}
 	while (r > 0) {
-		if (http_request_parse(r) != 0) return -1;
+		if (current_sandbox__parse_http_request(r) != 0) return -1;
 		curr->request_response_data_length += r;
 		struct http_request *rh = &curr->http_request;
 		if (rh->message_end) break;
