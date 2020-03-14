@@ -176,7 +176,6 @@ env___unmapself(u32 base, u32 size)
 
 
 // Floating point routines
-// TODO: Do a fair comparison between musl and wasm-musl
 INLINE double
 env_sin(double d)
 {

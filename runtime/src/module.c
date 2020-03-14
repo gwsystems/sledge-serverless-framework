@@ -12,7 +12,7 @@
 
 // In-memory representation of all active modules
 static struct module *__mod_db[MOD_MAX] = { NULL };
-// TODO: What is this?
+// First free in module
 static int            __mod_free_off    = 0;
 
 /**
@@ -57,7 +57,7 @@ add_module(struct module *module)
 {
 	assert(module->socket_descriptor == -1);
 
-	// TODO: Where does this function code from?
+	// __sync_fetch_and_add is provided by GCC
 	int f = __sync_fetch_and_add(&__mod_free_off, 1);
 	assert(f < MOD_MAX);
 	__mod_db[f] = module;

@@ -59,7 +59,6 @@ send_fn(void *d)
 		return NULL;
 	}
 
-	// todo: select rcv from!
 	int sa_len = sizeof(sa);
 	if (recvfrom(file_descriptor, resp, STR_MAX, 0, (struct sockaddr *)&sa, &sa_len) < 0) { perror("recvfrom"); }
 	printf("Done[%s]!\n", resp);

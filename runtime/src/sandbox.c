@@ -166,8 +166,7 @@ setup_sandbox_arguments(i32 argument_count)
 
 /**
  * Receive and Parse the Request for the current sandbox
- * @return 1 on success, < 0 on failure. 
- * TODO: What does 0 mean? 
+ * @return 1 on success, 0 if no context, < 0 on failure. 
  **/
 static inline int
 receive_and_parse_current_sandbox_client_request(void)
@@ -324,12 +323,10 @@ sandbox_main(void)
 	if (receive_and_parse_current_sandbox_client_request() > 0) {
 
 		//
-		current_sandbox->request_response_data_length = response_header_length; // TODO: do this on first write to body.
+		current_sandbox->request_response_data_length = response_header_length;
 
 		// Allocate the WebAssembly Sandbox
 		alloc_linear_memory();
-		// perhaps only initialized for the first instance? or TODO!
-		// module__initialize_table(current_module);
 		module__initialize_globals(current_module);
 		module__initialize_memory(current_module);
 
@@ -395,7 +392,6 @@ free_sandbox(struct sandbox *sandbox)
 	if (!sandbox || sandbox == get_current_sandbox()) return;
 
 	// again sandbox should be done and waiting for the parent.
-	// TODO: this needs to be enhanced. you may be killing a sandbox when its in any other execution states.
 	if (sandbox->state != RETURNED) return;
 
 	int sz = sizeof(struct sandbox);
@@ -403,7 +399,6 @@ free_sandbox(struct sandbox *sandbox)
 	sz += sandbox->module->max_request_or_response_size;
 	module__release(sandbox->module);
 
-	// TODO free(sandbox->arguments);
 	void * stkaddr = sandbox->stack_start;
 	size_t stksz   = sandbox->stack_size;
 
@@ -416,7 +411,6 @@ free_sandbox(struct sandbox *sandbox)
 
 	// remove stack!
 	// for some reason, removing stack seem to cause crash in some cases.
-	// TODO: debug more.
 	ret = munmap(stkaddr, stksz);
 	if (ret) perror("munmap stack");
 }

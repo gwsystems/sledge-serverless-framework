@@ -109,8 +109,8 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 		struct http_request *r      = &s->http_request;
 		if (r->body_length <= 0) return 0;
 		int l = nbyte > r->body_length ? r->body_length : nbyte;
-		memcpy(buffer, r->body + r->bodyrlen, l);
-		r->bodyrlen += l;
+		memcpy(buffer, r->body + r->body_read_length, l);
+		r->body_read_length += l;
 		r->body_length -= l;
 		return l;
 	}
@@ -506,11 +506,11 @@ wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 			if (l <= 0) break;
 			char *b = get_memory_ptr_void(iov[i].base_offset, iov[i].len);
 			// http request body!
-			memcpy(b, r->body + r->bodyrlen + len, l);
+			memcpy(b, r->body + r->body_read_length + len, l);
 			len += l;
 			r->body_length -= l;
 		}
-		r->bodyrlen += len;
+		r->body_read_length += len;
 
 		return len;
 	}

@@ -17,8 +17,7 @@ struct http_request {
 	int                header_count;
 	char *             body;
 	int                body_length;
-	// TODO: What does bodyrlen mean? Does this suggest that I've misunderstood what body_length is?
-	int 			   bodyrlen;
+	int 			   body_read_length; // How far we've read
 	// additional for http-parser
 	int last_was_value; // http-parser flag used to help the http-parser callbacks differentiate between header fields and values to know when to allocate a new header
 	int header_end;     // boolean flag set when header processing is complete

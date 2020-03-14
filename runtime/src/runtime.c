@@ -141,7 +141,6 @@ __thread static struct ps_list_head local_completion_queue;
 __thread sandbox_t *current_sandbox = NULL;
 
 // context pointer to switch to when this thread gets a SIGUSR1
-// TODO: Delete this? It doesn't seem to be used.
 __thread arch_context_t *next_context = NULL;
 
 // context of the runtime thread before running sandboxes or to resume its "main".
@@ -188,7 +187,6 @@ block_current_sandbox(void)
 	assert(in_callback == 0);
 	softint_disable();
 	struct sandbox *current_sandbox = get_current_sandbox();
-	// TODO: What is this getting removed from again? the thread-local runqueue?
 	ps_list_rem_d(current_sandbox);
 	current_sandbox->state          = BLOCKED;
 	struct sandbox *next_sandbox = get_next_sandbox_from_local_run_queue(0);
@@ -289,7 +287,6 @@ add_sandbox_to_local_run_queue(struct sandbox *sandbox)
 
 /**
  * Removes the thread from the thread-local runqueue
- * TODO: is this correct?
  * @param sandbox sandbox
  **/
 static inline void
@@ -419,7 +416,6 @@ worker_thread_main(void *return_code)
  * Called when the function in the sandbox exits
  * Removes the standbox from the thread-local runqueue, sets its state to RETURNED,
  * releases the linear memory, and then switches to the sandbox at the head of the runqueue
- * TODO: Why are we not adding to the completion queue here? That logic is commented out.
  * TODO: Does this belong in sandbox.c?
  **/
 void
@@ -437,6 +433,5 @@ exit_current_sandbox(void)
 	// free resources from "main function execution", as stack still in use.
 	// unmap linear memory only!
 	munmap(current_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
-	// add_sandbox_to_completion_queue(current_sandbox);
 	switch_to_sandbox(next_sandbox);
 }

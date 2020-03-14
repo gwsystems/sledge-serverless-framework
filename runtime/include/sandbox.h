@@ -70,7 +70,7 @@ struct sandbox {
 	char *  read_buffer;
 	ssize_t read_length, read_size;
 
-	// TODO: Is this used?
+	// Used by the ps_list macro
 	struct ps_list list;
 
 	ssize_t request_response_data_length;      // <= max(module->max_request_or_response_size)
@@ -113,7 +113,6 @@ set_current_sandbox(struct sandbox *sandbox)
 	// Thread Local State about the Current Sandbox
 	sandbox_lmbase  = sandbox->linear_memory_start;
 	sandbox_lmbound = sandbox->linear_memory_size;
-	// TODO: module table or sandbox table?
 	module_indirect_table = sandbox->module->indirect_table;
 }
 
