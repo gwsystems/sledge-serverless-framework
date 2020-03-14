@@ -102,7 +102,7 @@ extern pthread_t worker_threads[];
 /**
  * The handler function for Software Interrupts (signals)
  * SIGALRM is executed periodically by an interval timer, causing preemption of the current sandbox
- * SIGUSR1 does TODO: ???TODO: ???
+ * SIGUSR1 restores a preempted sandbox
  * @param signal_type
  * @param signal_info data structure containing signal info
  * @param user_context_raw void* to a user_context struct

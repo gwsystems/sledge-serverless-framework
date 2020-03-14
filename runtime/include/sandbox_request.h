@@ -97,7 +97,6 @@ steal_sandbox_request_from_global_dequeue(void)
 #if NCORES == 1
 	pop_sandbox_request_from_global_dequeue(&sandbox_request);
 #else
-	// TODO: check! is there a sandboxing thread on same core as udp-server thread?
 	int r = deque_steal_sandbox(global_deque, &sandbox_request);
 	if (r) sandbox_request = NULL;
 #endif

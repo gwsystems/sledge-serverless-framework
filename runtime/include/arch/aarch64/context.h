@@ -5,7 +5,11 @@
 #include <ucontext.h>
 
 typedef uint64_t reg_t;
-#define ARCH_NREGS 31 // TODO: aarch64 context-switch assembly and registers!
+#define ARCH_NREGS 31
+
+/**
+ * ARM64 code. Currently Unimplemented
+ **/
 
 /*
  * This is the slowpath switch to a preempted sandbox!

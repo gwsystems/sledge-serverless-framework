@@ -122,8 +122,6 @@ arch_context_switch(arch_context_t *ca, arch_context_t *na)
 	reg_t *cr = ca->regs, *nr = na->regs;
 	assert(cr && nr);
 
-	/* TODO: slowpath: signal the current pthread if resuming a preempted sandbox! */
-
 	asm volatile("pushq %%rbp\n\t"
 	             "movq %%rsp, %%rbp\n\t"
 	             "movq $2f, 128(%%rax)\n\t"

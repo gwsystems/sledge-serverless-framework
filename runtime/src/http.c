@@ -310,7 +310,8 @@ http_init(void)
 int
 http_request_parse_sb(struct sandbox *sandbox, size_t length)
 {
-	// TODO: Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
+	// Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
+	// it's like a cursor to keep track of what we've read so far
 	http_parser_execute(&sandbox->http_parser, &settings, sandbox->request_response_data + sandbox->request_response_data_length, length);
 	return 0;
 }

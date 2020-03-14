@@ -160,7 +160,6 @@ module__main(struct module *module, i32 argc, i32 argv)
 static inline void
 module__acquire(struct module *module)
 {
-	// TODO: atomic.
 	module->reference_count++;
 }
 
@@ -171,7 +170,6 @@ module__acquire(struct module *module)
 static inline void
 module__release(struct module *module)
 {
-	// TODO: atomic.
 	module->reference_count--;
 }
 

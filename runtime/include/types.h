@@ -69,7 +69,6 @@ void populate_memory(void);
 void populate_table(void);
 
 // memory/* also provides the table access functions
-// TODO: Change this to use a compiled in size
 #define INDIRECT_TABLE_SIZE (1 << 10)
 
 struct indirect_table_entry {
