@@ -5,6 +5,6 @@
 #include <module.h>
 
 /* perhaps move it to module.h or sandbox.h? */
-int util_parse_modules_file_json(char *filename);
+int util__parse_modules_file_json(char *filename);
 
 #endif /* SFRT_UTIL_H */
