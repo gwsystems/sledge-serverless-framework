@@ -10,6 +10,7 @@
 #include <softint.h>
 #include <uv.h>
 #include <http_api.h>
+#include <util.h>
 
 #include "http_parser_settings.h"
 #include "sandbox_request.h"
