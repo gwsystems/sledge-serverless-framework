@@ -5,8 +5,37 @@
 #include <assert.h>
 #include <signal.h>
 
+/***************************************
+ * Externs
+ ***************************************/
+
+extern __thread volatile sig_atomic_t softint_off;
+
+/***************************************
+ * Public Static Inlines
+ ***************************************/
+
+static inline void
+softint__disable(void)
+{
+	while (__sync_bool_compare_and_swap(&softint_off, 0, 1) == false)
+		;
+}
+
+static inline void
+softint__enable(void)
+{
+	if (__sync_bool_compare_and_swap(&softint_off, 1, 0) == false) assert(0);
+}
+
 static inline int
-softint_mask(int signal)
+softint__is_enabled(void)
+{
+	return (softint_off == 0);
+}
+
+static inline int
+softint__mask(int signal)
 {
 	sigset_t set;
 	int      return_code;
@@ -26,7 +55,7 @@ softint_mask(int signal)
 }
 
 static inline int
-softint_unmask(int signal)
+softint__unmask(int signal)
 {
 	sigset_t set;
 	int      return_code;
@@ -45,30 +74,12 @@ softint_unmask(int signal)
 	return 0;
 }
 
-extern __thread volatile sig_atomic_t softint_off;
+/***************************************
+ * Exports from module.c
+ ***************************************/
 
-static inline void
-softint_disable(void)
-{
-	while (__sync_bool_compare_and_swap(&softint_off, 0, 1) == false)
-		;
-}
-
-static inline void
-softint_enable(void)
-{
-	if (__sync_bool_compare_and_swap(&softint_off, 1, 0) == false) assert(0);
-}
-
-static inline int
-softint_enabled(void)
-{
-	return (softint_off == 0);
-}
-
-void softint_init(void);
-
-void softint_timer_arm(void);
-void softint_timer_disarm(void);
+void softint__initialize(void);
+void softint__arm_timer(void);
+void softint__disarm_timer(void);
 
 #endif /* SFRT_SOFTINT_H */
