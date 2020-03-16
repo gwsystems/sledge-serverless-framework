@@ -94,7 +94,7 @@ listener_thread_main(void *dummy)
 			total_requests++;
 			printf("Received Request %d at %lu\n", total_requests, start_time);
 
-			sandbox_request_t *sandbox_request = allocate_sandbox_request(
+			sandbox_request_t *sandbox_request = sandbox_request__allocate(
 				module, 
 				module->name, 
 				socket_descriptor, 
@@ -102,7 +102,7 @@ listener_thread_main(void *dummy)
 			    start_time);
 			assert(sandbox_request);
 
-			// TODO: Refactor allocate_sandbox_request to not add to global request queue and do this here
+			// TODO: Refactor sandbox_request__allocate to not add to global request queue and do this here
 		}
 	}
 
@@ -265,7 +265,7 @@ pull_sandbox_requests_from_global_runqueue(void)
 
 	while (total_sandboxes_pulled < SBOX_PULL_MAX) {
 		sandbox_request_t *sandbox_request;
-		if ((sandbox_request = steal_sandbox_request_from_global_dequeue()) == NULL) break;
+		if ((sandbox_request = sandbox_request__steal_from_global_dequeue()) == NULL) break;
 		// Actually allocate the sandbox for the requests that we've pulled
 		struct sandbox *sandbox = sandbox__allocate(sandbox_request->module, sandbox_request->arguments,
 		                                        sandbox_request->socket_descriptor, sandbox_request->socket_address,
