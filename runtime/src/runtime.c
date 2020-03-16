@@ -189,7 +189,7 @@ block_current_sandbox(void)
 {
 	assert(in_callback == 0);
 	softint__disable();
-	struct sandbox *current_sandbox = get_current_sandbox();
+	struct sandbox *current_sandbox = current_sandbox__get();
 	ps_list_rem_d(current_sandbox);
 	current_sandbox->state          = BLOCKED;
 	struct sandbox *next_sandbox = get_next_sandbox_from_local_run_queue(0);
@@ -246,7 +246,7 @@ pull_sandbox_requests_from_global_runqueue(void)
 		sandbox_request_t *sandbox_request;
 		if ((sandbox_request = steal_sandbox_request_from_global_dequeue()) == NULL) break;
 		// Actually allocate the sandbox for the requests that we've pulled
-		struct sandbox *sandbox = allocate_sandbox(sandbox_request->module, sandbox_request->arguments,
+		struct sandbox *sandbox = sandbox__allocate(sandbox_request->module, sandbox_request->arguments,
 		                                        sandbox_request->socket_descriptor, sandbox_request->socket_address,
 		                                        sandbox_request->start_time);
 		assert(sandbox);
@@ -354,7 +354,7 @@ free_sandboxes_from_completion_queue(unsigned int number_to_free)
 		struct sandbox *sandbox = ps_list_head_first_d(&local_completion_queue, struct sandbox);
 		if (!sandbox) break;
 		ps_list_rem_d(sandbox);
-		free_sandbox(sandbox);
+		sandbox__free(sandbox);
 	}
 }
 
@@ -366,7 +366,7 @@ free_sandboxes_from_completion_queue(unsigned int number_to_free)
 struct sandbox *
 worker_thread_single_loop(void)
 {
-	assert(get_current_sandbox() == NULL);
+	assert(current_sandbox__get() == NULL);
 	// Try to free one sandbox from the completion queue
 	free_sandboxes_from_completion_queue(1);
 	// Execute libuv callbacks
@@ -422,9 +422,9 @@ worker_thread_main(void *return_code)
  * TODO: Does this belong in sandbox.c?
  **/
 void
-exit_current_sandbox(void)
+current_sandbox__exit(void)
 {
-	struct sandbox *current_sandbox = get_current_sandbox();
+	struct sandbox *current_sandbox = current_sandbox__get();
 	assert(current_sandbox);
 	softint__disable();
 	remove_sandbox_from_local_run_queue(current_sandbox);

@@ -78,15 +78,16 @@ struct sandbox {
 } PAGE_ALIGNED;
 
 // a runtime resource, malloc on this!
-struct sandbox *allocate_sandbox(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time);
+struct sandbox *sandbox__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time);
 // should free stack and heap resources.. also any I/O handles.
-void free_sandbox(struct sandbox *sandbox);
+void sandbox__free(struct sandbox *sandbox);
 
 extern __thread struct sandbox *current_sandbox;
 // next_sandbox only used in SIGUSR1
 extern __thread arch_context_t *next_context;
 
 typedef struct sandbox sandbox_t;
+extern void add_sandbox_to_completion_queue(struct sandbox *sandbox);
 
 
 /**
@@ -94,7 +95,7 @@ typedef struct sandbox sandbox_t;
  * @returns the current sandbox executing on this thread
  **/
 static inline struct sandbox *
-get_current_sandbox(void)
+current_sandbox__get(void)
 {
 	return current_sandbox;
 }
@@ -104,7 +105,7 @@ get_current_sandbox(void)
  * @param sandbox the sandbox we are setting this thread to run
  **/
 static inline void
-set_current_sandbox(struct sandbox *sandbox)
+current_sandbox__set(struct sandbox *sandbox)
 {
 	// FIXME: critical-section.
 	current_sandbox = sandbox;
@@ -117,59 +118,26 @@ set_current_sandbox(struct sandbox *sandbox)
 }
 
 /**
- * Check that the current_sandbox struct matches the rest of the thread local state about the executing sandbox
- * This includes lmbase, lmbound, and module_indirect_table
- */
-static inline void
-check_current_sandbox(void)
-{
-	struct sandbox *sandbox = get_current_sandbox();
-	assert(sandbox && sandbox->linear_memory_start == sandbox_lmbase && sandbox->linear_memory_size == sandbox_lmbound);
-	assert(sandbox->module->indirect_table == module_indirect_table);
-}
-
-/**
  * Given a sandbox, returns the module that sandbox is executing
  * @param sandbox the sandbox whose module we want
  * @return the module of the provided sandbox
  */
 static inline struct module *
-get_sandbox_module(struct sandbox *sandbox)
+sandbox__get_module(struct sandbox *sandbox)
 {
 	if (!sandbox) return NULL;
 	return sandbox->module;
 }
 
-extern void add_sandbox_to_completion_queue(struct sandbox *sandbox);
-
-/**
- * @brief Switches to the next sandbox, placing the current sandbox of the completion queue if in RETURNED state
- * @param next The Sandbox Context to switch to or NULL
- * @return void
- */
-static inline void
-switch_to_sandbox(struct sandbox *next_sandbox)
-{
-	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
-	softint__disable();
-	struct sandbox *current_sandbox          = get_current_sandbox();
-	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
-	set_current_sandbox(next_sandbox);
-	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
-	if (current_sandbox && current_sandbox->state == RETURNED) add_sandbox_to_completion_queue(current_sandbox);
-	next_context = next_register_context;
-	arch_context_switch(current_register_context, next_register_context);
-	softint__enable();
-}
 
 /**
  * Getter for the arguments of the current sandbox
  * @return the arguments of the current sandbox
  */
 static inline char *
-get_current_sandbox_arguments(void)
+current_sandbox__get_arguments(void)
 {
-	struct sandbox *sandbox = get_current_sandbox();
+	struct sandbox *sandbox = current_sandbox__get();
 	return (char *)sandbox->arguments;
 }
 
@@ -183,18 +151,18 @@ void sandbox_block_http(void);
 void sandbox_response(void);
 
 // should be the entry-point for each sandbox so it can do per-sandbox mem/etc init.
-// should have been called with stack allocated and get_current_sandbox() set!
+// should have been called with stack allocated and current_sandbox__get() set!
 void                         sandbox_main(void);
-void                         exit_current_sandbox(void);
+void                         current_sandbox__exit(void);
 
 /**
  * Initializes and returns an IO handle on the current sandbox ready for use
  * @return index of handle we preopened or -1 if all handles are exhausted
  **/
 static inline int
-initialize_io_handle_in_current_sandbox(void)
+current_sandbox__initialize_io_handle(void)
 {
-	struct sandbox *sandbox = get_current_sandbox();
+	struct sandbox *sandbox = current_sandbox__get();
 	int             handle_index;
 	for (handle_index = 0; handle_index < SBOX_MAX_OPEN; handle_index++) {
 		if (sandbox->handles[handle_index].file_descriptor < 0) break;
@@ -211,11 +179,11 @@ initialize_io_handle_in_current_sandbox(void)
  * @return index of handle we preopened or -1 if all handles are exhausted
  **/
 static inline int
-initialize_io_handle_and_set_file_descriptor_in_current_sandbox(int file_descriptor)
+current_sandbox__initialize_io_handle_and_set_file_descriptor(int file_descriptor)
 {
-	struct sandbox *sandbox = get_current_sandbox();
+	struct sandbox *sandbox = current_sandbox__get();
 	if (file_descriptor < 0) return file_descriptor;
-	int handle_index                  = initialize_io_handle_in_current_sandbox();
+	int handle_index                  = current_sandbox__initialize_io_handle();
 	if (handle_index != -1) sandbox->handles[handle_index].file_descriptor = file_descriptor; // well, per sandbox.. so synchronization necessary!
 	return handle_index;
 }
@@ -228,9 +196,9 @@ initialize_io_handle_and_set_file_descriptor_in_current_sandbox(int file_descrip
  * @returns the index that was set or -1 in case of error
  **/
 static inline int
-set_current_sandbox_file_descriptor(int handle_index, int file_descriptor)
+current_sandbox__set_file_descriptor(int handle_index, int file_descriptor)
 {
-	struct sandbox *sandbox = get_current_sandbox();
+	struct sandbox *sandbox = current_sandbox__get();
 	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return -1;
 	if (file_descriptor < 0 || sandbox->handles[handle_index].file_descriptor != SBOX_PREOPEN_MAGIC) return -1;
 	sandbox->handles[handle_index].file_descriptor = file_descriptor;
@@ -243,9 +211,9 @@ set_current_sandbox_file_descriptor(int handle_index, int file_descriptor)
  * @returns file descriptor
  **/
 static inline int
-get_current_sandbox_file_descriptor(int handle_index)
+current_sandbox__get_file_descriptor(int handle_index)
 {
-	struct sandbox *sandbox = get_current_sandbox();
+	struct sandbox *sandbox = current_sandbox__get();
 	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return -1;
 	return sandbox->handles[handle_index].file_descriptor;
 }
@@ -255,9 +223,9 @@ get_current_sandbox_file_descriptor(int handle_index)
  * @param handle_index index of the handle to close
  **/
 static inline void
-close_current_sandbox_file_descriptor(int handle_index)
+current_sandbox__close_file_descriptor(int handle_index)
 {
-	struct sandbox *sandbox = get_current_sandbox();
+	struct sandbox *sandbox = current_sandbox__get();
 	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return;
 	// TODO: Do we actually need to call some sort of close function here?
 	sandbox->handles[handle_index].file_descriptor = -1;
@@ -269,11 +237,31 @@ close_current_sandbox_file_descriptor(int handle_index)
  * @returns any libuv handle
  **/
 static inline union uv_any_handle *
-get_current_sandbox_libuv_handle(int handle_index)
+current_sandbox__get_libuv_handle(int handle_index)
 {
-	struct sandbox *sandbox = get_current_sandbox();
+	struct sandbox *sandbox = current_sandbox__get();
 	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return NULL;
 	return &sandbox->handles[handle_index].libuv_handle;
+}
+
+/**
+ * @brief Switches to the next sandbox, placing the current sandbox of the completion queue if in RETURNED state
+ * @param next The Sandbox Context to switch to or NULL
+ * @return void
+ */
+static inline void
+switch_to_sandbox(struct sandbox *next_sandbox)
+{
+	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
+	softint__disable();
+	struct sandbox *current_sandbox          = current_sandbox__get();
+	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
+	current_sandbox__set(next_sandbox);
+	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
+	if (current_sandbox && current_sandbox->state == RETURNED) add_sandbox_to_completion_queue(current_sandbox);
+	next_context = next_register_context;
+	arch_context_switch(current_register_context, next_register_context);
+	softint__enable();
 }
 
 #endif /* SFRT_SANDBOX_H */

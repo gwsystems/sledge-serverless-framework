@@ -11,19 +11,19 @@
 void
 alloc_linear_memory(void)
 {
-	// mmaped memory in allocate_sandbox.
+	// mmaped memory in sandbox__allocate.
 }
 
 void
 free_linear_memory(void *base, u32 bound, u32 max)
 {
-	// frees on free_sandbox
+	// frees on sandbox__free
 }
 
 void
 expand_memory(void)
 {
-	struct sandbox *sandbox = get_current_sandbox();
+	struct sandbox *sandbox = current_sandbox__get();
 
 	// max_pages = 0 => no limit: FIXME
 	assert((sandbox->sandbox_size + sandbox_lmbound) / WASM_PAGE_SIZE < WASM_MAX_PAGES);

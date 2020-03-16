@@ -138,10 +138,10 @@ allocate_sandbox_memory(struct module *module)
  * @param argument_count
  **/
 static inline void
-setup_sandbox_arguments(i32 argument_count)
+current_sandbox__setup_arguments(i32 argument_count)
 {
-	struct sandbox *curr = get_current_sandbox();
-	char *          arguments = get_current_sandbox_arguments();
+	struct sandbox *curr = current_sandbox__get();
+	char *          arguments = current_sandbox__get_arguments();
 
 	// whatever gregor has, to be able to pass arguments to a module!
 	curr->arguments_offset = sandbox_lmbound;
@@ -169,9 +169,9 @@ setup_sandbox_arguments(i32 argument_count)
  * @return 1 on success, 0 if no context, < 0 on failure. 
  **/
 static inline int
-receive_and_parse_current_sandbox_client_request(void)
+current_sandbox__receive_and_parse_client_request(void)
 {
-	struct sandbox *curr = get_current_sandbox();
+	struct sandbox *curr = current_sandbox__get();
 	curr->request_response_data_length    = 0;
 #ifndef USE_HTTP_UVIO
 	int r = 0;
@@ -206,10 +206,10 @@ receive_and_parse_current_sandbox_client_request(void)
  * @return RC. -1 on Failure
  **/
 static inline int
-build_and_send_current_sandbox_client_response(void)
+current_sandbox__build_and_send_client_response(void)
 {
 	int             sndsz       = 0;
-	struct sandbox *curr        = get_current_sandbox();
+	struct sandbox *curr        = current_sandbox__get();
 	int             response_header_length = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
 	int             body_length = curr->request_response_data_length - response_header_length;
 
@@ -273,7 +273,7 @@ done:
 void
 sandbox_main(void)
 {
-	struct sandbox *current_sandbox = get_current_sandbox();
+	struct sandbox *current_sandbox = current_sandbox__get();
 	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
 	//        return to switch_to_sandbox() api..
 	//        we'd potentially do what we'd in switch_to_sandbox() api here for cleanup..
@@ -282,18 +282,18 @@ sandbox_main(void)
 		next_context = NULL;
 		softint__enable();
 	}
-	struct module *current_module       = get_sandbox_module(current_sandbox);
+	struct module *current_module       = sandbox__get_module(current_sandbox);
 	int            argument_count = module__get_argument_count(current_module);
 	// for stdio
 
 	// Try to initialize file descriptors 0, 1, and 2 as io handles 0, 1, 2
 	// We need to check that we get what we expect, as these IO handles may theoretically have been taken
 	// TODO: why do the file descriptors have to match the io handles?
-	int f = initialize_io_handle_and_set_file_descriptor_in_current_sandbox(0);
+	int f = current_sandbox__initialize_io_handle_and_set_file_descriptor(0);
 	assert(f == 0);
-	f = initialize_io_handle_and_set_file_descriptor_in_current_sandbox(1);
+	f = current_sandbox__initialize_io_handle_and_set_file_descriptor(1);
 	assert(f == 1);
-	f = initialize_io_handle_and_set_file_descriptor_in_current_sandbox(2);
+	f = current_sandbox__initialize_io_handle_and_set_file_descriptor(2);
 	assert(f == 2);
 
 	// Initialize the HTTP-Parser for a request
@@ -320,7 +320,7 @@ sandbox_main(void)
 #endif
 
 	// If the HTTP Request returns 1, we've successfully received and parsed the HTTP request, so execute it!
-	if (receive_and_parse_current_sandbox_client_request() > 0) {
+	if (current_sandbox__receive_and_parse_client_request() > 0) {
 
 		//
 		current_sandbox->request_response_data_length = response_header_length;
@@ -331,13 +331,13 @@ sandbox_main(void)
 		module__initialize_memory(current_module);
 
 		// Copy the arguments into the WebAssembly sandbox
-		setup_sandbox_arguments(argument_count);
+		current_sandbox__setup_arguments(argument_count);
 
 		// Executing the function within the WebAssembly sandbox
 		current_sandbox->return_value = module__main(current_module, argument_count, current_sandbox->arguments_offset);
 
 		// Retrieve the result from the WebAssembly sandbox, construct the HTTP response, and send to client
-		build_and_send_current_sandbox_client_response();
+		current_sandbox__build_and_send_client_response();
 	}
 
 	// Cleanup connection and exit sandbox
@@ -348,11 +348,11 @@ sandbox_main(void)
 #else
 	close(current_sandbox->client_socket_descriptor);
 #endif
-	exit_current_sandbox();
+	current_sandbox__exit();
 }
 
 struct sandbox *
-allocate_sandbox(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time)
+sandbox__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time)
 {
 	if (!module__is_valid(module)) return NULL;
 
@@ -384,12 +384,10 @@ allocate_sandbox(struct module *module, char *arguments, int socket_descriptor, 
 }
 
 void
-free_sandbox(struct sandbox *sandbox)
+sandbox__free(struct sandbox *sandbox)
 {
-	int ret;
-
 	// you have to context switch away to free a sandbox.
-	if (!sandbox || sandbox == get_current_sandbox()) return;
+	if (!sandbox || sandbox == current_sandbox__get()) return;
 
 	// again sandbox should be done and waiting for the parent.
 	if (sandbox->state != RETURNED) return;
@@ -405,6 +403,7 @@ free_sandbox(struct sandbox *sandbox)
 	// depending on the memory type
 	// free_linear_memory(sandbox->linear_memory_start, sandbox->linear_memory_size, sandbox->linear_memory_max_size);
 
+	int ret;
 	// mmaped memory includes sandbox structure in there.
 	ret = munmap(sandbox, sz);
 	if (ret) perror("munmap sandbox");
