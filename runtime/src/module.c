@@ -1,69 +1,11 @@
 #include <runtime.h>
 #include <module.h>
+#include <module_database.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <dlfcn.h>
 #include <uv.h>
 #include <util.h>
-
-/***************************************
- * Module Database
- ***************************************/
-
-// In-memory representation of all active modules
-static struct module *module_database[MOD_MAX] = { NULL };
-// First free in module
-static int            module_database_free_offset    = 0;
-
-/**
- * Given a name, find the associated module
- * @param name
- * @return module or NULL if no match found
- **/
-struct module *
-module_database__find_by_name(char *name)
-{
-	int f = module_database_free_offset;
-	for (int i = 0; i < f; i++) {
-		assert(module_database[i]);
-		if (strcmp(module_database[i]->name, name) == 0) return module_database[i];
-	}
-	return NULL;
-}
-
-/**
- * Given a socket_descriptor, find the associated module
- * @param socket_descriptor
- * @return module or NULL if no match found
- **/
-struct module *
-module_database__find_by_socket_descriptor(int socket_descriptor)
-{
-	int f = module_database_free_offset;
-	for (int i = 0; i < f; i++) {
-		assert(module_database[i]);
-		if (module_database[i]->socket_descriptor == socket_descriptor) return module_database[i];
-	}
-	return NULL;
-}
-
-/**
- * Adds a module to the in-memory module DB
- * @param module module to add
- * @return 0 on success. Aborts program on failure
- **/
-static inline int
-module_database__add(struct module *module)
-{
-	assert(module->socket_descriptor == -1);
-
-	// __sync_fetch_and_add is provided by GCC
-	int f = __sync_fetch_and_add(&module_database_free_offset, 1);
-	assert(f < MOD_MAX);
-	module_database[f] = module;
-
-	return 0;
-}
 
 /***************************************
  * Module "Methods"
