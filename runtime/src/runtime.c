@@ -164,6 +164,26 @@ static __thread unsigned int in_callback;
 static inline void add_sandbox_to_local_run_queue(struct sandbox *sandbox);
 
 /**
+ * @brief Switches to the next sandbox, placing the current sandbox of the completion queue if in RETURNED state
+ * @param next The Sandbox Context to switch to or NULL
+ * @return void
+ */
+static inline void
+switch_to_sandbox(struct sandbox *next_sandbox)
+{
+	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
+	softint__disable();
+	struct sandbox *current_sandbox          = current_sandbox__get();
+	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
+	current_sandbox__set(next_sandbox);
+	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
+	if (current_sandbox && current_sandbox->state == RETURNED) add_sandbox_to_completion_queue(current_sandbox);
+	next_context = next_register_context;
+	arch_context_switch(current_register_context, next_register_context);
+	softint__enable();
+}
+
+/**
  * If this sandbox is blocked, mark it as runnable and add to the head of the thread-local runqueue
  * @param sandbox the sandbox to check and update if blocked
  **/
