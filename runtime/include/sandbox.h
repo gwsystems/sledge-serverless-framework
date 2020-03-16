@@ -77,11 +77,6 @@ struct sandbox {
 	char    request_response_data[1]; // of rr_data_sz, following sandbox mem..
 } PAGE_ALIGNED;
 
-// a runtime resource, malloc on this!
-struct sandbox *sandbox__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time);
-// should free stack and heap resources.. also any I/O handles.
-void sandbox__free(struct sandbox *sandbox);
-
 extern __thread struct sandbox *current_sandbox;
 // next_sandbox only used in SIGUSR1
 extern __thread arch_context_t *next_context;
@@ -89,6 +84,131 @@ extern __thread arch_context_t *next_context;
 typedef struct sandbox sandbox_t;
 extern void add_sandbox_to_completion_queue(struct sandbox *sandbox);
 
+/***************************
+ * Sandbox                 *
+ **************************/
+
+// a runtime resource, malloc on this!
+struct sandbox *sandbox__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time);
+// should free stack and heap resources.. also any I/O handles.
+void sandbox__free(struct sandbox *sandbox);
+
+
+/**
+ * Given a sandbox, returns the module that sandbox is executing
+ * @param sandbox the sandbox whose module we want
+ * @return the module of the provided sandbox
+ */
+static inline struct module *
+sandbox__get_module(struct sandbox *sandbox)
+{
+	if (!sandbox) return NULL;
+	return sandbox->module;
+}
+
+/**
+ * Getter for the arguments of the current sandbox
+ * @return the arguments of the current sandbox
+ */
+static inline char *
+sandbox__get_arguments(struct sandbox *sandbox)
+{
+	if (!sandbox) return NULL;
+	return (char *)sandbox->arguments;
+}
+
+/**
+ * Initializes and returns an IO handle on the current sandbox ready for use
+ * @return index of handle we preopened or -1 on error (sandbox is null or all handles are exhausted)
+ **/
+static inline int
+sandbox__initialize_io_handle(struct sandbox *sandbox)
+{
+	if (!sandbox) return -1;
+	int             handle_index;
+	for (handle_index = 0; handle_index < SBOX_MAX_OPEN; handle_index++) {
+		if (sandbox->handles[handle_index].file_descriptor < 0) break;
+	}
+	if (handle_index == SBOX_MAX_OPEN) return -1;
+	sandbox->handles[handle_index].file_descriptor = SBOX_PREOPEN_MAGIC;
+	memset(&sandbox->handles[handle_index].libuv_handle, 0, sizeof(union uv_any_handle));
+	return handle_index;
+}
+
+
+/**
+ * Initializes and returns an IO handle on the current sandbox ready for use
+ * @param file_descriptor what we'll set on the IO handle after initialization
+ * @return index of handle we preopened or -1 if all handles are exhausted
+ **/
+static inline int
+sandbox__initialize_io_handle_and_set_file_descriptor(struct sandbox *sandbox, int file_descriptor)
+{
+	if (!sandbox) return -1;
+	if (file_descriptor < 0) return file_descriptor;
+	int handle_index                  = sandbox__initialize_io_handle(sandbox);
+	if (handle_index != -1) sandbox->handles[handle_index].file_descriptor = file_descriptor; // well, per sandbox.. so synchronization necessary!
+	return handle_index;
+}
+
+/**
+ * Sets the file descriptor of the sandbox's ith io_handle
+ * Returns error condition if the file_descriptor to set does not contain sandbox preopen magin
+ * @param handle_index index of the sandbox handles we want to set
+ * @param file_descriptor the file descripter we want to set it to
+ * @returns the index that was set or -1 in case of error
+ **/
+static inline int
+sandbox__set_file_descriptor(struct sandbox *sandbox, int handle_index, int file_descriptor)
+{
+	if (!sandbox) return -1;
+	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return -1;
+	if (file_descriptor < 0 || sandbox->handles[handle_index].file_descriptor != SBOX_PREOPEN_MAGIC) return -1;
+	sandbox->handles[handle_index].file_descriptor = file_descriptor;
+	return handle_index;
+}
+
+/**
+ * Get the file descriptor of the sandbox's ith io_handle
+ * @param handle_index index into the sandbox's handles table
+ * @returns file descriptor or -1 in case of error
+ **/
+static inline int
+sandbox__get_file_descriptor(struct sandbox *sandbox, int handle_index)
+{
+	if (!sandbox) return -1;
+	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return -1;
+	return sandbox->handles[handle_index].file_descriptor;
+}
+
+/**
+ * Close the sandbox's ith io_handle
+ * @param handle_index index of the handle to close
+ **/
+static inline void
+sandbox__close_file_descriptor(struct sandbox *sandbox, int handle_index)
+{
+	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return;
+	// TODO: Do we actually need to call some sort of close function here?
+	sandbox->handles[handle_index].file_descriptor = -1;
+}
+
+/**
+ * Get the Libuv handle located at idx of the sandbox ith io_handle
+ * @param handle_index index of the handle containing libuv_handle???
+ * @returns any libuv handle or a NULL pointer in case of error
+ **/
+static inline union uv_any_handle *
+sandbox__get_libuv_handle(struct sandbox *sandbox, int handle_index)
+{
+	if (!sandbox) return NULL;
+	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return NULL;
+	return &sandbox->handles[handle_index].libuv_handle;
+}
+
+/***************************
+ * Current Sandbox         *
+ **************************/
 
 /**
  * Getter for the current sandbox executing on this thread
@@ -118,19 +238,6 @@ current_sandbox__set(struct sandbox *sandbox)
 }
 
 /**
- * Given a sandbox, returns the module that sandbox is executing
- * @param sandbox the sandbox whose module we want
- * @return the module of the provided sandbox
- */
-static inline struct module *
-sandbox__get_module(struct sandbox *sandbox)
-{
-	if (!sandbox) return NULL;
-	return sandbox->module;
-}
-
-
-/**
  * Getter for the arguments of the current sandbox
  * @return the arguments of the current sandbox
  */
@@ -138,7 +245,7 @@ static inline char *
 current_sandbox__get_arguments(void)
 {
 	struct sandbox *sandbox = current_sandbox__get();
-	return (char *)sandbox->arguments;
+	return sandbox__get_arguments(sandbox);
 }
 
 void *          sandbox_worker_main(void *data);
@@ -163,14 +270,7 @@ static inline int
 current_sandbox__initialize_io_handle(void)
 {
 	struct sandbox *sandbox = current_sandbox__get();
-	int             handle_index;
-	for (handle_index = 0; handle_index < SBOX_MAX_OPEN; handle_index++) {
-		if (sandbox->handles[handle_index].file_descriptor < 0) break;
-	}
-	if (handle_index == SBOX_MAX_OPEN) return -1;
-	sandbox->handles[handle_index].file_descriptor = SBOX_PREOPEN_MAGIC;
-	memset(&sandbox->handles[handle_index].libuv_handle, 0, sizeof(union uv_any_handle));
-	return handle_index;
+	return sandbox__initialize_io_handle(sandbox);
 }
 
 /**
@@ -182,10 +282,7 @@ static inline int
 current_sandbox__initialize_io_handle_and_set_file_descriptor(int file_descriptor)
 {
 	struct sandbox *sandbox = current_sandbox__get();
-	if (file_descriptor < 0) return file_descriptor;
-	int handle_index                  = current_sandbox__initialize_io_handle();
-	if (handle_index != -1) sandbox->handles[handle_index].file_descriptor = file_descriptor; // well, per sandbox.. so synchronization necessary!
-	return handle_index;
+	return sandbox__initialize_io_handle_and_set_file_descriptor(sandbox, file_descriptor);
 }
 
 /**
@@ -199,10 +296,7 @@ static inline int
 current_sandbox__set_file_descriptor(int handle_index, int file_descriptor)
 {
 	struct sandbox *sandbox = current_sandbox__get();
-	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return -1;
-	if (file_descriptor < 0 || sandbox->handles[handle_index].file_descriptor != SBOX_PREOPEN_MAGIC) return -1;
-	sandbox->handles[handle_index].file_descriptor = file_descriptor;
-	return handle_index;
+	return sandbox__set_file_descriptor(sandbox, handle_index, file_descriptor);
 }
 
 /**
@@ -214,8 +308,7 @@ static inline int
 current_sandbox__get_file_descriptor(int handle_index)
 {
 	struct sandbox *sandbox = current_sandbox__get();
-	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return -1;
-	return sandbox->handles[handle_index].file_descriptor;
+	return sandbox__get_file_descriptor(sandbox, handle_index);
 }
 
 /**
@@ -226,9 +319,7 @@ static inline void
 current_sandbox__close_file_descriptor(int handle_index)
 {
 	struct sandbox *sandbox = current_sandbox__get();
-	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return;
-	// TODO: Do we actually need to call some sort of close function here?
-	sandbox->handles[handle_index].file_descriptor = -1;
+	sandbox__close_file_descriptor(sandbox, handle_index);
 }
 
 /**
@@ -240,8 +331,7 @@ static inline union uv_any_handle *
 current_sandbox__get_libuv_handle(int handle_index)
 {
 	struct sandbox *sandbox = current_sandbox__get();
-	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return NULL;
-	return &sandbox->handles[handle_index].libuv_handle;
+	return sandbox__get_libuv_handle(sandbox, handle_index);
 }
 
 /**

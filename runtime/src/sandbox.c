@@ -9,46 +9,6 @@
 #include <libuv_callbacks.h>
 
 /**
- * Allocates the memory for a sandbox to run a module
- * @param module the module that we want to run
- * @returns the resulting sandbox or NULL if mmap failed
- **/
-static inline struct sandbox *
-allocate_sandbox_memory(struct module *module)
-{
-	unsigned long memory_size = SBOX_MAX_MEM; // 4GB
-
-	// Why do we add max_request_or_response_size?
-	unsigned long sandbox_size       = sizeof(struct sandbox) + module->max_request_or_response_size;
-	unsigned long linear_memory_size = WASM_PAGE_SIZE * WASM_START_PAGES;
-
-	if (linear_memory_size + sandbox_size > memory_size) return NULL;
-	assert(round_up_to_page(sandbox_size) == sandbox_size);
-
-	// What does mmap do exactly with file_descriptor -1?
-	void *addr = mmap(NULL, sandbox_size + memory_size + /* guard page */ PAGE_SIZE, PROT_NONE,
-	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (addr == MAP_FAILED) return NULL;
-
-	void *addr_rw = mmap(addr, sandbox_size + linear_memory_size, PROT_READ | PROT_WRITE,
-	                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-	if (addr_rw == MAP_FAILED) {
-		munmap(addr, memory_size + PAGE_SIZE);
-		return NULL;
-	}
-
-	struct sandbox *sandbox = (struct sandbox *)addr;
-	// can it include sandbox as well?
-	sandbox->linear_memory_start = (char *)addr + sandbox_size;
-	sandbox->linear_memory_size  = linear_memory_size;
-	sandbox->module       = module;
-	sandbox->sandbox_size = sandbox_size;
-	module__acquire(module);
-
-	return sandbox;
-}
-
-/**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
  * TODO: why do we have to pass argument count explicitly? Can't we just get this off the sandbox?
  * @param argument_count
@@ -267,6 +227,46 @@ sandbox_main(void)
 	current_sandbox__exit();
 }
 
+/**
+ * Allocates the memory for a sandbox to run a module
+ * @param module the module that we want to run
+ * @returns the resulting sandbox or NULL if mmap failed
+ **/
+static inline struct sandbox *
+sandbox__allocate_memory(struct module *module)
+{
+	unsigned long memory_size = SBOX_MAX_MEM; // 4GB
+
+	// Why do we add max_request_or_response_size?
+	unsigned long sandbox_size       = sizeof(struct sandbox) + module->max_request_or_response_size;
+	unsigned long linear_memory_size = WASM_PAGE_SIZE * WASM_START_PAGES;
+
+	if (linear_memory_size + sandbox_size > memory_size) return NULL;
+	assert(round_up_to_page(sandbox_size) == sandbox_size);
+
+	// What does mmap do exactly with file_descriptor -1?
+	void *addr = mmap(NULL, sandbox_size + memory_size + /* guard page */ PAGE_SIZE, PROT_NONE,
+	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (addr == MAP_FAILED) return NULL;
+
+	void *addr_rw = mmap(addr, sandbox_size + linear_memory_size, PROT_READ | PROT_WRITE,
+	                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	if (addr_rw == MAP_FAILED) {
+		munmap(addr, memory_size + PAGE_SIZE);
+		return NULL;
+	}
+
+	struct sandbox *sandbox = (struct sandbox *)addr;
+	// can it include sandbox as well?
+	sandbox->linear_memory_start = (char *)addr + sandbox_size;
+	sandbox->linear_memory_size  = linear_memory_size;
+	sandbox->module       = module;
+	sandbox->sandbox_size = sandbox_size;
+	module__acquire(module);
+
+	return sandbox;
+}
+
 struct sandbox *
 sandbox__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time)
 {
@@ -274,7 +274,7 @@ sandbox__allocate(struct module *module, char *arguments, int socket_descriptor,
 
 	// FIXME: don't use malloc. huge security problem!
 	// perhaps, main should be in its own sandbox, when it is not running any sandbox.
-	struct sandbox *sandbox = (struct sandbox *)allocate_sandbox_memory(module);
+	struct sandbox *sandbox = (struct sandbox *)sandbox__allocate_memory(module);
 	if (!sandbox) return NULL;
 
 	// Assign the start time from the request
