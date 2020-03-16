@@ -16,7 +16,7 @@ int sandbox__get_http_request_body(struct sandbox *sandbox, char **body);
 static inline int
 current_sandbox__get_http_request_body(char **body)
 {
-	return sandbox__get_http_request_body(get_current_sandbox(), body);
+	return sandbox__get_http_request_body(current_sandbox__get(), body);
 }
 
 /***************************************************
@@ -36,7 +36,7 @@ int sandbox__vectorize_http_response(struct sandbox *sandbox);
 static inline int
 current_sandbox__set_http_response_header(char *header, int length)
 {
-	return sandbox__set_http_response_header(get_current_sandbox(), header, length);
+	return sandbox__set_http_response_header(current_sandbox__get(), header, length);
 }
 
 /**
@@ -48,7 +48,7 @@ current_sandbox__set_http_response_header(char *header, int length)
 static inline int
 current_sandbox__set_http_response_body(char *body, int length)
 {
-	return sandbox__set_http_response_body(get_current_sandbox(), body, length);
+	return sandbox__set_http_response_body(current_sandbox__get(), body, length);
 }
 
 /**
@@ -60,7 +60,7 @@ current_sandbox__set_http_response_body(char *body, int length)
 static inline int
 current_sandbox__set_http_response_status(char *status, int length)
 {
-	return sandbox__set_http_response_status(get_current_sandbox(), status, length);
+	return sandbox__set_http_response_status(current_sandbox__get(), status, length);
 }
 
 /**
@@ -70,7 +70,7 @@ current_sandbox__set_http_response_status(char *status, int length)
 static inline int
 current_sandbox__vectorize_http_response(void)
 {
-	return sandbox__vectorize_http_response(get_current_sandbox());
+	return sandbox__vectorize_http_response(current_sandbox__get());
 }
 
 /***********************************************************************
@@ -90,7 +90,7 @@ int sandbox__parse_http_request(struct sandbox *sandbox, size_t l);
 static inline int
 current_sandbox__parse_http_request(size_t length)
 {
-	return sandbox__parse_http_request(get_current_sandbox(), length);
+	return sandbox__parse_http_request(current_sandbox__get(), length);
 }
 
 #endif /* SRFT_HTTP_API_H */
