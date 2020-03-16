@@ -7,6 +7,7 @@
 #include <uv.h>
 #include <http_api.h>
 #include <libuv_callbacks.h>
+#include <util.h>
 
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
