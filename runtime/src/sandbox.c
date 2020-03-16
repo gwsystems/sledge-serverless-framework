@@ -6,91 +6,7 @@
 #include <signal.h>
 #include <uv.h>
 #include <http_api.h>
-
-/***********************************
- * Libuv Callbacks
- ***********************************/
-
-/**
- *  TODO: is there some weird edge case where a UNICODE character might be split between reads? Do we care?
- * Called after libuv has read a chunk of data
- * Parses data read by the libuv stream chunk-by-chunk until the message is complete
- * Then stops the stream and wakes up the sandbox
- * @param stream
- * @param number_read bytes read
- * @param buffer unused
- **/
-static inline void
-on_libuv_read_parse_http_request(uv_stream_t *stream, ssize_t number_read, const uv_buf_t *buffer)
-{
-	struct sandbox *sandbox = stream->data;
-
-	// Parse the chunks libuv has read on our behalf until we've parse to message end
-	if (number_read > 0) {
-		if (sandbox__parse_http_request(sandbox, number_read) != 0) return;
-		sandbox->request_response_data_length += number_read;
-		struct http_request *rh = &sandbox->http_request;
-		if (!rh->message_end) return;
-	}
-	
-	// When the entire message has been read, stop the stream and wakeup the sandbox
-	uv_read_stop(stream);
-	wakeup_sandbox(sandbox);
-}
-
-/**
- * On libuv close, executes this callback to wake the blocked sandbox back up 
- * @param stream
- **/
-static inline void
-on_libuv_close_wakeup_sakebox(uv_handle_t *stream)
-{
-	struct sandbox *sandbox = stream->data;
-	wakeup_sandbox(sandbox);
-}
-
-/**
- * On libuv shutdown, executes this callback to wake the blocked sandbox back up
- * @param req shutdown request
- * @param status unused in callback
- **/
-static inline void
-on_libuv_shutdown_wakeup_sakebox(uv_shutdown_t *req, int status)
-{
-	struct sandbox *sandbox = req->data;
-	wakeup_sandbox(sandbox);
-}
-
-/**
- * On libuv write, executes this callback to wake the blocked sandbox back up
- * In case of error, shutdown the sandbox
- * @param write shutdown request
- * @param status status code
- **/
-static inline void
-on_libuv_write_wakeup_sandbox(uv_write_t *write, int status)
-{
-	struct sandbox *sandbox = write->data;
-	if (status < 0) {
-		sandbox->client_libuv_shutdown_request.data = sandbox;
-		uv_shutdown(&sandbox->client_libuv_shutdown_request, (uv_stream_t *)&sandbox->client_libuv_stream, on_libuv_shutdown_wakeup_sakebox);
-		return;
-	}
-	wakeup_sandbox(sandbox);
-}
-
-static inline void
-on_libuv_allocate_setup_request_response_data(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
-{
-	struct sandbox *sandbox = h->data;
-	size_t          l       = (sandbox->module->max_request_or_response_size - sandbox->request_response_data_length);
-	buf->base               = (sandbox->request_response_data + sandbox->request_response_data_length);
-	buf->len                = l > suggested ? suggested : l;
-}
-
-/***********************************
- * End of Libuv Callbacks
- ***********************************/
+#include <libuv_callbacks.h>
 
 /**
  * Allocates the memory for a sandbox to run a module
@@ -194,7 +110,7 @@ current_sandbox__receive_and_parse_client_request(void)
 		}
 	}
 #else
-	int r = uv_read_start((uv_stream_t *)&curr->client_libuv_stream, on_libuv_allocate_setup_request_response_data, on_libuv_read_parse_http_request);
+	int r = uv_read_start((uv_stream_t *)&curr->client_libuv_stream, libuv_callbacks__on_allocate_setup_request_response_data, libuv_callbacks__on_read_parse_http_request);
 	sandbox_block_http();
 	if (curr->request_response_data_length == 0) return 0;
 #endif
@@ -260,7 +176,7 @@ done:
 		.data = curr,
 	};
 	uv_buf_t bufv = uv_buf_init(curr->request_response_data, sndsz);
-	int      r    = uv_write(&req, (uv_stream_t *)&curr->client_libuv_stream, &bufv, 1, on_libuv_write_wakeup_sandbox);
+	int      r    = uv_write(&req, (uv_stream_t *)&curr->client_libuv_stream, &bufv, 1, libuv_callbacks__on_write_wakeup_sandbox);
 	sandbox_block_http();
 #endif
 	return 0;
@@ -343,7 +259,7 @@ sandbox_main(void)
 	// Cleanup connection and exit sandbox
 
 #ifdef USE_HTTP_UVIO
-	uv_close((uv_handle_t *)&current_sandbox->client_libuv_stream, on_libuv_close_wakeup_sakebox);
+	uv_close((uv_handle_t *)&current_sandbox->client_libuv_stream, libuv_callbacks__on_close_wakeup_sakebox);
 	sandbox_block_http();
 #else
 	close(current_sandbox->client_socket_descriptor);
