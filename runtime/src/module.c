@@ -8,7 +8,7 @@
 #include <util.h>
 
 /***************************************
- * Module "Methods"
+ * Private Static Inline
  ***************************************/
 
 /**
@@ -50,6 +50,10 @@ module__initialize_as_server(struct module *module)
 	accept_evt.events   = EPOLLIN;
 	if (epoll_ctl(epoll_file_descriptor, EPOLL_CTL_ADD, module->socket_descriptor, &accept_evt) < 0) assert(0);
 }
+
+/***************************************
+ * Public Methods
+ ***************************************/
 
 /**
  * Module Mega Teardown Function

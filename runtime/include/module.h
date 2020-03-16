@@ -50,49 +50,29 @@ struct module {
 };
 
 /***************************************
- * Module "Methods"
+ * Public Static Inlines
  ***************************************/
 
-struct module *module__new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout, int port, int req_sz, int resp_sz);
-void           module__free(struct module *module);
-
 /**
- * Sets the HTTP Request and Response Headers and Content type on a module
+ * Increment a modules reference count
  * @param module
- * @param request_count
- * @param request_headers
- * @param request_content_type
- * @param response_count
- * @param response_headers
- * @param response_content_type
  **/
 static inline void
-module__set_http_info(struct module *module, int request_count, char *request_headers, char request_content_type[],
-                 int response_count, char *response_headers, char response_content_type[])
+module__acquire(struct module *module)
 {
-	assert(module);
-	module->request_header_count = request_count;
-	memcpy(module->request_headers, request_headers, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-	strcpy(module->request_content_type, request_content_type);
-	module->response_header_count = response_count;
-	memcpy(module->response_headers, response_headers, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-	strcpy(module->response_content_type, response_content_type);
+	module->reference_count++;
 }
 
 /**
- * Validate module, defined as having a non-NULL dynamical library handle and entry function pointer
+ * Get a module's argument count
  * @param module
- * @return 1 if valid. 0 if invalid
+ * @returns the number of arguments
  **/
-static inline int
-module__is_valid(struct module *module)
+static inline i32
+module__get_argument_count(struct module *module)
 {
-	if (module && module->dynamic_library_handle && module->main) return 1;
-	return 0;
+	return module->argument_count;
 }
-
-// TODO: What is the point of these wrapper functions. They seem exceptionally silly
-// We have the module, so why not just invoke the function pointer directly?
 
 /**
  * Invoke a module's initialize_globals
@@ -139,6 +119,18 @@ module__initialize_memory(struct module *module)
 }
 
 /**
+ * Validate module, defined as having a non-NULL dynamical library handle and entry function pointer
+ * @param module
+ * @return 1 if valid. 0 if invalid
+ **/
+static inline int
+module__is_valid(struct module *module)
+{
+	if (module && module->dynamic_library_handle && module->main) return 1;
+	return 0;
+}
+
+/**
  * Invoke a module's entry function, forwarding on argc and argv
  * @param module
  * @param argc standard UNIX count of arguments
@@ -148,16 +140,6 @@ static inline i32
 module__main(struct module *module, i32 argc, i32 argv)
 {
 	return module->main(argc, argv);
-}
-
-/**
- * Increment a modules reference count
- * @param module
- **/
-static inline void
-module__acquire(struct module *module)
-{
-	module->reference_count++;
 }
 
 /**
@@ -171,14 +153,33 @@ module__release(struct module *module)
 }
 
 /**
- * Get a module's argument count
+ * Sets the HTTP Request and Response Headers and Content type on a module
  * @param module
- * @returns the number of arguments
+ * @param request_count
+ * @param request_headers
+ * @param request_content_type
+ * @param response_count
+ * @param response_headers
+ * @param response_content_type
  **/
-static inline i32
-module__get_argument_count(struct module *module)
+static inline void
+module__set_http_info(struct module *module, int request_count, char *request_headers, char request_content_type[],
+                 int response_count, char *response_headers, char response_content_type[])
 {
-	return module->argument_count;
+	assert(module);
+	module->request_header_count = request_count;
+	memcpy(module->request_headers, request_headers, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+	strcpy(module->request_content_type, request_content_type);
+	module->response_header_count = response_count;
+	memcpy(module->response_headers, response_headers, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
+	strcpy(module->response_content_type, response_content_type);
 }
+
+/***************************************
+ * Public Methods from module.c
+ ***************************************/
+
+struct module *module__new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout, int port, int req_sz, int resp_sz);
+void           module__free(struct module *module);
 
 #endif /* SFRT_MODULE_H */
