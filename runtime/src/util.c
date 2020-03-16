@@ -12,29 +12,12 @@
 #define UTIL_MOD_LINE_MAX 1024
 
 /**
- * Removes leading and trailing spaces from a string
- * @param str source string
- * @return string without leading or training spaces
- **/
-static char *
-util_remove_spaces(char *str)
-{
-	int i = 0;
-	while (isspace(*str)) str++;
-	i = strlen(str);
-	while (isspace(str[i - 1])) str[i - 1] = '\0';
-
-	return str;
-}
-
-
-/**
  * Parses a JSON file and allocates one or more new modules
  * @param file_name The path of the JSON file
  * @return RC 0 on Success. -1 on Error
  */
 int
-util_parse_modules_file_json(char *file_name)
+util__parse_modules_file_json(char *file_name)
 {
 	// Use stat to get file attributes and make sure file is there and OK
 	struct stat stat_buffer;

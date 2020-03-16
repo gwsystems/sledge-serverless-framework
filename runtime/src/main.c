@@ -171,7 +171,7 @@ main(int argc, char **argv)
 	initialize_runtime();
 
 	debuglog("Parsing modules file [%s]\n", argv[1]);
-	if (util_parse_modules_file_json(argv[1])) {
+	if (util__parse_modules_file_json(argv[1])) {
 		printf("failed to parse modules file[%s]\n", argv[1]);
 		exit(-1);
 	}
