@@ -19,18 +19,6 @@ u32       first_worker_processor               = 0;
 int       worker_threads_argument[SBOX_NCORES] = { 0 }; // The worker sets its argument to -1 on error
 pthread_t worker_threads[SBOX_NCORES];
 
-/**
- * @return timestamp in usec
- **/
-static u64
-get_time()
-{
-	struct timeval Tp;
-	int            stat;
-	stat = gettimeofday(&Tp, NULL);
-	if (stat != 0) printf("Error return from gettimeofday: %d", stat);
-	return (Tp.tv_sec * 1000000 + Tp.tv_usec);
-}
 
 /**
  * Returns instructions on use of CLI if used incorrectly
