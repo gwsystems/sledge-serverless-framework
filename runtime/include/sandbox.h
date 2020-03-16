@@ -151,7 +151,7 @@ static inline void
 switch_to_sandbox(struct sandbox *next_sandbox)
 {
 	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
-	softint_disable();
+	softint__disable();
 	struct sandbox *current_sandbox          = get_current_sandbox();
 	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
 	set_current_sandbox(next_sandbox);
@@ -159,7 +159,7 @@ switch_to_sandbox(struct sandbox *next_sandbox)
 	if (current_sandbox && current_sandbox->state == RETURNED) add_sandbox_to_completion_queue(current_sandbox);
 	next_context = next_register_context;
 	arch_context_switch(current_register_context, next_register_context);
-	softint_enable();
+	softint__enable();
 }
 
 /**

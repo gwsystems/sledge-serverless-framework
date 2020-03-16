@@ -43,8 +43,8 @@ initialize_runtime(void)
 	deque_init_sandbox(global_deque, SBOX_MAX_REQS);
 
 	// Mask Signals
-	softint_mask(SIGUSR1);
-	softint_mask(SIGALRM);
+	softint__mask(SIGUSR1);
+	softint__mask(SIGALRM);
 
 	// Initialize http_parser_settings global
 	http_parser_settings__initialize(&global__http_parser_settings);
@@ -129,8 +129,8 @@ initialize_listener_thread(void)
 	ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cs);
 	assert(ret == 0);
 
-	softint_init();
-	softint_timer_arm();
+	softint__initialize();
+	softint__arm_timer();
 }
 
 /***************************
@@ -169,7 +169,7 @@ static inline void add_sandbox_to_local_run_queue(struct sandbox *sandbox);
 void
 wakeup_sandbox(sandbox_t *sandbox)
 {
-	softint_disable();
+	softint__disable();
 	debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 	if (sandbox->state != BLOCKED) goto done;
 	assert(sandbox->state == BLOCKED);
@@ -177,7 +177,7 @@ wakeup_sandbox(sandbox_t *sandbox)
 	sandbox->state = RUNNABLE;
 	ps_list_head_append_d(&local_run_queue, sandbox);
 done:
-	softint_enable();
+	softint__enable();
 }
 
 
@@ -188,13 +188,13 @@ void
 block_current_sandbox(void)
 {
 	assert(in_callback == 0);
-	softint_disable();
+	softint__disable();
 	struct sandbox *current_sandbox = get_current_sandbox();
 	ps_list_rem_d(current_sandbox);
 	current_sandbox->state          = BLOCKED;
 	struct sandbox *next_sandbox = get_next_sandbox_from_local_run_queue(0);
 	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", current_sandbox, current_sandbox->module->name, next_sandbox, next_sandbox ? next_sandbox->module->name : "");
-	softint_enable();
+	softint__enable();
 	switch_to_sandbox(next_sandbox);
 }
 
@@ -373,9 +373,9 @@ worker_thread_single_loop(void)
 	if (!in_callback) execute_libuv_event_loop();
 
 	// Get and return the sandbox at the head of the thread local runqueue
-	softint_disable();
+	softint__disable();
 	struct sandbox *sandbox = get_next_sandbox_from_local_run_queue(0);
-	softint_enable();
+	softint__enable();
 	assert(sandbox == NULL || sandbox->state == RUNNABLE);
 	return sandbox;
 }
@@ -395,8 +395,8 @@ worker_thread_main(void *return_code)
 	softint_off  = 0;
 	next_context = NULL;
 #ifndef PREEMPT_DISABLE
-	softint_unmask(SIGALRM);
-	softint_unmask(SIGUSR1);
+	softint__unmask(SIGALRM);
+	softint__unmask(SIGUSR1);
 #endif
 	uv_loop_init(&uvio_handle);
 	in_callback = 0;
@@ -426,13 +426,13 @@ exit_current_sandbox(void)
 {
 	struct sandbox *current_sandbox = get_current_sandbox();
 	assert(current_sandbox);
-	softint_disable();
+	softint__disable();
 	remove_sandbox_from_local_run_queue(current_sandbox);
 	current_sandbox->state = RETURNED;
 
 	struct sandbox *next_sandbox = get_next_sandbox_from_local_run_queue(0);
 	assert(next_sandbox != current_sandbox);
-	softint_enable();
+	softint__enable();
 	// free resources from "main function execution", as stack still in use.
 	// unmap linear memory only!
 	munmap(current_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);

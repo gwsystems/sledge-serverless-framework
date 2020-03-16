@@ -277,10 +277,10 @@ sandbox_main(void)
 	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
 	//        return to switch_to_sandbox() api..
 	//        we'd potentially do what we'd in switch_to_sandbox() api here for cleanup..
-	if (!softint_enabled()) {
+	if (!softint__is_enabled()) {
 		arch_context_init(&current_sandbox->ctxt, 0, 0);
 		next_context = NULL;
-		softint_enable();
+		softint__enable();
 	}
 	struct module *current_module       = get_sandbox_module(current_sandbox);
 	int            argument_count = module__get_argument_count(current_module);
