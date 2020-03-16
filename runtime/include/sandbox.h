@@ -285,6 +285,20 @@ current_sandbox__initialize_io_handle_and_set_file_descriptor(int file_descripto
 	return sandbox__initialize_io_handle_and_set_file_descriptor(sandbox, file_descriptor);
 }
 
+extern http_parser_settings global__http_parser_settings;
+int sandbox__parse_http_request(struct sandbox *sandbox, size_t l);
+
+/**
+ * Parse the current sandbox's request_response_data up to length
+ * @param length
+ * @returns 0
+ **/
+static inline int
+current_sandbox__parse_http_request(size_t length)
+{
+	return sandbox__parse_http_request(current_sandbox__get(), length);
+}
+
 /**
  * Sets the file descriptor of the sandbox's ith io_handle
  * Returns error condition if the file_descriptor to set does not contain sandbox preopen magin
@@ -333,5 +347,64 @@ current_sandbox__get_libuv_handle(int handle_index)
 	struct sandbox *sandbox = current_sandbox__get();
 	return sandbox__get_libuv_handle(sandbox, handle_index);
 }
+
+/**
+ * Gets the HTTP Request body from the current sandbox
+ * @param body pointer that we'll assign to the http_request body
+ * @returns the length of the http_request's body
+ **/
+static inline int
+current_sandbox__get_http_request_body(char **body)
+{
+	return http_request__get_body(&current_sandbox__get()->http_request, body);
+}
+
+
+/**
+ * Set an HTTP Response Header on the current sandbox
+ * @param header string of the header that we want to set
+ * @param length the length of the header string
+ * @returns 0 (abends program in case of error)
+ **/
+static inline int
+current_sandbox__set_http_response_header(char *header, int length)
+{
+	return http_response__set_header(&current_sandbox__get()->http_response, header, length);
+}
+
+/**
+ * Set an HTTP Response Body on the current sandbox
+ * @param body string of the body that we want to set
+ * @param length the length of the body string
+ * @returns 0 (abends program in case of error)
+ **/
+static inline int
+current_sandbox__set_http_response_body(char *body, int length)
+{
+	return http_response__set_body(&current_sandbox__get()->http_response, body, length);
+}
+
+/**
+ * Set an HTTP Response Status on the current sandbox
+ * @param status string of the status we want to set
+ * @param length the length of the status
+ * @returns 0 (abends program in case of error)
+ **/
+static inline int
+current_sandbox__set_http_response_status(char *status, int length)
+{
+	return http_response__set_status(&current_sandbox__get()->http_response, status, length);
+}
+
+/**
+ * Encode the current sandbox's HTTP Response as an array of buffers
+ * @returns the number of buffers used to store the HTTP Response
+ **/
+static inline int
+current_sandbox__vectorize_http_response(void)
+{
+	return http_response__encode_as_vector(&current_sandbox__get()->http_response);
+}
+
 
 #endif /* SFRT_SANDBOX_H */

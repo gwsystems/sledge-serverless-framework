@@ -5,7 +5,6 @@
 #include <pthread.h>
 #include <signal.h>
 #include <uv.h>
-#include <http_api.h>
 #include <libuv_callbacks.h>
 #include <util.h>
 
@@ -40,6 +39,24 @@ current_sandbox__setup_arguments(i32 argument_count)
 	}
 	stub_init(string_off);
 }
+
+/**
+ * Run the http-parser on the sandbox's request_response_data using the configured settings global
+ * @param sandbox the sandbox containing the req_resp data that we want to parse
+ * @param length The size of the request_response_data that we want to parse
+ * @returns 0
+ * 
+ * Globals: global__http_parser_settings
+ **/
+int
+sandbox__parse_http_request(struct sandbox *sandbox, size_t length)
+{
+	// Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
+	// it's like a cursor to keep track of what we've read so far
+	http_parser_execute(&sandbox->http_parser, &global__http_parser_settings, sandbox->request_response_data + sandbox->request_response_data_length, length);
+	return 0;
+}
+
 
 /**
  * Receive and Parse the Request for the current sandbox

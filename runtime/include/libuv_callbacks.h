@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <uv.h>
-#include <http_api.h>
+#include <http.h>
 
 /**
  *  TODO: is there some weird edge case where a UNICODE character might be split between reads? Do we care?
