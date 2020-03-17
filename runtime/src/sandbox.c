@@ -47,14 +47,14 @@ current_sandbox__setup_arguments(i32 argument_count)
  * @param length The size of the request_response_data that we want to parse
  * @returns 0
  * 
- * Globals: global__http_parser_settings
+ * Globals: runtime__http_parser_settings
  **/
 int
 sandbox__parse_http_request(struct sandbox *sandbox, size_t length)
 {
 	// Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
 	// it's like a cursor to keep track of what we've read so far
-	http_parser_execute(&sandbox->http_parser, &global__http_parser_settings, sandbox->request_response_data + sandbox->request_response_data_length, length);
+	http_parser_execute(&sandbox->http_parser, &runtime__http_parser_settings, sandbox->request_response_data + sandbox->request_response_data_length, length);
 	return 0;
 }
 
