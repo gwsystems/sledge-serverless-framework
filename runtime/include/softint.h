@@ -9,7 +9,7 @@
  * Externs
  ***************************************/
 
-extern __thread volatile sig_atomic_t softint_off;
+extern __thread volatile sig_atomic_t softint__is_disabled;
 
 /***************************************
  * Public Static Inlines
@@ -18,22 +18,34 @@ extern __thread volatile sig_atomic_t softint_off;
 static inline void
 softint__disable(void)
 {
-	while (__sync_bool_compare_and_swap(&softint_off, 0, 1) == false)
+	while (__sync_bool_compare_and_swap(&softint__is_disabled, 0, 1) == false)
 		;
 }
 
+
+/**
+ * Enables signals
+ */
 static inline void
 softint__enable(void)
 {
-	if (__sync_bool_compare_and_swap(&softint_off, 1, 0) == false) assert(0);
+	if (__sync_bool_compare_and_swap(&softint__is_disabled, 1, 0) == false) assert(0);
 }
 
+/**
+ * @returns boolean if signals are enabled
+ */
 static inline int
 softint__is_enabled(void)
 {
-	return (softint_off == 0);
+	return (softint__is_disabled == 0);
 }
 
+/**
+ * Blocks a signal on the current thread
+ * @param signal - the signal you want to block
+ * @return 0 on success. Exits program otherwise
+ **/
 static inline int
 softint__mask(int signal)
 {
@@ -54,6 +66,11 @@ softint__mask(int signal)
 	return 0;
 }
 
+/**
+ * Unblocks a signal on the current thread
+ * @param signal - the signal you want to block
+ * @return 0 on success. Exits program otherwise
+ **/
 static inline int
 softint__unmask(int signal)
 {

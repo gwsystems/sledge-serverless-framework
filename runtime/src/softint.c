@@ -18,15 +18,15 @@
  * Process Globals
  ***************************************/
 
-static const int softints[] = { SIGALRM, SIGUSR1 };
+static const int softint__supported_signals[] = { SIGALRM, SIGUSR1 };
 
 /***************************************
  * Thread Globals
  ***************************************/
 
-__thread static volatile sig_atomic_t SIGALRM_count = 0;
-__thread static volatile sig_atomic_t SIGUSR_count  = 0;
-__thread volatile sig_atomic_t softint_off = 0;
+__thread static volatile sig_atomic_t softint__SIGALRM_count = 0;
+__thread static volatile sig_atomic_t softint__SIGUSR_count  = 0;
+__thread volatile sig_atomic_t softint__is_disabled = 0;
 
 /***************************************
  * Externs
@@ -75,10 +75,10 @@ softint__handle_signals(int signal_type, siginfo_t *signal_info, void *user_cont
 		} else {
 			assert(signal_info->si_code == SI_TKILL);
 		}
-		// debuglog("alrm:%d\n", SIGALRM_count);
+		// debuglog("alrm:%d\n", softint__SIGALRM_count);
 
-		SIGALRM_count++;
-		// softints per-core..
+		softint__SIGALRM_count++;
+		// softint__supported_signals per-core..
 		if (curr && curr->state == RETURNED) return;
 		if (next_context) return;
 		if (!softint__is_enabled()) return;
@@ -92,9 +92,9 @@ softint__handle_signals(int signal_type, siginfo_t *signal_info, void *user_cont
 		/* we set current before calling pthread_kill! */
 		assert(next_context && (&curr->ctxt == next_context));
 		assert(signal_info->si_code == SI_TKILL);
-		// debuglog("usr1:%d\n", SIGUSR_count);
+		// debuglog("usr1:%d\n", softint__SIGUSR_count);
 
-		SIGUSR_count++;
+		softint__SIGUSR_count++;
 		// do not save current sandbox.. it is in co-operative switch..
 		// pick the next from "next_context"..
 		// assert its "sp" to be zero in regs..
@@ -205,8 +205,8 @@ softint__initialize(void)
 	signal_action.sa_sigaction = softint__handle_signals;
 	signal_action.sa_flags     = SA_SIGINFO | SA_RESTART;
 
-	for (int i = 0; i < (sizeof(softints) / sizeof(softints[0])); i++) {
-		int return_code = sigaction(softints[i], &signal_action, NULL);
+	for (int i = 0; i < (sizeof(softint__supported_signals) / sizeof(softint__supported_signals[0])); i++) {
+		int return_code = sigaction(softint__supported_signals[i], &signal_action, NULL);
 		if (return_code) {
 			perror("sigaction");
 			exit(1);
