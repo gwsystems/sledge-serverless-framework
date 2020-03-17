@@ -17,7 +17,7 @@ struct arch_context {
 	mcontext_t mctx;
 };
 
-typedef struct arch_context    arch_context_t;
+typedef struct arch_context arch_context_t;
 
 extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
 extern __thread arch_context_t worker_thread__base_context;

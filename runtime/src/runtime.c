@@ -72,8 +72,8 @@ listener_thread__main(void *dummy)
 	int                 total_requests = 0;
 
 	while (true) {
-		int request_count      = epoll_wait(runtime__epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
-		u64 start_time = util__rdtsc();
+		int request_count = epoll_wait(runtime__epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
+		u64 start_time    = util__rdtsc();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
@@ -82,10 +82,10 @@ listener_thread__main(void *dummy)
 
 			struct sockaddr_in client_address;
 			socklen_t          client_length = sizeof(client_address);
-			struct module *    module     = (struct module *)epoll_events[i].data.ptr;
+			struct module *    module        = (struct module *)epoll_events[i].data.ptr;
 			assert(module);
-			int es = module->socket_descriptor;
-			int socket_descriptor  = accept(es, (struct sockaddr *)&client_address, &client_length);
+			int es                = module->socket_descriptor;
+			int socket_descriptor = accept(es, (struct sockaddr *)&client_address, &client_length);
 			if (socket_descriptor < 0) {
 				perror("accept");
 				assert(0);
@@ -93,12 +93,9 @@ listener_thread__main(void *dummy)
 			total_requests++;
 			printf("Received Request %d at %lu\n", total_requests, start_time);
 
-			sandbox_request_t *sandbox_request = sandbox_request__allocate(
-				module, 
-				module->name, 
-				socket_descriptor, 
-				(const struct sockaddr *)&client_address,
-			    start_time);
+			sandbox_request_t *sandbox_request =
+			  sandbox_request__allocate(module, module->name, socket_descriptor,
+			                            (const struct sockaddr *)&client_address, start_time);
 			assert(sandbox_request);
 
 			// TODO: Refactor sandbox_request__allocate to not add to global request queue and do this here
@@ -176,7 +173,8 @@ worker_thread__switch_to_sandbox(struct sandbox *next_sandbox)
 	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
 	current_sandbox__set(next_sandbox);
 	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
-	if (current_sandbox && current_sandbox->state == RETURNED) worker_thread__completion_queue__add_sandbox(current_sandbox);
+	if (current_sandbox && current_sandbox->state == RETURNED)
+		worker_thread__completion_queue__add_sandbox(current_sandbox);
 	worker_thread__next_context = next_register_context;
 	arch_context_switch(current_register_context, next_register_context);
 	softint__enable();
@@ -202,7 +200,8 @@ done:
 
 
 /**
- * Mark the currently executing sandbox as blocked, remove it from the local runqueue, and pull the sandbox at the head of the runqueue
+ * Mark the currently executing sandbox as blocked, remove it from the local runqueue, and pull the sandbox at the head
+ *of the runqueue
  **/
 void
 worker_thread__block_current_sandbox(void)
@@ -211,9 +210,10 @@ worker_thread__block_current_sandbox(void)
 	softint__disable();
 	struct sandbox *current_sandbox = current_sandbox__get();
 	ps_list_rem_d(current_sandbox);
-	current_sandbox->state          = BLOCKED;
+	current_sandbox->state       = BLOCKED;
 	struct sandbox *next_sandbox = worker_thread__get_next_sandbox(0);
-	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", current_sandbox, current_sandbox->module->name, next_sandbox, next_sandbox ? next_sandbox->module->name : "");
+	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", current_sandbox, current_sandbox->module->name,
+	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
 	softint__enable();
 	worker_thread__switch_to_sandbox(next_sandbox);
 }
@@ -231,7 +231,7 @@ worker_thread__process_io(void)
 	// great! if there is a way (TODO), perhaps RUN_ONCE and check if your I/O is processed, if yes, return else do
 	// async block!
 	uv_run(get_thread_libuv_handle(), UV_RUN_DEFAULT);
-#else /* USE_HTTP_SYNC */
+#else  /* USE_HTTP_SYNC */
 	worker_thread__block_current_sandbox();
 #endif /* USE_HTTP_UVIO */
 #else
@@ -267,8 +267,9 @@ worker_thread__pull_and_process_sandbox_requests(void)
 		if ((sandbox_request = sandbox_request__steal_from_global_dequeue()) == NULL) break;
 		// Actually allocate the sandbox for the requests that we've pulled
 		struct sandbox *sandbox = sandbox__allocate(sandbox_request->module, sandbox_request->arguments,
-		                                        sandbox_request->socket_descriptor, sandbox_request->socket_address,
-		                                        sandbox_request->start_time);
+		                                            sandbox_request->socket_descriptor,
+		                                            sandbox_request->socket_address,
+		                                            sandbox_request->start_time);
 		assert(sandbox);
 		free(sandbox_request);
 		// Set the sandbox as runnable and place on the local runqueue
@@ -303,7 +304,7 @@ static inline void
 worker_thread__run_queue__add_sandbox(struct sandbox *sandbox)
 {
 	assert(ps_list_singleton_d(sandbox));
-		// fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s,
+	// fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s,
 	// s->module->name);
 	ps_list_head_append_d(&worker_thread__run_queue, sandbox);
 }
@@ -327,8 +328,8 @@ worker_thread__run_queue__remove_sandbox(struct sandbox *sandbox)
 struct sandbox *
 worker_thread__get_next_sandbox(int in_interrupt)
 {
-	// If the thread local runqueue is empty and we're not running in the context of an interupt, 
- 	// pull a fresh batch of sandbox requests from the global queue
+	// If the thread local runqueue is empty and we're not running in the context of an interupt,
+	// pull a fresh batch of sandbox requests from the global queue
 	if (ps_list_head_empty(&worker_thread__run_queue)) {
 		// this is in an interrupt context, don't steal work here!
 		if (in_interrupt) return NULL;
@@ -341,7 +342,8 @@ worker_thread__get_next_sandbox(int in_interrupt)
 	// Execute Round Robin Scheduling Logic
 	// Grab the sandbox at the head of the thread local runqueue, add it to the end, and return it
 	struct sandbox *sandbox = ps_list_head_first_d(&worker_thread__run_queue, struct sandbox);
-	// We are assuming that any sandboxed in the RETURNED state should have been pulled from the local runqueue by now!
+	// We are assuming that any sandboxed in the RETURNED state should have been pulled from the local runqueue by
+	// now!
 	assert(sandbox->state != RETURNED);
 	ps_list_rem_d(sandbox);
 	ps_list_head_append_d(&worker_thread__run_queue, sandbox);
@@ -379,7 +381,7 @@ worker_thread__completion_queue__free_sandboxes(unsigned int number_to_free)
 }
 
 /**
- * Tries to free a completed request, executes libuv callbacks, and then gets 
+ * Tries to free a completed request, executes libuv callbacks, and then gets
  * and returns the standbox at the head of the thread-local runqueue
  * @return sandbox or NULL
  **/
@@ -402,7 +404,7 @@ worker_thread__single_loop(void)
 
 /**
  * The entry function for sandbox worker threads
- * Initializes thread-local state, unmasks signals, sets up libuv loop and 
+ * Initializes thread-local state, unmasks signals, sets up libuv loop and
  * @param return_code - argument provided by pthread API. We set to -1 on error
  **/
 void *
@@ -412,7 +414,7 @@ worker_thread__main(void *return_code)
 
 	ps_list_head_init(&worker_thread__run_queue);
 	ps_list_head_init(&worker_thread__completion_queue);
-	softint__is_disabled  = 0;
+	softint__is_disabled        = 0;
 	worker_thread__next_context = NULL;
 #ifndef PREEMPT_DISABLE
 	softint__unmask(SIGALRM);

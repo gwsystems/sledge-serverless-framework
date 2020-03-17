@@ -32,14 +32,14 @@ libuv_callbacks__on_read_parse_http_request(uv_stream_t *stream, ssize_t number_
 		struct http_request *rh = &sandbox->http_request;
 		if (!rh->message_end) return;
 	}
-	
+
 	// When the entire message has been read, stop the stream and wakeup the sandbox
 	uv_read_stop(stream);
 	worker_thread__wakeup_sandbox(sandbox);
 }
 
 /**
- * On libuv close, executes this callback to wake the blocked sandbox back up 
+ * On libuv close, executes this callback to wake the blocked sandbox back up
  * @param stream
  **/
 static inline void
@@ -73,7 +73,8 @@ libuv_callbacks__on_write_wakeup_sandbox(uv_write_t *write, int status)
 	struct sandbox *sandbox = write->data;
 	if (status < 0) {
 		sandbox->client_libuv_shutdown_request.data = sandbox;
-		uv_shutdown(&sandbox->client_libuv_shutdown_request, (uv_stream_t *)&sandbox->client_libuv_stream, libuv_callbacks__on_shutdown_wakeup_sakebox);
+		uv_shutdown(&sandbox->client_libuv_shutdown_request, (uv_stream_t *)&sandbox->client_libuv_stream,
+		            libuv_callbacks__on_shutdown_wakeup_sakebox);
 		return;
 	}
 	worker_thread__wakeup_sandbox(sandbox);
@@ -83,9 +84,9 @@ static inline void
 libuv_callbacks__on_allocate_setup_request_response_data(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
 {
 	struct sandbox *sandbox = h->data;
-	size_t          l       = (sandbox->module->max_request_or_response_size - sandbox->request_response_data_length);
-	buf->base               = (sandbox->request_response_data + sandbox->request_response_data_length);
-	buf->len                = l > suggested ? suggested : l;
+	size_t          l = (sandbox->module->max_request_or_response_size - sandbox->request_response_data_length);
+	buf->base         = (sandbox->request_response_data + sandbox->request_response_data_length);
+	buf->len          = l > suggested ? suggested : l;
 }
 
 #endif /* SFRT_SANDBOX_H */

@@ -16,4 +16,3 @@ http_request__get_body(struct http_request *http_request, char **body)
 	*body = http_request->body;
 	return http_request->body_length;
 }
-

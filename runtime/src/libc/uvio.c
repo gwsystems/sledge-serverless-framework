@@ -9,25 +9,25 @@
 #define GID 0xFE
 
 // Elf auxilary vector values (see google for what those are)
-#define AT_NULL          0
-#define AT_IGNORE        1
-#define AT_EXECFD        2
-#define AT_PHDR          3
-#define AT_PHENT         4
-#define AT_PHNUM         5
-#define AT_PAGESZ        6
-#define AT_BASE          7
-#define AT_FLAGS         8
-#define AT_ENTRY         9
-#define AT_NOTELF        10
-#define AT_UID           11
-#define AT_EUID          12
-#define AT_GID           13
-#define AT_EGID          14
-#define AT_CLKTCK        17
-#define AT_SECURE        23
+#define AT_NULL 0
+#define AT_IGNORE 1
+#define AT_EXECFD 2
+#define AT_PHDR 3
+#define AT_PHENT 4
+#define AT_PHNUM 5
+#define AT_PAGESZ 6
+#define AT_BASE 7
+#define AT_FLAGS 8
+#define AT_ENTRY 9
+#define AT_NOTELF 10
+#define AT_UID 11
+#define AT_EUID 12
+#define AT_GID 13
+#define AT_EGID 14
+#define AT_CLKTCK 17
+#define AT_SECURE 23
 #define AT_BASE_PLATFORM 24
-#define AT_RANDOM        25
+#define AT_RANDOM 25
 
 // offset = a WASM ptr to memory the runtime can use
 void
@@ -87,8 +87,8 @@ uv_fs_get_type(uv_fs_t *req)
 	return req->fs_type;
 }
 
-#define UV_FS_REQ_INIT()                               \
-	{                                              \
+#define UV_FS_REQ_INIT()                                    \
+	{                                                   \
 		.data = current_sandbox__get(), .result = 0 \
 	}
 
@@ -162,21 +162,21 @@ wasm_write(i32 file_descriptor, i32 buf_offset, i32 buf_size)
 	return ret;
 }
 
-#define WO_RDONLY    00
-#define WO_WRONLY    01
-#define WO_RDWR      02
-#define WO_CREAT     0100
-#define WO_EXCL      0200
-#define WO_NOCTTY    0400
-#define WO_TRUNC     01000
-#define WO_APPEND    02000
-#define WO_NONBLOCK  04000
-#define WO_DSYNC     010000
-#define WO_SYNC      04010000
-#define WO_RSYNC     04010000
+#define WO_RDONLY 00
+#define WO_WRONLY 01
+#define WO_RDWR 02
+#define WO_CREAT 0100
+#define WO_EXCL 0200
+#define WO_NOCTTY 0400
+#define WO_TRUNC 01000
+#define WO_APPEND 02000
+#define WO_NONBLOCK 04000
+#define WO_DSYNC 010000
+#define WO_SYNC 04010000
+#define WO_RSYNC 04010000
 #define WO_DIRECTORY 0200000
-#define WO_NOFOLLOW  0400000
-#define WO_CLOEXEC   02000000
+#define WO_NOFOLLOW 0400000
+#define WO_CLOEXEC 02000000
 
 #define SYS_OPEN 2
 i32
@@ -612,8 +612,8 @@ wasm_getpid()
 #define WF_SETSIG 10
 #define WF_GETSIG 11
 
-#define WF_GETLK  5
-#define WF_SETLK  6
+#define WF_GETLK 5
+#define WF_SETLK 6
 #define WF_SETLKW 7
 
 #define SYS_FCNTL 72
@@ -750,11 +750,11 @@ wasm_fchown(i32 file_descriptor, u32 owner, u32 group)
 }
 
 // networking syscalls
-#define SYS_SOCKET  41
+#define SYS_SOCKET 41
 #define SYS_CONNECT 42
-#define SYS_ACCEPT  43
-#define SYS_BIND    49
-#define SYS_LISTEN  50
+#define SYS_ACCEPT 43
+#define SYS_BIND 49
+#define SYS_LISTEN 50
 
 static void
 wasm_connection_callback(uv_stream_t *srv, int status)
@@ -805,7 +805,7 @@ wasm_socket(i32 domain, i32 type, i32 protocol)
 i32
 wasm_connect(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 {
-	struct sandbox *c  = current_sandbox__get();
+	struct sandbox *c               = current_sandbox__get();
 	int             file_descriptor = current_sandbox__get_file_descriptor(sockfd);
 	debuglog("[%p] [%d, %d]\n", c, sockfd, file_descriptor);
 	union uv_any_handle *h = current_sandbox__get_libuv_handle(sockfd);
@@ -834,10 +834,10 @@ i32
 wasm_accept(i32 sockfd, i32 sockaddr_offset, i32 addrlen_offset)
 {
 	// what do we do with the sockaddr TODO: ????
-	socklen_t *          addrlen = get_memory_ptr_void(addrlen_offset, sizeof(socklen_t));
-	struct sockaddr *    socket_address    = get_memory_ptr_void(sockaddr_offset, *addrlen);
-	union uv_any_handle *s       = current_sandbox__get_libuv_handle(sockfd);
-	int                  cfd     = current_sandbox__initialize_io_handle();
+	socklen_t *          addrlen        = get_memory_ptr_void(addrlen_offset, sizeof(socklen_t));
+	struct sockaddr *    socket_address = get_memory_ptr_void(sockaddr_offset, *addrlen);
+	union uv_any_handle *s              = current_sandbox__get_libuv_handle(sockfd);
+	int                  cfd            = current_sandbox__initialize_io_handle();
 	if (cfd < 0) return -1;
 	struct sandbox *c = current_sandbox__get();
 	debuglog("[%p] [%d, %d]\n", c, sockfd, current_sandbox__get_file_descriptor(sockfd));
@@ -865,7 +865,7 @@ wasm_accept(i32 sockfd, i32 sockaddr_offset, i32 addrlen_offset)
 i32
 wasm_bind(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 {
-	struct sandbox *c  = current_sandbox__get();
+	struct sandbox *c               = current_sandbox__get();
 	int             file_descriptor = current_sandbox__get_file_descriptor(sockfd);
 	debuglog("[%p] [%d,%d]\n", c, sockfd, file_descriptor);
 	union uv_any_handle *h = current_sandbox__get_libuv_handle(sockfd);
@@ -916,7 +916,7 @@ wasm_listen(i32 sockfd, i32 backlog)
 	return c->return_value;
 }
 
-#define SYS_SENDTO   44
+#define SYS_SENDTO 44
 #define SYS_RECVFROM 45
 
 void
@@ -936,14 +936,15 @@ void
 wasm_write_callback(uv_write_t *req, int status)
 {
 	struct sandbox *c = req->data;
-	c->return_value         = status;
+	c->return_value   = status;
 	debuglog("[%p] %d\n", c, status);
 
 	worker_thread__wakeup_sandbox(c);
 }
 
 void
-wasm_udp_recv_callback(uv_udp_t *h, ssize_t nread, const uv_buf_t *buffer, const struct sockaddr *socket_address, unsigned flags)
+wasm_udp_recv_callback(uv_udp_t *h, ssize_t nread, const uv_buf_t *buffer, const struct sockaddr *socket_address,
+                       unsigned flags)
 {
 	struct sandbox *c = h->data;
 
@@ -959,7 +960,7 @@ void
 wasm_udp_send_callback(uv_udp_send_t *req, int status)
 {
 	struct sandbox *c = req->data;
-	c->return_value         = status;
+	c->return_value   = status;
 	debuglog("[%p] %d\n", c, status);
 
 	worker_thread__wakeup_sandbox(c);
@@ -1032,9 +1033,9 @@ wasm_recvfrom(i32 file_descriptor, i32 buff_offset, i32 size, i32 flags, i32 soc
 	// so we keep the read buffer pointers in sandbox structure..
 	// for use in the callbacks..
 	c->read_buffer  = buffer;
-	c->read_size = size;
+	c->read_size    = size;
 	c->read_length  = 0;
-	c->return_value    = 0;
+	c->return_value = 0;
 	// TODO: what if stream read more than what "size" is here??
 
 	if (t == UV_TCP) {

@@ -50,7 +50,8 @@ module__initialize_as_server(struct module *module)
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)module;
 	accept_evt.events   = EPOLLIN;
-	if (epoll_ctl(runtime__epoll_file_descriptor, EPOLL_CTL_ADD, module->socket_descriptor, &accept_evt) < 0) assert(0);
+	if (epoll_ctl(runtime__epoll_file_descriptor, EPOLL_CTL_ADD, module->socket_descriptor, &accept_evt) < 0)
+		assert(0);
 }
 
 /***************************************
@@ -82,8 +83,8 @@ module__free(struct module *module)
 
 /**
  * Module Contructor
- * Creates a new module, invokes initialize_tables to initialize the indirect table, adds it to the module DB, and starts
- *listening for HTTP Requests
+ * Creates a new module, invokes initialize_tables to initialize the indirect table, adds it to the module DB, and
+ *starts listening for HTTP Requests
  *
  * @param name
  * @param path
@@ -97,7 +98,7 @@ module__free(struct module *module)
  **/
 struct module *
 module__new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 timeout, int port,
-             int request_size, int response_size)
+            int request_size, int response_size)
 {
 	struct module *module = (struct module *)malloc(sizeof(struct module));
 	if (!module) return NULL;
@@ -146,8 +147,8 @@ module__new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_
 
 	// assumption: All modules are created at program start before we enable preemption or enable the execution of
 	// any worker threads We are checking that thread-local module_indirect_table is NULL to prove that we aren't
-	// yet preempting If we want to be able to do this later, we can possibly defer module__initialize_table until the
-	// first invocation
+	// yet preempting If we want to be able to do this later, we can possibly defer module__initialize_table until
+	// the first invocation
 	assert(cache_tbl == NULL);
 
 	// TODO: determine why we have to set the module_indirect_table state before calling table init and then restore
@@ -308,10 +309,10 @@ module__new_from_json(char *file_name)
 
 		// Allocate a module based on the values from the JSON
 		struct module *module = module__new(module_name, module_path, argument_count, 0, 0, 0, port,
-		                                     request_size, response_size);
+		                                    request_size, response_size);
 		assert(module);
 		module__set_http_info(module, request_count, request_headers, request_content_type, response_count,
-		                 reponse_headers, response_content_type);
+		                      reponse_headers, response_content_type);
 		module_count++;
 		free(request_headers);
 		free(reponse_headers);

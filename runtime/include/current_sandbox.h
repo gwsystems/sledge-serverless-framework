@@ -28,8 +28,8 @@ current_sandbox__set(struct sandbox *sandbox)
 	if (sandbox == NULL) return;
 
 	// Thread Local State about the Current Sandbox
-	sandbox_lmbase  = sandbox->linear_memory_start;
-	sandbox_lmbound = sandbox->linear_memory_size;
+	sandbox_lmbase        = sandbox->linear_memory_start;
+	sandbox_lmbound       = sandbox->linear_memory_size;
 	module_indirect_table = sandbox->module->indirect_table;
 }
 
