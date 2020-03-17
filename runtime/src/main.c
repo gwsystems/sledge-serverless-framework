@@ -1,16 +1,17 @@
 #include <ctype.h>
+#include <dlfcn.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <dlfcn.h>
 #include <pthread.h>
 #include <sched.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 #include <unistd.h>
+
+#include <module.h>
 #include <runtime.h>
 #include <sandbox.h>
 #include <softint.h>
-#include <util.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 
 i32       log_file_descriptor                  = -1;
 u32       total_online_processors              = 0;
@@ -159,7 +160,7 @@ main(int argc, char **argv)
 	initialize_runtime();
 
 	debuglog("Parsing modules file [%s]\n", argv[1]);
-	if (util__parse_modules_file_json(argv[1])) {
+	if (module__new_from_json(argv[1])) {
 		printf("failed to parse modules file[%s]\n", argv[1]);
 		exit(-1);
 	}
