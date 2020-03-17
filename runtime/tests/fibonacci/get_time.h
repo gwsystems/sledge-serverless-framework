@@ -17,7 +17,7 @@ get_time()
   unsigned long long int ret = 0;
   unsigned int cycles_lo;
   unsigned int cycles_hi;
-  __asm__ volatile ("util__rdtsc" : "=a" (cycles_lo), "=d" (cycles_hi));
+  __asm__ volatile ("rdtsc" : "=a" (cycles_lo), "=d" (cycles_hi));
   ret = (unsigned long long int)cycles_hi << 32 | cycles_lo;
 
   return ret;

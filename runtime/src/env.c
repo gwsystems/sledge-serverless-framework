@@ -190,7 +190,7 @@ env_cos(double d)
 }
 
 INLINE unsigned long long
-env_util__rdtsc(void)
+env_rdtsc(void)
 {
 	return util__rdtsc();
 }
