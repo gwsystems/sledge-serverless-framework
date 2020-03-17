@@ -2,8 +2,11 @@
 #define ARCH_X86_64_CONTEXT_H
 
 #include <assert.h>
-#include <unistd.h>
 #include <ucontext.h>
+#include <unistd.h>
+
+#define ARCH_NREGS       (16 /* GP registers */ + 1 /* for IP */)
+#define ARCH_SIG_JMP_OFF 8
 
 /*
  * Register strict ordering>
@@ -27,14 +30,11 @@
  */
 
 typedef uint64_t reg_t;
-#define ARCH_NREGS       (16 /* GP registers */ + 1 /* for IP */)
-#define ARCH_SIG_JMP_OFF 8
 
 /*
  * This is the slowpath switch to a preempted sandbox!
  * SIGUSR1 on the current thread and restore mcontext there!
  */
-extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
 
 struct arch_context {
 	reg_t      regs[ARCH_NREGS];
@@ -42,37 +42,9 @@ struct arch_context {
 };
 
 typedef struct arch_context    arch_context_t;
+
+extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
 extern __thread arch_context_t worker_thread__base_context;
-
-static void
-arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
-{
-	assert(ctx != &worker_thread__base_context);
-
-	ctx->regs[5] = 0;
-	memcpy(&ctx->mctx, mc, sizeof(mcontext_t));
-}
-
-static int
-arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
-{
-	assert(ctx != &worker_thread__base_context);
-
-	// if ctx->regs[5] is set, this was last in a user-level context switch state!
-	// else restore mcontext..
-	if (ctx->regs[5]) {
-		mc->gregs[REG_RSP] = ctx->regs[5];
-		mc->gregs[REG_RIP] = ctx->regs[16] + ARCH_SIG_JMP_OFF;
-		ctx->regs[5]       = 0;
-
-		return 1;
-	} else {
-		memcpy(mc, &ctx->mctx, sizeof(mcontext_t));
-		memset(&ctx->mctx, 0, sizeof(mcontext_t));
-	}
-
-	return 0;
-}
 
 static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
 {
@@ -100,6 +72,37 @@ static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, re
 	*(actx->regs + 5)  = sp;
 	*(actx->regs + 16) = ip;
 }
+
+static int
+arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
+{
+	assert(ctx != &worker_thread__base_context);
+
+	// if ctx->regs[5] is set, this was last in a user-level context switch state!
+	// else restore mcontext..
+	if (ctx->regs[5]) {
+		mc->gregs[REG_RSP] = ctx->regs[5];
+		mc->gregs[REG_RIP] = ctx->regs[16] + ARCH_SIG_JMP_OFF;
+		ctx->regs[5]       = 0;
+
+		return 1;
+	} else {
+		memcpy(mc, &ctx->mctx, sizeof(mcontext_t));
+		memset(&ctx->mctx, 0, sizeof(mcontext_t));
+	}
+
+	return 0;
+}
+
+static void
+arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
+{
+	assert(ctx != &worker_thread__base_context);
+
+	ctx->regs[5] = 0;
+	memcpy(&ctx->mctx, mc, sizeof(mcontext_t));
+}
+
 
 static inline int
 arch_context_switch(arch_context_t *ca, arch_context_t *na)
