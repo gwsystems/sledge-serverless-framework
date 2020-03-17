@@ -7,7 +7,6 @@
 #include <module.h>
 #include <util.h>
 #include <jsmn.h>
-#include <http.h>
 
 #define UTIL_MOD_LINE_MAX 1024
 

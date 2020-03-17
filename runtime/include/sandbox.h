@@ -8,7 +8,8 @@
 #include <ucontext.h>
 #include <uv.h>
 #include "deque.h"
-#include <http.h>
+#include <http/http_request.h>
+#include <http/http_response.h>
 
 struct io_handle {
 	int                 file_descriptor;
