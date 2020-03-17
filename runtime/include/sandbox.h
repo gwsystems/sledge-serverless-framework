@@ -11,7 +11,7 @@
 #include <http/http_request.h>
 #include <http/http_response.h>
 
-struct io_handle {
+struct sandbox__io_handle {
 	int                 file_descriptor;
 	union uv_any_handle libuv_handle;
 };
@@ -21,7 +21,7 @@ typedef enum
 	RUNNABLE,
 	BLOCKED,
 	RETURNED
-} sandbox_state_t;
+} sandbox__state_t;
 
 /*
  * This is the slowpath switch to a preempted sandbox!
@@ -32,7 +32,7 @@ extern void __attribute__((noreturn)) sandbox_switch_preempt(void);
 // TODO: linear_memory_max_size is not really used
 
 struct sandbox {
-	sandbox_state_t state;
+	sandbox__state_t state;
 
 	u32   sandbox_size; // The struct plus enough buffer to hold the request or response (sized off largest)
 	
@@ -58,7 +58,7 @@ struct sandbox {
 	void *arguments;        // arguments from request, must be of module->argument_count size.
 	i32   return_value;
 
-	struct io_handle     handles[SBOX_MAX_OPEN];
+	struct sandbox__io_handle     handles[SBOX_MAX_OPEN];
 	struct sockaddr      client_address; // client requesting connection!
 	int                  client_socket_descriptor;
 	uv_tcp_t             client_libuv_stream;
@@ -108,8 +108,9 @@ sandbox__get_module(struct sandbox *sandbox)
 }
 
 /**
- * Getter for the arguments of the current sandbox
- * @return the arguments of the current sandbox
+ * Getter for the arguments of the sandbox
+ * @param sandbox
+ * @return the arguments of the sandbox
  */
 static inline char *
 sandbox__get_arguments(struct sandbox *sandbox)
@@ -120,6 +121,7 @@ sandbox__get_arguments(struct sandbox *sandbox)
 
 /**
  * Initializes and returns an IO handle on the current sandbox ready for use
+ * @param sandbox
  * @return index of handle we preopened or -1 on error (sandbox is null or all handles are exhausted)
  **/
 static inline int
@@ -138,7 +140,8 @@ sandbox__initialize_io_handle(struct sandbox *sandbox)
 
 
 /**
- * Initializes and returns an IO handle on the current sandbox ready for use
+ * Initializes and returns an IO handle of a sandbox ready for use
+ * @param sandbox
  * @param file_descriptor what we'll set on the IO handle after initialization
  * @return index of handle we preopened or -1 if all handles are exhausted
  **/
@@ -154,7 +157,8 @@ sandbox__initialize_io_handle_and_set_file_descriptor(struct sandbox *sandbox, i
 
 /**
  * Sets the file descriptor of the sandbox's ith io_handle
- * Returns error condition if the file_descriptor to set does not contain sandbox preopen magin
+ * Returns error condition if the file_descriptor to set does not contain sandbox preopen magic
+ * @param sandbox
  * @param handle_index index of the sandbox handles we want to set
  * @param file_descriptor the file descripter we want to set it to
  * @returns the index that was set or -1 in case of error
@@ -171,6 +175,7 @@ sandbox__set_file_descriptor(struct sandbox *sandbox, int handle_index, int file
 
 /**
  * Get the file descriptor of the sandbox's ith io_handle
+ * @param sandbox
  * @param handle_index index into the sandbox's handles table
  * @returns file descriptor or -1 in case of error
  **/
@@ -184,6 +189,7 @@ sandbox__get_file_descriptor(struct sandbox *sandbox, int handle_index)
 
 /**
  * Close the sandbox's ith io_handle
+ * @param sandbox
  * @param handle_index index of the handle to close
  **/
 static inline void
@@ -196,6 +202,7 @@ sandbox__close_file_descriptor(struct sandbox *sandbox, int handle_index)
 
 /**
  * Get the Libuv handle located at idx of the sandbox ith io_handle
+ * @param sandbox
  * @param handle_index index of the handle containing libuv_handle???
  * @returns any libuv handle or a NULL pointer in case of error
  **/
