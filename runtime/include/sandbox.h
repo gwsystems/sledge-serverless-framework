@@ -33,8 +33,8 @@ typedef enum
 struct sandbox {
 	sandbox__state_t state;
 
-	u32   sandbox_size; // The struct plus enough buffer to hold the request or response (sized off largest)
-	
+	u32 sandbox_size; // The struct plus enough buffer to hold the request or response (sized off largest)
+
 	void *linear_memory_start; // after sandbox struct
 	u32   linear_memory_size;  // from after sandbox struct
 	u32   linear_memory_max_size;
@@ -57,11 +57,11 @@ struct sandbox {
 	void *arguments;        // arguments from request, must be of module->argument_count size.
 	i32   return_value;
 
-	struct sandbox__io_handle     handles[SBOX_MAX_OPEN];
-	struct sockaddr      client_address; // client requesting connection!
-	int                  client_socket_descriptor;
-	uv_tcp_t             client_libuv_stream;
-	uv_shutdown_t        client_libuv_shutdown_request;
+	struct sandbox__io_handle handles[SBOX_MAX_OPEN];
+	struct sockaddr           client_address; // client requesting connection!
+	int                       client_socket_descriptor;
+	uv_tcp_t                  client_libuv_stream;
+	uv_shutdown_t             client_libuv_shutdown_request;
 
 	http_parser          http_parser;
 	struct http_request  http_request;
@@ -73,8 +73,8 @@ struct sandbox {
 	// Used by the ps_list macro
 	struct ps_list list;
 
-	ssize_t request_response_data_length;      // <= max(module->max_request_or_response_size)
-	char    request_response_data[1]; // of rr_data_sz, following sandbox mem..
+	ssize_t request_response_data_length; // <= max(module->max_request_or_response_size)
+	char    request_response_data[1];     // of rr_data_sz, following sandbox mem..
 } PAGE_ALIGNED;
 
 typedef struct sandbox sandbox_t;
@@ -87,21 +87,22 @@ typedef struct sandbox sandbox_t;
 extern __thread struct sandbox *worker_thread__current_sandbox;
 extern __thread arch_context_t *worker_thread__next_context;
 
-extern void            				  worker_thread__block_current_sandbox(void);
-extern void 		                  worker_thread__completion_queue__add_sandbox(struct sandbox *sandbox);
-extern void                           worker_thread__current_sandbox__exit(void);
-extern struct sandbox *               worker_thread__get_next_sandbox(int interrupt);
-extern void 		                  worker_thread__process_io(void);
+extern void            worker_thread__block_current_sandbox(void);
+extern void            worker_thread__completion_queue__add_sandbox(struct sandbox *sandbox);
+extern void            worker_thread__current_sandbox__exit(void);
+extern struct sandbox *worker_thread__get_next_sandbox(int interrupt);
+extern void            worker_thread__process_io(void);
 extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
-extern void                           worker_thread__wakeup_sandbox(sandbox_t *sb);
+extern void worker_thread__wakeup_sandbox(sandbox_t *sb);
 
 /***************************
  * Public API              *
  **************************/
 
-struct sandbox *sandbox__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time);
+struct sandbox *sandbox__allocate(struct module *module, char *arguments, int socket_descriptor,
+                                  const struct sockaddr *socket_address, u64 start_time);
 void            sandbox__free(struct sandbox *sandbox);
-int 			sandbox__parse_http_request(struct sandbox *sandbox, size_t length);
+int             sandbox__parse_http_request(struct sandbox *sandbox, size_t length);
 
 
 /**
@@ -137,7 +138,7 @@ static inline int
 sandbox__initialize_io_handle(struct sandbox *sandbox)
 {
 	if (!sandbox) return -1;
-	int             handle_index;
+	int handle_index;
 	for (handle_index = 0; handle_index < SBOX_MAX_OPEN; handle_index++) {
 		if (sandbox->handles[handle_index].file_descriptor < 0) break;
 	}
@@ -159,8 +160,10 @@ sandbox__initialize_io_handle_and_set_file_descriptor(struct sandbox *sandbox, i
 {
 	if (!sandbox) return -1;
 	if (file_descriptor < 0) return file_descriptor;
-	int handle_index                  = sandbox__initialize_io_handle(sandbox);
-	if (handle_index != -1) sandbox->handles[handle_index].file_descriptor = file_descriptor; // well, per sandbox.. so synchronization necessary!
+	int handle_index = sandbox__initialize_io_handle(sandbox);
+	if (handle_index != -1)
+		sandbox->handles[handle_index].file_descriptor =
+		  file_descriptor; // well, per sandbox.. so synchronization necessary!
 	return handle_index;
 }
 

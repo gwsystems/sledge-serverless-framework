@@ -23,14 +23,17 @@ http_response__encode_as_vector(struct http_response *http_response)
 	http_response->bufs[buffer_count] = uv_buf_init(http_response->status, http_response->status_length);
 	buffer_count++;
 	for (int i = 0; i < http_response->header_count; i++) {
-		http_response->bufs[buffer_count] = uv_buf_init(http_response->headers[i].header, http_response->headers[i].length);
+		http_response->bufs[buffer_count] = uv_buf_init(http_response->headers[i].header,
+		                                                http_response->headers[i].length);
 		buffer_count++;
 	}
 
 	if (http_response->body) {
 		http_response->bufs[buffer_count] = uv_buf_init(http_response->body, http_response->body_length);
 		buffer_count++;
-		http_response->bufs[buffer_count] = uv_buf_init(http_response->status + http_response->status_length - 2, 2); // for crlf
+		http_response->bufs[buffer_count] = uv_buf_init(http_response->status + http_response->status_length
+		                                                  - 2,
+		                                                2); // for crlf
 		buffer_count++;
 	}
 #else

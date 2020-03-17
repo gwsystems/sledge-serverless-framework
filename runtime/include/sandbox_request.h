@@ -20,7 +20,7 @@ DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
 
 /**
  * Pushes a sandbox request to the global deque
- * @param sandbox_request 
+ * @param sandbox_request
  **/
 static inline int
 sandbox_request__add_to_global_dequeue(sandbox_request_t *sandbox_request)
@@ -48,15 +48,16 @@ sandbox_request__add_to_global_dequeue(sandbox_request_t *sandbox_request)
  * @return the new sandbox request
  **/
 static inline sandbox_request_t *
-sandbox_request__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time)
+sandbox_request__allocate(struct module *module, char *arguments, int socket_descriptor,
+                          const struct sockaddr *socket_address, u64 start_time)
 {
 	sandbox_request_t *sandbox_request = (sandbox_request_t *)malloc(sizeof(sandbox_request_t));
 	assert(sandbox_request);
-	sandbox_request->module     = module;
-	sandbox_request->arguments       = arguments;
-	sandbox_request->socket_descriptor       = socket_descriptor;
-	sandbox_request->socket_address       = (struct sockaddr *)socket_address;
-	sandbox_request->start_time = start_time;
+	sandbox_request->module            = module;
+	sandbox_request->arguments         = arguments;
+	sandbox_request->socket_descriptor = socket_descriptor;
+	sandbox_request->socket_address    = (struct sockaddr *)socket_address;
+	sandbox_request->start_time        = start_time;
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
 	sandbox_request__add_to_global_dequeue(sandbox_request);

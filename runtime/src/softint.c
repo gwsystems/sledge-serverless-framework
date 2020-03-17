@@ -26,7 +26,7 @@ static const int softint__supported_signals[] = { SIGALRM, SIGUSR1 };
 
 __thread static volatile sig_atomic_t softint__SIGALRM_count = 0;
 __thread static volatile sig_atomic_t softint__SIGUSR_count  = 0;
-__thread volatile sig_atomic_t softint__is_disabled = 0;
+__thread volatile sig_atomic_t        softint__is_disabled   = 0;
 
 /***************************************
  * Externs
@@ -190,7 +190,6 @@ softint__disarm_timer(void)
 		exit(1);
 	}
 }
-
 
 
 /**

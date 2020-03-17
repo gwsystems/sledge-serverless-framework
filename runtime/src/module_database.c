@@ -8,7 +8,7 @@
 // In-memory representation of all active modules
 struct module *module_database[MOD_MAX] = { NULL };
 // First free in module
-int            module_database_free_offset    = 0;
+int module_database_free_offset = 0;
 
 /**
  * Given a name, find the associated module

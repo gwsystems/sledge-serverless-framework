@@ -6,7 +6,7 @@
 struct module *module_database__find_by_name(char *name);
 struct module *module_database__find_by_socket_descriptor(int socket_descriptor);
 
-extern struct module *module_database[]; 
+extern struct module *module_database[];
 extern int            module_database_free_offset;
 
 /**

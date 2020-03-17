@@ -6,18 +6,18 @@
 #include <types.h>
 
 struct module {
-	char name[MOD_NAME_MAX];
-	char path[MOD_PATH_MAX];
-	void *dynamic_library_handle; // Handle to the *.so of the serverless function
-	i32 argument_count;
-	u32 stack_size; // a specification?
-	u64 max_memory; // perhaps a specification of the module. (max 4GB)
-	u32 timeout;    // again part of the module specification.
-	u32 reference_count; // ref count how many instances exist here.
+	char                        name[MOD_NAME_MAX];
+	char                        path[MOD_PATH_MAX];
+	void *                      dynamic_library_handle; // Handle to the *.so of the serverless function
+	i32                         argument_count;
+	u32                         stack_size;      // a specification?
+	u64                         max_memory;      // perhaps a specification of the module. (max 4GB)
+	u32                         timeout;         // again part of the module specification.
+	u32                         reference_count; // ref count how many instances exist here.
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
-	struct sockaddr_in socket_address;
-	int                socket_descriptor;
-	int                port;
+	struct sockaddr_in          socket_address;
+	int                         socket_descriptor;
+	int                         port;
 
 	// unfortunately, using UV for accepting connections is not great!
 	// on_connection, to create a new accepted connection, will have to
@@ -36,7 +36,7 @@ struct module {
 	int           response_header_count;
 	char          response_content_type[HTTP_HEADERVAL_MAXSZ];
 	char          response_headers[HTTP_HEADERS_MAX][HTTP_HEADER_MAXSZ];
-	
+
 	// Equals the largest of either max_request_size or max_response_size
 	unsigned long max_request_or_response_size;
 
@@ -165,7 +165,7 @@ module__release(struct module *module)
  **/
 static inline void
 module__set_http_info(struct module *module, int request_count, char *request_headers, char request_content_type[],
-                 int response_count, char *response_headers, char response_content_type[])
+                      int response_count, char *response_headers, char response_content_type[])
 {
 	assert(module);
 	module->request_header_count = request_count;
@@ -181,7 +181,8 @@ module__set_http_info(struct module *module, int request_count, char *request_he
  ***************************************/
 
 void           module__free(struct module *module);
-struct module *module__new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout, int port, int req_sz, int resp_sz);
-int 		   module__new_from_json(char *filename);
+struct module *module__new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout,
+                           int port, int req_sz, int resp_sz);
+int            module__new_from_json(char *filename);
 
 #endif /* SFRT_MODULE_H */
