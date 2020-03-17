@@ -166,7 +166,7 @@ done:
  * Handles setup, request parsing, WebAssembly initialization, function execution, response building and sending, and cleanup
  **/
 void
-sandbox_main(void)
+current_sandbox__main(void)
 {
 	struct sandbox *current_sandbox = current_sandbox__get();
 	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
@@ -243,7 +243,7 @@ sandbox_main(void)
 #else
 	close(current_sandbox->client_socket_descriptor);
 #endif
-	current_sandbox__exit();
+	worker_thread__current_sandbox__exit();
 }
 
 /**
@@ -314,10 +314,14 @@ sandbox__allocate(struct module *module, char *arguments, int socket_descriptor,
 	ps_list_init_d(sandbox);
 
 	// Setup the sandbox's context, stack, and instruction pointer
-	arch_context_init(&sandbox->ctxt, (reg_t)sandbox_main, (reg_t)(sandbox->stack_start + sandbox->stack_size));
+	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox__main, (reg_t)(sandbox->stack_start + sandbox->stack_size));
 	return sandbox;
 }
 
+/**
+ * Free stack and heap resources.. also any I/O handles.
+ * @param sandbox
+ **/
 void
 sandbox__free(struct sandbox *sandbox)
 {

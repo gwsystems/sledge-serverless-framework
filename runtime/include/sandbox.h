@@ -1,15 +1,20 @@
 #ifndef SFRT_SANDBOX_H
 #define SFRT_SANDBOX_H
 
-#include "ps_list.h"
-#include "module.h"
-#include "arch/context.h"
-#include "softint.h"
 #include <ucontext.h>
 #include <uv.h>
+
+#include "arch/context.h"
 #include "deque.h"
 #include <http/http_request.h>
 #include <http/http_response.h>
+#include "module.h"
+#include "ps_list.h"
+#include "softint.h"
+
+/**************************
+ * Structs and Types      *
+ **************************/
 
 struct sandbox__io_handle {
 	int                 file_descriptor;
@@ -22,12 +27,6 @@ typedef enum
 	BLOCKED,
 	RETURNED
 } sandbox__state_t;
-
-/*
- * This is the slowpath switch to a preempted sandbox!
- * SIGUSR1 on the current thread and restore mcontext there!
- */
-extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
 
 // TODO: linear_memory_max_size is not really used
 
@@ -78,21 +77,31 @@ struct sandbox {
 	char    request_response_data[1]; // of rr_data_sz, following sandbox mem..
 } PAGE_ALIGNED;
 
-extern __thread struct sandbox *worker_thread__current_sandbox;
-// next_sandbox only used in SIGUSR1
-extern __thread arch_context_t *worker_thread__next_context;
-
 typedef struct sandbox sandbox_t;
-extern void worker_thread__completion_queue__add_sandbox(struct sandbox *sandbox);
 
 /***************************
- * Sandbox                 *
+ * Externs                 *
  **************************/
 
-// a runtime resource, malloc on this!
+
+extern __thread struct sandbox *worker_thread__current_sandbox;
+extern __thread arch_context_t *worker_thread__next_context;
+
+extern void            				  worker_thread__block_current_sandbox(void);
+extern void 		                  worker_thread__completion_queue__add_sandbox(struct sandbox *sandbox);
+extern void                           worker_thread__current_sandbox__exit(void);
+extern struct sandbox *               worker_thread__get_next_sandbox(int interrupt);
+extern void 		                  worker_thread__process_io(void);
+extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
+extern void                           worker_thread__wakeup_sandbox(sandbox_t *sb);
+
+/***************************
+ * Public API              *
+ **************************/
+
 struct sandbox *sandbox__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address, u64 start_time);
-// should free stack and heap resources.. also any I/O handles.
-void sandbox__free(struct sandbox *sandbox);
+void            sandbox__free(struct sandbox *sandbox);
+int 			sandbox__parse_http_request(struct sandbox *sandbox, size_t length);
 
 
 /**
@@ -213,22 +222,5 @@ sandbox__get_libuv_handle(struct sandbox *sandbox, int handle_index)
 	if (handle_index >= SBOX_MAX_OPEN || handle_index < 0) return NULL;
 	return &sandbox->handles[handle_index].libuv_handle;
 }
-
-
-
-void *          sandbox_worker_main(void *data);
-struct sandbox *worker_thread__get_next_sandbox(int interrupt);
-void            worker_thread__block_current_sandbox(void);
-void            worker_thread__wakeup_sandbox(sandbox_t *sb);
-// called in sandbox_main() before and after fn() execution
-// for http request/response processing using uvio
-void worker_thread__process_io(void);
-void sandbox_response(void);
-
-// should be the entry-point for each sandbox so it can do per-sandbox mem/etc init.
-// should have been called with stack allocated and current_sandbox__get() set!
-void                         sandbox_main(void);
-void                         current_sandbox__exit(void);
-int sandbox__parse_http_request(struct sandbox *sandbox, size_t length);
 
 #endif /* SFRT_SANDBOX_H */

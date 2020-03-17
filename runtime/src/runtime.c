@@ -442,7 +442,7 @@ worker_thread__main(void *return_code)
  * TODO: Does this belong in sandbox.c?
  **/
 void
-current_sandbox__exit(void)
+worker_thread__current_sandbox__exit(void)
 {
 	struct sandbox *current_sandbox = current_sandbox__get();
 	assert(current_sandbox);
