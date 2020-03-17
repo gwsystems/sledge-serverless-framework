@@ -433,13 +433,11 @@ worker_thread__main(void *return_code)
 	pthread_exit(return_code);
 }
 
-// RANDOM... Is this in the right place?
-
 /**
  * Called when the function in the sandbox exits
  * Removes the standbox from the thread-local runqueue, sets its state to RETURNED,
  * releases the linear memory, and then switches to the sandbox at the head of the runqueue
- * TODO: Does this belong in sandbox.c?
+ * TODO: Consider moving this to a future current_sandbox file. This has thus far proven difficult to move
  **/
 void
 worker_thread__current_sandbox__exit(void)
