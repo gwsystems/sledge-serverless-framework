@@ -19,10 +19,10 @@
  * Shared Process State    *
  **************************/
 
-struct deque_sandbox *global_deque;
-pthread_mutex_t       global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
-int                   epoll_file_descriptor;
-http_parser_settings  global__http_parser_settings;
+struct deque_sandbox *runtime__global_deque;
+pthread_mutex_t       runtime__global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
+int                   runtime__epoll_file_descriptor;
+http_parser_settings  runtime__http_parser_settings;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -34,22 +34,22 @@ http_parser_settings  global__http_parser_settings;
 void
 initialize_runtime(void)
 {
-	epoll_file_descriptor = epoll_create1(0);
-	assert(epoll_file_descriptor >= 0);
+	runtime__epoll_file_descriptor = epoll_create1(0);
+	assert(runtime__epoll_file_descriptor >= 0);
 
 	// Allocate and Initialize the global deque
-	global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
-	assert(global_deque);
+	runtime__global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
+	assert(runtime__global_deque);
 	// Note: Below is a Macro
-	deque_init_sandbox(global_deque, SBOX_MAX_REQS);
+	deque_init_sandbox(runtime__global_deque, SBOX_MAX_REQS);
 
 	// Mask Signals
 	softint__mask(SIGUSR1);
 	softint__mask(SIGALRM);
 
 	// Initialize http_parser_settings global
-	http_parser_settings__initialize(&global__http_parser_settings);
-	http_parser_settings__register_callbacks(&global__http_parser_settings);	
+	http_parser_settings__initialize(&runtime__http_parser_settings);
+	http_parser_settings__register_callbacks(&runtime__http_parser_settings);	
 }
 
 /********************************
@@ -63,7 +63,7 @@ initialize_runtime(void)
  * @return NULL
  *
  * Used Globals:
- * epoll_file_descriptor - the epoll file descriptor
+ * runtime__epoll_file_descriptor - the epoll file descriptor
  *
  */
 void *
@@ -73,7 +73,7 @@ listener_thread_main(void *dummy)
 	int                 total_requests = 0;
 
 	while (true) {
-		int request_count      = epoll_wait(epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
+		int request_count      = epoll_wait(runtime__epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
 		u64 start_time = util__rdtsc();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
@@ -151,7 +151,7 @@ __thread arch_context_t *next_context = NULL;
 __thread arch_context_t base_context;
 
 // libuv i/o loop handle per sandboxing thread!
-__thread uv_loop_t uvio_handle;
+__thread uv_loop_t runtime__uvio_handle;
 
 // Flag to signify if the thread is currently running callbacks in the libuv event loop
 static __thread unsigned int in_callback;
@@ -419,7 +419,7 @@ worker_thread_main(void *return_code)
 	softint__unmask(SIGALRM);
 	softint__unmask(SIGUSR1);
 #endif
-	uv_loop_init(&uvio_handle);
+	uv_loop_init(&runtime__uvio_handle);
 	in_callback = 0;
 
 	while (true) {

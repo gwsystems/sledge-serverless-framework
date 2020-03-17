@@ -8,10 +8,10 @@
 #include "sandbox.h"
 #include "types.h"
 
-extern int                   epoll_file_descriptor;
-extern struct deque_sandbox *global_deque;
-extern pthread_mutex_t       global_deque_mutex;
-extern __thread uv_loop_t    uvio_handle;
+extern int                   runtime__epoll_file_descriptor;
+extern struct deque_sandbox *runtime__global_deque;
+extern pthread_mutex_t       runtime__global_deque_mutex;
+extern __thread uv_loop_t    runtime__uvio_handle;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);
@@ -62,7 +62,7 @@ get_memory_string(u32 offset)
 static inline uv_loop_t *
 get_thread_libuv_handle(void)
 {
-	return &uvio_handle;
+	return &runtime__uvio_handle;
 }
 
 #endif /* SFRT_RUNTIME_H */

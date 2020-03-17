@@ -1,11 +1,11 @@
 #ifndef SFRT_SANDBOX_REQUEST_H
 #define SFRT_SANDBOX_REQUEST_H
 
-#include "types.h"
 #include "deque.h"
+#include "types.h"
 
-extern struct deque_sandbox *global_deque;
-extern pthread_mutex_t       global_deque_mutex;
+extern struct deque_sandbox *runtime__global_deque;
+extern pthread_mutex_t       runtime__global_deque_mutex;
 
 struct sandbox_request {
 	struct module *  module;
@@ -28,11 +28,11 @@ sandbox_request__add_to_global_dequeue(sandbox_request_t *sandbox_request)
 	int return_code;
 
 #if NCORES == 1
-	pthread_mutex_lock(&global_deque_mutex);
+	pthread_mutex_lock(&runtime__global_deque_mutex);
 #endif
-	return_code = deque_push_sandbox(global_deque, &sandbox_request);
+	return_code = deque_push_sandbox(runtime__global_deque, &sandbox_request);
 #if NCORES == 1
-	pthread_mutex_unlock(&global_deque_mutex);
+	pthread_mutex_unlock(&runtime__global_deque_mutex);
 #endif
 
 	return return_code;
@@ -73,11 +73,11 @@ sandbox_request__pop_from_global_dequeue(sandbox_request_t **sandbox_request)
 	int return_code;
 
 #if NCORES == 1
-	pthread_mutex_lock(&global_deque_mutex);
+	pthread_mutex_lock(&runtime__global_deque_mutex);
 #endif
-	return_code = deque_pop_sandbox(global_deque, sandbox_request);
+	return_code = deque_pop_sandbox(runtime__global_deque, sandbox_request);
 #if NCORES == 1
-	pthread_mutex_unlock(&global_deque_mutex);
+	pthread_mutex_unlock(&runtime__global_deque_mutex);
 #endif
 	return return_code;
 }
@@ -94,7 +94,7 @@ sandbox_request__steal_from_global_dequeue(void)
 #if NCORES == 1
 	sandbox_request__pop_from_global_dequeue(&sandbox_request);
 #else
-	int r = deque_steal_sandbox(global_deque, &sandbox_request);
+	int r = deque_steal_sandbox(runtime__global_deque, &sandbox_request);
 	if (r) sandbox_request = NULL;
 #endif
 

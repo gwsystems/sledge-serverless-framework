@@ -1,8 +1,10 @@
 #ifndef SFRT_CURRENT_SANDBOX_H
 #define SFRT_CURRENT_SANDBOX_H
 
-#include <sandbox.h>
-#include <types.h>
+#include "sandbox.h"
+#include "types.h"
+
+extern http_parser_settings runtime__http_parser_settings;
 
 /**
  * Getter for the current sandbox executing on this thread
@@ -65,7 +67,6 @@ current_sandbox__initialize_io_handle_and_set_file_descriptor(int file_descripto
 	return sandbox__initialize_io_handle_and_set_file_descriptor(sandbox, file_descriptor);
 }
 
-extern http_parser_settings global__http_parser_settings;
 int sandbox__parse_http_request(struct sandbox *sandbox, size_t l);
 
 /**
