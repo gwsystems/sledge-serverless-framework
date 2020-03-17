@@ -2,7 +2,7 @@
 #define SFRT_UTIL_H
 
 /**
- * Get CPU time in cycles using the Intel instruction util__rdtsc
+ * Get CPU time in cycles using the Intel instruction rdtsc
  * @return CPU time in cycles
  **/
 static unsigned long long int
