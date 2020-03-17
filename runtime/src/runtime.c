@@ -10,8 +10,8 @@
 #include <softint.h>
 #include <uv.h>
 #include <util.h>
+#include <http/http_parser_settings.h>
 
-#include "http_parser_settings.h"
 #include "sandbox_request.h"
 
 /***************************
