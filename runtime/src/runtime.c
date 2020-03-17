@@ -74,7 +74,7 @@ listener_thread_main(void *dummy)
 
 	while (true) {
 		int request_count      = epoll_wait(epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
-		u64 start_time = rdtsc();
+		u64 start_time = util__rdtsc();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
