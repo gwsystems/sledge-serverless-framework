@@ -80,7 +80,7 @@ softint__handle_signals(int signal_type, siginfo_t *signal_info, void *user_cont
 		softint__SIGALRM_count++;
 		// softint__supported_signals per-core..
 		if (curr && curr->state == RETURNED) return;
-		if (next_context) return;
+		if (worker_thread__next_context) return;
 		if (!softint__is_enabled()) return;
 		softint__schedule_alarm(user_context_raw);
 
@@ -90,17 +90,17 @@ softint__handle_signals(int signal_type, siginfo_t *signal_info, void *user_cont
 		// make sure sigalrm doesn't mess this up if nested..
 		assert(!softint__is_enabled());
 		/* we set current before calling pthread_kill! */
-		assert(next_context && (&curr->ctxt == next_context));
+		assert(worker_thread__next_context && (&curr->ctxt == worker_thread__next_context));
 		assert(signal_info->si_code == SI_TKILL);
 		// debuglog("usr1:%d\n", softint__SIGUSR_count);
 
 		softint__SIGUSR_count++;
 		// do not save current sandbox.. it is in co-operative switch..
-		// pick the next from "next_context"..
+		// pick the next from "worker_thread__next_context"..
 		// assert its "sp" to be zero in regs..
 		// memcpy from next context..
 		arch_mcontext_restore(&user_context->uc_mcontext, &curr->ctxt);
-		next_context = NULL;
+		worker_thread__next_context = NULL;
 		softint__enable();
 		break;
 	}
@@ -139,7 +139,7 @@ softint__schedule_alarm(void *user_context_raw)
 	// reset if SIGALRM happens before SIGUSR1 and if don't preempt..OR
 	// perhaps switch here for SIGUSR1 and see if we can clear that signal
 	// so it doesn't get called on SIGALRM return..
-	// next_context = NULL;
+	// worker_thread__next_context = NULL;
 
 done:
 	softint__enable();

@@ -78,9 +78,9 @@ struct sandbox {
 	char    request_response_data[1]; // of rr_data_sz, following sandbox mem..
 } PAGE_ALIGNED;
 
-extern __thread struct sandbox *current_sandbox;
+extern __thread struct sandbox *worker_thread__current_sandbox;
 // next_sandbox only used in SIGUSR1
-extern __thread arch_context_t *next_context;
+extern __thread arch_context_t *worker_thread__next_context;
 
 typedef struct sandbox sandbox_t;
 extern void add_sandbox_to_completion_queue(struct sandbox *sandbox);
@@ -219,7 +219,7 @@ sandbox__get_libuv_handle(struct sandbox *sandbox, int handle_index)
 void *          sandbox_worker_main(void *data);
 struct sandbox *get_next_sandbox_from_local_run_queue(int interrupt);
 void            block_current_sandbox(void);
-void            wakeup_sandbox(sandbox_t *sb);
+void            worker_thread__wakeup_sandbox(sandbox_t *sb);
 // called in sandbox_main() before and after fn() execution
 // for http request/response processing using uvio
 void sandbox_block_http(void);

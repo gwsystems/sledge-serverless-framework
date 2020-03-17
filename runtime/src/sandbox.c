@@ -174,7 +174,7 @@ sandbox_main(void)
 	//        we'd potentially do what we'd in switch_to_sandbox() api here for cleanup..
 	if (!softint__is_enabled()) {
 		arch_context_init(&current_sandbox->ctxt, 0, 0);
-		next_context = NULL;
+		worker_thread__next_context = NULL;
 		softint__enable();
 	}
 	struct module *current_module       = sandbox__get_module(current_sandbox);
