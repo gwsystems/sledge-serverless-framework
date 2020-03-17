@@ -4,18 +4,13 @@
 #include <unistd.h>
 #include <ucontext.h>
 
-typedef uint64_t reg_t;
 #define ARCH_NREGS 31
 
 /**
  * ARM64 code. Currently Unimplemented
  **/
 
-/*
- * This is the slowpath switch to a preempted sandbox!
- * SIGUSR1 on the current thread and restore mcontext there!
- */
-extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
+typedef uint64_t reg_t;
 
 struct arch_context {
 	reg_t      regs[ARCH_NREGS];
@@ -23,6 +18,8 @@ struct arch_context {
 };
 
 typedef struct arch_context    arch_context_t;
+
+extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
 extern __thread arch_context_t worker_thread__base_context;
 
 static inline void
