@@ -90,7 +90,7 @@ current_sandbox__receive_and_parse_client_request(void)
 	}
 #else
 	int r = uv_read_start((uv_stream_t *)&curr->client_libuv_stream, libuv_callbacks__on_allocate_setup_request_response_data, libuv_callbacks__on_read_parse_http_request);
-	sandbox_block_http();
+	worker_thread__process_io();
 	if (curr->request_response_data_length == 0) return 0;
 #endif
 	return 1;
@@ -156,7 +156,7 @@ done:
 	};
 	uv_buf_t bufv = uv_buf_init(curr->request_response_data, sndsz);
 	int      r    = uv_write(&req, (uv_stream_t *)&curr->client_libuv_stream, &bufv, 1, libuv_callbacks__on_write_wakeup_sandbox);
-	sandbox_block_http();
+	worker_thread__process_io();
 #endif
 	return 0;
 }
@@ -170,8 +170,8 @@ sandbox_main(void)
 {
 	struct sandbox *current_sandbox = current_sandbox__get();
 	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
-	//        return to switch_to_sandbox() api..
-	//        we'd potentially do what we'd in switch_to_sandbox() api here for cleanup..
+	//        return to worker_thread__switch_to_sandbox() api..
+	//        we'd potentially do what we'd in worker_thread__switch_to_sandbox() api here for cleanup..
 	if (!softint__is_enabled()) {
 		arch_context_init(&current_sandbox->ctxt, 0, 0);
 		worker_thread__next_context = NULL;
@@ -239,7 +239,7 @@ sandbox_main(void)
 
 #ifdef USE_HTTP_UVIO
 	uv_close((uv_handle_t *)&current_sandbox->client_libuv_stream, libuv_callbacks__on_close_wakeup_sakebox);
-	sandbox_block_http();
+	worker_thread__process_io();
 #else
 	close(current_sandbox->client_socket_descriptor);
 #endif

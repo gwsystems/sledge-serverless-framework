@@ -114,7 +114,7 @@ void
 start_worker_threads()
 {
 	for (int i = 0; i < total_worker_processors; i++) {
-		int ret = pthread_create(&worker_threads[i], NULL, worker_thread_main,
+		int ret = pthread_create(&worker_threads[i], NULL, worker_thread__main,
 		                         (void *)&worker_threads_argument[i]);
 		if (ret) {
 			errno = ret;

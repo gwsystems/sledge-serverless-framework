@@ -21,7 +21,7 @@ INLINE char *get_memory_ptr_for_runtime(u32 offset, u32 bounds_check);
 void         runtime__initialize(void);
 void         listener_thread__initialize(void);
 void         stub_init(i32 offset);
-void        *worker_thread_main(void *return_code);
+void        *worker_thread__main(void *return_code);
 
 /**
  * TODO: ???

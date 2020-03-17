@@ -15,7 +15,7 @@ typedef uint64_t reg_t;
  * This is the slowpath switch to a preempted sandbox!
  * SIGUSR1 on the current thread and restore mcontext there!
  */
-extern void __attribute__((noreturn)) sandbox_switch_preempt(void);
+extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
 
 struct arch_context {
 	reg_t      regs[ARCH_NREGS];

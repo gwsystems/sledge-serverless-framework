@@ -123,7 +123,7 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 	debuglog("[%p] start[%d:%d, n%d]\n", uv_fs_get_data(&req), filedes, f, nbyte);
 	uv_buf_t bufv = uv_buf_init(buffer, nbyte);
 	uv_fs_read(get_thread_libuv_handle(), &req, f, &bufv, 1, -1, wasm_fs_callback);
-	block_current_sandbox();
+	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
 	debuglog("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
@@ -154,7 +154,7 @@ wasm_write(i32 file_descriptor, i32 buf_offset, i32 buf_size)
 
 	uv_buf_t bufv = uv_buf_init(buffer, buf_size);
 	uv_fs_write(get_thread_libuv_handle(), &req, f, &bufv, 1, -1, wasm_fs_callback);
-	block_current_sandbox();
+	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
 	uv_fs_req_cleanup(&req);
@@ -197,7 +197,7 @@ wasm_open(i32 path_off, i32 flags, i32 mode)
 	debuglog("[%p] start[%s:%d:%d]\n", uv_fs_get_data(&req), path, flags, modified_flags);
 
 	uv_fs_open(get_thread_libuv_handle(), &req, path, modified_flags, mode, wasm_fs_callback);
-	block_current_sandbox();
+	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
 	debuglog("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
@@ -234,7 +234,7 @@ wasm_close(i32 file_descriptor)
 	uv_fs_t req = UV_FS_REQ_INIT();
 	debuglog("[%p] file[%d,%d]\n", uv_fs_get_data(&req), file_descriptor, d);
 	uv_fs_close(get_thread_libuv_handle(), &req, d, wasm_fs_callback);
-	block_current_sandbox();
+	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
 	debuglog("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
@@ -531,7 +531,7 @@ wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 		}
 		debuglog("[%p] start[%d,%d, n%d:%d]\n", uv_fs_get_data(&req), file_descriptor, d, i, j);
 		uv_fs_read(get_thread_libuv_handle(), &req, d, bufs, j, -1, wasm_fs_callback);
-		block_current_sandbox();
+		worker_thread__block_current_sandbox();
 
 		int ret = uv_fs_get_result(&req);
 		debuglog("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
@@ -578,7 +578,7 @@ wasm_writev(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 		}
 		debuglog("[%p] start[%d,%d, n%d:%d]\n", uv_fs_get_data(&req), file_descriptor, d, i, j);
 		uv_fs_write(get_thread_libuv_handle(), &req, d, bufs, j, -1, wasm_fs_callback);
-		block_current_sandbox();
+		worker_thread__block_current_sandbox();
 
 		int ret = uv_fs_get_result(&req);
 		debuglog("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
@@ -640,7 +640,7 @@ wasm_fsync(u32 file_descriptor)
 	uv_fs_t req = UV_FS_REQ_INIT();
 	debuglog("[%p] start[%d,%d]\n", uv_fs_get_data(&req), file_descriptor, d);
 	uv_fs_fsync(get_thread_libuv_handle(), &req, d, wasm_fs_callback);
-	block_current_sandbox();
+	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
 	debuglog("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
@@ -668,7 +668,7 @@ wasm_unlink(u32 path_str_offset)
 	uv_fs_t req = UV_FS_REQ_INIT();
 	debuglog("[%p] start[%s]\n", uv_fs_get_data(&req), str);
 	uv_fs_unlink(get_thread_libuv_handle(), &req, str, wasm_fs_callback);
-	block_current_sandbox();
+	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
 	debuglog("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
@@ -740,7 +740,7 @@ wasm_fchown(i32 file_descriptor, u32 owner, u32 group)
 	uv_fs_t req = UV_FS_REQ_INIT();
 	debuglog("[%p] start[%d,%d]\n", uv_fs_get_data(&req), file_descriptor, d);
 	uv_fs_fchown(get_thread_libuv_handle(), &req, d, owner, group, wasm_fs_callback);
-	block_current_sandbox();
+	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
 	debuglog("[%p] end[%d]\n", uv_fs_get_data(&req), ret);
@@ -816,7 +816,7 @@ wasm_connect(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 		debuglog("[%p] connect\n", c);
 		int r = uv_tcp_connect(&req, (uv_tcp_t *)h, get_memory_ptr_void(sockaddr_offset, addrlen),
 		                       wasm_connect_callback);
-		block_current_sandbox();
+		worker_thread__block_current_sandbox();
 
 		debuglog("[%p] %d\n", c, c->return_value);
 		return c->return_value;
@@ -910,7 +910,7 @@ wasm_listen(i32 sockfd, i32 backlog)
 	assert(t == UV_TCP);
 
 	int r = uv_listen((uv_stream_t *)h, backlog, wasm_connection_callback);
-	block_current_sandbox();
+	worker_thread__block_current_sandbox();
 
 	debuglog("[%p] %d\n", c, c->return_value);
 	return c->return_value;
@@ -983,7 +983,7 @@ wasm_sendto(i32 file_descriptor, i32 buff_offset, i32 len, i32 flags, i32 sockad
 		uv_buf_t b = uv_buf_init(buffer, len);
 		debuglog("[%p] tcp\n", c);
 		int ret = uv_write(&req, (uv_stream_t *)h, &b, 1, wasm_write_callback);
-		block_current_sandbox();
+		worker_thread__block_current_sandbox();
 
 		debuglog("[%p] %d\n", c, c->return_value);
 		return c->return_value;
@@ -995,7 +995,7 @@ wasm_sendto(i32 file_descriptor, i32 buff_offset, i32 len, i32 flags, i32 sockad
 		debuglog("[%p] udp\n", c);
 		// TODO: sockaddr!
 		int r = uv_udp_send(&req, (uv_udp_t *)h, &b, 1, NULL, wasm_udp_send_callback);
-		block_current_sandbox();
+		worker_thread__block_current_sandbox();
 
 		debuglog("[%p] %d\n", c, c->return_value);
 		return c->return_value;
@@ -1041,7 +1041,7 @@ wasm_recvfrom(i32 file_descriptor, i32 buff_offset, i32 size, i32 flags, i32 soc
 		((uv_stream_t *)h)->data = c;
 		debuglog("[%p] tcp\n", c);
 		int r = uv_read_start((uv_stream_t *)h, wasm_alloc_callback, wasm_read_callback);
-		block_current_sandbox();
+		worker_thread__block_current_sandbox();
 		debuglog("[%p] %d\n", c, c->return_value);
 		if (c->return_value == -EIO) {
 			// TODO: buffer errors??
@@ -1052,7 +1052,7 @@ wasm_recvfrom(i32 file_descriptor, i32 buff_offset, i32 size, i32 flags, i32 soc
 		((uv_udp_t *)h)->data = c;
 		debuglog("[%p] udp\n", c);
 		int r = uv_udp_recv_start((uv_udp_t *)h, wasm_alloc_callback, wasm_udp_recv_callback);
-		block_current_sandbox();
+		worker_thread__block_current_sandbox();
 		debuglog("[%p] %d\n", c, c->return_value);
 		if (c->return_value == -EIO) {
 			// TODO: buffer errors??
