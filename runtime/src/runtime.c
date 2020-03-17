@@ -413,7 +413,7 @@ worker_thread_main(void *return_code)
 
 	ps_list_head_init(&local_run_queue);
 	ps_list_head_init(&local_completion_queue);
-	softint_off  = 0;
+	softint__is_disabled  = 0;
 	next_context = NULL;
 #ifndef PREEMPT_DISABLE
 	softint__unmask(SIGALRM);
