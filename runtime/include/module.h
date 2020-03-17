@@ -3,7 +3,7 @@
 
 #include <uv.h>
 
-#include "types.h"
+#include <types.h>
 
 struct module {
 	char name[MOD_NAME_MAX];
