@@ -1,10 +1,6 @@
 #ifndef SFRT_UTIL_H
 #define SFRT_UTIL_H
 
-#include <sandbox.h>
-#include <module.h>
-
-
 /**
  * Get CPU time in cycles using the Intel instruction rdtsc
  * @return CPU time in cycles
@@ -20,8 +16,5 @@ rdtsc(void)
 
 	return cpu_time_in_cycles;
 }
-
-/* perhaps move it to module.h or sandbox.h? */
-int util__parse_modules_file_json(char *filename);
 
 #endif /* SFRT_UTIL_H */

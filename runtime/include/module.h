@@ -2,6 +2,7 @@
 #define SFRT_MODULE_H
 
 #include <uv.h>
+
 #include "types.h"
 
 struct module {
@@ -179,7 +180,8 @@ module__set_http_info(struct module *module, int request_count, char *request_he
  * Public Methods from module.c
  ***************************************/
 
-struct module *module__new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout, int port, int req_sz, int resp_sz);
 void           module__free(struct module *module);
+struct module *module__new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout, int port, int req_sz, int resp_sz);
+int 		   module__new_from_json(char *filename);
 
 #endif /* SFRT_MODULE_H */
