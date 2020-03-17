@@ -23,7 +23,7 @@ struct arch_context {
 };
 
 typedef struct arch_context    arch_context_t;
-extern __thread arch_context_t base_context;
+extern __thread arch_context_t worker_thread__base_context;
 
 static inline void
 arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)

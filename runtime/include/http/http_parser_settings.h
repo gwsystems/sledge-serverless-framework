@@ -155,7 +155,7 @@ http_parser_settings__on_msg_end(http_parser *parser)
 /**
  * The settings global with the Callback Functions for HTTP Events
  */
-void
+static inline void
 http_parser_settings__register_callbacks(http_parser_settings *settings)
 {
 	settings->on_url              = http_parser_settings__on_url;
@@ -167,10 +167,14 @@ http_parser_settings__register_callbacks(http_parser_settings *settings)
 	settings->on_message_complete = http_parser_settings__on_msg_end;
 }
 
+/**
+ * This is really the only function that should have to be called to setup this structure
+ **/
 void
 http_parser_settings__initialize(http_parser_settings *settings)
 {
   http_parser_settings_init(settings);
+  http_parser_settings__register_callbacks(settings);
 }
 
 #endif /* SRFT_HTTP_PARSER_SETTINGS_H */

@@ -42,12 +42,12 @@ struct arch_context {
 };
 
 typedef struct arch_context    arch_context_t;
-extern __thread arch_context_t base_context;
+extern __thread arch_context_t worker_thread__base_context;
 
 static void
 arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
 {
-	assert(ctx != &base_context);
+	assert(ctx != &worker_thread__base_context);
 
 	ctx->regs[5] = 0;
 	memcpy(&ctx->mctx, mc, sizeof(mcontext_t));
@@ -56,7 +56,7 @@ arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
 static int
 arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 {
-	assert(ctx != &base_context);
+	assert(ctx != &worker_thread__base_context);
 
 	// if ctx->regs[5] is set, this was last in a user-level context switch state!
 	// else restore mcontext..
@@ -107,12 +107,12 @@ arch_context_switch(arch_context_t *ca, arch_context_t *na)
 	if (!ca) {
 		assert(na);
 		// switching from "no sandbox to execute" state to "executing a sandbox"
-		ca = &base_context;
+		ca = &worker_thread__base_context;
 	} else if (!na) {
 		assert(ca);
 
 		// switching from "executing a sandbox" to "no execution" state.
-		na = &base_context;
+		na = &worker_thread__base_context;
 	} else {
 		assert(na && ca);
 

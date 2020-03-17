@@ -96,7 +96,7 @@ static void
 wasm_fs_callback(uv_fs_t *req)
 {
 	debuglog("[%p]\n", req->data);
-	wakeup_sandbox((sandbox_t *)req->data);
+	worker_thread__wakeup_sandbox((sandbox_t *)req->data);
 }
 
 // We define our own syscall numbers, because WASM uses x86_64 values even on systems that are not x86_64
@@ -762,7 +762,7 @@ wasm_connection_callback(uv_stream_t *srv, int status)
 	sandbox_t *s = srv->data;
 	debuglog(" [%p]\n", s);
 	s->return_value = status;
-	wakeup_sandbox(s);
+	worker_thread__wakeup_sandbox(s);
 }
 
 static void
@@ -772,7 +772,7 @@ wasm_connect_callback(uv_connect_t *req, int status)
 	sandbox_t *s = req->data;
 	debuglog(" [%p]\n", s);
 	s->return_value = status;
-	wakeup_sandbox(s);
+	worker_thread__wakeup_sandbox(s);
 }
 
 i32
@@ -929,7 +929,7 @@ wasm_read_callback(uv_stream_t *s, ssize_t nread, const uv_buf_t *buffer)
 	c->read_length = nread;
 	debuglog("[%p] %ld\n", c, c->read_length);
 	uv_read_stop(s);
-	wakeup_sandbox(c);
+	worker_thread__wakeup_sandbox(c);
 }
 
 void
@@ -939,7 +939,7 @@ wasm_write_callback(uv_write_t *req, int status)
 	c->return_value         = status;
 	debuglog("[%p] %d\n", c, status);
 
-	wakeup_sandbox(c);
+	worker_thread__wakeup_sandbox(c);
 }
 
 void
@@ -952,7 +952,7 @@ wasm_udp_recv_callback(uv_udp_t *h, ssize_t nread, const uv_buf_t *buffer, const
 	c->read_length = nread;
 	debuglog("[%p] %ld\n", c, c->read_length);
 	uv_udp_recv_stop(h);
-	wakeup_sandbox(c);
+	worker_thread__wakeup_sandbox(c);
 }
 
 void
@@ -962,7 +962,7 @@ wasm_udp_send_callback(uv_udp_send_t *req, int status)
 	c->return_value         = status;
 	debuglog("[%p] %d\n", c, status);
 
-	wakeup_sandbox(c);
+	worker_thread__wakeup_sandbox(c);
 }
 
 i32

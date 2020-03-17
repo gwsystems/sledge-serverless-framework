@@ -11,15 +11,15 @@
 extern int                   runtime__epoll_file_descriptor;
 extern struct deque_sandbox *runtime__global_deque;
 extern pthread_mutex_t       runtime__global_deque_mutex;
-extern __thread uv_loop_t    runtime__uvio_handle;
+extern __thread uv_loop_t    worker_thread__uvio_handle;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);
 void         free_linear_memory(void *base, u32 bound, u32 max);
 INLINE char *get_function_from_table(u32 idx, u32 type_id);
 INLINE char *get_memory_ptr_for_runtime(u32 offset, u32 bounds_check);
-void         initialize_runtime(void);
-void         initialize_listener_thread(void);
+void         runtime__initialize(void);
+void         listener_thread__initialize(void);
 void         stub_init(i32 offset);
 void        *worker_thread_main(void *return_code);
 
@@ -62,7 +62,7 @@ get_memory_string(u32 offset)
 static inline uv_loop_t *
 get_thread_libuv_handle(void)
 {
-	return &runtime__uvio_handle;
+	return &worker_thread__uvio_handle;
 }
 
 #endif /* SFRT_RUNTIME_H */

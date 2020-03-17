@@ -157,7 +157,7 @@ main(int argc, char **argv)
 	set_resource_limits_to_max();
 	allocate_available_cores();
 	process_nostio();
-	initialize_runtime();
+	runtime__initialize();
 
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 	if (module__new_from_json(argv[1])) {
@@ -165,6 +165,6 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
-	initialize_listener_thread();
+	listener_thread__initialize();
 	start_worker_threads();
 }
