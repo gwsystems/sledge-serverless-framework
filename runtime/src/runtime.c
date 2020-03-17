@@ -11,6 +11,7 @@
 #include <uv.h>
 #include <util.h>
 #include <http/http_parser_settings.h>
+#include <current_sandbox.h>
 
 #include "sandbox_request.h"
 

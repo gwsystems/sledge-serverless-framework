@@ -1,6 +1,7 @@
 /* Code from https://github.com/gwsystems/silverfish/blob/master/runtime/memory/64bit_nix.c */
 #include <runtime.h>
 #include <sandbox.h>
+#include <current_sandbox.h>
 
 #ifdef USE_MEM_VM
 

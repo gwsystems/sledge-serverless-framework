@@ -12,6 +12,7 @@
 #include <module.h>
 #include <arch/context.h>
 #include <softint.h>
+#include <current_sandbox.h>
 
 /***************************************
  * Process Globals
