@@ -3,6 +3,7 @@
 
 #include <time.h>
 #include <sys/time.h>
+#include <stdio.h>
 
 #ifndef WASM
 #ifndef CPU_FREQ
