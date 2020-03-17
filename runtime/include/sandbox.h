@@ -27,7 +27,7 @@ typedef enum
  * This is the slowpath switch to a preempted sandbox!
  * SIGUSR1 on the current thread and restore mcontext there!
  */
-extern void __attribute__((noreturn)) sandbox_switch_preempt(void);
+extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
 
 // TODO: linear_memory_max_size is not really used
 
@@ -83,7 +83,7 @@ extern __thread struct sandbox *worker_thread__current_sandbox;
 extern __thread arch_context_t *worker_thread__next_context;
 
 typedef struct sandbox sandbox_t;
-extern void add_sandbox_to_completion_queue(struct sandbox *sandbox);
+extern void worker_thread__completion_queue__add_sandbox(struct sandbox *sandbox);
 
 /***************************
  * Sandbox                 *
@@ -217,12 +217,12 @@ sandbox__get_libuv_handle(struct sandbox *sandbox, int handle_index)
 
 
 void *          sandbox_worker_main(void *data);
-struct sandbox *get_next_sandbox_from_local_run_queue(int interrupt);
-void            block_current_sandbox(void);
+struct sandbox *worker_thread__get_next_sandbox(int interrupt);
+void            worker_thread__block_current_sandbox(void);
 void            worker_thread__wakeup_sandbox(sandbox_t *sb);
 // called in sandbox_main() before and after fn() execution
 // for http request/response processing using uvio
-void sandbox_block_http(void);
+void worker_thread__process_io(void);
 void sandbox_response(void);
 
 // should be the entry-point for each sandbox so it can do per-sandbox mem/etc init.

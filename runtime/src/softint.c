@@ -126,7 +126,7 @@ softint__schedule_alarm(void *user_context_raw)
 	if (curr == NULL) goto done;
 
 	// find a next sandbox to run..
-	struct sandbox *next = get_next_sandbox_from_local_run_queue(1);
+	struct sandbox *next = worker_thread__get_next_sandbox(1);
 	if (next == NULL) goto done;
 	if (next == curr) goto done; // only this sandbox to schedule.. return to it!
 	// save the current sandbox, state from user_context!
