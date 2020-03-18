@@ -183,7 +183,7 @@ i32
 wasm_open(i32 path_off, i32 flags, i32 mode)
 {
 	uv_fs_t req  = UV_FS_REQ_INIT();
-	char *  path = get_memory_string(path_off);
+	char *  path = get_memory_string(path_off, 4096);
 
 	int iofd = current_sandbox__initialize_io_handle();
 	if (iofd < 0) return -1;
@@ -296,7 +296,7 @@ struct wasm_stat {
 i32
 wasm_stat(u32 path_str_offset, i32 stat_offset)
 {
-	char *            path     = get_memory_string(path_str_offset);
+	char *            path     = get_memory_string(path_str_offset, 4096);
 	struct wasm_stat *stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
@@ -388,7 +388,7 @@ wasm_fstat(i32 filedes, i32 stat_offset)
 i32
 wasm_lstat(i32 path_str_offset, i32 stat_offset)
 {
-	char *            path     = get_memory_string(path_str_offset);
+	char *            path     = get_memory_string(path_str_offset, 4096);
 	struct wasm_stat *stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
@@ -664,7 +664,7 @@ wasm_getcwd(u32 buf_offset, u32 buf_size)
 u32
 wasm_unlink(u32 path_str_offset)
 {
-	char *  str = get_memory_string(path_str_offset);
+	char *  str = get_memory_string(path_str_offset, 4096);
 	uv_fs_t req = UV_FS_REQ_INIT();
 	debuglog("[%p] start[%s]\n", uv_fs_get_data(&req), str);
 	uv_fs_unlink(get_thread_libuv_handle(), &req, str, wasm_fs_callback);
