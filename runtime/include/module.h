@@ -100,6 +100,8 @@ module__initialize_table(struct module *module)
 /**
  * Invoke a module's initialize_libc
  * @param module
+ * @param env
+ * @param arguments
  **/
 static inline void
 module__initialize_libc(struct module *module, i32 env, i32 arguments)
