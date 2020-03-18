@@ -166,7 +166,7 @@ static __thread unsigned int worker_thread__is_in_callback;
  * Worker Thread Logic
  *************************************************/
 
-static inline void worker_thread__run_queue__add_sandbox(struct sandbox *sandbox);
+static inline void worker_thread__push_sandbox_to_run_queue(struct sandbox *sandbox);
 
 /**
  * @brief Switches to the next sandbox, placing the current sandbox of the completion queue if in RETURNED state
@@ -183,7 +183,7 @@ worker_thread__switch_to_sandbox(struct sandbox *next_sandbox)
 	current_sandbox__set(next_sandbox);
 	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
 	if (current_sandbox && current_sandbox->state == RETURNED)
-		worker_thread__completion_queue__add_sandbox(current_sandbox);
+		worker_thread__push_sandbox_to_completion_queue(current_sandbox);
 	worker_thread__next_context = next_register_context;
 	arch_context_switch(current_register_context, next_register_context);
 	software_interrupt__enable();
@@ -283,7 +283,7 @@ worker_thread__pull_and_process_sandbox_requests(void)
 		free(sandbox_request);
 		// Set the sandbox as runnable and place on the local runqueue
 		sandbox->state = RUNNABLE;
-		worker_thread__run_queue__add_sandbox(sandbox);
+		worker_thread__push_sandbox_to_run_queue(sandbox);
 		total_sandboxes_pulled++;
 	}
 
@@ -310,7 +310,7 @@ worker_thread__execute_libuv_event_loop(void)
  * @param sandbox sandbox to add
  */
 static inline void
-worker_thread__run_queue__add_sandbox(struct sandbox *sandbox)
+worker_thread__push_sandbox_to_run_queue(struct sandbox *sandbox)
 {
 	assert(ps_list_singleton_d(sandbox));
 	// fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s,
@@ -323,7 +323,7 @@ worker_thread__run_queue__add_sandbox(struct sandbox *sandbox)
  * @param sandbox sandbox
  **/
 static inline void
-worker_thread__run_queue__remove_sandbox(struct sandbox *sandbox)
+worker_thread__pop_sandbox_from_run_queue(struct sandbox *sandbox)
 {
 	ps_list_rem_d(sandbox);
 }
@@ -365,7 +365,7 @@ worker_thread__get_next_sandbox(int in_interrupt)
  * @param sandbox
  **/
 void
-worker_thread__completion_queue__add_sandbox(struct sandbox *sandbox)
+worker_thread__push_sandbox_to_completion_queue(struct sandbox *sandbox)
 {
 	assert(ps_list_singleton_d(sandbox));
 	ps_list_head_append_d(&worker_thread__completion_queue, sandbox);
@@ -373,12 +373,12 @@ worker_thread__completion_queue__add_sandbox(struct sandbox *sandbox)
 
 
 /**
- * @brief Remove and free n sandboxes from the thread local completion queue
- * @param number_to_free The number of sandboxes to free
+ * @brief Pops n sandboxes from the thread local completion queue and then frees them
+ * @param number_to_free The number of sandboxes to pop and free
  * @return void
  */
 static inline void
-worker_thread__completion_queue__free_sandboxes(unsigned int number_to_free)
+worker_thread__pop_and_free_n_sandboxes_from_completion_queue(unsigned int number_to_free)
 {
 	for (int i = 0; i < number_to_free; i++) {
 		if (ps_list_head_empty(&worker_thread__completion_queue)) break;
@@ -399,7 +399,7 @@ worker_thread__execute_runtime_maintenance_and_get_next_sandbox(void)
 {
 	assert(current_sandbox__get() == NULL);
 	// Try to free one sandbox from the completion queue
-	worker_thread__completion_queue__free_sandboxes(1);
+	worker_thread__pop_and_free_n_sandboxes_from_completion_queue(1);
 	// Execute libuv callbacks
 	if (!worker_thread__is_in_callback) worker_thread__execute_libuv_event_loop();
 
@@ -451,12 +451,12 @@ worker_thread__main(void *return_code)
  * TODO: Consider moving this to a future current_sandbox file. This has thus far proven difficult to move
  **/
 void
-worker_thread__current_sandbox__exit(void)
+worker_thread__exit_current_sandbox(void)
 {
 	struct sandbox *current_sandbox = current_sandbox__get();
 	assert(current_sandbox);
 	software_interrupt__disable();
-	worker_thread__run_queue__remove_sandbox(current_sandbox);
+	worker_thread__pop_sandbox_from_run_queue(current_sandbox);
 	current_sandbox->state = RETURNED;
 
 	struct sandbox *next_sandbox = worker_thread__get_next_sandbox(0);
