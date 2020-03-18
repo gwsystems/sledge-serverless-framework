@@ -13,12 +13,18 @@
 #include <sandbox.h>
 #include <software_interrupt.h>
 
-i32       log_file_descriptor                  = -1;
-u32       total_online_processors              = 0;
-u32       total_worker_processors              = 0;
-u32       first_worker_processor               = 0;
-int       worker_threads_argument[SBOX_NCORES] = { 0 }; // The worker sets its argument to -1 on error
-pthread_t worker_threads[SBOX_NCORES];
+// Conditionally used by debuglog when DEBUG is set
+#ifdef DEBUG
+i32 runtime__log_file_descriptor = -1;
+#endif
+
+u32 runtime__total_online_processors                                     = 0;
+u32 runtime__total_worker_processors                                     = 0;
+u32 runtime__first_worker_processor                                      = 0;
+int runtime__runtime__worker_threads_argument[WORKER_THREAD__CORE_COUNT] = {
+	0
+}; // The worker sets its argument to -1 on error
+pthread_t runtime__worker_threads[WORKER_THREAD__CORE_COUNT];
 
 
 /**
@@ -26,7 +32,7 @@ pthread_t worker_threads[SBOX_NCORES];
  * @param cmd - The command the user entered
  **/
 static void
-usage(char *cmd)
+runtime__usage(char *cmd)
 {
 	printf("%s <modules_file>\n", cmd);
 	debuglog("%s <modules_file>\n", cmd);
@@ -37,7 +43,7 @@ usage(char *cmd)
  * (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
  **/
 void
-set_resource_limits_to_max()
+runtime__set_resource_limits_to_max()
 {
 	struct rlimit resource_limit;
 	if (getrlimit(RLIMIT_DATA, &resource_limit) < 0) {
@@ -64,58 +70,63 @@ set_resource_limits_to_max()
  * Check the number of cores and the compiler flags and allocate available cores
  **/
 void
-allocate_available_cores()
+runtime__allocate_available_cores()
 {
 	// Find the number of processors currently online
-	total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
+	runtime__total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
 
 	// If multicore, we'll pin one core as a listener and run sandbox threads on all others
-	if (total_online_processors > 1) {
-		first_worker_processor = 1;
-		// SBOX_NCORES can be used as a cap on the number of cores to use
-		// But if there are few cores that SBOX_NCORES, just use what is available
-		u32 max_possible_workers = total_online_processors - 1;
-		total_worker_processors  = (max_possible_workers >= SBOX_NCORES) ? SBOX_NCORES : max_possible_workers;
+	if (runtime__total_online_processors > 1) {
+		runtime__first_worker_processor = 1;
+		// WORKER_THREAD__CORE_COUNT can be used as a cap on the number of cores to use
+		// But if there are few cores that WORKER_THREAD__CORE_COUNT, just use what is available
+		u32 max_possible_workers         = runtime__total_online_processors - 1;
+		runtime__total_worker_processors = (max_possible_workers >= WORKER_THREAD__CORE_COUNT)
+		                                     ? WORKER_THREAD__CORE_COUNT
+		                                     : max_possible_workers;
 	} else {
 		// If single core, we'll do everything on CPUID 0
-		first_worker_processor  = 0;
-		total_worker_processors = 1;
+		runtime__first_worker_processor  = 0;
+		runtime__total_worker_processors = 1;
 	}
-	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n", total_online_processors,
-	         total_worker_processors, first_worker_processor, MOD_REQ_CORE);
+	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
+	         runtime__total_online_processors, runtime__total_worker_processors, runtime__first_worker_processor,
+	         LISTENER_THREAD__CORE_ID);
 }
 
+#ifdef DEBUG
 /**
- * If NOSTIO is defined, close stdin, stdout, stderr, and write to logfile named awesome.log.
- * Otherwise, log to STDOUT
- * NOSTIO = No Standard Input/Output?
+ * Controls the behavior of the debuglog macro defined in types.h
+ * If LOG_TO_FILE is defined, close stdin, stdout, stderr, and debuglog writes to a logfile named awesome.log.
+ * Otherwise, it writes to STDOUT
  **/
 void
-process_nostio()
+runtime__process_debug_log_behavior()
 {
-#ifdef NOSTDIO
+#ifdef LOG_TO_FILE
 	fclose(stdout);
 	fclose(stderr);
 	fclose(stdin);
-	log_file_descriptor = open(LOGFILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
-	if (log_file_descriptor < 0) {
+	runtime__log_file_descriptor = open(RUNTIME__LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
+	if (runtime__log_file_descriptor < 0) {
 		perror("open");
 		exit(-1);
 	}
 #else
-	log_file_descriptor = 1;
-#endif
+	runtime__log_file_descriptor = 1;
+#endif // LOG_TO_FILE
 }
+#endif // DEBUG
 
 /**
  * Starts all worker threads and sleeps forever on pthread_join, which should never return
  **/
 void
-start_worker_threads()
+runtime__start_runtime__worker_threads()
 {
-	for (int i = 0; i < total_worker_processors; i++) {
-		int ret = pthread_create(&worker_threads[i], NULL, worker_thread__main,
-		                         (void *)&worker_threads_argument[i]);
+	for (int i = 0; i < runtime__total_worker_processors; i++) {
+		int ret = pthread_create(&runtime__worker_threads[i], NULL, worker_thread__main,
+		                         (void *)&runtime__runtime__worker_threads_argument[i]);
 		if (ret) {
 			errno = ret;
 			perror("pthread_create");
@@ -124,14 +135,14 @@ start_worker_threads()
 
 		cpu_set_t cs;
 		CPU_ZERO(&cs);
-		CPU_SET(first_worker_processor + i, &cs);
-		ret = pthread_setaffinity_np(worker_threads[i], sizeof(cs), &cs);
+		CPU_SET(runtime__first_worker_processor + i, &cs);
+		ret = pthread_setaffinity_np(runtime__worker_threads[i], sizeof(cs), &cs);
 		assert(ret == 0);
 	}
 	debuglog("Sandboxing environment ready!\n");
 
-	for (int i = 0; i < total_worker_processors; i++) {
-		int ret = pthread_join(worker_threads[i], NULL);
+	for (int i = 0; i < runtime__total_worker_processors; i++) {
+		int ret = pthread_join(runtime__worker_threads[i], NULL);
 		if (ret) {
 			errno = ret;
 			perror("pthread_join");
@@ -146,17 +157,20 @@ start_worker_threads()
 int
 main(int argc, char **argv)
 {
+#ifdef DEBUG
+	runtime__process_debug_log_behavior();
+#endif
+
 	printf("Starting Awsm\n");
 	if (argc != 2) {
-		usage(argv[0]);
+		runtime__usage(argv[0]);
 		exit(-1);
 	}
 
-	memset(worker_threads, 0, sizeof(pthread_t) * SBOX_NCORES);
+	memset(runtime__worker_threads, 0, sizeof(pthread_t) * WORKER_THREAD__CORE_COUNT);
 
-	set_resource_limits_to_max();
-	allocate_available_cores();
-	process_nostio();
+	runtime__set_resource_limits_to_max();
+	runtime__allocate_available_cores();
 	runtime__initialize();
 
 	debuglog("Parsing modules file [%s]\n", argv[1]);
@@ -166,5 +180,5 @@ main(int argc, char **argv)
 	}
 
 	listener_thread__initialize();
-	start_worker_threads();
+	runtime__start_runtime__worker_threads();
 }

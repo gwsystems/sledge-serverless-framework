@@ -32,7 +32,7 @@ __thread volatile sig_atomic_t        software_interrupt__is_disabled   = 0;
  * Externs
  ***************************************/
 
-extern pthread_t worker_threads[];
+extern pthread_t runtime__worker_threads[];
 
 /***************************************
  * Private Static Inlines
@@ -64,12 +64,12 @@ software_interrupt__handle_signals(int signal_type, siginfo_t *signal_info, void
 		if (signal_info->si_code == SI_KERNEL) {
 			int rt = 0;
 			// deliver signal to all other runtime threads..
-			for (int i = 0; i < SBOX_NCORES; i++) {
-				if (pthread_self() == worker_threads[i]) {
+			for (int i = 0; i < WORKER_THREAD__CORE_COUNT; i++) {
+				if (pthread_self() == runtime__worker_threads[i]) {
 					rt = 1;
 					continue;
 				}
-				pthread_kill(worker_threads[i], SIGALRM);
+				pthread_kill(runtime__worker_threads[i], SIGALRM);
 			}
 			assert(rt == 1);
 		} else {
@@ -161,8 +161,8 @@ software_interrupt__arm_timer(void)
 	struct itimerval interval_timer;
 
 	memset(&interval_timer, 0, sizeof(struct itimerval));
-	interval_timer.it_value.tv_usec    = SOFTINT_TIMER_START_USEC;
-	interval_timer.it_interval.tv_usec = SOFTINT_TIMER_PERIOD_USEC;
+	interval_timer.it_value.tv_usec    = SOFTWARE_INTERRUPT__TIME_TO_START_IN_USEC;
+	interval_timer.it_interval.tv_usec = SOFTWARE_INTERRUPT__INTERVAL_DURATION_IN_USEC;
 
 	int return_code = setitimer(ITIMER_REAL, &interval_timer, NULL);
 	if (return_code) {

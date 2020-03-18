@@ -10,7 +10,7 @@ struct http_header {
 };
 
 struct http_request {
-	struct http_header headers[HTTP_HEADERS_MAX];
+	struct http_header headers[HTTP__MAX_HEADER_COUNT];
 	int                header_count;
 	char *             body;
 	int                body_length;

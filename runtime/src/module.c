@@ -42,7 +42,7 @@ module__initialize_as_server(struct module *module)
 	}
 
 	// Listen to the interface? Check that it is live?
-	if (listen(socket_descriptor, MOD_BACKLOG) < 0) assert(0);
+	if (listen(socket_descriptor, MODULE__MAX_PENDING_CLIENT_REQUESTS) < 0) assert(0);
 
 
 	// Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP requests
@@ -112,24 +112,24 @@ module__new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_
 	if (module->dynamic_library_handle == NULL) goto dl_open_error;
 
 	// Resolve the symbols in the dynamic library *.so file
-	module->main = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MOD_MAIN_FN);
+	module->main = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MODULE__MAIN);
 	if (module->main == NULL) goto dl_error;
 
-	module->initialize_globals = (mod_glb_fn_t)dlsym(module->dynamic_library_handle, MOD_GLB_FN);
+	module->initialize_globals = (mod_glb_fn_t)dlsym(module->dynamic_library_handle, MODULE__INITIALIZE_GLOBALS);
 	if (module->initialize_globals == NULL) goto dl_error;
 
-	module->initialize_memory = (mod_mem_fn_t)dlsym(module->dynamic_library_handle, MOD_MEM_FN);
+	module->initialize_memory = (mod_mem_fn_t)dlsym(module->dynamic_library_handle, MODULE__INITIALIZE_MEMORY);
 	if (module->initialize_memory == NULL) goto dl_error;
 
-	module->initialize_tables = (mod_tbl_fn_t)dlsym(module->dynamic_library_handle, MOD_TBL_FN);
+	module->initialize_tables = (mod_tbl_fn_t)dlsym(module->dynamic_library_handle, MODULE__INITIALIZE_TABLE);
 	if (module->initialize_tables == NULL) goto dl_error;
 
-	module->initialize_libc = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MOD_LIBC_FN);
+	module->initialize_libc = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MODULE__INITIALIZE_LIBC);
 	if (module->initialize_libc == NULL) goto dl_error;
 
 	// Set fields in the module struct
-	strncpy(module->name, name, MOD_NAME_MAX);
-	strncpy(module->path, path, MOD_PATH_MAX);
+	strncpy(module->name, name, MODULE__MAX_NAME_LENGTH);
+	strncpy(module->path, path, MODULE__MAX_PATH_LENGTH);
 
 	module->argument_count    = argument_count;
 	module->stack_size        = round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size);
@@ -137,8 +137,8 @@ module__new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_
 	module->timeout           = timeout;
 	module->socket_descriptor = -1;
 	module->port              = port;
-	if (request_size == 0) request_size = MOD_REQ_RESP_DEFAULT;
-	if (response_size == 0) response_size = MOD_REQ_RESP_DEFAULT;
+	if (request_size == 0) request_size = MODULE__DEFAULT_REQUEST_RESPONSE_SIZE;
+	if (response_size == 0) response_size = MODULE__DEFAULT_REQUEST_RESPONSE_SIZE;
 	module->max_request_size             = request_size;
 	module->max_response_size            = response_size;
 	module->max_request_or_response_size = round_up_to_page(request_size > response_size ? request_size
@@ -215,7 +215,7 @@ module__new_from_json(char *file_name)
 	// Initialize the Jasmine Parser and an array to hold the tokens
 	jsmn_parser module_parser;
 	jsmn_init(&module_parser);
-	jsmntok_t tokens[MOD_MAX * JSON_ELE_MAX];
+	jsmntok_t tokens[JSON__MAX_ELEMENT_SIZE * JSON__MAX_ELEMENT_COUNT];
 
 	// Use Jasmine to parse the JSON
 	int total_tokens = jsmn_parse(&module_parser, file_buffer, strlen(file_buffer), tokens,
@@ -229,23 +229,23 @@ module__new_from_json(char *file_name)
 	for (int i = 0; i < total_tokens; i++) {
 		assert(tokens[i].type == JSMN_OBJECT);
 
-		char  module_name[MOD_NAME_MAX] = { 0 };
-		char  module_path[MOD_PATH_MAX] = { 0 };
-		char *request_headers           = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		memset(request_headers, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		char *reponse_headers = (char *)malloc(HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		memset(reponse_headers, 0, HTTP_HEADER_MAXSZ * HTTP_HEADERS_MAX);
-		i32  request_size                                = 0;
-		i32  response_size                               = 0;
-		i32  argument_count                              = 0;
-		u32  port                                        = 0;
-		i32  is_active                                   = 0;
-		i32  request_count                               = 0;
-		i32  response_count                              = 0;
-		int  j                                           = 1;
-		int  ntoks                                       = 2 * tokens[i].size;
-		char request_content_type[HTTP_HEADERVAL_MAXSZ]  = { 0 };
-		char response_content_type[HTTP_HEADERVAL_MAXSZ] = { 0 };
+		char  module_name[MODULE__MAX_NAME_LENGTH] = { 0 };
+		char  module_path[MODULE__MAX_PATH_LENGTH] = { 0 };
+		char *request_headers = (char *)malloc(HTTP__MAX_HEADER_LENGTH * HTTP__MAX_HEADER_COUNT);
+		memset(request_headers, 0, HTTP__MAX_HEADER_LENGTH * HTTP__MAX_HEADER_COUNT);
+		char *reponse_headers = (char *)malloc(HTTP__MAX_HEADER_LENGTH * HTTP__MAX_HEADER_COUNT);
+		memset(reponse_headers, 0, HTTP__MAX_HEADER_LENGTH * HTTP__MAX_HEADER_COUNT);
+		i32  request_size                                         = 0;
+		i32  response_size                                        = 0;
+		i32  argument_count                                       = 0;
+		u32  port                                                 = 0;
+		i32  is_active                                            = 0;
+		i32  request_count                                        = 0;
+		i32  response_count                                       = 0;
+		int  j                                                    = 1;
+		int  ntoks                                                = 2 * tokens[i].size;
+		char request_content_type[HTTP__MAX_HEADER_VALUE_LENGTH]  = { 0 };
+		char response_content_type[HTTP__MAX_HEADER_VALUE_LENGTH] = { 0 };
 
 		for (; j < ntoks;) {
 			int  ntks     = 1;
@@ -268,28 +268,28 @@ module__new_from_json(char *file_name)
 				is_active = (strcmp(val, "yes") == 0);
 			} else if (strcmp(key, "http-req-headers") == 0) {
 				assert(tokens[i + j + 1].type == JSMN_ARRAY);
-				assert(tokens[i + j + 1].size <= HTTP_HEADERS_MAX);
+				assert(tokens[i + j + 1].size <= HTTP__MAX_HEADER_COUNT);
 
 				request_count = tokens[i + j + 1].size;
 				ntks += request_count;
 				ntoks += request_count;
 				for (int k = 1; k <= tokens[i + j + 1].size; k++) {
 					jsmntok_t *g = &tokens[i + j + k + 1];
-					char *     r = request_headers + ((k - 1) * HTTP_HEADER_MAXSZ);
-					assert(g->end - g->start < HTTP_HEADER_MAXSZ);
+					char *     r = request_headers + ((k - 1) * HTTP__MAX_HEADER_LENGTH);
+					assert(g->end - g->start < HTTP__MAX_HEADER_LENGTH);
 					strncpy(r, file_buffer + g->start, g->end - g->start);
 				}
 			} else if (strcmp(key, "http-resp-headers") == 0) {
 				assert(tokens[i + j + 1].type == JSMN_ARRAY);
-				assert(tokens[i + j + 1].size <= HTTP_HEADERS_MAX);
+				assert(tokens[i + j + 1].size <= HTTP__MAX_HEADER_COUNT);
 
 				response_count = tokens[i + j + 1].size;
 				ntks += response_count;
 				ntoks += response_count;
 				for (int k = 1; k <= tokens[i + j + 1].size; k++) {
 					jsmntok_t *g = &tokens[i + j + k + 1];
-					char *     r = reponse_headers + ((k - 1) * HTTP_HEADER_MAXSZ);
-					assert(g->end - g->start < HTTP_HEADER_MAXSZ);
+					char *     r = reponse_headers + ((k - 1) * HTTP__MAX_HEADER_LENGTH);
+					assert(g->end - g->start < HTTP__MAX_HEADER_LENGTH);
 					strncpy(r, file_buffer + g->start, g->end - g->start);
 				}
 			} else if (strcmp(key, "http-req-size") == 0) {

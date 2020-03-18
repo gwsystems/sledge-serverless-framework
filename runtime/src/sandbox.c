@@ -29,7 +29,7 @@ current_sandbox__setup_arguments(i32 argument_count)
 	i32  string_off = curr->arguments_offset + (argument_count * sizeof(i32));
 
 	for (int i = 0; i < argument_count; i++) {
-		char * arg    = arguments + (i * MOD_ARG_MAX_SZ);
+		char * arg    = arguments + (i * MODULE__MAX_ARGUMENT_SIZE);
 		size_t str_sz = strlen(arg) + 1;
 
 		array_ptr[i] = string_off;
@@ -107,31 +107,34 @@ current_sandbox__receive_and_parse_client_request(void)
 static inline int
 current_sandbox__build_and_send_client_response(void)
 {
-	int             sndsz      = 0;
-	struct sandbox *curr       = current_sandbox__get();
-	int response_header_length = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
-	int body_length            = curr->request_response_data_length - response_header_length;
+	int             sndsz                  = 0;
+	struct sandbox *curr                   = current_sandbox__get();
+	int             response_header_length = strlen(HTTP__RESPONSE_200_OK) + strlen(HTTP__RESPONSE_CONTENT_TYPE)
+	                             + strlen(HTTP__RESPONSE_CONTENT_LENGTH);
+	int body_length = curr->request_response_data_length - response_header_length;
 
 	memset(curr->request_response_data, 0,
-	       strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN));
-	strncpy(curr->request_response_data, HTTP_RESP_200OK, strlen(HTTP_RESP_200OK));
-	sndsz += strlen(HTTP_RESP_200OK);
+	       strlen(HTTP__RESPONSE_200_OK) + strlen(HTTP__RESPONSE_CONTENT_TYPE)
+	         + strlen(HTTP__RESPONSE_CONTENT_LENGTH));
+	strncpy(curr->request_response_data, HTTP__RESPONSE_200_OK, strlen(HTTP__RESPONSE_200_OK));
+	sndsz += strlen(HTTP__RESPONSE_200_OK);
 
 	if (body_length == 0) goto done;
-	strncpy(curr->request_response_data + sndsz, HTTP_RESP_CONTTYPE, strlen(HTTP_RESP_CONTTYPE));
+	strncpy(curr->request_response_data + sndsz, HTTP__RESPONSE_CONTENT_TYPE, strlen(HTTP__RESPONSE_CONTENT_TYPE));
 	if (strlen(curr->module->response_content_type) <= 0) {
-		strncpy(curr->request_response_data + sndsz + strlen("Content-type: "), HTTP_RESP_CONTTYPE_PLAIN,
-		        strlen(HTTP_RESP_CONTTYPE_PLAIN));
+		strncpy(curr->request_response_data + sndsz + strlen("Content-type: "),
+		        HTTP__RESPONSE_CONTENT_TYPE_PLAIN, strlen(HTTP__RESPONSE_CONTENT_TYPE_PLAIN));
 	} else {
 		strncpy(curr->request_response_data + sndsz + strlen("Content-type: "),
 		        curr->module->response_content_type, strlen(curr->module->response_content_type));
 	}
-	sndsz += strlen(HTTP_RESP_CONTTYPE);
+	sndsz += strlen(HTTP__RESPONSE_CONTENT_TYPE);
 	char len[10] = { 0 };
 	sprintf(len, "%d", body_length);
-	strncpy(curr->request_response_data + sndsz, HTTP_RESP_CONTLEN, strlen(HTTP_RESP_CONTLEN));
+	strncpy(curr->request_response_data + sndsz, HTTP__RESPONSE_CONTENT_LENGTH,
+	        strlen(HTTP__RESPONSE_CONTENT_LENGTH));
 	strncpy(curr->request_response_data + sndsz + strlen("Content-length: "), len, strlen(len));
-	sndsz += strlen(HTTP_RESP_CONTLEN);
+	sndsz += strlen(HTTP__RESPONSE_CONTENT_LENGTH);
 	sndsz += body_length;
 
 done:
@@ -204,7 +207,8 @@ current_sandbox__main(void)
 	current_sandbox->http_parser.data = current_sandbox;
 
 	// NOTE: if more headers, do offset by that!
-	int response_header_length = strlen(HTTP_RESP_200OK) + strlen(HTTP_RESP_CONTTYPE) + strlen(HTTP_RESP_CONTLEN);
+	int response_header_length = strlen(HTTP__RESPONSE_200_OK) + strlen(HTTP__RESPONSE_CONTENT_TYPE)
+	                             + strlen(HTTP__RESPONSE_CONTENT_LENGTH);
 
 #ifdef USE_HTTP_UVIO
 
@@ -318,7 +322,7 @@ sandbox__allocate(struct module *module, char *arguments, int socket_descriptor,
 	}
 	sandbox->client_socket_descriptor = socket_descriptor;
 	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
-	for (int i = 0; i < SBOX_MAX_OPEN; i++) sandbox->io_handles[i].file_descriptor = -1;
+	for (int i = 0; i < SANDBOX__MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
 	ps_list_init_d(sandbox);
 
 	// Setup the sandbox's context, stack, and instruction pointer

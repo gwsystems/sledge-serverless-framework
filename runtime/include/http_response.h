@@ -16,16 +16,16 @@ struct http_response_header {
 };
 
 struct http_response {
-	struct http_response_header headers[HTTP_HEADERS_MAX];
+	struct http_response_header headers[HTTP__MAX_HEADER_COUNT];
 	int                         header_count;
 	char *                      body;
 	int                         body_length;
 	char *                      status;
 	int                         status_length;
 #ifdef USE_HTTP_UVIO
-	uv_buf_t bufs[HTTP_HEADERS_MAX * 2 + 3]; // max headers, one line for status code, remaining for body!
+	uv_buf_t bufs[HTTP__MAX_HEADER_COUNT * 2 + 3]; // max headers, one line for status code, remaining for body!
 #else
-	struct iovec bufs[HTTP_HEADERS_MAX * 2 + 3];
+	struct iovec bufs[HTTP__MAX_HEADER_COUNT * 2 + 3];
 #endif
 };
 

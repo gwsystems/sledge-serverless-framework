@@ -88,7 +88,7 @@ http_response__set_body(struct http_response *http_response, char *body, int len
 int
 http_response__set_header(struct http_response *http_response, char *header, int length)
 {
-	assert(http_response->header_count < HTTP_HEADERS_MAX);
+	assert(http_response->header_count < HTTP__MAX_HEADER_COUNT);
 	http_response->header_count++;
 	http_response->headers[http_response->header_count - 1].header = header;
 	http_response->headers[http_response->header_count - 1].length = length;

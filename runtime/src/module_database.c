@@ -6,7 +6,7 @@
  ***************************************/
 
 // In-memory representation of all active modules
-struct module *module_database[MOD_MAX] = { NULL };
+struct module *module_database[MODULE__MAX_MODULE_COUNT] = { NULL };
 // First free in module
 int module_database_free_offset = 0;
 

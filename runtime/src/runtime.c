@@ -50,7 +50,7 @@ runtime__initialize(void)
 	runtime__global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
 	assert(runtime__global_deque);
 	// Note: Below is a Macro
-	deque_init_sandbox(runtime__global_deque, SBOX_MAX_REQS);
+	deque_init_sandbox(runtime__global_deque, RUNTIME__MAX_SANDBOX_REQUEST_COUNT);
 
 	// Mask Signals
 	software_interrupt__mask_signal(SIGUSR1);
@@ -77,11 +77,13 @@ runtime__initialize(void)
 void *
 listener_thread__main(void *dummy)
 {
-	struct epoll_event *epoll_events   = (struct epoll_event *)malloc(EPOLL_MAX * sizeof(struct epoll_event));
+	struct epoll_event *epoll_events   = (struct epoll_event *)malloc(LISTENER_THREAD__MAX_EPOLL_EVENTS
+                                                                        * sizeof(struct epoll_event));
 	int                 total_requests = 0;
 
 	while (true) {
-		int request_count = epoll_wait(runtime__epoll_file_descriptor, epoll_events, EPOLL_MAX, -1);
+		int request_count = epoll_wait(runtime__epoll_file_descriptor, epoll_events,
+		                               LISTENER_THREAD__MAX_EPOLL_EVENTS, -1);
 		u64 start_time    = util__rdtsc();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
@@ -125,7 +127,7 @@ listener_thread__initialize(void)
 	cpu_set_t cs;
 
 	CPU_ZERO(&cs);
-	CPU_SET(MOD_REQ_CORE, &cs);
+	CPU_SET(LISTENER_THREAD__CORE_ID, &cs);
 
 	pthread_t listener_thread;
 	int       ret = pthread_create(&listener_thread, NULL, listener_thread__main, NULL);
@@ -263,7 +265,7 @@ void __attribute__((noinline)) __attribute__((noreturn)) worker_thread__sandbox_
 
 /**
  * Pulls up to 1..n sandbox requests, allocates them as sandboxes, sets them as runnable and places them on the local
- * runqueue, and then frees the sandbox requests The batch size pulled at once is set by SBOX_PULL_MAX
+ * runqueue, and then frees the sandbox requests The batch size pulled at once is set by SANDBOX__PULL_BATCH_SIZE
  * @return the number of sandbox requests pulled
  */
 static inline int
@@ -271,7 +273,7 @@ worker_thread__pull_and_process_sandbox_requests(void)
 {
 	int total_sandboxes_pulled = 0;
 
-	while (total_sandboxes_pulled < SBOX_PULL_MAX) {
+	while (total_sandboxes_pulled < SANDBOX__PULL_BATCH_SIZE) {
 		sandbox_request_t *sandbox_request;
 		if ((sandbox_request = sandbox_request__steal_from_dequeue()) == NULL) break;
 		// Actually allocate the sandbox for the requests that we've pulled
