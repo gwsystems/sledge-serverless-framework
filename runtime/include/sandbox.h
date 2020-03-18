@@ -66,7 +66,8 @@ struct sandbox {
 	char *  read_buffer;
 	ssize_t read_length, read_size;
 
-	// Used by the ps_list macro
+	// Used for the scheduling runqueue as an in-place linked list data structure.
+	// The variable name "list" is used for ps_list's default name-based MACROS.
 	struct ps_list list;
 
 	ssize_t request_response_data_length; // <= max(module->max_request_or_response_size)
