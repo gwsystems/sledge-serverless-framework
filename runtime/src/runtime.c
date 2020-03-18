@@ -10,7 +10,7 @@
 #include <softint.h>
 #include <uv.h>
 #include <util.h>
-#include <http/http_parser_settings.h>
+#include <http_parser_settings.h>
 #include <current_sandbox.h>
 
 #include "sandbox_request.h"
@@ -264,7 +264,7 @@ worker_thread__pull_and_process_sandbox_requests(void)
 
 	while (total_sandboxes_pulled < SBOX_PULL_MAX) {
 		sandbox_request_t *sandbox_request;
-		if ((sandbox_request = sandbox_request__steal_from_global_dequeue()) == NULL) break;
+		if ((sandbox_request = sandbox_request__steal_from_dequeue()) == NULL) break;
 		// Actually allocate the sandbox for the requests that we've pulled
 		struct sandbox *sandbox = sandbox__allocate(sandbox_request->module, sandbox_request->arguments,
 		                                            sandbox_request->socket_descriptor,

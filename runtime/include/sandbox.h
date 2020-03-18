@@ -6,8 +6,8 @@
 
 #include "arch/context.h"
 #include "deque.h"
-#include <http/http_request.h>
-#include <http/http_response.h>
+#include <http_request.h>
+#include <http_response.h>
 #include "module.h"
 #include "ps_list.h"
 #include "softint.h"
