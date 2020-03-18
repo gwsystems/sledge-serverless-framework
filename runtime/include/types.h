@@ -81,7 +81,7 @@ extern __thread struct indirect_table_entry *module_indirect_table;
 // for sandbox linear memory isolation
 extern __thread void *sandbox_lmbase;
 extern __thread u32   sandbox_lmbound;
-extern i32            log_file_descriptor;
+extern i32            log_file_descriptor; // TODO: NOSTDIO logic is untested
 
 // functions in the module to lookup and call per sandbox.
 typedef i32 (*mod_main_fn_t)(i32 a, i32 b);
@@ -152,7 +152,6 @@ typedef enum
 #define MOD_BACKLOG 1000
 #define EPOLL_MAX 1024
 #define MOD_REQ_RESP_DEFAULT (PAGE_SIZE)
-#define QUIESCENSE_TIME (1 << 20) // cycles!
 
 #define HTTP_HEADERS_MAX 16
 #define HTTP_HEADER_MAXSZ 32
