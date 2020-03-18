@@ -62,6 +62,8 @@ module__initialize_as_server(struct module *module)
  * Module Mega Teardown Function
  * Closes the socket and dynamic library, and then frees the module
  * Returns harmlessly if there are outstanding references
+ *
+ * TODO: Untested Functionality. Unsure if this will work
  * @param module - the module to teardown
  **/
 void
