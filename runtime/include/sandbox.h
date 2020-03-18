@@ -10,7 +10,7 @@
 #include <http_response.h>
 #include "module.h"
 #include "ps_list.h"
-#include "softint.h"
+#include "software_interrupt.h"
 
 /**************************
  * Structs and Types      *

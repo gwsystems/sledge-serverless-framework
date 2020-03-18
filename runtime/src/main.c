@@ -11,7 +11,7 @@
 #include <module.h>
 #include <runtime.h>
 #include <sandbox.h>
-#include <softint.h>
+#include <software_interrupt.h>
 
 i32       log_file_descriptor                  = -1;
 u32       total_online_processors              = 0;
