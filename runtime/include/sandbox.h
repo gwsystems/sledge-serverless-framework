@@ -85,10 +85,10 @@ extern __thread struct sandbox *worker_thread__current_sandbox;
 extern __thread arch_context_t *worker_thread__next_context;
 
 extern void            worker_thread__block_current_sandbox(void);
-extern void            worker_thread__completion_queue__add_sandbox(struct sandbox *sandbox);
-extern void            worker_thread__current_sandbox__exit(void);
+extern void            worker_thread__exit_current_sandbox(void);
 extern struct sandbox *worker_thread__get_next_sandbox(int interrupt);
 extern void            worker_thread__process_io(void);
+extern void            worker_thread__push_sandbox_to_completion_queue(struct sandbox *sandbox);
 extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
 extern void worker_thread__wakeup_sandbox(sandbox_t *sandbox);
 

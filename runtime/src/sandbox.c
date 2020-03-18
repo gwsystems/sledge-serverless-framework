@@ -250,7 +250,7 @@ current_sandbox__main(void)
 #else
 	close(current_sandbox->client_socket_descriptor);
 #endif
-	worker_thread__current_sandbox__exit();
+	worker_thread__exit_current_sandbox();
 }
 
 /**
