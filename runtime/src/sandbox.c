@@ -318,7 +318,7 @@ sandbox__allocate(struct module *module, char *arguments, int socket_descriptor,
 	}
 	sandbox->client_socket_descriptor = socket_descriptor;
 	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
-	for (int i = 0; i < SBOX_MAX_OPEN; i++) sandbox->handles[i].file_descriptor = -1;
+	for (int i = 0; i < SBOX_MAX_OPEN; i++) sandbox->io_handles[i].file_descriptor = -1;
 	ps_list_init_d(sandbox);
 
 	// Setup the sandbox's context, stack, and instruction pointer

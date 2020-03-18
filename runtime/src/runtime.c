@@ -56,8 +56,8 @@ runtime__initialize(void)
  ********************************/
 
 /**
- * @brief Execution Loop of the listener core, handles HTTP requests, allocates sandbox request objects, and pushes the
- * sandbox object to the global dequeue
+ * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and pushes
+ * the sandbox object to the global dequeue
  * @param dummy data pointer provided by pthreads API. Unused in this function
  * @return NULL
  *
