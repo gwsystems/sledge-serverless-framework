@@ -70,7 +70,7 @@ struct sandbox {
 	struct ps_list list;
 
 	ssize_t request_response_data_length; // <= max(module->max_request_or_response_size)
-	char    request_response_data[1];     // of rr_data_sz, following sandbox mem..
+	char    request_response_data[1];     // of request_response_data_length, following sandbox mem..
 } PAGE_ALIGNED;
 
 typedef struct sandbox sandbox_t;
