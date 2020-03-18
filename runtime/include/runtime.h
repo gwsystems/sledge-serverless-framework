@@ -24,10 +24,10 @@ void         stub_init(i32 offset);
 void *       worker_thread__main(void *return_code);
 
 /**
- * TODO: ???
- * @param offset TODO: ????
- * @param bounds_check TODO: ???
- * @return TODO: ???
+ * Translates WASM offsets into runtime VM pointers
+ * @param offset an offset into the WebAssembly linear memory
+ * @param bounds_check the size of the thing we are pointing to
+ * @return void pointer to something in WebAssembly linear memory
  **/
 static inline void *
 get_memory_ptr_void(u32 offset, u32 bounds_check)
@@ -36,24 +36,30 @@ get_memory_ptr_void(u32 offset, u32 bounds_check)
 }
 
 /**
- * TODO: ???
- * @param offset TODO: ????
- * @return TODO: ???
+ * Get a single-byte extended ASCII character from WebAssembly linear memory
+ * @param offset an offset into the WebAssembly linear memory
+ * @return char at the offset
+ **/
+static inline char
+get_memory_character(u32 offset)
+{
+	char result = get_memory_ptr_for_runtime(offset, 1)[0];
+	return result;
+}
+
+/**
+ * Get a null-terminated String from WebAssembly linear memory
+ * @param offset an offset into the WebAssembly linear memory
+ * @param max_length the maximum expected length in characters
+ * @return pointer to the string or NULL if max_length is reached without finding null-terminator
  **/
 static inline char *
-get_memory_string(u32 offset)
+get_memory_string(u32 offset, u32 max_length)
 {
-	char *naive_ptr = get_memory_ptr_for_runtime(offset, 1);
-	int   i         = 0;
-
-	while (true) {
-		// Keep bounds checking the waters over and over until we know it's safe (we find a terminating
-		// character)
-		char ith_element = get_memory_ptr_for_runtime(offset, i + 1)[i];
-
-		if (ith_element == '\0') return naive_ptr;
-		i++;
+	for (int i = 0; i < max_length; i++) {
+		if (get_memory_character(offset + i) == '\0') return get_memory_ptr_void(offset, 1);
 	}
+	return NULL;
 }
 
 /**
