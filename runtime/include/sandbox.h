@@ -44,11 +44,7 @@ struct sandbox {
 
 	arch_context_t ctxt; // register context for context switch.
 
-	// TODO: Refactor to usefully track across scheduler
-	u64 actual_deadline;
-	u64 expected_deadline;
 	u64 total_time;
-	u64 remaining_time;
 	u64 start_time;
 
 	struct module *module; // the module this is an instance of
