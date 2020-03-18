@@ -230,7 +230,7 @@ worker_thread__process_io(void)
 	// realistically, we're processing all async I/O on this core when a sandbox blocks on http processing, not
 	// great! if there is a way (TODO), perhaps RUN_ONCE and check if your I/O is processed, if yes, return else do
 	// async block!
-	uv_run(get_thread_libuv_handle(), UV_RUN_DEFAULT);
+	uv_run(worker_thread__get_thread_libuv_handle(), UV_RUN_DEFAULT);
 #else  /* USE_HTTP_SYNC */
 	worker_thread__block_current_sandbox();
 #endif /* USE_HTTP_UVIO */
@@ -288,10 +288,10 @@ void
 worker_thread__execute_libuv_event_loop(void)
 {
 	worker_thread__is_in_callback = 1;
-	int n = uv_run(get_thread_libuv_handle(), UV_RUN_NOWAIT), i = 0;
+	int n = uv_run(worker_thread__get_thread_libuv_handle(), UV_RUN_NOWAIT), i = 0;
 	while (n > 0) {
 		n--;
-		uv_run(get_thread_libuv_handle(), UV_RUN_NOWAIT);
+		uv_run(worker_thread__get_thread_libuv_handle(), UV_RUN_NOWAIT);
 	}
 	worker_thread__is_in_callback = 0;
 }

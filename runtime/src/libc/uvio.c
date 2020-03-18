@@ -105,7 +105,7 @@ u32
 wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 {
 	if (filedes == 0) {
-		char *               buffer = get_memory_ptr_void(buf_offset, nbyte);
+		char *               buffer = worker_thread__get_memory_ptr_void(buf_offset, nbyte);
 		struct sandbox *     s      = current_sandbox__get();
 		struct http_request *r      = &s->http_request;
 		if (r->body_length <= 0) return 0;
@@ -118,11 +118,11 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 	int f = current_sandbox__get_file_descriptor(filedes);
 	// TODO: read on other file types
 	uv_fs_t req    = UV_FS_REQ_INIT();
-	char *  buffer = get_memory_ptr_void(buf_offset, nbyte);
+	char *  buffer = worker_thread__get_memory_ptr_void(buf_offset, nbyte);
 
 	debuglog("[%p] start[%d:%d, n%d]\n", uv_fs_get_data(&req), filedes, f, nbyte);
 	uv_buf_t bufv = uv_buf_init(buffer, nbyte);
-	uv_fs_read(get_thread_libuv_handle(), &req, f, &bufv, 1, -1, wasm_fs_callback);
+	uv_fs_read(worker_thread__get_thread_libuv_handle(), &req, f, &bufv, 1, -1, wasm_fs_callback);
 	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
@@ -137,7 +137,7 @@ i32
 wasm_write(i32 file_descriptor, i32 buf_offset, i32 buf_size)
 {
 	if (file_descriptor == 1 || file_descriptor == 2) {
-		char *          buffer = get_memory_ptr_void(buf_offset, buf_size);
+		char *          buffer = worker_thread__get_memory_ptr_void(buf_offset, buf_size);
 		struct sandbox *s      = current_sandbox__get();
 		int             l      = s->module->max_response_size - s->request_response_data_length;
 		l                      = l > buf_size ? buf_size : l;
@@ -150,10 +150,10 @@ wasm_write(i32 file_descriptor, i32 buf_offset, i32 buf_size)
 	int f = current_sandbox__get_file_descriptor(file_descriptor);
 	// TODO: read on other file types
 	uv_fs_t req    = UV_FS_REQ_INIT();
-	char *  buffer = get_memory_ptr_void(buf_offset, buf_size);
+	char *  buffer = worker_thread__get_memory_ptr_void(buf_offset, buf_size);
 
 	uv_buf_t bufv = uv_buf_init(buffer, buf_size);
-	uv_fs_write(get_thread_libuv_handle(), &req, f, &bufv, 1, -1, wasm_fs_callback);
+	uv_fs_write(worker_thread__get_thread_libuv_handle(), &req, f, &bufv, 1, -1, wasm_fs_callback);
 	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
@@ -183,7 +183,7 @@ i32
 wasm_open(i32 path_off, i32 flags, i32 mode)
 {
 	uv_fs_t req  = UV_FS_REQ_INIT();
-	char *  path = get_memory_string(path_off, 4096);
+	char *  path = worker_thread__get_memory_string(path_off, 4096);
 
 	int iofd = current_sandbox__initialize_io_handle();
 	if (iofd < 0) return -1;
@@ -196,7 +196,7 @@ wasm_open(i32 path_off, i32 flags, i32 mode)
 	if (flags & WO_EXCL) modified_flags |= O_EXCL;
 	debuglog("[%p] start[%s:%d:%d]\n", uv_fs_get_data(&req), path, flags, modified_flags);
 
-	uv_fs_open(get_thread_libuv_handle(), &req, path, modified_flags, mode, wasm_fs_callback);
+	uv_fs_open(worker_thread__get_thread_libuv_handle(), &req, path, modified_flags, mode, wasm_fs_callback);
 	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
@@ -233,7 +233,7 @@ wasm_close(i32 file_descriptor)
 
 	uv_fs_t req = UV_FS_REQ_INIT();
 	debuglog("[%p] file[%d,%d]\n", uv_fs_get_data(&req), file_descriptor, d);
-	uv_fs_close(get_thread_libuv_handle(), &req, d, wasm_fs_callback);
+	uv_fs_close(worker_thread__get_thread_libuv_handle(), &req, d, wasm_fs_callback);
 	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
@@ -296,8 +296,8 @@ struct wasm_stat {
 i32
 wasm_stat(u32 path_str_offset, i32 stat_offset)
 {
-	char *            path     = get_memory_string(path_str_offset, 4096);
-	struct wasm_stat *stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
+	char *            path     = worker_thread__get_memory_string(path_str_offset, 4096);
+	struct wasm_stat *stat_ptr = worker_thread__get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
 	i32         res = lstat(path, &stat);
@@ -342,7 +342,7 @@ wasm_stat(u32 path_str_offset, i32 stat_offset)
 i32
 wasm_fstat(i32 filedes, i32 stat_offset)
 {
-	struct wasm_stat *stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
+	struct wasm_stat *stat_ptr = worker_thread__get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
 	int         d   = current_sandbox__get_file_descriptor(filedes);
@@ -388,8 +388,8 @@ wasm_fstat(i32 filedes, i32 stat_offset)
 i32
 wasm_lstat(i32 path_str_offset, i32 stat_offset)
 {
-	char *            path     = get_memory_string(path_str_offset, 4096);
-	struct wasm_stat *stat_ptr = get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
+	char *            path     = worker_thread__get_memory_string(path_str_offset, 4096);
+	struct wasm_stat *stat_ptr = worker_thread__get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
 	i32         res = lstat(path, &stat);
@@ -498,14 +498,15 @@ wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	if (file_descriptor == 0) {
 		// both 1 and 2 go to client.
 		int                  len = 0;
-		struct wasm_iovec *  iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+		struct wasm_iovec *  iov = worker_thread__get_memory_ptr_void(iov_offset,
+                                                                            iovcnt * sizeof(struct wasm_iovec));
 		struct sandbox *     s   = current_sandbox__get();
 		struct http_request *r   = &s->http_request;
 		if (r->body_length <= 0) return 0;
 		for (int i = 0; i < iovcnt; i++) {
 			int l = iov[i].len > r->body_length ? r->body_length : iov[i].len;
 			if (l <= 0) break;
-			char *b = get_memory_ptr_void(iov[i].base_offset, iov[i].len);
+			char *b = worker_thread__get_memory_ptr_void(iov[i].base_offset, iov[i].len);
 			// http request body!
 			memcpy(b, r->body + r->body_read_length + len, l);
 			len += l;
@@ -518,7 +519,7 @@ wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	// TODO: read on other file types
 	int                gret = 0;
 	int                d    = current_sandbox__get_file_descriptor(file_descriptor);
-	struct wasm_iovec *iov  = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+	struct wasm_iovec *iov  = worker_thread__get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
 	for (int i = 0; i < iovcnt; i += RDWR_VEC_MAX) {
 		uv_fs_t  req                = UV_FS_REQ_INIT();
@@ -526,11 +527,12 @@ wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 		int      j                  = 0;
 
 		for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
-			bufs[j] = uv_buf_init(get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len),
+			bufs[j] = uv_buf_init(worker_thread__get_memory_ptr_void(iov[i + j].base_offset,
+			                                                         iov[i + j].len),
 			                      iov[i + j].len);
 		}
 		debuglog("[%p] start[%d,%d, n%d:%d]\n", uv_fs_get_data(&req), file_descriptor, d, i, j);
-		uv_fs_read(get_thread_libuv_handle(), &req, d, bufs, j, -1, wasm_fs_callback);
+		uv_fs_read(worker_thread__get_thread_libuv_handle(), &req, d, bufs, j, -1, wasm_fs_callback);
 		worker_thread__block_current_sandbox();
 
 		int ret = uv_fs_get_result(&req);
@@ -552,9 +554,10 @@ wasm_writev(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	if (file_descriptor == 1 || file_descriptor == 2) {
 		// both 1 and 2 go to client.
 		int                len = 0;
-		struct wasm_iovec *iov = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+		struct wasm_iovec *iov = worker_thread__get_memory_ptr_void(iov_offset,
+		                                                            iovcnt * sizeof(struct wasm_iovec));
 		for (int i = 0; i < iovcnt; i++) {
-			char *b = get_memory_ptr_void(iov[i].base_offset, iov[i].len);
+			char *b = worker_thread__get_memory_ptr_void(iov[i].base_offset, iov[i].len);
 			memcpy(c->request_response_data + c->request_response_data_length, b, iov[i].len);
 			c->request_response_data_length += iov[i].len;
 			len += iov[i].len;
@@ -565,7 +568,7 @@ wasm_writev(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	// TODO: read on other file types
 	int                d    = current_sandbox__get_file_descriptor(file_descriptor);
 	int                gret = 0;
-	struct wasm_iovec *iov  = get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+	struct wasm_iovec *iov  = worker_thread__get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
 	for (int i = 0; i < iovcnt; i += RDWR_VEC_MAX) {
 		uv_fs_t  req                = UV_FS_REQ_INIT();
@@ -573,11 +576,12 @@ wasm_writev(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 		int      j                  = 0;
 
 		for (j = 0; j < RDWR_VEC_MAX && i + j < iovcnt; j++) {
-			bufs[j] = uv_buf_init(get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len),
+			bufs[j] = uv_buf_init(worker_thread__get_memory_ptr_void(iov[i + j].base_offset,
+			                                                         iov[i + j].len),
 			                      iov[i + j].len);
 		}
 		debuglog("[%p] start[%d,%d, n%d:%d]\n", uv_fs_get_data(&req), file_descriptor, d, i, j);
-		uv_fs_write(get_thread_libuv_handle(), &req, d, bufs, j, -1, wasm_fs_callback);
+		uv_fs_write(worker_thread__get_thread_libuv_handle(), &req, d, bufs, j, -1, wasm_fs_callback);
 		worker_thread__block_current_sandbox();
 
 		int ret = uv_fs_get_result(&req);
@@ -639,7 +643,7 @@ wasm_fsync(u32 file_descriptor)
 	int     d   = current_sandbox__get_file_descriptor(file_descriptor);
 	uv_fs_t req = UV_FS_REQ_INIT();
 	debuglog("[%p] start[%d,%d]\n", uv_fs_get_data(&req), file_descriptor, d);
-	uv_fs_fsync(get_thread_libuv_handle(), &req, d, wasm_fs_callback);
+	uv_fs_fsync(worker_thread__get_thread_libuv_handle(), &req, d, wasm_fs_callback);
 	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
@@ -653,7 +657,7 @@ wasm_fsync(u32 file_descriptor)
 u32
 wasm_getcwd(u32 buf_offset, u32 buf_size)
 {
-	char *buffer = get_memory_ptr_void(buf_offset, buf_size);
+	char *buffer = worker_thread__get_memory_ptr_void(buf_offset, buf_size);
 	char *res    = getcwd(buffer, buf_size);
 
 	if (!res) return 0;
@@ -664,10 +668,10 @@ wasm_getcwd(u32 buf_offset, u32 buf_size)
 u32
 wasm_unlink(u32 path_str_offset)
 {
-	char *  str = get_memory_string(path_str_offset, 4096);
+	char *  str = worker_thread__get_memory_string(path_str_offset, 4096);
 	uv_fs_t req = UV_FS_REQ_INIT();
 	debuglog("[%p] start[%s]\n", uv_fs_get_data(&req), str);
-	uv_fs_unlink(get_thread_libuv_handle(), &req, str, wasm_fs_callback);
+	uv_fs_unlink(worker_thread__get_thread_libuv_handle(), &req, str, wasm_fs_callback);
 	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
@@ -712,7 +716,8 @@ wasm_get_time(i32 clock_id, i32 timespec_off)
 		assert(0);
 	}
 
-	struct wasm_time_spec *timespec = get_memory_ptr_void(timespec_off, sizeof(struct wasm_time_spec));
+	struct wasm_time_spec *timespec = worker_thread__get_memory_ptr_void(timespec_off,
+	                                                                     sizeof(struct wasm_time_spec));
 
 	struct timespec native_timespec = { 0, 0 };
 	int             res             = clock_gettime(real_clock, &native_timespec);
@@ -739,7 +744,7 @@ wasm_fchown(i32 file_descriptor, u32 owner, u32 group)
 	int     d   = current_sandbox__get_file_descriptor(file_descriptor);
 	uv_fs_t req = UV_FS_REQ_INIT();
 	debuglog("[%p] start[%d,%d]\n", uv_fs_get_data(&req), file_descriptor, d);
-	uv_fs_fchown(get_thread_libuv_handle(), &req, d, owner, group, wasm_fs_callback);
+	uv_fs_fchown(worker_thread__get_thread_libuv_handle(), &req, d, owner, group, wasm_fs_callback);
 	worker_thread__block_current_sandbox();
 
 	int ret = uv_fs_get_result(&req);
@@ -788,12 +793,12 @@ wasm_socket(i32 domain, i32 type, i32 protocol)
 	if (type & SOCK_DGRAM) {
 		uv_udp_t *uh = (uv_udp_t *)h;
 		uh->data     = c;
-		uv_udp_init(get_thread_libuv_handle(), uh);
+		uv_udp_init(worker_thread__get_thread_libuv_handle(), uh);
 		debuglog(" udp init done!\n");
 	} else if (type & SOCK_STREAM) {
 		uv_tcp_t *uh = (uv_tcp_t *)h;
 		uh->data     = c;
-		uv_tcp_init(get_thread_libuv_handle(), uh);
+		uv_tcp_init(worker_thread__get_thread_libuv_handle(), uh);
 		debuglog(" tcp init done!\n");
 	} else {
 		assert(0); // not supported yet!
@@ -814,7 +819,8 @@ wasm_connect(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 	if (t == UV_TCP) {
 		uv_connect_t req = { .data = c };
 		debuglog("[%p] connect\n", c);
-		int r = uv_tcp_connect(&req, (uv_tcp_t *)h, get_memory_ptr_void(sockaddr_offset, addrlen),
+		int r = uv_tcp_connect(&req, (uv_tcp_t *)h,
+		                       worker_thread__get_memory_ptr_void(sockaddr_offset, addrlen),
 		                       wasm_connect_callback);
 		worker_thread__block_current_sandbox();
 
@@ -823,7 +829,7 @@ wasm_connect(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 	} else if (t == UV_UDP) {
 		debuglog(" UDP connect not implemented!\n");
 		// TODO: this api is in the doc online but not in the libuv installed.. perhaps update??
-		// return uv_udp_connect((uv_udp_t *)h, get_memory_ptr_void(sockaddr_offset, addrlen));
+		// return uv_udp_connect((uv_udp_t *)h, worker_thread__get_memory_ptr_void(sockaddr_offset, addrlen));
 	}
 	debuglog(" unsupported\n");
 	assert(0);
@@ -834,8 +840,8 @@ i32
 wasm_accept(i32 sockfd, i32 sockaddr_offset, i32 addrlen_offset)
 {
 	// what do we do with the sockaddr TODO: ????
-	socklen_t *          addrlen        = get_memory_ptr_void(addrlen_offset, sizeof(socklen_t));
-	struct sockaddr *    socket_address = get_memory_ptr_void(sockaddr_offset, *addrlen);
+	socklen_t *          addrlen        = worker_thread__get_memory_ptr_void(addrlen_offset, sizeof(socklen_t));
+	struct sockaddr *    socket_address = worker_thread__get_memory_ptr_void(sockaddr_offset, *addrlen);
 	union uv_any_handle *s              = current_sandbox__get_libuv_handle(sockfd);
 	int                  cfd            = current_sandbox__initialize_io_handle();
 	if (cfd < 0) return -1;
@@ -845,7 +851,7 @@ wasm_accept(i32 sockfd, i32 sockaddr_offset, i32 addrlen_offset)
 	// assert so we can look into whether we need to implement UDP or others..
 	assert(((uv_handle_t *)s)->type == UV_TCP);
 	union uv_any_handle *h = current_sandbox__get_libuv_handle(cfd);
-	uv_tcp_init(get_thread_libuv_handle(), (uv_tcp_t *)h);
+	uv_tcp_init(worker_thread__get_thread_libuv_handle(), (uv_tcp_t *)h);
 	debuglog("[%p] tcp init %d\n", c, cfd);
 	int r = uv_accept((uv_stream_t *)s, (uv_stream_t *)h);
 	if (r < 0) return r;
@@ -873,7 +879,8 @@ wasm_bind(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 
 	if (t == UV_TCP) {
 		debuglog("[%p] tcp\n", c);
-		int r1 = uv_tcp_bind((uv_tcp_t *)h, get_memory_ptr_void(sockaddr_offset, addrlen), 0 /* TODO: flags */);
+		int r1 = uv_tcp_bind((uv_tcp_t *)h, worker_thread__get_memory_ptr_void(sockaddr_offset, addrlen),
+		                     0 /* TODO: flags */);
 		if (file_descriptor == SBOX_PREOPEN_MAGIC) {
 			int r2 = -1, f = -1;
 			r2 = uv_fileno((uv_handle_t *)h, &f);
@@ -883,7 +890,8 @@ wasm_bind(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 		return r1;
 	} else if (t == UV_UDP) {
 		debuglog("[%p] udp\n", c);
-		int r1 = uv_udp_bind((uv_udp_t *)h, get_memory_ptr_void(sockaddr_offset, addrlen), 0 /* TODO: flags */);
+		int r1 = uv_udp_bind((uv_udp_t *)h, worker_thread__get_memory_ptr_void(sockaddr_offset, addrlen),
+		                     0 /* TODO: flags */);
 		if (file_descriptor == SBOX_PREOPEN_MAGIC) {
 			int r2 = -1, f = -1;
 			r2 = uv_fileno((uv_handle_t *)h, &f);
@@ -969,7 +977,7 @@ wasm_udp_send_callback(uv_udp_send_t *req, int status)
 i32
 wasm_sendto(i32 file_descriptor, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i32 sockaddr_len)
 {
-	char *buffer = get_memory_ptr_void(buff_offset, len);
+	char *buffer = worker_thread__get_memory_ptr_void(buff_offset, len);
 	// TODO: only support "send" api for now
 	assert(sockaddr_len == 0);
 	struct sandbox *     c = current_sandbox__get();
@@ -1019,8 +1027,8 @@ wasm_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buffer)
 i32
 wasm_recvfrom(i32 file_descriptor, i32 buff_offset, i32 size, i32 flags, i32 sockaddr_offset, i32 socklen_offset)
 {
-	char *     buffer = get_memory_ptr_void(buff_offset, size);
-	socklen_t *len    = get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
+	char *     buffer = worker_thread__get_memory_ptr_void(buff_offset, size);
+	socklen_t *len    = worker_thread__get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
 	// TODO: only support "recv" api for now
 	assert(*len == 0);
 	struct sandbox *     c = current_sandbox__get();
