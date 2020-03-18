@@ -3,9 +3,7 @@
 
 #include "deque.h"
 #include "types.h"
-
-extern struct deque_sandbox *runtime__global_deque;
-extern pthread_mutex_t       runtime__global_deque_mutex;
+#include "runtime.h"
 
 struct sandbox_request {
 	struct module *  module;
@@ -23,10 +21,12 @@ DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
  * @param sandbox_request
  **/
 static inline int
-sandbox_request__add_to_global_dequeue(sandbox_request_t *sandbox_request)
+sandbox_request__push_to_dequeue(sandbox_request_t *sandbox_request)
 {
 	int return_code;
 
+// TODO: Running the runtime and listener cores on a single shared core is untested
+// We are unsure if the locking behavior is correct, so there may be deadlocks
 #if NCORES == 1
 	pthread_mutex_lock(&runtime__global_deque_mutex);
 #endif
@@ -60,7 +60,7 @@ sandbox_request__allocate(struct module *module, char *arguments, int socket_des
 	sandbox_request->start_time        = start_time;
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
-	sandbox_request__add_to_global_dequeue(sandbox_request);
+	sandbox_request__push_to_dequeue(sandbox_request);
 	return sandbox_request;
 }
 
@@ -69,10 +69,12 @@ sandbox_request__allocate(struct module *module, char *arguments, int socket_des
  * @param sandbox_request the pointer which we want to set to the sandbox request
  **/
 static inline int
-sandbox_request__pop_from_global_dequeue(sandbox_request_t **sandbox_request)
+sandbox_request__pop_from_dequeue(sandbox_request_t **sandbox_request)
 {
 	int return_code;
 
+// TODO: Running the runtime and listener cores on a single shared core is untested
+// We are unsure if the locking behavior is correct, so there may be deadlocks
 #if NCORES == 1
 	pthread_mutex_lock(&runtime__global_deque_mutex);
 #endif
@@ -84,16 +86,26 @@ sandbox_request__pop_from_global_dequeue(sandbox_request_t **sandbox_request)
 }
 
 /**
- * TODO: What does this do?
+ * Stealing from the dequeue is a lock-free, cross-core "pop", which removes the element from the end opposite to
+ * "pop". Because the producer and consumer (the core stealine the sandbox request) modify different ends,
+ * no locks are required, and coordination is achieved by instead retrying on inconsistent indices.
+ *
+ * Relevant Read: https://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf
+ *
+ * TODO: Notice the mutex_lock for NCORES == 1 in both push/pop functions and steal calling 'pop' for NCORES == 1.
+ * Ideally you don't call steal for same core consumption but I just made the steal API wrap that logic. Which is
+ * perhaps not good. We might just add the #if in the scheduling code which should explicitly call "pop" for single core
+ * and add an assert in "steal" function for NCORES == 1.
+ *
  * @returns A Sandbox Request or NULL
  **/
 static inline sandbox_request_t *
-sandbox_request__steal_from_global_dequeue(void)
+sandbox_request__steal_from_dequeue(void)
 {
 	sandbox_request_t *sandbox_request = NULL;
 
 #if NCORES == 1
-	sandbox_request__pop_from_global_dequeue(&sandbox_request);
+	sandbox_request__pop_from_dequeue(&sandbox_request);
 #else
 	int r = deque_steal_sandbox(runtime__global_deque, &sandbox_request);
 	if (r) sandbox_request = NULL;
