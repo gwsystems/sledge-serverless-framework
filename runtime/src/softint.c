@@ -18,15 +18,15 @@
  * Process Globals
  ***************************************/
 
-static const int softint__supported_signals[] = { SIGALRM, SIGUSR1 };
+static const int software_interrupt__supported_signals[] = { SIGALRM, SIGUSR1 };
 
 /***************************************
  * Thread Globals
  ***************************************/
 
-__thread static volatile sig_atomic_t softint__SIGALRM_count = 0;
-__thread static volatile sig_atomic_t softint__SIGUSR_count  = 0;
-__thread volatile sig_atomic_t        softint__is_disabled   = 0;
+__thread static volatile sig_atomic_t software_interrupt__SIGALRM_count = 0;
+__thread static volatile sig_atomic_t software_interrupt__SIGUSR_count  = 0;
+__thread volatile sig_atomic_t        software_interrupt__is_disabled   = 0;
 
 /***************************************
  * Externs
@@ -38,8 +38,8 @@ extern pthread_t worker_threads[];
  * Private Static Inlines
  ***************************************/
 
-static inline void softint__handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw);
-static inline void softint__schedule_alarm(void *user_context_raw);
+static inline void software_interrupt__handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw);
+static inline void software_interrupt__schedule_alarm(void *user_context_raw);
 
 /**
  * The handler function for Software Interrupts (signals)
@@ -50,7 +50,7 @@ static inline void softint__schedule_alarm(void *user_context_raw);
  * @param user_context_raw void* to a user_context struct
  **/
 static inline void
-softint__handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
+software_interrupt__handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 {
 #ifdef PREEMPT_DISABLE
 	assert(0);
@@ -75,33 +75,33 @@ softint__handle_signals(int signal_type, siginfo_t *signal_info, void *user_cont
 		} else {
 			assert(signal_info->si_code == SI_TKILL);
 		}
-		// debuglog("alrm:%d\n", softint__SIGALRM_count);
+		// debuglog("alrm:%d\n", software_interrupt__SIGALRM_count);
 
-		softint__SIGALRM_count++;
-		// softint__supported_signals per-core..
+		software_interrupt__SIGALRM_count++;
+		// software_interrupt__supported_signals per-core..
 		if (curr && curr->state == RETURNED) return;
 		if (worker_thread__next_context) return;
-		if (!softint__is_enabled()) return;
-		softint__schedule_alarm(user_context_raw);
+		if (!software_interrupt__is_enabled()) return;
+		software_interrupt__schedule_alarm(user_context_raw);
 
 		break;
 	}
 	case SIGUSR1: {
 		// make sure sigalrm doesn't mess this up if nested..
-		assert(!softint__is_enabled());
+		assert(!software_interrupt__is_enabled());
 		/* we set current before calling pthread_kill! */
 		assert(worker_thread__next_context && (&curr->ctxt == worker_thread__next_context));
 		assert(signal_info->si_code == SI_TKILL);
-		// debuglog("usr1:%d\n", softint__SIGUSR_count);
+		// debuglog("usr1:%d\n", software_interrupt__SIGUSR_count);
 
-		softint__SIGUSR_count++;
+		software_interrupt__SIGUSR_count++;
 		// do not save current sandbox.. it is in co-operative switch..
 		// pick the next from "worker_thread__next_context"..
 		// assert its "sp" to be zero in regs..
 		// memcpy from next context..
 		arch_mcontext_restore(&user_context->uc_mcontext, &curr->ctxt);
 		worker_thread__next_context = NULL;
-		softint__enable();
+		software_interrupt__enable();
 		break;
 	}
 	default:
@@ -115,9 +115,9 @@ softint__handle_signals(int signal_type, siginfo_t *signal_info, void *user_cont
  * @param user_context_raw void* to a user_context struct
  **/
 static inline void
-softint__schedule_alarm(void *user_context_raw)
+software_interrupt__schedule_alarm(void *user_context_raw)
 {
-	softint__disable(); // no nesting!
+	software_interrupt__disable(); // no nesting!
 
 	struct sandbox *curr         = current_sandbox__get();
 	ucontext_t *    user_context = (ucontext_t *)user_context_raw;
@@ -142,7 +142,7 @@ softint__schedule_alarm(void *user_context_raw)
 	// worker_thread__next_context = NULL;
 
 done:
-	softint__enable();
+	software_interrupt__enable();
 skip:
 	return;
 }
@@ -155,7 +155,7 @@ skip:
  * Arms the Interval Timer to start in 10ms and then trigger a SIGALRM every 5ms
  **/
 void
-softint__arm_timer(void)
+software_interrupt__arm_timer(void)
 {
 #ifndef PREEMPT_DISABLE
 	struct itimerval interval_timer;
@@ -176,7 +176,7 @@ softint__arm_timer(void)
  * Disarm the Interval Timer
  **/
 void
-softint__disarm_timer(void)
+software_interrupt__disarm_timer(void)
 {
 	struct itimerval interval_timer;
 
@@ -197,15 +197,17 @@ softint__disarm_timer(void)
  * Register sonftint_handler to execute on SIGALRM and SIGUSR1
  **/
 void
-softint__initialize(void)
+software_interrupt__initialize(void)
 {
 	struct sigaction signal_action;
 	memset(&signal_action, 0, sizeof(struct sigaction));
-	signal_action.sa_sigaction = softint__handle_signals;
+	signal_action.sa_sigaction = software_interrupt__handle_signals;
 	signal_action.sa_flags     = SA_SIGINFO | SA_RESTART;
 
-	for (int i = 0; i < (sizeof(softint__supported_signals) / sizeof(softint__supported_signals[0])); i++) {
-		int return_code = sigaction(softint__supported_signals[i], &signal_action, NULL);
+	for (int i = 0;
+	     i < (sizeof(software_interrupt__supported_signals) / sizeof(software_interrupt__supported_signals[0]));
+	     i++) {
+		int return_code = sigaction(software_interrupt__supported_signals[i], &signal_action, NULL);
 		if (return_code) {
 			perror("sigaction");
 			exit(1);

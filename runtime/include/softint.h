@@ -9,16 +9,16 @@
  * Externs
  ***************************************/
 
-extern __thread volatile sig_atomic_t softint__is_disabled;
+extern __thread volatile sig_atomic_t software_interrupt__is_disabled;
 
 /***************************************
  * Public Static Inlines
  ***************************************/
 
 static inline void
-softint__disable(void)
+software_interrupt__disable(void)
 {
-	while (__sync_bool_compare_and_swap(&softint__is_disabled, 0, 1) == false)
+	while (__sync_bool_compare_and_swap(&software_interrupt__is_disabled, 0, 1) == false)
 		;
 }
 
@@ -27,18 +27,18 @@ softint__disable(void)
  * Enables signals
  */
 static inline void
-softint__enable(void)
+software_interrupt__enable(void)
 {
-	if (__sync_bool_compare_and_swap(&softint__is_disabled, 1, 0) == false) assert(0);
+	if (__sync_bool_compare_and_swap(&software_interrupt__is_disabled, 1, 0) == false) assert(0);
 }
 
 /**
  * @returns boolean if signals are enabled
  */
 static inline int
-softint__is_enabled(void)
+software_interrupt__is_enabled(void)
 {
-	return (softint__is_disabled == 0);
+	return (software_interrupt__is_disabled == 0);
 }
 
 /**
@@ -47,7 +47,7 @@ softint__is_enabled(void)
  * @return 0 on success. Exits program otherwise
  **/
 static inline int
-softint__mask(int signal)
+software_interrupt__mask(int signal)
 {
 	sigset_t set;
 	int      return_code;
@@ -72,7 +72,7 @@ softint__mask(int signal)
  * @return 0 on success. Exits program otherwise
  **/
 static inline int
-softint__unmask(int signal)
+software_interrupt__unmask(int signal)
 {
 	sigset_t set;
 	int      return_code;
@@ -95,8 +95,8 @@ softint__unmask(int signal)
  * Exports from module.c
  ***************************************/
 
-void softint__initialize(void);
-void softint__arm_timer(void);
-void softint__disarm_timer(void);
+void software_interrupt__initialize(void);
+void software_interrupt__arm_timer(void);
+void software_interrupt__disarm_timer(void);
 
 #endif /* SFRT_SOFTINT_H */

@@ -44,8 +44,8 @@ runtime__initialize(void)
 	deque_init_sandbox(runtime__global_deque, SBOX_MAX_REQS);
 
 	// Mask Signals
-	softint__mask(SIGUSR1);
-	softint__mask(SIGALRM);
+	software_interrupt__mask(SIGUSR1);
+	software_interrupt__mask(SIGALRM);
 
 	// Initialize http_parser_settings global
 	http_parser_settings__initialize(&runtime__http_parser_settings);
@@ -126,8 +126,8 @@ listener_thread__initialize(void)
 	ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cs);
 	assert(ret == 0);
 
-	softint__initialize();
-	softint__arm_timer();
+	software_interrupt__initialize();
+	software_interrupt__arm_timer();
 }
 
 /***************************
@@ -168,7 +168,7 @@ static inline void
 worker_thread__switch_to_sandbox(struct sandbox *next_sandbox)
 {
 	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
-	softint__disable();
+	software_interrupt__disable();
 	struct sandbox *current_sandbox          = current_sandbox__get();
 	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
 	current_sandbox__set(next_sandbox);
@@ -177,7 +177,7 @@ worker_thread__switch_to_sandbox(struct sandbox *next_sandbox)
 		worker_thread__completion_queue__add_sandbox(current_sandbox);
 	worker_thread__next_context = next_register_context;
 	arch_context_switch(current_register_context, next_register_context);
-	softint__enable();
+	software_interrupt__enable();
 }
 
 /**
@@ -187,7 +187,7 @@ worker_thread__switch_to_sandbox(struct sandbox *next_sandbox)
 void
 worker_thread__wakeup_sandbox(sandbox_t *sandbox)
 {
-	softint__disable();
+	software_interrupt__disable();
 	debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 	if (sandbox->state != BLOCKED) goto done;
 	assert(sandbox->state == BLOCKED);
@@ -195,7 +195,7 @@ worker_thread__wakeup_sandbox(sandbox_t *sandbox)
 	sandbox->state = RUNNABLE;
 	ps_list_head_append_d(&worker_thread__run_queue, sandbox);
 done:
-	softint__enable();
+	software_interrupt__enable();
 }
 
 
@@ -207,14 +207,14 @@ void
 worker_thread__block_current_sandbox(void)
 {
 	assert(worker_thread__is_in_callback == 0);
-	softint__disable();
+	software_interrupt__disable();
 	struct sandbox *current_sandbox = current_sandbox__get();
 	ps_list_rem_d(current_sandbox);
 	current_sandbox->state       = BLOCKED;
 	struct sandbox *next_sandbox = worker_thread__get_next_sandbox(0);
 	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", current_sandbox, current_sandbox->module->name,
 	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
-	softint__enable();
+	software_interrupt__enable();
 	worker_thread__switch_to_sandbox(next_sandbox);
 }
 
@@ -395,9 +395,9 @@ worker_thread__single_loop(void)
 	if (!worker_thread__is_in_callback) worker_thread__execute_libuv_event_loop();
 
 	// Get and return the sandbox at the head of the thread local runqueue
-	softint__disable();
+	software_interrupt__disable();
 	struct sandbox *sandbox = worker_thread__get_next_sandbox(0);
-	softint__enable();
+	software_interrupt__enable();
 	assert(sandbox == NULL || sandbox->state == RUNNABLE);
 	return sandbox;
 }
@@ -414,11 +414,11 @@ worker_thread__main(void *return_code)
 
 	ps_list_head_init(&worker_thread__run_queue);
 	ps_list_head_init(&worker_thread__completion_queue);
-	softint__is_disabled        = 0;
-	worker_thread__next_context = NULL;
+	software_interrupt__is_disabled = 0;
+	worker_thread__next_context     = NULL;
 #ifndef PREEMPT_DISABLE
-	softint__unmask(SIGALRM);
-	softint__unmask(SIGUSR1);
+	software_interrupt__unmask(SIGALRM);
+	software_interrupt__unmask(SIGUSR1);
 #endif
 	uv_loop_init(&worker_thread__uvio_handle);
 	worker_thread__is_in_callback = 0;
@@ -446,13 +446,13 @@ worker_thread__current_sandbox__exit(void)
 {
 	struct sandbox *current_sandbox = current_sandbox__get();
 	assert(current_sandbox);
-	softint__disable();
+	software_interrupt__disable();
 	worker_thread__run_queue__remove_sandbox(current_sandbox);
 	current_sandbox->state = RETURNED;
 
 	struct sandbox *next_sandbox = worker_thread__get_next_sandbox(0);
 	assert(next_sandbox != current_sandbox);
-	softint__enable();
+	software_interrupt__enable();
 	// free resources from "main function execution", as stack still in use.
 	// unmap linear memory only!
 	munmap(current_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
