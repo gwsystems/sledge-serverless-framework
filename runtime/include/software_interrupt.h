@@ -1,5 +1,5 @@
-#ifndef SFRT_SOFTINT_H
-#define SFRT_SOFTINT_H
+#ifndef SFRT_SOFTWARE_INTERRUPT_H
+#define SFRT_SOFTWARE_INTERRUPT_H
 
 #include <stdbool.h>
 #include <assert.h>
@@ -42,12 +42,12 @@ software_interrupt__is_enabled(void)
 }
 
 /**
- * Blocks a signal on the current thread
- * @param signal - the signal you want to block
+ * Masks a signal on the current thread
+ * @param signal - the signal you want to mask
  * @return 0 on success. Exits program otherwise
  **/
 static inline int
-software_interrupt__mask(int signal)
+software_interrupt__mask_signal(int signal)
 {
 	sigset_t set;
 	int      return_code;
@@ -67,12 +67,12 @@ software_interrupt__mask(int signal)
 }
 
 /**
- * Unblocks a signal on the current thread
- * @param signal - the signal you want to block
+ * Unmasks a signal on the current thread
+ * @param signal - the signal you want to unmask
  * @return 0 on success. Exits program otherwise
  **/
 static inline int
-software_interrupt__unmask(int signal)
+software_interrupt__unmask_signal(int signal)
 {
 	sigset_t set;
 	int      return_code;
@@ -99,4 +99,4 @@ void software_interrupt__initialize(void);
 void software_interrupt__arm_timer(void);
 void software_interrupt__disarm_timer(void);
 
-#endif /* SFRT_SOFTINT_H */
+#endif /* SFRT_SOFTWARE_INTERRUPT_H */

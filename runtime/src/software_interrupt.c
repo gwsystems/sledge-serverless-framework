@@ -11,7 +11,7 @@
 #include <sandbox.h>
 #include <module.h>
 #include <arch/context.h>
-#include <softint.h>
+#include <software_interrupt.h>
 #include <current_sandbox.h>
 
 /***************************************

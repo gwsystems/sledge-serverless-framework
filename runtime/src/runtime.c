@@ -1,19 +1,28 @@
+// Something is not idempotent with this or some other include.
+// If placed in Local Includes, error is triggered that memset was implicitly declared
 #include <runtime.h>
-#include <sys/mman.h>
-#include <types.h>
-#include <sandbox.h>
-#include <arch/context.h>
-#include <module.h>
-#include <signal.h>
-#include <pthread.h>
-#include <sched.h>
-#include <softint.h>
-#include <uv.h>
-#include <util.h>
-#include <http_parser_settings.h>
-#include <current_sandbox.h>
 
-#include "sandbox_request.h"
+/***************************
+ * External Includes       *
+ **************************/
+#include <pthread.h>  // POSIX Threads
+#include <signal.h>   // POSIX Signals
+#include <sched.h>    // Wasmception. Included as submodule
+#include <sys/mman.h> // Wasmception. Included as submodule
+#include <uv.h>       // Libub
+
+/***************************
+ * Local Includes          *
+ **************************/
+#include <arch/context.h>
+#include <current_sandbox.h>
+#include <http_parser_settings.h>
+#include <module.h>
+#include <sandbox.h>
+#include <sandbox_request.h>
+#include <software_interrupt.h>
+#include <types.h>
+#include <util.h>
 
 /***************************
  * Shared Process State    *
@@ -44,8 +53,8 @@ runtime__initialize(void)
 	deque_init_sandbox(runtime__global_deque, SBOX_MAX_REQS);
 
 	// Mask Signals
-	software_interrupt__mask(SIGUSR1);
-	software_interrupt__mask(SIGALRM);
+	software_interrupt__mask_signal(SIGUSR1);
+	software_interrupt__mask_signal(SIGALRM);
 
 	// Initialize http_parser_settings global
 	http_parser_settings__initialize(&runtime__http_parser_settings);
@@ -417,8 +426,8 @@ worker_thread__main(void *return_code)
 	software_interrupt__is_disabled = 0;
 	worker_thread__next_context     = NULL;
 #ifndef PREEMPT_DISABLE
-	software_interrupt__unmask(SIGALRM);
-	software_interrupt__unmask(SIGUSR1);
+	software_interrupt__unmask_signal(SIGALRM);
+	software_interrupt__unmask_signal(SIGUSR1);
 #endif
 	uv_loop_init(&worker_thread__uvio_handle);
 	worker_thread__is_in_callback = 0;
