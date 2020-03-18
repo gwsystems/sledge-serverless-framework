@@ -394,8 +394,8 @@ worker_thread__completion_queue__free_sandboxes(unsigned int number_to_free)
  * and returns the standbox at the head of the thread-local runqueue
  * @return sandbox or NULL
  **/
-struct sandbox *
-worker_thread__single_loop(void)
+static inline struct sandbox *
+worker_thread__execute_runtime_maintenance_and_get_next_sandbox(void)
 {
 	assert(current_sandbox__get() == NULL);
 	// Try to free one sandbox from the completion queue
@@ -433,10 +433,10 @@ worker_thread__main(void *return_code)
 	worker_thread__is_in_callback = 0;
 
 	while (true) {
-		struct sandbox *sandbox = worker_thread__single_loop();
+		struct sandbox *sandbox = worker_thread__execute_runtime_maintenance_and_get_next_sandbox();
 		while (sandbox) {
 			worker_thread__switch_to_sandbox(sandbox);
-			sandbox = worker_thread__single_loop();
+			sandbox = worker_thread__execute_runtime_maintenance_and_get_next_sandbox();
 		}
 	}
 
