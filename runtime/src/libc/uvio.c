@@ -1,7 +1,7 @@
 #include <runtime.h>
 #include <sandbox.h>
 #include <uv.h>
-#include <http/http_request.h>
+#include <http_request.h>
 #include <current_sandbox.h>
 
 // What should we tell the child program its UID and GID are?

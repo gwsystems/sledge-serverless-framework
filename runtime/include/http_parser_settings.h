@@ -1,8 +1,8 @@
 #ifndef SRFT_HTTP_PARSER_SETTINGS_H
 #define SRFT_HTTP_PARSER_SETTINGS_H
 
-#include <http/http_request.h>
-#include <http/http_response.h>
+#include <http_request.h>
+#include <http_response.h>
 #include <sandbox.h>
 #include <uv.h>
 
