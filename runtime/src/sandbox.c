@@ -25,7 +25,7 @@ current_sandbox__setup_arguments(i32 argument_count)
 	assert(sandbox_lmbase == curr->linear_memory_start);
 	expand_memory();
 
-	i32 *array_ptr  = get_memory_ptr_void(curr->arguments_offset, argument_count * sizeof(i32));
+	i32 *array_ptr  = worker_thread__get_memory_ptr_void(curr->arguments_offset, argument_count * sizeof(i32));
 	i32  string_off = curr->arguments_offset + (argument_count * sizeof(i32));
 
 	for (int i = 0; i < argument_count; i++) {
@@ -209,7 +209,8 @@ current_sandbox__main(void)
 #ifdef USE_HTTP_UVIO
 
 	// Initialize libuv TCP stream
-	int r = uv_tcp_init(get_thread_libuv_handle(), (uv_tcp_t *)&current_sandbox->client_libuv_stream);
+	int r = uv_tcp_init(worker_thread__get_thread_libuv_handle(),
+	                    (uv_tcp_t *)&current_sandbox->client_libuv_stream);
 	assert(r == 0);
 
 	// Set the current sandbox as the data the libuv callbacks have access to

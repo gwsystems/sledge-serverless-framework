@@ -30,7 +30,7 @@ void *       worker_thread__main(void *return_code);
  * @return void pointer to something in WebAssembly linear memory
  **/
 static inline void *
-get_memory_ptr_void(u32 offset, u32 bounds_check)
+worker_thread__get_memory_ptr_void(u32 offset, u32 bounds_check)
 {
 	return (void *)get_memory_ptr_for_runtime(offset, bounds_check);
 }
@@ -41,10 +41,9 @@ get_memory_ptr_void(u32 offset, u32 bounds_check)
  * @return char at the offset
  **/
 static inline char
-get_memory_character(u32 offset)
+worker_thread__get_memory_character(u32 offset)
 {
-	char result = get_memory_ptr_for_runtime(offset, 1)[0];
-	return result;
+	return get_memory_ptr_for_runtime(offset, 1)[0];
 }
 
 /**
@@ -54,10 +53,11 @@ get_memory_character(u32 offset)
  * @return pointer to the string or NULL if max_length is reached without finding null-terminator
  **/
 static inline char *
-get_memory_string(u32 offset, u32 max_length)
+worker_thread__get_memory_string(u32 offset, u32 max_length)
 {
 	for (int i = 0; i < max_length; i++) {
-		if (get_memory_character(offset + i) == '\0') return get_memory_ptr_void(offset, 1);
+		if (worker_thread__get_memory_character(offset + i) == '\0')
+			return worker_thread__get_memory_ptr_void(offset, 1);
 	}
 	return NULL;
 }
@@ -66,7 +66,7 @@ get_memory_string(u32 offset, u32 max_length)
  * Get global libuv handle
  **/
 static inline uv_loop_t *
-get_thread_libuv_handle(void)
+worker_thread__get_thread_libuv_handle(void)
 {
 	return &worker_thread__uvio_handle;
 }
