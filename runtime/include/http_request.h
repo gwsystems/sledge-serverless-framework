@@ -26,6 +26,6 @@ struct http_request {
 /***************************************************
  * General HTTP Request Functions                  *
  **************************************************/
-int http_request__get_body(struct http_request *http_request, char **body);
+int http_request_get_body(struct http_request *http_request, char **body);
 
 #endif /* SFRT_HTTP_HEADER_H */
