@@ -21,7 +21,7 @@
  * @returns 0
  **/
 static inline int
-http_parser_settings__on_url(http_parser *parser, const char *at, size_t length)
+http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 {
 	struct sandbox *sandbox = (struct sandbox *)parser->data;
 
@@ -35,7 +35,7 @@ http_parser_settings__on_url(http_parser *parser, const char *at, size_t length)
  * @param parser
  **/
 static inline int
-http_parser_settings__on_message_begin(http_parser *parser)
+http_parser_settings_on_message_begin(http_parser *parser)
 {
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
@@ -58,7 +58,7 @@ http_parser_settings__on_message_begin(http_parser *parser)
  * @returns 0
  **/
 static inline int
-http_parser_settings__on_header_field(http_parser *parser, const char *at, size_t length)
+http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t length)
 {
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
@@ -83,7 +83,7 @@ http_parser_settings__on_header_field(http_parser *parser, const char *at, size_
  * @returns 0
  **/
 static inline int
-http_parser_settings__on_header_value(http_parser *parser, const char *at, size_t length)
+http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t length)
 {
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
@@ -104,7 +104,7 @@ http_parser_settings__on_header_value(http_parser *parser, const char *at, size_
  * @param parser
  **/
 static inline int
-http_parser_settings__on_header_end(http_parser *parser)
+http_parser_settings_on_header_end(http_parser *parser)
 {
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
@@ -122,7 +122,7 @@ http_parser_settings__on_header_end(http_parser *parser)
  * @returns 0
  **/
 static inline int
-http_parser_settings__on_body(http_parser *parser, const char *at, size_t length)
+http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 {
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
@@ -143,7 +143,7 @@ http_parser_settings__on_body(http_parser *parser, const char *at, size_t length
  * @param parser
  **/
 static inline int
-http_parser_settings__on_msg_end(http_parser *parser)
+http_parser_settings_on_msg_end(http_parser *parser)
 {
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
@@ -160,25 +160,25 @@ http_parser_settings__on_msg_end(http_parser *parser)
  * The settings global with the Callback Functions for HTTP Events
  */
 static inline void
-http_parser_settings__register_callbacks(http_parser_settings *settings)
+http_parser_settings_register_callbacks(http_parser_settings *settings)
 {
-	settings->on_url              = http_parser_settings__on_url;
-	settings->on_message_begin    = http_parser_settings__on_message_begin;
-	settings->on_header_field     = http_parser_settings__on_header_field;
-	settings->on_header_value     = http_parser_settings__on_header_value;
-	settings->on_headers_complete = http_parser_settings__on_header_end;
-	settings->on_body             = http_parser_settings__on_body;
-	settings->on_message_complete = http_parser_settings__on_msg_end;
+	settings->on_url              = http_parser_settings_on_url;
+	settings->on_message_begin    = http_parser_settings_on_message_begin;
+	settings->on_header_field     = http_parser_settings_on_header_field;
+	settings->on_header_value     = http_parser_settings_on_header_value;
+	settings->on_headers_complete = http_parser_settings_on_header_end;
+	settings->on_body             = http_parser_settings_on_body;
+	settings->on_message_complete = http_parser_settings_on_msg_end;
 }
 
 /**
  * This is really the only function that should have to be called to setup this structure
  **/
 void
-http_parser_settings__initialize(http_parser_settings *settings)
+http_parser_settings_initialize(http_parser_settings *settings)
 {
 	http_parser_settings_init(settings);
-	http_parser_settings__register_callbacks(settings);
+	http_parser_settings_register_callbacks(settings);
 }
 
 #endif /* SRFT_HTTP_PARSER_SETTINGS_H */
