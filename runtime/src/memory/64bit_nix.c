@@ -12,13 +12,13 @@
 void
 alloc_linear_memory(void)
 {
-	// mmaped memory in sandbox__allocate.
+	// mmaped memory in sandbox_allocate.
 }
 
 void
 free_linear_memory(void *base, u32 bound, u32 max)
 {
-	// frees on sandbox__free
+	// frees on sandbox_free
 }
 
 void

@@ -50,7 +50,7 @@ current_sandbox_setup_arguments(i32 argument_count)
  * Globals: runtime_http_parser_settings
  **/
 int
-sandbox__parse_http_request(struct sandbox *sandbox, size_t length)
+sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 {
 	// Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
 	// it's like a cursor to keep track of what we've read so far
@@ -186,7 +186,7 @@ current_sandbox_main(void)
 		worker_thread__next_context = NULL;
 		software_interrupt__enable();
 	}
-	struct module *current_module = sandbox__get_module(current_sandbox);
+	struct module *current_module = sandbox_get_module(current_sandbox);
 	int            argument_count = module_get_argument_count(current_module);
 	// for stdio
 
@@ -263,7 +263,7 @@ current_sandbox_main(void)
  * @returns the resulting sandbox or NULL if mmap failed
  **/
 static inline struct sandbox *
-sandbox__allocate_memory(struct module *module)
+sandbox_allocate_memory(struct module *module)
 {
 	unsigned long memory_size = SBOX_MAX_MEM; // 4GB
 
@@ -298,14 +298,14 @@ sandbox__allocate_memory(struct module *module)
 }
 
 struct sandbox *
-sandbox__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address,
-                  u64 start_time)
+sandbox_allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address,
+                 u64 start_time)
 {
 	if (!module_is_valid(module)) return NULL;
 
 	// FIXME: don't use malloc. huge security problem!
 	// perhaps, main should be in its own sandbox, when it is not running any sandbox.
-	struct sandbox *sandbox = (struct sandbox *)sandbox__allocate_memory(module);
+	struct sandbox *sandbox = (struct sandbox *)sandbox_allocate_memory(module);
 	if (!sandbox) return NULL;
 
 	// Assign the start time from the request
@@ -336,7 +336,7 @@ sandbox__allocate(struct module *module, char *arguments, int socket_descriptor,
  * @param sandbox
  **/
 void
-sandbox__free(struct sandbox *sandbox)
+sandbox_free(struct sandbox *sandbox)
 {
 	// you have to context switch away to free a sandbox.
 	if (!sandbox || sandbox == current_sandbox_get()) return;
