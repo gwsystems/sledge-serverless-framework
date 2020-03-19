@@ -32,7 +32,7 @@ __thread volatile sig_atomic_t        software_interrupt__is_disabled   = 0;
  * Externs
  ***************************************/
 
-extern pthread_t runtime__worker_threads[];
+extern pthread_t runtime_worker_threads[];
 
 /***************************************
  * Private Static Inlines
@@ -65,11 +65,11 @@ software_interrupt__handle_signals(int signal_type, siginfo_t *signal_info, void
 			int rt = 0;
 			// deliver signal to all other runtime threads..
 			for (int i = 0; i < WORKER_THREAD__CORE_COUNT; i++) {
-				if (pthread_self() == runtime__worker_threads[i]) {
+				if (pthread_self() == runtime_worker_threads[i]) {
 					rt = 1;
 					continue;
 				}
-				pthread_kill(runtime__worker_threads[i], SIGALRM);
+				pthread_kill(runtime_worker_threads[i], SIGALRM);
 			}
 			assert(rt == 1);
 		} else {

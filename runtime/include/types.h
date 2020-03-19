@@ -81,7 +81,7 @@ extern __thread struct indirect_table_entry *module_indirect_table;
 // for sandbox linear memory isolation
 extern __thread void *sandbox_lmbase;
 extern __thread u32   sandbox_lmbound;
-extern i32            runtime__log_file_descriptor; // TODO: LOG_TO_FILE logic is untested
+extern i32            runtime_log_file_descriptor; // TODO: LOG_TO_FILE logic is untested
 
 // functions in the module to lookup and call per sandbox.
 typedef i32 (*mod_main_fn_t)(i32 a, i32 b);
@@ -102,13 +102,13 @@ typedef enum
 /**
  * debuglog is a macro that behaves based on the macros DEBUG and LOG_TO_FILE
  * If DEBUG is not set, debuglog does nothing
- * If DEBUG is set and LOG_TO_FILE is set, debuglog prints to the logfile defined in runtime__log_file_descriptor
+ * If DEBUG is set and LOG_TO_FILE is set, debuglog prints to the logfile defined in runtime_log_file_descriptor
  * If DEBUG is set adn LOG_TO_FILE is not set, debuglog prints to STDOUT
  **/
 #ifdef DEBUG
 #ifdef LOG_TO_FILE
-#define debuglog(fmt, ...)                                                                                   \
-	dprintf(runtime__log_file_descriptor, "(%d,%lu) %s: " fmt, sched_getcpu(), pthread_self(), __func__, \
+#define debuglog(fmt, ...)                                                                                  \
+	dprintf(runtime_log_file_descriptor, "(%d,%lu) %s: " fmt, sched_getcpu(), pthread_self(), __func__, \
 	        ##__VA_ARGS__)
 #else // !LOG_TO_FILE
 #define debuglog(fmt, ...) printf("(%d,%lu) %s: " fmt, sched_getcpu(), pthread_self(), __func__, ##__VA_ARGS__)

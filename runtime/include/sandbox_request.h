@@ -28,11 +28,11 @@ sandbox_request__push_to_dequeue(sandbox_request_t *sandbox_request)
 // TODO: Running the runtime and listener cores on a single shared core is untested
 // We are unsure if the locking behavior is correct, so there may be deadlocks
 #if NCORES == 1
-	pthread_mutex_lock(&runtime__global_deque_mutex);
+	pthread_mutex_lock(&runtime_global_deque_mutex);
 #endif
-	return_code = deque_push_sandbox(runtime__global_deque, &sandbox_request);
+	return_code = deque_push_sandbox(runtime_global_deque, &sandbox_request);
 #if NCORES == 1
-	pthread_mutex_unlock(&runtime__global_deque_mutex);
+	pthread_mutex_unlock(&runtime_global_deque_mutex);
 #endif
 
 	return return_code;
@@ -76,11 +76,11 @@ sandbox_request__pop_from_dequeue(sandbox_request_t **sandbox_request)
 // TODO: Running the runtime and listener cores on a single shared core is untested
 // We are unsure if the locking behavior is correct, so there may be deadlocks
 #if NCORES == 1
-	pthread_mutex_lock(&runtime__global_deque_mutex);
+	pthread_mutex_lock(&runtime_global_deque_mutex);
 #endif
-	return_code = deque_pop_sandbox(runtime__global_deque, sandbox_request);
+	return_code = deque_pop_sandbox(runtime_global_deque, sandbox_request);
 #if NCORES == 1
-	pthread_mutex_unlock(&runtime__global_deque_mutex);
+	pthread_mutex_unlock(&runtime_global_deque_mutex);
 #endif
 	return return_code;
 }
@@ -107,7 +107,7 @@ sandbox_request__steal_from_dequeue(void)
 #if NCORES == 1
 	sandbox_request__pop_from_dequeue(&sandbox_request);
 #else
-	int r = deque_steal_sandbox(runtime__global_deque, &sandbox_request);
+	int r = deque_steal_sandbox(runtime_global_deque, &sandbox_request);
 	if (r) sandbox_request = NULL;
 #endif
 

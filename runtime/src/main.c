@@ -15,14 +15,14 @@
 
 // Conditionally used by debuglog when DEBUG is set
 #ifdef DEBUG
-i32 runtime__log_file_descriptor = -1;
+i32 runtime_log_file_descriptor = -1;
 #endif
 
-u32 runtime__total_online_processors                            = 0;
-u32 runtime__total_worker_processors                            = 0;
-u32 runtime__first_worker_processor                             = 0;
-int runtime__worker_threads_argument[WORKER_THREAD__CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
-pthread_t runtime__worker_threads[WORKER_THREAD__CORE_COUNT];
+u32 runtime_total_online_processors                            = 0;
+u32 runtime_total_worker_processors                            = 0;
+u32 runtime_first_worker_processor                             = 0;
+int runtime_worker_threads_argument[WORKER_THREAD__CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
+pthread_t runtime_worker_threads[WORKER_THREAD__CORE_COUNT];
 
 
 /**
@@ -30,7 +30,7 @@ pthread_t runtime__worker_threads[WORKER_THREAD__CORE_COUNT];
  * @param cmd - The command the user entered
  **/
 static void
-runtime__usage(char *cmd)
+runtime_usage(char *cmd)
 {
 	printf("%s <modules_file>\n", cmd);
 	debuglog("%s <modules_file>\n", cmd);
@@ -41,7 +41,7 @@ runtime__usage(char *cmd)
  * (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
  **/
 void
-runtime__set_resource_limits_to_max()
+runtime_set_resource_limits_to_max()
 {
 	struct rlimit resource_limit;
 	if (getrlimit(RLIMIT_DATA, &resource_limit) < 0) {
@@ -68,27 +68,27 @@ runtime__set_resource_limits_to_max()
  * Check the number of cores and the compiler flags and allocate available cores
  **/
 void
-runtime__allocate_available_cores()
+runtime_allocate_available_cores()
 {
 	// Find the number of processors currently online
-	runtime__total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
+	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
 
 	// If multicore, we'll pin one core as a listener and run sandbox threads on all others
-	if (runtime__total_online_processors > 1) {
-		runtime__first_worker_processor = 1;
+	if (runtime_total_online_processors > 1) {
+		runtime_first_worker_processor = 1;
 		// WORKER_THREAD__CORE_COUNT can be used as a cap on the number of cores to use
 		// But if there are few cores that WORKER_THREAD__CORE_COUNT, just use what is available
-		u32 max_possible_workers         = runtime__total_online_processors - 1;
-		runtime__total_worker_processors = (max_possible_workers >= WORKER_THREAD__CORE_COUNT)
-		                                     ? WORKER_THREAD__CORE_COUNT
-		                                     : max_possible_workers;
+		u32 max_possible_workers        = runtime_total_online_processors - 1;
+		runtime_total_worker_processors = (max_possible_workers >= WORKER_THREAD__CORE_COUNT)
+		                                    ? WORKER_THREAD__CORE_COUNT
+		                                    : max_possible_workers;
 	} else {
 		// If single core, we'll do everything on CPUID 0
-		runtime__first_worker_processor  = 0;
-		runtime__total_worker_processors = 1;
+		runtime_first_worker_processor  = 0;
+		runtime_total_worker_processors = 1;
 	}
 	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
-	         runtime__total_online_processors, runtime__total_worker_processors, runtime__first_worker_processor,
+	         runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
 	         LISTENER_THREAD__CORE_ID);
 }
 
@@ -99,19 +99,19 @@ runtime__allocate_available_cores()
  * Otherwise, it writes to STDOUT
  **/
 void
-runtime__process_debug_log_behavior()
+runtime_process_debug_log_behavior()
 {
 #ifdef LOG_TO_FILE
 	fclose(stdout);
 	fclose(stderr);
 	fclose(stdin);
-	runtime__log_file_descriptor = open(RUNTIME__LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
-	if (runtime__log_file_descriptor < 0) {
+	runtime_log_file_descriptor = open(RUNTIME__LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
+	if (runtime_log_file_descriptor < 0) {
 		perror("open");
 		exit(-1);
 	}
 #else
-	runtime__log_file_descriptor = 1;
+	runtime_log_file_descriptor = 1;
 #endif // LOG_TO_FILE
 }
 #endif // DEBUG
@@ -120,11 +120,11 @@ runtime__process_debug_log_behavior()
  * Starts all worker threads and sleeps forever on pthread_join, which should never return
  **/
 void
-runtime__start_runtime__worker_threads()
+runtime_start_runtime_worker_threads()
 {
-	for (int i = 0; i < runtime__total_worker_processors; i++) {
-		int ret = pthread_create(&runtime__worker_threads[i], NULL, worker_thread__main,
-		                         (void *)&runtime__worker_threads_argument[i]);
+	for (int i = 0; i < runtime_total_worker_processors; i++) {
+		int ret = pthread_create(&runtime_worker_threads[i], NULL, worker_thread__main,
+		                         (void *)&runtime_worker_threads_argument[i]);
 		if (ret) {
 			errno = ret;
 			perror("pthread_create");
@@ -133,14 +133,14 @@ runtime__start_runtime__worker_threads()
 
 		cpu_set_t cs;
 		CPU_ZERO(&cs);
-		CPU_SET(runtime__first_worker_processor + i, &cs);
-		ret = pthread_setaffinity_np(runtime__worker_threads[i], sizeof(cs), &cs);
+		CPU_SET(runtime_first_worker_processor + i, &cs);
+		ret = pthread_setaffinity_np(runtime_worker_threads[i], sizeof(cs), &cs);
 		assert(ret == 0);
 	}
 	debuglog("Sandboxing environment ready!\n");
 
-	for (int i = 0; i < runtime__total_worker_processors; i++) {
-		int ret = pthread_join(runtime__worker_threads[i], NULL);
+	for (int i = 0; i < runtime_total_worker_processors; i++) {
+		int ret = pthread_join(runtime_worker_threads[i], NULL);
 		if (ret) {
 			errno = ret;
 			perror("pthread_join");
@@ -156,20 +156,20 @@ int
 main(int argc, char **argv)
 {
 #ifdef DEBUG
-	runtime__process_debug_log_behavior();
+	runtime_process_debug_log_behavior();
 #endif
 
 	printf("Starting Awsm\n");
 	if (argc != 2) {
-		runtime__usage(argv[0]);
+		runtime_usage(argv[0]);
 		exit(-1);
 	}
 
-	memset(runtime__worker_threads, 0, sizeof(pthread_t) * WORKER_THREAD__CORE_COUNT);
+	memset(runtime_worker_threads, 0, sizeof(pthread_t) * WORKER_THREAD__CORE_COUNT);
 
-	runtime__set_resource_limits_to_max();
-	runtime__allocate_available_cores();
-	runtime__initialize();
+	runtime_set_resource_limits_to_max();
+	runtime_allocate_available_cores();
+	runtime_initialize();
 
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 	if (module_new_from_json(argv[1])) {
@@ -178,5 +178,5 @@ main(int argc, char **argv)
 	}
 
 	listener_thread_initialize();
-	runtime__start_runtime__worker_threads();
+	runtime_start_runtime_worker_threads();
 }

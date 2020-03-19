@@ -4,7 +4,7 @@
 #include "sandbox.h"
 #include "types.h"
 
-extern http_parser_settings runtime__http_parser_settings;
+extern http_parser_settings runtime_http_parser_settings;
 
 /**
  * Getter for the current sandbox executing on this thread

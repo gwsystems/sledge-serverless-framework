@@ -28,10 +28,10 @@
  * Shared Process State    *
  **************************/
 
-struct deque_sandbox *runtime__global_deque;
-pthread_mutex_t       runtime__global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
-int                   runtime__epoll_file_descriptor;
-http_parser_settings  runtime__http_parser_settings;
+struct deque_sandbox *runtime_global_deque;
+pthread_mutex_t       runtime_global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
+int                   runtime_epoll_file_descriptor;
+http_parser_settings  runtime_http_parser_settings;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -41,23 +41,23 @@ http_parser_settings  runtime__http_parser_settings;
  * Initialize runtime global state, mask signals, and init http parser
  */
 void
-runtime__initialize(void)
+runtime_initialize(void)
 {
-	runtime__epoll_file_descriptor = epoll_create1(0);
-	assert(runtime__epoll_file_descriptor >= 0);
+	runtime_epoll_file_descriptor = epoll_create1(0);
+	assert(runtime_epoll_file_descriptor >= 0);
 
 	// Allocate and Initialize the global deque
-	runtime__global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
-	assert(runtime__global_deque);
+	runtime_global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
+	assert(runtime_global_deque);
 	// Note: Below is a Macro
-	deque_init_sandbox(runtime__global_deque, RUNTIME__MAX_SANDBOX_REQUEST_COUNT);
+	deque_init_sandbox(runtime_global_deque, RUNTIME__MAX_SANDBOX_REQUEST_COUNT);
 
 	// Mask Signals
 	software_interrupt__mask_signal(SIGUSR1);
 	software_interrupt__mask_signal(SIGALRM);
 
 	// Initialize http_parser_settings global
-	http_parser_settings_initialize(&runtime__http_parser_settings);
+	http_parser_settings_initialize(&runtime_http_parser_settings);
 }
 
 /********************************
@@ -71,7 +71,7 @@ runtime__initialize(void)
  * @return NULL
  *
  * Used Globals:
- * runtime__epoll_file_descriptor - the epoll file descriptor
+ * runtime_epoll_file_descriptor - the epoll file descriptor
  *
  */
 void *
@@ -82,7 +82,7 @@ listener_thread_main(void *dummy)
 	int                 total_requests = 0;
 
 	while (true) {
-		int request_count = epoll_wait(runtime__epoll_file_descriptor, epoll_events,
+		int request_count = epoll_wait(runtime_epoll_file_descriptor, epoll_events,
 		                               LISTENER_THREAD__MAX_EPOLL_EVENTS, -1);
 		u64 start_time    = util__rdtsc();
 		for (int i = 0; i < request_count; i++) {
