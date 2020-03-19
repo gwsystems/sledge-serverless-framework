@@ -75,7 +75,7 @@ runtime__initialize(void)
  *
  */
 void *
-listener_thread__main(void *dummy)
+listener_thread_main(void *dummy)
 {
 	struct epoll_event *epoll_events   = (struct epoll_event *)malloc(LISTENER_THREAD__MAX_EPOLL_EVENTS
                                                                         * sizeof(struct epoll_event));
@@ -122,7 +122,7 @@ listener_thread__main(void *dummy)
  * Initializes the listener thread, pinned to core 0, and starts to listen for requests
  */
 void
-listener_thread__initialize(void)
+listener_thread_initialize(void)
 {
 	cpu_set_t cs;
 
@@ -130,7 +130,7 @@ listener_thread__initialize(void)
 	CPU_SET(LISTENER_THREAD__CORE_ID, &cs);
 
 	pthread_t listener_thread;
-	int       ret = pthread_create(&listener_thread, NULL, listener_thread__main, NULL);
+	int       ret = pthread_create(&listener_thread, NULL, listener_thread_main, NULL);
 	assert(ret == 0);
 	ret = pthread_setaffinity_np(listener_thread, sizeof(cpu_set_t), &cs);
 	assert(ret == 0);

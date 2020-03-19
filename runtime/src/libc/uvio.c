@@ -65,7 +65,7 @@ stub_init(i32 offset)
 	i32 env_vec_offset = offset;
 	memcpy(get_memory_ptr_for_runtime(env_vec_offset, sizeof(env_vec)), env_vec, sizeof(env_vec));
 
-	module__initialize_libc(current_sandbox_get()->module, env_vec_offset, program_name_offset);
+	module_initialize_libc(current_sandbox_get()->module, env_vec_offset, program_name_offset);
 }
 
 // Emulated syscall implementations

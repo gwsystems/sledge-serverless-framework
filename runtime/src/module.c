@@ -18,7 +18,7 @@
  * @param module
  **/
 static inline void
-module__initialize_as_server(struct module *module)
+module_initialize_as_server(struct module *module)
 {
 	// Allocate a new socket
 	int socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
@@ -67,7 +67,7 @@ module__initialize_as_server(struct module *module)
  * @param module - the module to teardown
  **/
 void
-module__free(struct module *module)
+module_free(struct module *module)
 {
 	if (module == NULL) return;
 	if (module->dynamic_library_handle == NULL) return;
@@ -99,8 +99,8 @@ module__free(struct module *module)
  * @returns A new module or NULL in case of failure
  **/
 struct module *
-module__new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 timeout, int port,
-            int request_size, int response_size)
+module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 timeout, int port,
+           int request_size, int response_size)
 {
 	struct module *module = (struct module *)malloc(sizeof(struct module));
 	if (!module) return NULL;
@@ -149,21 +149,21 @@ module__new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_
 
 	// assumption: All modules are created at program start before we enable preemption or enable the execution of
 	// any worker threads We are checking that thread-local module_indirect_table is NULL to prove that we aren't
-	// yet preempting If we want to be able to do this later, we can possibly defer module__initialize_table until
+	// yet preempting If we want to be able to do this later, we can possibly defer module_initialize_table until
 	// the first invocation
 	assert(cache_tbl == NULL);
 
 	// TODO: determine why we have to set the module_indirect_table state before calling table init and then restore
 	// the existing value What is the relationship between these things?
 	module_indirect_table = module->indirect_table;
-	module__initialize_table(module);
+	module_initialize_table(module);
 	module_indirect_table = cache_tbl;
 
 	// Add the module to the in-memory module DB
 	module_database__add(module);
 
 	// Start listening for requests
-	module__initialize_as_server(module);
+	module_initialize_as_server(module);
 
 	return module;
 
@@ -182,7 +182,7 @@ dl_open_error:
  * @return RC 0 on Success. -1 on Error
  */
 int
-module__new_from_json(char *file_name)
+module_new_from_json(char *file_name)
 {
 	// Use stat to get file attributes and make sure file is there and OK
 	struct stat stat_buffer;
@@ -310,11 +310,11 @@ module__new_from_json(char *file_name)
 		if (is_active == 0) continue;
 
 		// Allocate a module based on the values from the JSON
-		struct module *module = module__new(module_name, module_path, argument_count, 0, 0, 0, port,
-		                                    request_size, response_size);
+		struct module *module = module_new(module_name, module_path, argument_count, 0, 0, 0, port,
+		                                   request_size, response_size);
 		assert(module);
-		module__set_http_info(module, request_count, request_headers, request_content_type, response_count,
-		                      reponse_headers, response_content_type);
+		module_set_http_info(module, request_count, request_headers, request_content_type, response_count,
+		                     reponse_headers, response_content_type);
 		module_count++;
 		free(request_headers);
 		free(reponse_headers);

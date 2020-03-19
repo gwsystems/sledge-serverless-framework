@@ -19,7 +19,7 @@ void         free_linear_memory(void *base, u32 bound, u32 max);
 INLINE char *get_function_from_table(u32 idx, u32 type_id);
 INLINE char *get_memory_ptr_for_runtime(u32 offset, u32 bounds_check);
 void         runtime__initialize(void);
-void         listener_thread__initialize(void);
+void         listener_thread_initialize(void);
 void         stub_init(i32 offset);
 void *       worker_thread__main(void *return_code);
 

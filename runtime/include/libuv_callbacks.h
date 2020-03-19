@@ -21,7 +21,7 @@
  * @param buffer unused
  **/
 static inline void
-libuv_callbacks__on_read_parse_http_request(uv_stream_t *stream, ssize_t number_read, const uv_buf_t *buffer)
+libuv_callbacks_on_read_parse_http_request(uv_stream_t *stream, ssize_t number_read, const uv_buf_t *buffer)
 {
 	struct sandbox *sandbox = stream->data;
 
@@ -43,7 +43,7 @@ libuv_callbacks__on_read_parse_http_request(uv_stream_t *stream, ssize_t number_
  * @param stream
  **/
 static inline void
-libuv_callbacks__on_close_wakeup_sakebox(uv_handle_t *stream)
+libuv_callbacks_on_close_wakeup_sakebox(uv_handle_t *stream)
 {
 	struct sandbox *sandbox = stream->data;
 	worker_thread__wakeup_sandbox(sandbox);
@@ -55,7 +55,7 @@ libuv_callbacks__on_close_wakeup_sakebox(uv_handle_t *stream)
  * @param status unused in callback
  **/
 static inline void
-libuv_callbacks__on_shutdown_wakeup_sakebox(uv_shutdown_t *req, int status)
+libuv_callbacks_on_shutdown_wakeup_sakebox(uv_shutdown_t *req, int status)
 {
 	struct sandbox *sandbox = req->data;
 	worker_thread__wakeup_sandbox(sandbox);
@@ -68,20 +68,20 @@ libuv_callbacks__on_shutdown_wakeup_sakebox(uv_shutdown_t *req, int status)
  * @param status status code
  **/
 static inline void
-libuv_callbacks__on_write_wakeup_sandbox(uv_write_t *write, int status)
+libuv_callbacks_on_write_wakeup_sandbox(uv_write_t *write, int status)
 {
 	struct sandbox *sandbox = write->data;
 	if (status < 0) {
 		sandbox->client_libuv_shutdown_request.data = sandbox;
 		uv_shutdown(&sandbox->client_libuv_shutdown_request, (uv_stream_t *)&sandbox->client_libuv_stream,
-		            libuv_callbacks__on_shutdown_wakeup_sakebox);
+		            libuv_callbacks_on_shutdown_wakeup_sakebox);
 		return;
 	}
 	worker_thread__wakeup_sandbox(sandbox);
 }
 
 static inline void
-libuv_callbacks__on_allocate_setup_request_response_data(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
+libuv_callbacks_on_allocate_setup_request_response_data(uv_handle_t *h, size_t suggested, uv_buf_t *buf)
 {
 	struct sandbox *sandbox = h->data;
 	size_t          l = (sandbox->module->max_request_or_response_size - sandbox->request_response_data_length);
