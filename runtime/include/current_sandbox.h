@@ -150,7 +150,7 @@ current_sandbox_get_http_request_body(char **body)
 static inline int
 current_sandbox_set_http_response_header(char *header, int length)
 {
-	return http_response__set_header(&current_sandbox_get()->http_response, header, length);
+	return http_response_set_header(&current_sandbox_get()->http_response, header, length);
 }
 
 /**
@@ -162,7 +162,7 @@ current_sandbox_set_http_response_header(char *header, int length)
 static inline int
 current_sandbox_set_http_response_body(char *body, int length)
 {
-	return http_response__set_body(&current_sandbox_get()->http_response, body, length);
+	return http_response_set_body(&current_sandbox_get()->http_response, body, length);
 }
 
 /**
@@ -174,7 +174,7 @@ current_sandbox_set_http_response_body(char *body, int length)
 static inline int
 current_sandbox_set_http_response_status(char *status, int length)
 {
-	return http_response__set_status(&current_sandbox_get()->http_response, status, length);
+	return http_response_set_status(&current_sandbox_get()->http_response, status, length);
 }
 
 /**
@@ -184,7 +184,7 @@ current_sandbox_set_http_response_status(char *status, int length)
 static inline int
 current_sandbox_vectorize_http_response(void)
 {
-	return http_response__encode_as_vector(&current_sandbox_get()->http_response);
+	return http_response_encode_as_vector(&current_sandbox_get()->http_response);
 }
 
 

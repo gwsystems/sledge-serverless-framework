@@ -32,9 +32,9 @@ struct http_response {
 /***************************************************
  * General HTTP Response Functions                 *
  **************************************************/
-int http_response__encode_as_vector(struct http_response *http_response);
-int http_response__set_body(struct http_response *http_response, char *body, int length);
-int http_response__set_header(struct http_response *http_response, char *h, int length);
-int http_response__set_status(struct http_response *http_response, char *status, int length);
+int http_response_encode_as_vector(struct http_response *http_response);
+int http_response_set_body(struct http_response *http_response, char *body, int length);
+int http_response_set_header(struct http_response *http_response, char *h, int length);
+int http_response_set_status(struct http_response *http_response, char *status, int length);
 
 #endif /* SFRT_HTTP_RESPONSE_H */

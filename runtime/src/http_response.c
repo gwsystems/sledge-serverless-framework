@@ -14,7 +14,7 @@
  * @returns the number of buffers used to store the HTTP Response
  **/
 int
-http_response__encode_as_vector(struct http_response *http_response)
+http_response_encode_as_vector(struct http_response *http_response)
 {
 	int buffer_count = 0;
 
@@ -69,7 +69,7 @@ http_response__encode_as_vector(struct http_response *http_response)
  * @returns 0 (abends program in case of error)
  **/
 int
-http_response__set_body(struct http_response *http_response, char *body, int length)
+http_response_set_body(struct http_response *http_response, char *body, int length)
 {
 	// assert(length <= sandbox->module->max_response_size);
 	http_response->body        = body;
@@ -86,7 +86,7 @@ http_response__set_body(struct http_response *http_response, char *body, int len
  * @returns 0 (abends program in case of error)
  **/
 int
-http_response__set_header(struct http_response *http_response, char *header, int length)
+http_response_set_header(struct http_response *http_response, char *header, int length)
 {
 	assert(http_response->header_count < HTTP__MAX_HEADER_COUNT);
 	http_response->header_count++;
@@ -104,7 +104,7 @@ http_response__set_header(struct http_response *http_response, char *header, int
  * @returns 0 (abends program in case of error)
  **/
 int
-http_response__set_status(struct http_response *http_response, char *status, int length)
+http_response_set_status(struct http_response *http_response, char *status, int length)
 {
 	http_response->status        = status;
 	http_response->status_length = length;
