@@ -11,7 +11,7 @@ extern http_parser_settings runtime__http_parser_settings;
  * @returns the current sandbox executing on this thread
  **/
 static inline struct sandbox *
-current_sandbox__get(void)
+current_sandbox_get(void)
 {
 	return worker_thread__current_sandbox;
 }
@@ -21,7 +21,7 @@ current_sandbox__get(void)
  * @param sandbox the sandbox we are setting this thread to run
  **/
 static inline void
-current_sandbox__set(struct sandbox *sandbox)
+current_sandbox_set(struct sandbox *sandbox)
 {
 	// FIXME: critical-section.
 	worker_thread__current_sandbox = sandbox;
@@ -38,9 +38,9 @@ current_sandbox__set(struct sandbox *sandbox)
  * @return the arguments of the current sandbox
  */
 static inline char *
-current_sandbox__get_arguments(void)
+current_sandbox_get_arguments(void)
 {
-	struct sandbox *sandbox = current_sandbox__get();
+	struct sandbox *sandbox = current_sandbox_get();
 	return sandbox__get_arguments(sandbox);
 }
 
@@ -49,9 +49,9 @@ current_sandbox__get_arguments(void)
  * @return index of handle we preopened or -1 if all io_handles are exhausted
  **/
 static inline int
-current_sandbox__initialize_io_handle(void)
+current_sandbox_initialize_io_handle(void)
 {
-	struct sandbox *sandbox = current_sandbox__get();
+	struct sandbox *sandbox = current_sandbox_get();
 	return sandbox__initialize_io_handle(sandbox);
 }
 
@@ -61,9 +61,9 @@ current_sandbox__initialize_io_handle(void)
  * @return index of handle we preopened or -1 if all io_handles are exhausted
  **/
 static inline int
-current_sandbox__initialize_io_handle_and_set_file_descriptor(int file_descriptor)
+current_sandbox_initialize_io_handle_and_set_file_descriptor(int file_descriptor)
 {
-	struct sandbox *sandbox = current_sandbox__get();
+	struct sandbox *sandbox = current_sandbox_get();
 	return sandbox__initialize_io_handle_and_set_file_descriptor(sandbox, file_descriptor);
 }
 
@@ -75,9 +75,9 @@ int sandbox__parse_http_request(struct sandbox *sandbox, size_t l);
  * @returns 0
  **/
 static inline int
-current_sandbox__parse_http_request(size_t length)
+current_sandbox_parse_http_request(size_t length)
 {
-	return sandbox__parse_http_request(current_sandbox__get(), length);
+	return sandbox__parse_http_request(current_sandbox_get(), length);
 }
 
 /**
@@ -88,9 +88,9 @@ current_sandbox__parse_http_request(size_t length)
  * @returns the index that was set or -1 in case of error
  **/
 static inline int
-current_sandbox__set_file_descriptor(int io_handle_index, int file_descriptor)
+current_sandbox_set_file_descriptor(int io_handle_index, int file_descriptor)
 {
-	struct sandbox *sandbox = current_sandbox__get();
+	struct sandbox *sandbox = current_sandbox_get();
 	return sandbox__set_file_descriptor(sandbox, io_handle_index, file_descriptor);
 }
 
@@ -100,9 +100,9 @@ current_sandbox__set_file_descriptor(int io_handle_index, int file_descriptor)
  * @returns file descriptor
  **/
 static inline int
-current_sandbox__get_file_descriptor(int io_handle_index)
+current_sandbox_get_file_descriptor(int io_handle_index)
 {
-	struct sandbox *sandbox = current_sandbox__get();
+	struct sandbox *sandbox = current_sandbox_get();
 	return sandbox__get_file_descriptor(sandbox, io_handle_index);
 }
 
@@ -111,9 +111,9 @@ current_sandbox__get_file_descriptor(int io_handle_index)
  * @param io_handle_index index of the handle to close
  **/
 static inline void
-current_sandbox__close_file_descriptor(int io_handle_index)
+current_sandbox_close_file_descriptor(int io_handle_index)
 {
-	struct sandbox *sandbox = current_sandbox__get();
+	struct sandbox *sandbox = current_sandbox_get();
 	sandbox__close_file_descriptor(sandbox, io_handle_index);
 }
 
@@ -123,9 +123,9 @@ current_sandbox__close_file_descriptor(int io_handle_index)
  * @returns any libuv handle
  **/
 static inline union uv_any_handle *
-current_sandbox__get_libuv_handle(int io_handle_index)
+current_sandbox_get_libuv_handle(int io_handle_index)
 {
-	struct sandbox *sandbox = current_sandbox__get();
+	struct sandbox *sandbox = current_sandbox_get();
 	return sandbox__get_libuv_handle(sandbox, io_handle_index);
 }
 
@@ -135,9 +135,9 @@ current_sandbox__get_libuv_handle(int io_handle_index)
  * @returns the length of the http_request's body
  **/
 static inline int
-current_sandbox__get_http_request_body(char **body)
+current_sandbox_get_http_request_body(char **body)
 {
-	return http_request__get_body(&current_sandbox__get()->http_request, body);
+	return http_request__get_body(&current_sandbox_get()->http_request, body);
 }
 
 
@@ -148,9 +148,9 @@ current_sandbox__get_http_request_body(char **body)
  * @returns 0 (abends program in case of error)
  **/
 static inline int
-current_sandbox__set_http_response_header(char *header, int length)
+current_sandbox_set_http_response_header(char *header, int length)
 {
-	return http_response__set_header(&current_sandbox__get()->http_response, header, length);
+	return http_response__set_header(&current_sandbox_get()->http_response, header, length);
 }
 
 /**
@@ -160,9 +160,9 @@ current_sandbox__set_http_response_header(char *header, int length)
  * @returns 0 (abends program in case of error)
  **/
 static inline int
-current_sandbox__set_http_response_body(char *body, int length)
+current_sandbox_set_http_response_body(char *body, int length)
 {
-	return http_response__set_body(&current_sandbox__get()->http_response, body, length);
+	return http_response__set_body(&current_sandbox_get()->http_response, body, length);
 }
 
 /**
@@ -172,9 +172,9 @@ current_sandbox__set_http_response_body(char *body, int length)
  * @returns 0 (abends program in case of error)
  **/
 static inline int
-current_sandbox__set_http_response_status(char *status, int length)
+current_sandbox_set_http_response_status(char *status, int length)
 {
-	return http_response__set_status(&current_sandbox__get()->http_response, status, length);
+	return http_response__set_status(&current_sandbox_get()->http_response, status, length);
 }
 
 /**
@@ -182,9 +182,9 @@ current_sandbox__set_http_response_status(char *status, int length)
  * @returns the number of buffers used to store the HTTP Response
  **/
 static inline int
-current_sandbox__vectorize_http_response(void)
+current_sandbox_vectorize_http_response(void)
 {
-	return http_response__encode_as_vector(&current_sandbox__get()->http_response);
+	return http_response__encode_as_vector(&current_sandbox_get()->http_response);
 }
 
 
