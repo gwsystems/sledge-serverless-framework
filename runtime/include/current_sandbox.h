@@ -41,7 +41,7 @@ static inline char *
 current_sandbox_get_arguments(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
-	return sandbox__get_arguments(sandbox);
+	return sandbox_get_arguments(sandbox);
 }
 
 /**
@@ -52,7 +52,7 @@ static inline int
 current_sandbox_initialize_io_handle(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
-	return sandbox__initialize_io_handle(sandbox);
+	return sandbox_initialize_io_handle(sandbox);
 }
 
 /**
@@ -64,10 +64,10 @@ static inline int
 current_sandbox_initialize_io_handle_and_set_file_descriptor(int file_descriptor)
 {
 	struct sandbox *sandbox = current_sandbox_get();
-	return sandbox__initialize_io_handle_and_set_file_descriptor(sandbox, file_descriptor);
+	return sandbox_initialize_io_handle_and_set_file_descriptor(sandbox, file_descriptor);
 }
 
-int sandbox__parse_http_request(struct sandbox *sandbox, size_t l);
+int sandbox_parse_http_request(struct sandbox *sandbox, size_t l);
 
 /**
  * Parse the current sandbox's request_response_data up to length
@@ -77,7 +77,7 @@ int sandbox__parse_http_request(struct sandbox *sandbox, size_t l);
 static inline int
 current_sandbox_parse_http_request(size_t length)
 {
-	return sandbox__parse_http_request(current_sandbox_get(), length);
+	return sandbox_parse_http_request(current_sandbox_get(), length);
 }
 
 /**
@@ -91,7 +91,7 @@ static inline int
 current_sandbox_set_file_descriptor(int io_handle_index, int file_descriptor)
 {
 	struct sandbox *sandbox = current_sandbox_get();
-	return sandbox__set_file_descriptor(sandbox, io_handle_index, file_descriptor);
+	return sandbox_set_file_descriptor(sandbox, io_handle_index, file_descriptor);
 }
 
 /**
@@ -103,7 +103,7 @@ static inline int
 current_sandbox_get_file_descriptor(int io_handle_index)
 {
 	struct sandbox *sandbox = current_sandbox_get();
-	return sandbox__get_file_descriptor(sandbox, io_handle_index);
+	return sandbox_get_file_descriptor(sandbox, io_handle_index);
 }
 
 /**
@@ -114,7 +114,7 @@ static inline void
 current_sandbox_close_file_descriptor(int io_handle_index)
 {
 	struct sandbox *sandbox = current_sandbox_get();
-	sandbox__close_file_descriptor(sandbox, io_handle_index);
+	sandbox_close_file_descriptor(sandbox, io_handle_index);
 }
 
 /**
@@ -126,7 +126,7 @@ static inline union uv_any_handle *
 current_sandbox_get_libuv_handle(int io_handle_index)
 {
 	struct sandbox *sandbox = current_sandbox_get();
-	return sandbox__get_libuv_handle(sandbox, io_handle_index);
+	return sandbox_get_libuv_handle(sandbox, io_handle_index);
 }
 
 /**

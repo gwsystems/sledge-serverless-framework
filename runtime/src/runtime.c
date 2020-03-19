@@ -277,10 +277,10 @@ worker_thread__pull_and_process_sandbox_requests(void)
 		sandbox_request_t *sandbox_request;
 		if ((sandbox_request = sandbox_request__steal_from_dequeue()) == NULL) break;
 		// Actually allocate the sandbox for the requests that we've pulled
-		struct sandbox *sandbox = sandbox__allocate(sandbox_request->module, sandbox_request->arguments,
-		                                            sandbox_request->socket_descriptor,
-		                                            sandbox_request->socket_address,
-		                                            sandbox_request->start_time);
+		struct sandbox *sandbox = sandbox_allocate(sandbox_request->module, sandbox_request->arguments,
+		                                           sandbox_request->socket_descriptor,
+		                                           sandbox_request->socket_address,
+		                                           sandbox_request->start_time);
 		assert(sandbox);
 		free(sandbox_request);
 		// Set the sandbox as runnable and place on the local runqueue
@@ -387,7 +387,7 @@ worker_thread__pop_and_free_n_sandboxes_from_completion_queue(unsigned int numbe
 		struct sandbox *sandbox = ps_list_head_first_d(&worker_thread__completion_queue, struct sandbox);
 		if (!sandbox) break;
 		ps_list_rem_d(sandbox);
-		sandbox__free(sandbox);
+		sandbox_free(sandbox);
 	}
 }
 

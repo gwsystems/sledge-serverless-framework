@@ -16,7 +16,7 @@
  * Structs and Types      *
  **************************/
 
-struct sandbox__io_handle {
+struct sandbox_io_handle {
 	int                 file_descriptor;
 	union uv_any_handle libuv_handle;
 };
@@ -26,12 +26,12 @@ typedef enum
 	RUNNABLE,
 	BLOCKED,
 	RETURNED
-} sandbox__state_t;
+} sandbox_state_t;
 
 // TODO: linear_memory_max_size is not really used
 
 struct sandbox {
-	sandbox__state_t state;
+	sandbox_state_t state;
 
 	u32 sandbox_size; // The struct plus enough buffer to hold the request or response (sized off largest)
 
@@ -53,11 +53,11 @@ struct sandbox {
 	void *arguments;        // arguments from request, must be of module->argument_count size.
 	i32   return_value;
 
-	struct sandbox__io_handle io_handles[SANDBOX__MAX_IO_HANDLE_COUNT];
-	struct sockaddr           client_address; // client requesting connection!
-	int                       client_socket_descriptor;
-	uv_tcp_t                  client_libuv_stream;
-	uv_shutdown_t             client_libuv_shutdown_request;
+	struct sandbox_io_handle io_handles[SANDBOX__MAX_IO_HANDLE_COUNT];
+	struct sockaddr          client_address; // client requesting connection!
+	int                      client_socket_descriptor;
+	uv_tcp_t                 client_libuv_stream;
+	uv_shutdown_t            client_libuv_shutdown_request;
 
 	http_parser          http_parser;
 	struct http_request  http_request;
@@ -96,10 +96,10 @@ extern void worker_thread__wakeup_sandbox(sandbox_t *sandbox);
  * Public API              *
  **************************/
 
-struct sandbox *sandbox__allocate(struct module *module, char *arguments, int socket_descriptor,
-                                  const struct sockaddr *socket_address, u64 start_time);
-void            sandbox__free(struct sandbox *sandbox);
-int             sandbox__parse_http_request(struct sandbox *sandbox, size_t length);
+struct sandbox *sandbox_allocate(struct module *module, char *arguments, int socket_descriptor,
+                                 const struct sockaddr *socket_address, u64 start_time);
+void            sandbox_free(struct sandbox *sandbox);
+int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
 
 /**
@@ -108,7 +108,7 @@ int             sandbox__parse_http_request(struct sandbox *sandbox, size_t leng
  * @return the module of the provided sandbox
  */
 static inline struct module *
-sandbox__get_module(struct sandbox *sandbox)
+sandbox_get_module(struct sandbox *sandbox)
 {
 	if (!sandbox) return NULL;
 	return sandbox->module;
@@ -120,7 +120,7 @@ sandbox__get_module(struct sandbox *sandbox)
  * @return the arguments of the sandbox
  */
 static inline char *
-sandbox__get_arguments(struct sandbox *sandbox)
+sandbox_get_arguments(struct sandbox *sandbox)
 {
 	if (!sandbox) return NULL;
 	return (char *)sandbox->arguments;
@@ -132,7 +132,7 @@ sandbox__get_arguments(struct sandbox *sandbox)
  * @return index of handle we preopened or -1 on error (sandbox is null or all io_handles are exhausted)
  **/
 static inline int
-sandbox__initialize_io_handle(struct sandbox *sandbox)
+sandbox_initialize_io_handle(struct sandbox *sandbox)
 {
 	if (!sandbox) return -1;
 	int io_handle_index;
@@ -153,11 +153,11 @@ sandbox__initialize_io_handle(struct sandbox *sandbox)
  * @return index of handle we preopened or -1 if all io_handles are exhausted
  **/
 static inline int
-sandbox__initialize_io_handle_and_set_file_descriptor(struct sandbox *sandbox, int file_descriptor)
+sandbox_initialize_io_handle_and_set_file_descriptor(struct sandbox *sandbox, int file_descriptor)
 {
 	if (!sandbox) return -1;
 	if (file_descriptor < 0) return file_descriptor;
-	int io_handle_index = sandbox__initialize_io_handle(sandbox);
+	int io_handle_index = sandbox_initialize_io_handle(sandbox);
 	if (io_handle_index != -1)
 		sandbox->io_handles[io_handle_index].file_descriptor =
 		  file_descriptor; // well, per sandbox.. so synchronization necessary!
@@ -173,7 +173,7 @@ sandbox__initialize_io_handle_and_set_file_descriptor(struct sandbox *sandbox, i
  * @returns the index that was set or -1 in case of error
  **/
 static inline int
-sandbox__set_file_descriptor(struct sandbox *sandbox, int io_handle_index, int file_descriptor)
+sandbox_set_file_descriptor(struct sandbox *sandbox, int io_handle_index, int file_descriptor)
 {
 	if (!sandbox) return -1;
 	if (io_handle_index >= SANDBOX__MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
@@ -191,7 +191,7 @@ sandbox__set_file_descriptor(struct sandbox *sandbox, int io_handle_index, int f
  * @returns file descriptor or -1 in case of error
  **/
 static inline int
-sandbox__get_file_descriptor(struct sandbox *sandbox, int io_handle_index)
+sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index)
 {
 	if (!sandbox) return -1;
 	if (io_handle_index >= SANDBOX__MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
@@ -204,7 +204,7 @@ sandbox__get_file_descriptor(struct sandbox *sandbox, int io_handle_index)
  * @param io_handle_index index of the handle to close
  **/
 static inline void
-sandbox__close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
+sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
 {
 	if (io_handle_index >= SANDBOX__MAX_IO_HANDLE_COUNT || io_handle_index < 0) return;
 	// TODO: Do we actually need to call some sort of close function here?
@@ -218,7 +218,7 @@ sandbox__close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
  * @returns any libuv handle or a NULL pointer in case of error
  **/
 static inline union uv_any_handle *
-sandbox__get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
+sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 {
 	if (!sandbox) return NULL;
 	if (io_handle_index >= SANDBOX__MAX_IO_HANDLE_COUNT || io_handle_index < 0) return NULL;
