@@ -59,7 +59,7 @@ struct module {
  * @param module
  **/
 static inline void
-module__acquire(struct module *module)
+module_acquire(struct module *module)
 {
 	module->reference_count++;
 }
@@ -70,7 +70,7 @@ module__acquire(struct module *module)
  * @returns the number of arguments
  **/
 static inline i32
-module__get_argument_count(struct module *module)
+module_get_argument_count(struct module *module)
 {
 	return module->argument_count;
 }
@@ -80,7 +80,7 @@ module__get_argument_count(struct module *module)
  * @param module
  **/
 static inline void
-module__initialize_globals(struct module *module)
+module_initialize_globals(struct module *module)
 {
 	// called in a sandbox.
 	module->initialize_globals();
@@ -91,7 +91,7 @@ module__initialize_globals(struct module *module)
  * @param module
  **/
 static inline void
-module__initialize_table(struct module *module)
+module_initialize_table(struct module *module)
 {
 	// called at module creation time (once only per module).
 	module->initialize_tables();
@@ -104,7 +104,7 @@ module__initialize_table(struct module *module)
  * @param arguments
  **/
 static inline void
-module__initialize_libc(struct module *module, i32 env, i32 arguments)
+module_initialize_libc(struct module *module, i32 env, i32 arguments)
 {
 	// called in a sandbox.
 	module->initialize_libc(env, arguments);
@@ -115,7 +115,7 @@ module__initialize_libc(struct module *module, i32 env, i32 arguments)
  * @param module
  **/
 static inline void
-module__initialize_memory(struct module *module)
+module_initialize_memory(struct module *module)
 {
 	// called in a sandbox.
 	module->initialize_memory();
@@ -127,7 +127,7 @@ module__initialize_memory(struct module *module)
  * @return 1 if valid. 0 if invalid
  **/
 static inline int
-module__is_valid(struct module *module)
+module_is_valid(struct module *module)
 {
 	if (module && module->dynamic_library_handle && module->main) return 1;
 	return 0;
@@ -140,7 +140,7 @@ module__is_valid(struct module *module)
  * @param argv standard UNIX vector of arguments
  **/
 static inline i32
-module__main(struct module *module, i32 argc, i32 argv)
+module_main(struct module *module, i32 argc, i32 argv)
 {
 	return module->main(argc, argv);
 }
@@ -150,7 +150,7 @@ module__main(struct module *module, i32 argc, i32 argv)
  * @param module
  **/
 static inline void
-module__release(struct module *module)
+module_release(struct module *module)
 {
 	module->reference_count--;
 }
@@ -166,8 +166,8 @@ module__release(struct module *module)
  * @param response_content_type
  **/
 static inline void
-module__set_http_info(struct module *module, int request_count, char *request_headers, char request_content_type[],
-                      int response_count, char *response_headers, char response_content_type[])
+module_set_http_info(struct module *module, int request_count, char *request_headers, char request_content_type[],
+                     int response_count, char *response_headers, char response_content_type[])
 {
 	assert(module);
 	module->request_header_count = request_count;
@@ -182,9 +182,9 @@ module__set_http_info(struct module *module, int request_count, char *request_he
  * Public Methods from module.c
  ***************************************/
 
-void           module__free(struct module *module);
-struct module *module__new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout,
-                           int port, int req_sz, int resp_sz);
-int            module__new_from_json(char *filename);
+void           module_free(struct module *module);
+struct module *module_new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout,
+                          int port, int req_sz, int resp_sz);
+int            module_new_from_json(char *filename);
 
 #endif /* SFRT_MODULE_H */

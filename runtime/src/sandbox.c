@@ -92,8 +92,8 @@ current_sandbox_receive_and_parse_client_request(void)
 	}
 #else
 	int r = uv_read_start((uv_stream_t *)&curr->client_libuv_stream,
-	                      libuv_callbacks__on_allocate_setup_request_response_data,
-	                      libuv_callbacks__on_read_parse_http_request);
+	                      libuv_callbacks_on_allocate_setup_request_response_data,
+	                      libuv_callbacks_on_read_parse_http_request);
 	worker_thread__process_io();
 	if (curr->request_response_data_length == 0) return 0;
 #endif
@@ -163,7 +163,7 @@ done:
 	};
 	uv_buf_t bufv = uv_buf_init(curr->request_response_data, sndsz);
 	int      r    = uv_write(&req, (uv_stream_t *)&curr->client_libuv_stream, &bufv, 1,
-                         libuv_callbacks__on_write_wakeup_sandbox);
+                         libuv_callbacks_on_write_wakeup_sandbox);
 	worker_thread__process_io();
 #endif
 	return 0;
@@ -187,7 +187,7 @@ current_sandbox_main(void)
 		software_interrupt__enable();
 	}
 	struct module *current_module = sandbox__get_module(current_sandbox);
-	int            argument_count = module__get_argument_count(current_module);
+	int            argument_count = module_get_argument_count(current_module);
 	// for stdio
 
 	// Try to initialize file descriptors 0, 1, and 2 as io handles 0, 1, 2
@@ -232,15 +232,15 @@ current_sandbox_main(void)
 
 		// Allocate the WebAssembly Sandbox
 		alloc_linear_memory();
-		module__initialize_globals(current_module);
-		module__initialize_memory(current_module);
+		module_initialize_globals(current_module);
+		module_initialize_memory(current_module);
 
 		// Copy the arguments into the WebAssembly sandbox
 		current_sandbox_setup_arguments(argument_count);
 
 		// Executing the function within the WebAssembly sandbox
-		current_sandbox->return_value = module__main(current_module, argument_count,
-		                                             current_sandbox->arguments_offset);
+		current_sandbox->return_value = module_main(current_module, argument_count,
+		                                            current_sandbox->arguments_offset);
 
 		// Retrieve the result from the WebAssembly sandbox, construct the HTTP response, and send to client
 		current_sandbox_build_and_send_client_response();
@@ -249,7 +249,7 @@ current_sandbox_main(void)
 	// Cleanup connection and exit sandbox
 
 #ifdef USE_HTTP_UVIO
-	uv_close((uv_handle_t *)&current_sandbox->client_libuv_stream, libuv_callbacks__on_close_wakeup_sakebox);
+	uv_close((uv_handle_t *)&current_sandbox->client_libuv_stream, libuv_callbacks_on_close_wakeup_sakebox);
 	worker_thread__process_io();
 #else
 	close(current_sandbox->client_socket_descriptor);
@@ -292,7 +292,7 @@ sandbox__allocate_memory(struct module *module)
 	sandbox->linear_memory_size  = linear_memory_size;
 	sandbox->module              = module;
 	sandbox->sandbox_size        = sandbox_size;
-	module__acquire(module);
+	module_acquire(module);
 
 	return sandbox;
 }
@@ -301,7 +301,7 @@ struct sandbox *
 sandbox__allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address,
                   u64 start_time)
 {
-	if (!module__is_valid(module)) return NULL;
+	if (!module_is_valid(module)) return NULL;
 
 	// FIXME: don't use malloc. huge security problem!
 	// perhaps, main should be in its own sandbox, when it is not running any sandbox.
@@ -347,7 +347,7 @@ sandbox__free(struct sandbox *sandbox)
 	int sz = sizeof(struct sandbox);
 
 	sz += sandbox->module->max_request_or_response_size;
-	module__release(sandbox->module);
+	module_release(sandbox->module);
 
 	void * stkaddr = sandbox->stack_start;
 	size_t stksz   = sandbox->stack_size;

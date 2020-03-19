@@ -172,11 +172,11 @@ main(int argc, char **argv)
 	runtime__initialize();
 
 	debuglog("Parsing modules file [%s]\n", argv[1]);
-	if (module__new_from_json(argv[1])) {
+	if (module_new_from_json(argv[1])) {
 		printf("failed to parse modules file[%s]\n", argv[1]);
 		exit(-1);
 	}
 
-	listener_thread__initialize();
+	listener_thread_initialize();
 	runtime__start_runtime__worker_threads();
 }
