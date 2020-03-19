@@ -10,9 +10,9 @@ struct module {
 	char                        path[MODULE__MAX_PATH_LENGTH];
 	void *                      dynamic_library_handle; // Handle to the *.so of the serverless function
 	i32                         argument_count;
-	u32                         stack_size;      // a specification?
-	u64                         max_memory;      // perhaps a specification of the module. (max 4GB)
-	u32                         timeout;         // again part of the module specification.
+	u32                         stack_size; // a specification?
+	u64                         max_memory; // perhaps a specification of the module. (max 4GB)
+	u32                         relative_deadline_us;
 	u32                         reference_count; // ref count how many instances exist here.
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
 	struct sockaddr_in          socket_address;
@@ -183,8 +183,8 @@ module_set_http_info(struct module *module, int request_count, char *request_hea
  ***************************************/
 
 void           module_free(struct module *module);
-struct module *module_new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap, u32 timeout,
-                          int port, int req_sz, int resp_sz);
+struct module *module_new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap,
+                          u32 relative_deadline_us, int port, int req_sz, int resp_sz);
 int            module_new_from_json(char *filename);
 
 #endif /* SFRT_MODULE_H */
