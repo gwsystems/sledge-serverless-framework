@@ -57,7 +57,7 @@ runtime__initialize(void)
 	software_interrupt__mask_signal(SIGALRM);
 
 	// Initialize http_parser_settings global
-	http_parser_settings__initialize(&runtime__http_parser_settings);
+	http_parser_settings_initialize(&runtime__http_parser_settings);
 }
 
 /********************************
