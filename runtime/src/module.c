@@ -50,7 +50,7 @@ module_initialize_as_server(struct module *module)
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)module;
 	accept_evt.events   = EPOLLIN;
-	if (epoll_ctl(runtime__epoll_file_descriptor, EPOLL_CTL_ADD, module->socket_descriptor, &accept_evt) < 0)
+	if (epoll_ctl(runtime_epoll_file_descriptor, EPOLL_CTL_ADD, module->socket_descriptor, &accept_evt) < 0)
 		assert(0);
 }
 

@@ -8,9 +8,9 @@
 #include "sandbox.h"
 #include "types.h"
 
-extern int                   runtime__epoll_file_descriptor;
-extern struct deque_sandbox *runtime__global_deque;
-extern pthread_mutex_t       runtime__global_deque_mutex;
+extern int                   runtime_epoll_file_descriptor;
+extern struct deque_sandbox *runtime_global_deque;
+extern pthread_mutex_t       runtime_global_deque_mutex;
 extern __thread uv_loop_t    worker_thread__uvio_handle;
 
 void         alloc_linear_memory(void);
@@ -18,7 +18,7 @@ void         expand_memory(void);
 void         free_linear_memory(void *base, u32 bound, u32 max);
 INLINE char *get_function_from_table(u32 idx, u32 type_id);
 INLINE char *get_memory_ptr_for_runtime(u32 offset, u32 bounds_check);
-void         runtime__initialize(void);
+void         runtime_initialize(void);
 void         listener_thread_initialize(void);
 void         stub_init(i32 offset);
 void *       worker_thread__main(void *return_code);
