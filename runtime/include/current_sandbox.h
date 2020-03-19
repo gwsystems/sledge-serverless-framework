@@ -137,7 +137,7 @@ current_sandbox_get_libuv_handle(int io_handle_index)
 static inline int
 current_sandbox_get_http_request_body(char **body)
 {
-	return http_request__get_body(&current_sandbox_get()->http_request, body);
+	return http_request_get_body(&current_sandbox_get()->http_request, body);
 }
 
 
