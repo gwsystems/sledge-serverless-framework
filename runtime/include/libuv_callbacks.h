@@ -35,7 +35,7 @@ libuv_callbacks_on_read_parse_http_request(uv_stream_t *stream, ssize_t number_r
 
 	// When the entire message has been read, stop the stream and wakeup the sandbox
 	uv_read_stop(stream);
-	worker_thread__wakeup_sandbox(sandbox);
+	worker_thread_wakeup_sandbox(sandbox);
 }
 
 /**
@@ -46,7 +46,7 @@ static inline void
 libuv_callbacks_on_close_wakeup_sakebox(uv_handle_t *stream)
 {
 	struct sandbox *sandbox = stream->data;
-	worker_thread__wakeup_sandbox(sandbox);
+	worker_thread_wakeup_sandbox(sandbox);
 }
 
 /**
@@ -58,7 +58,7 @@ static inline void
 libuv_callbacks_on_shutdown_wakeup_sakebox(uv_shutdown_t *req, int status)
 {
 	struct sandbox *sandbox = req->data;
-	worker_thread__wakeup_sandbox(sandbox);
+	worker_thread_wakeup_sandbox(sandbox);
 }
 
 /**
@@ -77,7 +77,7 @@ libuv_callbacks_on_write_wakeup_sandbox(uv_write_t *write, int status)
 		            libuv_callbacks_on_shutdown_wakeup_sakebox);
 		return;
 	}
-	worker_thread__wakeup_sandbox(sandbox);
+	worker_thread_wakeup_sandbox(sandbox);
 }
 
 static inline void

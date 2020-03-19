@@ -25,7 +25,7 @@ current_sandbox_setup_arguments(i32 argument_count)
 	assert(sandbox_lmbase == curr->linear_memory_start);
 	expand_memory();
 
-	i32 *array_ptr  = worker_thread__get_memory_ptr_void(curr->arguments_offset, argument_count * sizeof(i32));
+	i32 *array_ptr  = worker_thread_get_memory_ptr_void(curr->arguments_offset, argument_count * sizeof(i32));
 	i32  string_off = curr->arguments_offset + (argument_count * sizeof(i32));
 
 	for (int i = 0; i < argument_count; i++) {
@@ -94,7 +94,7 @@ current_sandbox_receive_and_parse_client_request(void)
 	int r = uv_read_start((uv_stream_t *)&curr->client_libuv_stream,
 	                      libuv_callbacks_on_allocate_setup_request_response_data,
 	                      libuv_callbacks_on_read_parse_http_request);
-	worker_thread__process_io();
+	worker_thread_process_io();
 	if (curr->request_response_data_length == 0) return 0;
 #endif
 	return 1;
@@ -164,7 +164,7 @@ done:
 	uv_buf_t bufv = uv_buf_init(curr->request_response_data, sndsz);
 	int      r    = uv_write(&req, (uv_stream_t *)&curr->client_libuv_stream, &bufv, 1,
                          libuv_callbacks_on_write_wakeup_sandbox);
-	worker_thread__process_io();
+	worker_thread_process_io();
 #endif
 	return 0;
 }
@@ -179,11 +179,11 @@ current_sandbox_main(void)
 {
 	struct sandbox *current_sandbox = current_sandbox_get();
 	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
-	//        return to worker_thread__switch_to_sandbox() api..
-	//        we'd potentially do what we'd in worker_thread__switch_to_sandbox() api here for cleanup..
+	//        return to worker_thread_switch_to_sandbox() api..
+	//        we'd potentially do what we'd in worker_thread_switch_to_sandbox() api here for cleanup..
 	if (!software_interrupt_is_enabled()) {
 		arch_context_init(&current_sandbox->ctxt, 0, 0);
-		worker_thread__next_context = NULL;
+		worker_thread_next_context = NULL;
 		software_interrupt_enable();
 	}
 	struct module *current_module = sandbox_get_module(current_sandbox);
@@ -213,8 +213,7 @@ current_sandbox_main(void)
 #ifdef USE_HTTP_UVIO
 
 	// Initialize libuv TCP stream
-	int r = uv_tcp_init(worker_thread__get_thread_libuv_handle(),
-	                    (uv_tcp_t *)&current_sandbox->client_libuv_stream);
+	int r = uv_tcp_init(worker_thread_get_libuv_handle(), (uv_tcp_t *)&current_sandbox->client_libuv_stream);
 	assert(r == 0);
 
 	// Set the current sandbox as the data the libuv callbacks have access to
@@ -250,11 +249,11 @@ current_sandbox_main(void)
 
 #ifdef USE_HTTP_UVIO
 	uv_close((uv_handle_t *)&current_sandbox->client_libuv_stream, libuv_callbacks_on_close_wakeup_sakebox);
-	worker_thread__process_io();
+	worker_thread_process_io();
 #else
 	close(current_sandbox->client_socket_descriptor);
 #endif
-	worker_thread__exit_current_sandbox();
+	worker_thread_exit_current_sandbox();
 }
 
 /**

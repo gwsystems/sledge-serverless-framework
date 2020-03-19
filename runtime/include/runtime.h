@@ -11,7 +11,7 @@
 extern int                   runtime_epoll_file_descriptor;
 extern struct deque_sandbox *runtime_global_deque;
 extern pthread_mutex_t       runtime_global_deque_mutex;
-extern __thread uv_loop_t    worker_thread__uvio_handle;
+extern __thread uv_loop_t    worker_thread_uvio_handle;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);
@@ -21,7 +21,7 @@ INLINE char *get_memory_ptr_for_runtime(u32 offset, u32 bounds_check);
 void         runtime_initialize(void);
 void         listener_thread_initialize(void);
 void         stub_init(i32 offset);
-void *       worker_thread__main(void *return_code);
+void *       worker_thread_main(void *return_code);
 
 /**
  * Translates WASM offsets into runtime VM pointers
@@ -30,7 +30,7 @@ void *       worker_thread__main(void *return_code);
  * @return void pointer to something in WebAssembly linear memory
  **/
 static inline void *
-worker_thread__get_memory_ptr_void(u32 offset, u32 bounds_check)
+worker_thread_get_memory_ptr_void(u32 offset, u32 bounds_check)
 {
 	return (void *)get_memory_ptr_for_runtime(offset, bounds_check);
 }
@@ -41,7 +41,7 @@ worker_thread__get_memory_ptr_void(u32 offset, u32 bounds_check)
  * @return char at the offset
  **/
 static inline char
-worker_thread__get_memory_character(u32 offset)
+worker_thread_get_memory_character(u32 offset)
 {
 	return get_memory_ptr_for_runtime(offset, 1)[0];
 }
@@ -53,11 +53,11 @@ worker_thread__get_memory_character(u32 offset)
  * @return pointer to the string or NULL if max_length is reached without finding null-terminator
  **/
 static inline char *
-worker_thread__get_memory_string(u32 offset, u32 max_length)
+worker_thread_get_memory_string(u32 offset, u32 max_length)
 {
 	for (int i = 0; i < max_length; i++) {
-		if (worker_thread__get_memory_character(offset + i) == '\0')
-			return worker_thread__get_memory_ptr_void(offset, 1);
+		if (worker_thread_get_memory_character(offset + i) == '\0')
+			return worker_thread_get_memory_ptr_void(offset, 1);
 	}
 	return NULL;
 }
@@ -66,9 +66,9 @@ worker_thread__get_memory_string(u32 offset, u32 max_length)
  * Get global libuv handle
  **/
 static inline uv_loop_t *
-worker_thread__get_thread_libuv_handle(void)
+worker_thread_get_libuv_handle(void)
 {
-	return &worker_thread__uvio_handle;
+	return &worker_thread_uvio_handle;
 }
 
 #endif /* SFRT_RUNTIME_H */

@@ -81,16 +81,16 @@ typedef struct sandbox sandbox_t;
  **************************/
 
 
-extern __thread struct sandbox *worker_thread__current_sandbox;
-extern __thread arch_context_t *worker_thread__next_context;
+extern __thread struct sandbox *worker_thread_current_sandbox;
+extern __thread arch_context_t *worker_thread_next_context;
 
-extern void            worker_thread__block_current_sandbox(void);
-extern void            worker_thread__exit_current_sandbox(void);
-extern struct sandbox *worker_thread__get_next_sandbox(int interrupt);
-extern void            worker_thread__process_io(void);
-extern void            worker_thread__push_sandbox_to_completion_queue(struct sandbox *sandbox);
-extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
-extern void worker_thread__wakeup_sandbox(sandbox_t *sandbox);
+extern void            worker_thread_block_current_sandbox(void);
+extern void            worker_thread_exit_current_sandbox(void);
+extern struct sandbox *worker_thread_get_next_sandbox(int interrupt);
+extern void            worker_thread_process_io(void);
+extern void            worker_thread_push_sandbox_to_completion_queue(struct sandbox *sandbox);
+extern void __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void);
+extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
 
 /***************************
  * Public API              *

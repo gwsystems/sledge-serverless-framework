@@ -123,7 +123,7 @@ void
 runtime_start_runtime_worker_threads()
 {
 	for (int i = 0; i < runtime_total_worker_processors; i++) {
-		int ret = pthread_create(&runtime_worker_threads[i], NULL, worker_thread__main,
+		int ret = pthread_create(&runtime_worker_threads[i], NULL, worker_thread_main,
 		                         (void *)&runtime_worker_threads_argument[i]);
 		if (ret) {
 			errno = ret;

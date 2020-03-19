@@ -80,7 +80,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		software_interrupt_SIGALRM_count++;
 		// software_interrupt_supported_signals per-core..
 		if (curr && curr->state == RETURNED) return;
-		if (worker_thread__next_context) return;
+		if (worker_thread_next_context) return;
 		if (!software_interrupt_is_enabled()) return;
 		software_interrupt_schedule_alarm(user_context_raw);
 
@@ -90,17 +90,17 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		// make sure sigalrm doesn't mess this up if nested..
 		assert(!software_interrupt_is_enabled());
 		/* we set current before calling pthread_kill! */
-		assert(worker_thread__next_context && (&curr->ctxt == worker_thread__next_context));
+		assert(worker_thread_next_context && (&curr->ctxt == worker_thread_next_context));
 		assert(signal_info->si_code == SI_TKILL);
 		// debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
 
 		software_interrupt_SIGUSR_count++;
 		// do not save current sandbox.. it is in co-operative switch..
-		// pick the next from "worker_thread__next_context"..
+		// pick the next from "worker_thread_next_context"..
 		// assert its "sp" to be zero in regs..
 		// memcpy from next context..
 		arch_mcontext_restore(&user_context->uc_mcontext, &curr->ctxt);
-		worker_thread__next_context = NULL;
+		worker_thread_next_context = NULL;
 		software_interrupt_enable();
 		break;
 	}
@@ -126,7 +126,7 @@ software_interrupt_schedule_alarm(void *user_context_raw)
 	if (curr == NULL) goto done;
 
 	// find a next sandbox to run..
-	struct sandbox *next = worker_thread__get_next_sandbox(1);
+	struct sandbox *next = worker_thread_get_next_sandbox(1);
 	if (next == NULL) goto done;
 	if (next == curr) goto done; // only this sandbox to schedule.. return to it!
 	// save the current sandbox, state from user_context!
@@ -139,7 +139,7 @@ software_interrupt_schedule_alarm(void *user_context_raw)
 	// reset if SIGALRM happens before SIGUSR1 and if don't preempt..OR
 	// perhaps switch here for SIGUSR1 and see if we can clear that signal
 	// so it doesn't get called on SIGALRM return..
-	// worker_thread__next_context = NULL;
+	// worker_thread_next_context = NULL;
 
 done:
 	software_interrupt_enable();

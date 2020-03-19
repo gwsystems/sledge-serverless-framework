@@ -37,7 +37,7 @@ env_a_ctz_64(u64 x)
 INLINE void
 env_a_and_64(i32 p_off, u64 v)
 {
-	uint64_t *p = worker_thread__get_memory_ptr_void(p_off, sizeof(uint64_t));
+	uint64_t *p = worker_thread_get_memory_ptr_void(p_off, sizeof(uint64_t));
 	*p &= v;
 
 	//	__asm__( "lock ; and %1, %0"
@@ -48,7 +48,7 @@ INLINE void
 env_a_or_64(i32 p_off, i64 v)
 {
 	assert(sizeof(i64) == sizeof(uint64_t));
-	uint64_t *p = worker_thread__get_memory_ptr_void(p_off, sizeof(i64));
+	uint64_t *p = worker_thread_get_memory_ptr_void(p_off, sizeof(i64));
 	*p |= v;
 
 	//	__asm__( "lock ; or %1, %0"
@@ -72,7 +72,7 @@ i32
 env_a_cas(i32 p_off, i32 t, i32 s)
 {
 	assert(sizeof(i32) == sizeof(volatile int));
-	volatile int *p = worker_thread__get_memory_ptr_void(p_off, sizeof(i32));
+	volatile int *p = worker_thread_get_memory_ptr_void(p_off, sizeof(i32));
 
 	__asm__("lock ; cmpxchg %3, %1" : "=a"(t), "=m"(*p) : "a"(t), "r"(s) : "memory");
 
@@ -83,7 +83,7 @@ void
 env_a_or(i32 p_off, i32 v)
 {
 	assert(sizeof(i32) == sizeof(volatile int));
-	volatile int *p = worker_thread__get_memory_ptr_void(p_off, sizeof(i32));
+	volatile int *p = worker_thread_get_memory_ptr_void(p_off, sizeof(i32));
 	__asm__("lock ; or %1, %0" : "=m"(*p) : "r"(v) : "memory");
 }
 
@@ -97,7 +97,7 @@ i32
 env_a_swap(i32 x_off, i32 v)
 {
 	assert(sizeof(i32) == sizeof(volatile int));
-	volatile int *x = worker_thread__get_memory_ptr_void(x_off, sizeof(i32));
+	volatile int *x = worker_thread_get_memory_ptr_void(x_off, sizeof(i32));
 
 	__asm__("xchg %0, %1" : "=r"(v), "=m"(*x) : "0"(v) : "memory");
 
@@ -108,7 +108,7 @@ i32
 env_a_fetch_add(i32 x_off, i32 v)
 {
 	assert(sizeof(i32) == sizeof(volatile int));
-	volatile int *x = worker_thread__get_memory_ptr_void(x_off, sizeof(i32));
+	volatile int *x = worker_thread_get_memory_ptr_void(x_off, sizeof(i32));
 
 	__asm__("lock ; xadd %0, %1" : "=r"(v), "=m"(*x) : "0"(v) : "memory");
 
@@ -119,7 +119,7 @@ void
 env_a_inc(i32 x_off)
 {
 	assert(sizeof(i32) == sizeof(volatile int));
-	volatile int *x = worker_thread__get_memory_ptr_void(x_off, sizeof(i32));
+	volatile int *x = worker_thread_get_memory_ptr_void(x_off, sizeof(i32));
 
 	__asm__("lock ; incl %0" : "=m"(*x) : "m"(*x) : "memory");
 }
@@ -128,7 +128,7 @@ void
 env_a_dec(i32 x_off)
 {
 	assert(sizeof(i32) == sizeof(volatile int));
-	volatile int *x = worker_thread__get_memory_ptr_void(x_off, sizeof(i32));
+	volatile int *x = worker_thread_get_memory_ptr_void(x_off, sizeof(i32));
 
 	__asm__("lock ; decl %0" : "=m"(*x) : "m"(*x) : "memory");
 }
@@ -137,7 +137,7 @@ void
 env_a_store(i32 p_off, i32 x)
 {
 	assert(sizeof(i32) == sizeof(volatile int));
-	volatile int *p = worker_thread__get_memory_ptr_void(p_off, sizeof(i32));
+	volatile int *p = worker_thread_get_memory_ptr_void(p_off, sizeof(i32));
 	__asm__ __volatile__("mov %1, %0 ; lock ; orl $0,(%%esp)" : "=m"(*p) : "r"(x) : "memory");
 }
 
