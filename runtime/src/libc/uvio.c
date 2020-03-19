@@ -9,25 +9,25 @@
 #define GID 0xFE
 
 // Elf auxilary vector values (see google for what those are)
-#define AT_NULL 0
-#define AT_IGNORE 1
-#define AT_EXECFD 2
-#define AT_PHDR 3
-#define AT_PHENT 4
-#define AT_PHNUM 5
-#define AT_PAGESZ 6
-#define AT_BASE 7
-#define AT_FLAGS 8
-#define AT_ENTRY 9
-#define AT_NOTELF 10
-#define AT_UID 11
-#define AT_EUID 12
-#define AT_GID 13
-#define AT_EGID 14
-#define AT_CLKTCK 17
-#define AT_SECURE 23
+#define AT_NULL          0
+#define AT_IGNORE        1
+#define AT_EXECFD        2
+#define AT_PHDR          3
+#define AT_PHENT         4
+#define AT_PHNUM         5
+#define AT_PAGESZ        6
+#define AT_BASE          7
+#define AT_FLAGS         8
+#define AT_ENTRY         9
+#define AT_NOTELF        10
+#define AT_UID           11
+#define AT_EUID          12
+#define AT_GID           13
+#define AT_EGID          14
+#define AT_CLKTCK        17
+#define AT_SECURE        23
 #define AT_BASE_PLATFORM 24
-#define AT_RANDOM 25
+#define AT_RANDOM        25
 
 // offset = a WASM ptr to memory the runtime can use
 void
@@ -162,21 +162,21 @@ wasm_write(i32 file_descriptor, i32 buf_offset, i32 buf_size)
 	return ret;
 }
 
-#define WO_RDONLY 00
-#define WO_WRONLY 01
-#define WO_RDWR 02
-#define WO_CREAT 0100
-#define WO_EXCL 0200
-#define WO_NOCTTY 0400
-#define WO_TRUNC 01000
-#define WO_APPEND 02000
-#define WO_NONBLOCK 04000
-#define WO_DSYNC 010000
-#define WO_SYNC 04010000
-#define WO_RSYNC 04010000
+#define WO_RDONLY    00
+#define WO_WRONLY    01
+#define WO_RDWR      02
+#define WO_CREAT     0100
+#define WO_EXCL      0200
+#define WO_NOCTTY    0400
+#define WO_TRUNC     01000
+#define WO_APPEND    02000
+#define WO_NONBLOCK  04000
+#define WO_DSYNC     010000
+#define WO_SYNC      04010000
+#define WO_RSYNC     04010000
 #define WO_DIRECTORY 0200000
-#define WO_NOFOLLOW 0400000
-#define WO_CLOEXEC 02000000
+#define WO_NOFOLLOW  0400000
+#define WO_CLOEXEC   02000000
 
 #define SYS_OPEN 2
 i32
@@ -616,8 +616,8 @@ wasm_getpid()
 #define WF_SETSIG 10
 #define WF_GETSIG 11
 
-#define WF_GETLK 5
-#define WF_SETLK 6
+#define WF_GETLK  5
+#define WF_SETLK  6
 #define WF_SETLKW 7
 
 #define SYS_FCNTL 72
@@ -755,11 +755,11 @@ wasm_fchown(i32 file_descriptor, u32 owner, u32 group)
 }
 
 // networking syscalls
-#define SYS_SOCKET 41
+#define SYS_SOCKET  41
 #define SYS_CONNECT 42
-#define SYS_ACCEPT 43
-#define SYS_BIND 49
-#define SYS_LISTEN 50
+#define SYS_ACCEPT  43
+#define SYS_BIND    49
+#define SYS_LISTEN  50
 
 static void
 wasm_connection_callback(uv_stream_t *srv, int status)
@@ -924,7 +924,7 @@ wasm_listen(i32 sockfd, i32 backlog)
 	return c->return_value;
 }
 
-#define SYS_SENDTO 44
+#define SYS_SENDTO   44
 #define SYS_RECVFROM 45
 
 void
