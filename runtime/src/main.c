@@ -18,12 +18,10 @@
 i32 runtime__log_file_descriptor = -1;
 #endif
 
-u32 runtime__total_online_processors                                     = 0;
-u32 runtime__total_worker_processors                                     = 0;
-u32 runtime__first_worker_processor                                      = 0;
-int runtime__runtime__worker_threads_argument[WORKER_THREAD__CORE_COUNT] = {
-	0
-}; // The worker sets its argument to -1 on error
+u32 runtime__total_online_processors                            = 0;
+u32 runtime__total_worker_processors                            = 0;
+u32 runtime__first_worker_processor                             = 0;
+int runtime__worker_threads_argument[WORKER_THREAD__CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
 pthread_t runtime__worker_threads[WORKER_THREAD__CORE_COUNT];
 
 
@@ -126,7 +124,7 @@ runtime__start_runtime__worker_threads()
 {
 	for (int i = 0; i < runtime__total_worker_processors; i++) {
 		int ret = pthread_create(&runtime__worker_threads[i], NULL, worker_thread__main,
-		                         (void *)&runtime__runtime__worker_threads_argument[i]);
+		                         (void *)&runtime__worker_threads_argument[i]);
 		if (ret) {
 			errno = ret;
 			perror("pthread_create");
