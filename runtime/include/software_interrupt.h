@@ -9,16 +9,16 @@
  * Externs
  ***************************************/
 
-extern __thread volatile sig_atomic_t software_interrupt__is_disabled;
+extern __thread volatile sig_atomic_t software_interrupt_is_disabled;
 
 /***************************************
  * Public Static Inlines
  ***************************************/
 
 static inline void
-software_interrupt__disable(void)
+software_interrupt_disable(void)
 {
-	while (__sync_bool_compare_and_swap(&software_interrupt__is_disabled, 0, 1) == false)
+	while (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 0, 1) == false)
 		;
 }
 
@@ -27,18 +27,18 @@ software_interrupt__disable(void)
  * Enables signals
  */
 static inline void
-software_interrupt__enable(void)
+software_interrupt_enable(void)
 {
-	if (__sync_bool_compare_and_swap(&software_interrupt__is_disabled, 1, 0) == false) assert(0);
+	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 1, 0) == false) assert(0);
 }
 
 /**
  * @returns boolean if signals are enabled
  */
 static inline int
-software_interrupt__is_enabled(void)
+software_interrupt_is_enabled(void)
 {
-	return (software_interrupt__is_disabled == 0);
+	return (software_interrupt_is_disabled == 0);
 }
 
 /**
@@ -47,7 +47,7 @@ software_interrupt__is_enabled(void)
  * @return 0 on success. Exits program otherwise
  **/
 static inline int
-software_interrupt__mask_signal(int signal)
+software_interrupt_mask_signal(int signal)
 {
 	sigset_t set;
 	int      return_code;
@@ -72,7 +72,7 @@ software_interrupt__mask_signal(int signal)
  * @return 0 on success. Exits program otherwise
  **/
 static inline int
-software_interrupt__unmask_signal(int signal)
+software_interrupt_unmask_signal(int signal)
 {
 	sigset_t set;
 	int      return_code;
@@ -95,8 +95,8 @@ software_interrupt__unmask_signal(int signal)
  * Exports from module.c
  ***************************************/
 
-void software_interrupt__initialize(void);
-void software_interrupt__arm_timer(void);
-void software_interrupt__disarm_timer(void);
+void software_interrupt_initialize(void);
+void software_interrupt_arm_timer(void);
+void software_interrupt_disarm_timer(void);
 
 #endif /* SFRT_SOFTWARE_INTERRUPT_H */

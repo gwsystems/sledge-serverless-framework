@@ -181,10 +181,10 @@ current_sandbox_main(void)
 	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
 	//        return to worker_thread__switch_to_sandbox() api..
 	//        we'd potentially do what we'd in worker_thread__switch_to_sandbox() api here for cleanup..
-	if (!software_interrupt__is_enabled()) {
+	if (!software_interrupt_is_enabled()) {
 		arch_context_init(&current_sandbox->ctxt, 0, 0);
 		worker_thread__next_context = NULL;
-		software_interrupt__enable();
+		software_interrupt_enable();
 	}
 	struct module *current_module = sandbox_get_module(current_sandbox);
 	int            argument_count = module_get_argument_count(current_module);
