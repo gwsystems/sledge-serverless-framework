@@ -160,7 +160,7 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 	module_indirect_table = cache_tbl;
 
 	// Add the module to the in-memory module DB
-	module_database__add(module);
+	module_database_add(module);
 
 	// Start listening for requests
 	module_initialize_as_server(module);
