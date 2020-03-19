@@ -24,7 +24,7 @@ free_linear_memory(void *base, u32 bound, u32 max)
 void
 expand_memory(void)
 {
-	struct sandbox *sandbox = current_sandbox__get();
+	struct sandbox *sandbox = current_sandbox_get();
 
 	// max_pages = 0 => no limit: FIXME
 	assert((sandbox->sandbox_size + sandbox_lmbound) / WASM_PAGE_SIZE < WASM_MAX_PAGES);

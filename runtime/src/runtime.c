@@ -180,9 +180,9 @@ worker_thread__switch_to_sandbox(struct sandbox *next_sandbox)
 {
 	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
 	software_interrupt__disable();
-	struct sandbox *current_sandbox          = current_sandbox__get();
+	struct sandbox *current_sandbox          = current_sandbox_get();
 	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
-	current_sandbox__set(next_sandbox);
+	current_sandbox_set(next_sandbox);
 	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
 	if (current_sandbox && current_sandbox->state == RETURNED)
 		worker_thread__push_sandbox_to_completion_queue(current_sandbox);
@@ -219,7 +219,7 @@ worker_thread__block_current_sandbox(void)
 {
 	assert(worker_thread__is_in_callback == 0);
 	software_interrupt__disable();
-	struct sandbox *current_sandbox = current_sandbox__get();
+	struct sandbox *current_sandbox = current_sandbox_get();
 	ps_list_rem_d(current_sandbox);
 	current_sandbox->state       = BLOCKED;
 	struct sandbox *next_sandbox = worker_thread__get_next_sandbox(0);
@@ -399,7 +399,7 @@ worker_thread__pop_and_free_n_sandboxes_from_completion_queue(unsigned int numbe
 static inline struct sandbox *
 worker_thread__execute_runtime_maintenance_and_get_next_sandbox(void)
 {
-	assert(current_sandbox__get() == NULL);
+	assert(current_sandbox_get() == NULL);
 	// Try to free one sandbox from the completion queue
 	worker_thread__pop_and_free_n_sandboxes_from_completion_queue(1);
 	// Execute libuv callbacks
@@ -455,7 +455,7 @@ worker_thread__main(void *return_code)
 void
 worker_thread__exit_current_sandbox(void)
 {
-	struct sandbox *current_sandbox = current_sandbox__get();
+	struct sandbox *current_sandbox = current_sandbox_get();
 	assert(current_sandbox);
 	software_interrupt__disable();
 	worker_thread__pop_sandbox_from_run_queue(current_sandbox);

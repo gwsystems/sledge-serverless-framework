@@ -55,7 +55,7 @@ software_interrupt__handle_signals(int signal_type, siginfo_t *signal_info, void
 #ifdef PREEMPT_DISABLE
 	assert(0);
 #else
-	struct sandbox *curr         = current_sandbox__get();
+	struct sandbox *curr         = current_sandbox_get();
 	ucontext_t *    user_context = (ucontext_t *)user_context_raw;
 
 	switch (signal_type) {
@@ -119,7 +119,7 @@ software_interrupt__schedule_alarm(void *user_context_raw)
 {
 	software_interrupt__disable(); // no nesting!
 
-	struct sandbox *curr         = current_sandbox__get();
+	struct sandbox *curr         = current_sandbox_get();
 	ucontext_t *    user_context = (ucontext_t *)user_context_raw;
 
 	// no sandboxes running..so nothing to preempt..let the "main" scheduler run its course.
@@ -132,8 +132,8 @@ software_interrupt__schedule_alarm(void *user_context_raw)
 	// save the current sandbox, state from user_context!
 	arch_mcontext_save(&curr->ctxt, &user_context->uc_mcontext);
 
-	// current_sandbox__set on it. restore through *user_context..
-	current_sandbox__set(next);
+	// current_sandbox_set on it. restore through *user_context..
+	current_sandbox_set(next);
 
 	if (arch_mcontext_restore(&user_context->uc_mcontext, &next->ctxt)) goto skip;
 	// reset if SIGALRM happens before SIGUSR1 and if don't preempt..OR
