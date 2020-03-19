@@ -41,10 +41,10 @@ struct arch_context {
 	mcontext_t mctx;
 };
 
-typedef struct arch_context    arch_context_t;
+typedef struct arch_context arch_context_t;
 
-extern void __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void);
-extern __thread arch_context_t worker_thread__base_context;
+extern void __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void);
+extern __thread arch_context_t worker_thread_base_context;
 
 static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
 {
@@ -76,7 +76,7 @@ static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, re
 static int
 arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 {
-	assert(ctx != &worker_thread__base_context);
+	assert(ctx != &worker_thread_base_context);
 
 	// if ctx->regs[5] is set, this was last in a user-level context switch state!
 	// else restore mcontext..
@@ -97,7 +97,7 @@ arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 static void
 arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
 {
-	assert(ctx != &worker_thread__base_context);
+	assert(ctx != &worker_thread_base_context);
 
 	ctx->regs[5] = 0;
 	memcpy(&ctx->mctx, mc, sizeof(mcontext_t));
@@ -110,12 +110,12 @@ arch_context_switch(arch_context_t *ca, arch_context_t *na)
 	if (!ca) {
 		assert(na);
 		// switching from "no sandbox to execute" state to "executing a sandbox"
-		ca = &worker_thread__base_context;
+		ca = &worker_thread_base_context;
 	} else if (!na) {
 		assert(ca);
 
 		// switching from "executing a sandbox" to "no execution" state.
-		na = &worker_thread__base_context;
+		na = &worker_thread_base_context;
 	} else {
 		assert(na && ca);
 
@@ -134,7 +134,7 @@ arch_context_switch(arch_context_t *ca, arch_context_t *na)
 	             "movq 40(%%rbx), %%rsp\n\t"
 	             "jmpq *128(%%rbx)\n\t"
 	             "1:\n\t"
-	             "call worker_thread__sandbox_switch_preempt\n\t"
+	             "call worker_thread_sandbox_switch_preempt\n\t"
 	             ".align 8\n\t"
 	             "2:\n\t"
 	             "movq $0, 40(%%rbx)\n\t"

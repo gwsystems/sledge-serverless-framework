@@ -145,30 +145,30 @@ listener_thread_initialize(void)
  * Worker Thread State     *
  **************************/
 
-__thread static struct ps_list_head worker_thread__run_queue;
-__thread static struct ps_list_head worker_thread__completion_queue;
+__thread static struct ps_list_head worker_thread_run_queue;
+__thread static struct ps_list_head worker_thread_completion_queue;
 
 // current sandbox that is active..
-__thread sandbox_t *worker_thread__current_sandbox = NULL;
+__thread sandbox_t *worker_thread_current_sandbox = NULL;
 
 // context pointer to switch to when this thread gets a SIGUSR1
-__thread arch_context_t *worker_thread__next_context = NULL;
+__thread arch_context_t *worker_thread_next_context = NULL;
 
 // context of the runtime thread before running sandboxes or to resume its "main".
-__thread arch_context_t worker_thread__base_context;
+__thread arch_context_t worker_thread_base_context;
 
 // libuv i/o loop handle per sandboxing thread!
-__thread uv_loop_t worker_thread__uvio_handle;
+__thread uv_loop_t worker_thread_uvio_handle;
 
 // Flag to signify if the thread is currently running callbacks in the libuv event loop
-static __thread unsigned int worker_thread__is_in_callback;
+static __thread unsigned int worker_thread_is_in_callback;
 
 
 /**************************************************
  * Worker Thread Logic
  *************************************************/
 
-static inline void worker_thread__push_sandbox_to_run_queue(struct sandbox *sandbox);
+static inline void worker_thread_push_sandbox_to_run_queue(struct sandbox *sandbox);
 
 /**
  * @brief Switches to the next sandbox, placing the current sandbox of the completion queue if in RETURNED state
@@ -176,7 +176,7 @@ static inline void worker_thread__push_sandbox_to_run_queue(struct sandbox *sand
  * @return void
  */
 static inline void
-worker_thread__switch_to_sandbox(struct sandbox *next_sandbox)
+worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 {
 	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
 	software_interrupt_disable();
@@ -185,8 +185,8 @@ worker_thread__switch_to_sandbox(struct sandbox *next_sandbox)
 	current_sandbox_set(next_sandbox);
 	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
 	if (current_sandbox && current_sandbox->state == RETURNED)
-		worker_thread__push_sandbox_to_completion_queue(current_sandbox);
-	worker_thread__next_context = next_register_context;
+		worker_thread_push_sandbox_to_completion_queue(current_sandbox);
+	worker_thread_next_context = next_register_context;
 	arch_context_switch(current_register_context, next_register_context);
 	software_interrupt_enable();
 }
@@ -196,7 +196,7 @@ worker_thread__switch_to_sandbox(struct sandbox *next_sandbox)
  * @param sandbox the sandbox to check and update if blocked
  **/
 void
-worker_thread__wakeup_sandbox(sandbox_t *sandbox)
+worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 {
 	software_interrupt_disable();
 	debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
@@ -204,7 +204,7 @@ worker_thread__wakeup_sandbox(sandbox_t *sandbox)
 	assert(sandbox->state == BLOCKED);
 	assert(ps_list_singleton_d(sandbox));
 	sandbox->state = RUNNABLE;
-	ps_list_head_append_d(&worker_thread__run_queue, sandbox);
+	ps_list_head_append_d(&worker_thread_run_queue, sandbox);
 done:
 	software_interrupt_enable();
 }
@@ -215,18 +215,18 @@ done:
  *of the runqueue
  **/
 void
-worker_thread__block_current_sandbox(void)
+worker_thread_block_current_sandbox(void)
 {
-	assert(worker_thread__is_in_callback == 0);
+	assert(worker_thread_is_in_callback == 0);
 	software_interrupt_disable();
 	struct sandbox *current_sandbox = current_sandbox_get();
 	ps_list_rem_d(current_sandbox);
 	current_sandbox->state       = BLOCKED;
-	struct sandbox *next_sandbox = worker_thread__get_next_sandbox(0);
+	struct sandbox *next_sandbox = worker_thread_get_next_sandbox(0);
 	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", current_sandbox, current_sandbox->module->name,
 	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
 	software_interrupt_enable();
-	worker_thread__switch_to_sandbox(next_sandbox);
+	worker_thread_switch_to_sandbox(next_sandbox);
 }
 
 
@@ -234,16 +234,16 @@ worker_thread__block_current_sandbox(void)
  * Execute I/O
  **/
 void
-worker_thread__process_io(void)
+worker_thread_process_io(void)
 {
 #ifdef USE_HTTP_UVIO
 #ifdef USE_HTTP_SYNC
 	// realistically, we're processing all async I/O on this core when a sandbox blocks on http processing, not
 	// great! if there is a way (TODO), perhaps RUN_ONCE and check if your I/O is processed, if yes, return else do
 	// async block!
-	uv_run(worker_thread__get_thread_libuv_handle(), UV_RUN_DEFAULT);
+	uv_run(worker_thread_get_libuv_handle(), UV_RUN_DEFAULT);
 #else  /* USE_HTTP_SYNC */
-	worker_thread__block_current_sandbox();
+	worker_thread_block_current_sandbox();
 #endif /* USE_HTTP_UVIO */
 #else
 	assert(0);
@@ -254,7 +254,7 @@ worker_thread__process_io(void)
 /**
  * TODO: What is this doing?
  **/
-void __attribute__((noinline)) __attribute__((noreturn)) worker_thread__sandbox_switch_preempt(void)
+void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void)
 {
 	pthread_kill(pthread_self(), SIGUSR1);
 
@@ -269,7 +269,7 @@ void __attribute__((noinline)) __attribute__((noreturn)) worker_thread__sandbox_
  * @return the number of sandbox requests pulled
  */
 static inline int
-worker_thread__pull_and_process_sandbox_requests(void)
+worker_thread_pull_and_process_sandbox_requests(void)
 {
 	int total_sandboxes_pulled = 0;
 
@@ -285,7 +285,7 @@ worker_thread__pull_and_process_sandbox_requests(void)
 		free(sandbox_request);
 		// Set the sandbox as runnable and place on the local runqueue
 		sandbox->state = RUNNABLE;
-		worker_thread__push_sandbox_to_run_queue(sandbox);
+		worker_thread_push_sandbox_to_run_queue(sandbox);
 		total_sandboxes_pulled++;
 	}
 
@@ -296,28 +296,28 @@ worker_thread__pull_and_process_sandbox_requests(void)
  * Run all outstanding events in the local thread's libuv event loop
  **/
 void
-worker_thread__execute_libuv_event_loop(void)
+worker_thread_execute_libuv_event_loop(void)
 {
-	worker_thread__is_in_callback = 1;
-	int n = uv_run(worker_thread__get_thread_libuv_handle(), UV_RUN_NOWAIT), i = 0;
+	worker_thread_is_in_callback = 1;
+	int n = uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT), i = 0;
 	while (n > 0) {
 		n--;
-		uv_run(worker_thread__get_thread_libuv_handle(), UV_RUN_NOWAIT);
+		uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT);
 	}
-	worker_thread__is_in_callback = 0;
+	worker_thread_is_in_callback = 0;
 }
 
 /**
- * Append the sandbox to the worker_thread__run_queue
+ * Append the sandbox to the worker_thread_run_queue
  * @param sandbox sandbox to add
  */
 static inline void
-worker_thread__push_sandbox_to_run_queue(struct sandbox *sandbox)
+worker_thread_push_sandbox_to_run_queue(struct sandbox *sandbox)
 {
 	assert(ps_list_singleton_d(sandbox));
 	// fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s,
 	// s->module->name);
-	ps_list_head_append_d(&worker_thread__run_queue, sandbox);
+	ps_list_head_append_d(&worker_thread_run_queue, sandbox);
 }
 
 /**
@@ -325,7 +325,7 @@ worker_thread__push_sandbox_to_run_queue(struct sandbox *sandbox)
  * @param sandbox sandbox
  **/
 static inline void
-worker_thread__pop_sandbox_from_run_queue(struct sandbox *sandbox)
+worker_thread_pop_sandbox_from_run_queue(struct sandbox *sandbox)
 {
 	ps_list_rem_d(sandbox);
 }
@@ -337,14 +337,14 @@ worker_thread__pop_sandbox_from_run_queue(struct sandbox *sandbox)
  * @return the sandbox to execute or NULL if none are available
  **/
 struct sandbox *
-worker_thread__get_next_sandbox(int in_interrupt)
+worker_thread_get_next_sandbox(int in_interrupt)
 {
 	// If the thread local runqueue is empty and we're not running in the context of an interupt,
 	// pull a fresh batch of sandbox requests from the global queue
-	if (ps_list_head_empty(&worker_thread__run_queue)) {
+	if (ps_list_head_empty(&worker_thread_run_queue)) {
 		// this is in an interrupt context, don't steal work here!
 		if (in_interrupt) return NULL;
-		if (worker_thread__pull_and_process_sandbox_requests() == 0) {
+		if (worker_thread_pull_and_process_sandbox_requests() == 0) {
 			// debuglog("[null: null]\n");
 			return NULL;
 		}
@@ -352,12 +352,12 @@ worker_thread__get_next_sandbox(int in_interrupt)
 
 	// Execute Round Robin Scheduling Logic
 	// Grab the sandbox at the head of the thread local runqueue, add it to the end, and return it
-	struct sandbox *sandbox = ps_list_head_first_d(&worker_thread__run_queue, struct sandbox);
+	struct sandbox *sandbox = ps_list_head_first_d(&worker_thread_run_queue, struct sandbox);
 	// We are assuming that any sandboxed in the RETURNED state should have been pulled from the local runqueue by
 	// now!
 	assert(sandbox->state != RETURNED);
 	ps_list_rem_d(sandbox);
-	ps_list_head_append_d(&worker_thread__run_queue, sandbox);
+	ps_list_head_append_d(&worker_thread_run_queue, sandbox);
 	debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 	return sandbox;
 }
@@ -367,10 +367,10 @@ worker_thread__get_next_sandbox(int in_interrupt)
  * @param sandbox
  **/
 void
-worker_thread__push_sandbox_to_completion_queue(struct sandbox *sandbox)
+worker_thread_push_sandbox_to_completion_queue(struct sandbox *sandbox)
 {
 	assert(ps_list_singleton_d(sandbox));
-	ps_list_head_append_d(&worker_thread__completion_queue, sandbox);
+	ps_list_head_append_d(&worker_thread_completion_queue, sandbox);
 }
 
 
@@ -380,11 +380,11 @@ worker_thread__push_sandbox_to_completion_queue(struct sandbox *sandbox)
  * @return void
  */
 static inline void
-worker_thread__pop_and_free_n_sandboxes_from_completion_queue(unsigned int number_to_free)
+worker_thread_pop_and_free_n_sandboxes_from_completion_queue(unsigned int number_to_free)
 {
 	for (int i = 0; i < number_to_free; i++) {
-		if (ps_list_head_empty(&worker_thread__completion_queue)) break;
-		struct sandbox *sandbox = ps_list_head_first_d(&worker_thread__completion_queue, struct sandbox);
+		if (ps_list_head_empty(&worker_thread_completion_queue)) break;
+		struct sandbox *sandbox = ps_list_head_first_d(&worker_thread_completion_queue, struct sandbox);
 		if (!sandbox) break;
 		ps_list_rem_d(sandbox);
 		sandbox_free(sandbox);
@@ -397,17 +397,17 @@ worker_thread__pop_and_free_n_sandboxes_from_completion_queue(unsigned int numbe
  * @return sandbox or NULL
  **/
 static inline struct sandbox *
-worker_thread__execute_runtime_maintenance_and_get_next_sandbox(void)
+worker_thread_execute_runtime_maintenance_and_get_next_sandbox(void)
 {
 	assert(current_sandbox_get() == NULL);
 	// Try to free one sandbox from the completion queue
-	worker_thread__pop_and_free_n_sandboxes_from_completion_queue(1);
+	worker_thread_pop_and_free_n_sandboxes_from_completion_queue(1);
 	// Execute libuv callbacks
-	if (!worker_thread__is_in_callback) worker_thread__execute_libuv_event_loop();
+	if (!worker_thread_is_in_callback) worker_thread_execute_libuv_event_loop();
 
 	// Get and return the sandbox at the head of the thread local runqueue
 	software_interrupt_disable();
-	struct sandbox *sandbox = worker_thread__get_next_sandbox(0);
+	struct sandbox *sandbox = worker_thread_get_next_sandbox(0);
 	software_interrupt_enable();
 	assert(sandbox == NULL || sandbox->state == RUNNABLE);
 	return sandbox;
@@ -419,26 +419,26 @@ worker_thread__execute_runtime_maintenance_and_get_next_sandbox(void)
  * @param return_code - argument provided by pthread API. We set to -1 on error
  **/
 void *
-worker_thread__main(void *return_code)
+worker_thread_main(void *return_code)
 {
-	arch_context_init(&worker_thread__base_context, 0, 0);
+	arch_context_init(&worker_thread_base_context, 0, 0);
 
-	ps_list_head_init(&worker_thread__run_queue);
-	ps_list_head_init(&worker_thread__completion_queue);
+	ps_list_head_init(&worker_thread_run_queue);
+	ps_list_head_init(&worker_thread_completion_queue);
 	software_interrupt_is_disabled = 0;
-	worker_thread__next_context    = NULL;
+	worker_thread_next_context     = NULL;
 #ifndef PREEMPT_DISABLE
 	software_interrupt_unmask_signal(SIGALRM);
 	software_interrupt_unmask_signal(SIGUSR1);
 #endif
-	uv_loop_init(&worker_thread__uvio_handle);
-	worker_thread__is_in_callback = 0;
+	uv_loop_init(&worker_thread_uvio_handle);
+	worker_thread_is_in_callback = 0;
 
 	while (true) {
-		struct sandbox *sandbox = worker_thread__execute_runtime_maintenance_and_get_next_sandbox();
+		struct sandbox *sandbox = worker_thread_execute_runtime_maintenance_and_get_next_sandbox();
 		while (sandbox) {
-			worker_thread__switch_to_sandbox(sandbox);
-			sandbox = worker_thread__execute_runtime_maintenance_and_get_next_sandbox();
+			worker_thread_switch_to_sandbox(sandbox);
+			sandbox = worker_thread_execute_runtime_maintenance_and_get_next_sandbox();
 		}
 	}
 
@@ -453,19 +453,19 @@ worker_thread__main(void *return_code)
  * TODO: Consider moving this to a future current_sandbox file. This has thus far proven difficult to move
  **/
 void
-worker_thread__exit_current_sandbox(void)
+worker_thread_exit_current_sandbox(void)
 {
 	struct sandbox *current_sandbox = current_sandbox_get();
 	assert(current_sandbox);
 	software_interrupt_disable();
-	worker_thread__pop_sandbox_from_run_queue(current_sandbox);
+	worker_thread_pop_sandbox_from_run_queue(current_sandbox);
 	current_sandbox->state = RETURNED;
 
-	struct sandbox *next_sandbox = worker_thread__get_next_sandbox(0);
+	struct sandbox *next_sandbox = worker_thread_get_next_sandbox(0);
 	assert(next_sandbox != current_sandbox);
 	software_interrupt_enable();
 	// free resources from "main function execution", as stack still in use.
 	// unmap linear memory only!
 	munmap(current_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
-	worker_thread__switch_to_sandbox(next_sandbox);
+	worker_thread_switch_to_sandbox(next_sandbox);
 }

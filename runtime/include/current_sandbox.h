@@ -13,7 +13,7 @@ extern http_parser_settings runtime_http_parser_settings;
 static inline struct sandbox *
 current_sandbox_get(void)
 {
-	return worker_thread__current_sandbox;
+	return worker_thread_current_sandbox;
 }
 
 /**
@@ -24,7 +24,7 @@ static inline void
 current_sandbox_set(struct sandbox *sandbox)
 {
 	// FIXME: critical-section.
-	worker_thread__current_sandbox = sandbox;
+	worker_thread_current_sandbox = sandbox;
 	if (sandbox == NULL) return;
 
 	// Thread Local State about the Current Sandbox
