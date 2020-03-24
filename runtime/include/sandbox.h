@@ -46,6 +46,7 @@ struct sandbox {
 
 	u64 total_time;
 	u64 start_time;
+	u64 absolute_deadline;
 
 	struct module *module; // the module this is an instance of
 
@@ -97,7 +98,7 @@ extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
  **************************/
 
 struct sandbox *sandbox_allocate(struct module *module, char *arguments, int socket_descriptor,
-                                 const struct sockaddr *socket_address, u64 start_time);
+                                 const struct sockaddr *socket_address, u64 start_time, u64 absolute_deadline);
 void            sandbox_free(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 

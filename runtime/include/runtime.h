@@ -11,6 +11,7 @@
 extern int                   runtime_epoll_file_descriptor;
 extern struct deque_sandbox *runtime_global_deque;
 extern pthread_mutex_t       runtime_global_deque_mutex;
+extern float                 runtime_processor_speed_MHz;
 extern __thread uv_loop_t    worker_thread_uvio_handle;
 
 void         alloc_linear_memory(void);

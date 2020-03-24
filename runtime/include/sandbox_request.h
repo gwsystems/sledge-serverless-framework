@@ -10,7 +10,8 @@ struct sandbox_request {
 	char *           arguments;
 	int              socket_descriptor;
 	struct sockaddr *socket_address;
-	u64              start_time; // cycles
+	u64              start_time;        // cycles
+	u64              absolute_deadline; // cycles
 };
 typedef struct sandbox_request sandbox_request_t;
 
@@ -58,6 +59,9 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->socket_descriptor = socket_descriptor;
 	sandbox_request->socket_address    = (struct sockaddr *)socket_address;
 	sandbox_request->start_time        = start_time;
+	sandbox_request->absolute_deadline = start_time + module->relative_deadline_us * runtime_processor_speed_MHz;
+
+	printf("Set absolute deadline of %lu\n", sandbox_request->absolute_deadline);
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
 	sandbox_request_push_to_dequeue(sandbox_request);

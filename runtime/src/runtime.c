@@ -277,8 +277,8 @@ worker_thread_pull_and_process_sandbox_requests(void)
 		// Actually allocate the sandbox for the requests that we've pulled
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request->module, sandbox_request->arguments,
 		                                           sandbox_request->socket_descriptor,
-		                                           sandbox_request->socket_address,
-		                                           sandbox_request->start_time);
+		                                           sandbox_request->socket_address, sandbox_request->start_time,
+		                                           sandbox_request->absolute_deadline);
 		assert(sandbox);
 		free(sandbox_request);
 		// Set the sandbox as runnable and place on the local runqueue
