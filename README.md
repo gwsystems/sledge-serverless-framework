@@ -10,7 +10,7 @@
 If on Debian, you can install libuv with the following:
 
 ```bash
-./devenv.sh install_libuv
+sudo apt-get install libuv1-dev
 ```
 
 ## Setting up the environment
