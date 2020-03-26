@@ -22,7 +22,7 @@ module_database_add(struct module *module)
 
 	// __sync_fetch_and_add is provided by GCC
 	int f = __sync_fetch_and_add(&module_database_free_offset, 1);
-	assert(f < MODULE__MAX_MODULE_COUNT);
+	assert(f < MODULE_MAX_MODULE_COUNT);
 	module_database[f] = module;
 
 	return 0;

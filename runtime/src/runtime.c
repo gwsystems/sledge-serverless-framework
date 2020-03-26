@@ -22,6 +22,7 @@
 #include <sandbox_request.h>
 #include <software_interrupt.h>
 #include <types.h>
+#include <util.h>
 
 /***************************
  * Shared Process State    *
@@ -49,7 +50,7 @@ runtime_initialize(void)
 	runtime_global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
 	assert(runtime_global_deque);
 	// Note: Below is a Macro
-	deque_init_sandbox(runtime_global_deque, RUNTIME__MAX_SANDBOX_REQUEST_COUNT);
+	deque_init_sandbox(runtime_global_deque, RUNTIME_MAX_SANDBOX_REQUEST_COUNT);
 
 	// Mask Signals
 	software_interrupt_mask_signal(SIGUSR1);
@@ -76,14 +77,14 @@ runtime_initialize(void)
 void *
 listener_thread_main(void *dummy)
 {
-	struct epoll_event *epoll_events   = (struct epoll_event *)malloc(LISTENER_THREAD__MAX_EPOLL_EVENTS
+	struct epoll_event *epoll_events   = (struct epoll_event *)malloc(LISTENER_THREAD_MAX_EPOLL_EVENTS
                                                                         * sizeof(struct epoll_event));
 	int                 total_requests = 0;
 
 	while (true) {
 		int request_count = epoll_wait(runtime_epoll_file_descriptor, epoll_events,
-		                               LISTENER_THREAD__MAX_EPOLL_EVENTS, -1);
-		u64 start_time    = __getcycles();
+		                               LISTENER_THREAD_MAX_EPOLL_EVENTS, -1);
+		u64 start_time    = util_rdtsc();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
@@ -103,11 +104,11 @@ listener_thread_main(void *dummy)
 			total_requests++;
 
 			sandbox_request_t *sandbox_request =
-			  sandbox_request__allocate(module, module->name, socket_descriptor,
-			                            (const struct sockaddr *)&client_address, start_time);
+			  sandbox_request_allocate(module, module->name, socket_descriptor,
+			                           (const struct sockaddr *)&client_address, start_time);
 			assert(sandbox_request);
 
-			// TODO: Refactor sandbox_request__allocate to not add to global request queue and do this here
+			// TODO: Refactor sandbox_request_allocate to not add to global request queue and do this here
 		}
 	}
 
@@ -125,7 +126,7 @@ listener_thread_initialize(void)
 	cpu_set_t cs;
 
 	CPU_ZERO(&cs);
-	CPU_SET(LISTENER_THREAD__CORE_ID, &cs);
+	CPU_SET(LISTENER_THREAD_CORE_ID, &cs);
 
 	pthread_t listener_thread;
 	int       ret = pthread_create(&listener_thread, NULL, listener_thread_main, NULL);
@@ -252,8 +253,7 @@ worker_thread_process_io(void)
 /**
  * TODO: What is this doing?
  **/
-void __attribute__((noinline)) __attribute__((noreturn))
-worker_thread_sandbox_switch_preempt(void)
+void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void)
 {
 	pthread_kill(pthread_self(), SIGUSR1);
 
@@ -264,7 +264,7 @@ worker_thread_sandbox_switch_preempt(void)
 
 /**
  * Pulls up to 1..n sandbox requests, allocates them as sandboxes, sets them as runnable and places them on the local
- * runqueue, and then frees the sandbox requests The batch size pulled at once is set by SANDBOX__PULL_BATCH_SIZE
+ * runqueue, and then frees the sandbox requests The batch size pulled at once is set by SANDBOX_PULL_BATCH_SIZE
  * @return the number of sandbox requests pulled
  */
 static inline int
@@ -272,9 +272,9 @@ worker_thread_pull_and_process_sandbox_requests(void)
 {
 	int total_sandboxes_pulled = 0;
 
-	while (total_sandboxes_pulled < SANDBOX__PULL_BATCH_SIZE) {
+	while (total_sandboxes_pulled < SANDBOX_PULL_BATCH_SIZE) {
 		sandbox_request_t *sandbox_request;
-		if ((sandbox_request = sandbox_request__steal_from_dequeue()) == NULL) break;
+		if ((sandbox_request = sandbox_request_steal_from_dequeue()) == NULL) break;
 		// Actually allocate the sandbox for the requests that we've pulled
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request->module, sandbox_request->arguments,
 		                                           sandbox_request->socket_descriptor,

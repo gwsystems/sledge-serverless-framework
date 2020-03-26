@@ -183,7 +183,7 @@ i32
 wasm_open(i32 path_off, i32 flags, i32 mode)
 {
 	uv_fs_t req  = UV_FS_REQ_INIT();
-	char *  path = worker_thread_get_memory_string(path_off, MODULE__MAX_PATH_LENGTH);
+	char *  path = worker_thread_get_memory_string(path_off, MODULE_MAX_PATH_LENGTH);
 
 	int iofd = current_sandbox_initialize_io_handle();
 	if (iofd < 0) return -1;
@@ -296,7 +296,7 @@ struct wasm_stat {
 i32
 wasm_stat(u32 path_str_offset, i32 stat_offset)
 {
-	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE__MAX_PATH_LENGTH);
+	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
 	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
@@ -388,7 +388,7 @@ wasm_fstat(i32 filedes, i32 stat_offset)
 i32
 wasm_lstat(i32 path_str_offset, i32 stat_offset)
 {
-	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE__MAX_PATH_LENGTH);
+	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
 	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
@@ -521,12 +521,12 @@ wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	int                d    = current_sandbox_get_file_descriptor(file_descriptor);
 	struct wasm_iovec *iov  = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
-	for (int i = 0; i < iovcnt; i += RUNTIME__READ_WRITE_VECTOR_LENGTH) {
+	for (int i = 0; i < iovcnt; i += RUNTIME_READ_WRITE_VECTOR_LENGTH) {
 		uv_fs_t  req                                     = UV_FS_REQ_INIT();
-		uv_buf_t bufs[RUNTIME__READ_WRITE_VECTOR_LENGTH] = { 0 }; // avoid mallocs here!
+		uv_buf_t bufs[RUNTIME_READ_WRITE_VECTOR_LENGTH] = { 0 }; // avoid mallocs here!
 		int      j                                       = 0;
 
-		for (j = 0; j < RUNTIME__READ_WRITE_VECTOR_LENGTH && i + j < iovcnt; j++) {
+		for (j = 0; j < RUNTIME_READ_WRITE_VECTOR_LENGTH && i + j < iovcnt; j++) {
 			bufs[j] = uv_buf_init(worker_thread_get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len),
 			                      iov[i + j].len);
 		}
@@ -569,12 +569,12 @@ wasm_writev(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	int                gret = 0;
 	struct wasm_iovec *iov  = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
-	for (int i = 0; i < iovcnt; i += RUNTIME__READ_WRITE_VECTOR_LENGTH) {
+	for (int i = 0; i < iovcnt; i += RUNTIME_READ_WRITE_VECTOR_LENGTH) {
 		uv_fs_t  req                                     = UV_FS_REQ_INIT();
-		uv_buf_t bufs[RUNTIME__READ_WRITE_VECTOR_LENGTH] = { 0 }; // avoid mallocs here!
+		uv_buf_t bufs[RUNTIME_READ_WRITE_VECTOR_LENGTH] = { 0 }; // avoid mallocs here!
 		int      j                                       = 0;
 
-		for (j = 0; j < RUNTIME__READ_WRITE_VECTOR_LENGTH && i + j < iovcnt; j++) {
+		for (j = 0; j < RUNTIME_READ_WRITE_VECTOR_LENGTH && i + j < iovcnt; j++) {
 			bufs[j] = uv_buf_init(worker_thread_get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len),
 			                      iov[i + j].len);
 		}
@@ -666,7 +666,7 @@ wasm_getcwd(u32 buf_offset, u32 buf_size)
 u32
 wasm_unlink(u32 path_str_offset)
 {
-	char *  path = worker_thread_get_memory_string(path_str_offset, MODULE__MAX_PATH_LENGTH);
+	char *  path = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
 	uv_fs_t req  = UV_FS_REQ_INIT();
 	debuglog("[%p] start[%s]\n", uv_fs_get_data(&req), path);
 	uv_fs_unlink(worker_thread_get_libuv_handle(), &req, path, wasm_fs_callback);
@@ -878,7 +878,7 @@ wasm_bind(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 		debuglog("[%p] tcp\n", c);
 		int r1 = uv_tcp_bind((uv_tcp_t *)h, worker_thread_get_memory_ptr_void(sockaddr_offset, addrlen),
 		                     0 /* TODO: flags */);
-		if (file_descriptor == SANDBOX__FILE_DESCRIPTOR_PREOPEN_MAGIC) {
+		if (file_descriptor == SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC) {
 			int r2 = -1, f = -1;
 			r2 = uv_fileno((uv_handle_t *)h, &f);
 			debuglog("[%p] [%d,%d]\n", c, f, file_descriptor);
@@ -889,7 +889,7 @@ wasm_bind(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 		debuglog("[%p] udp\n", c);
 		int r1 = uv_udp_bind((uv_udp_t *)h, worker_thread_get_memory_ptr_void(sockaddr_offset, addrlen),
 		                     0 /* TODO: flags */);
-		if (file_descriptor == SANDBOX__FILE_DESCRIPTOR_PREOPEN_MAGIC) {
+		if (file_descriptor == SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC) {
 			int r2 = -1, f = -1;
 			r2 = uv_fileno((uv_handle_t *)h, &f);
 			debuglog("[%p] [%d,%d]\n", c, f, file_descriptor);

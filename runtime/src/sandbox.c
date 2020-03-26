@@ -7,6 +7,7 @@
 #include <uv.h>
 #include <libuv_callbacks.h>
 #include <current_sandbox.h>
+#include <util.h>
 
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
@@ -28,7 +29,7 @@ current_sandbox_setup_arguments(i32 argument_count)
 	i32  string_off = curr->arguments_offset + (argument_count * sizeof(i32));
 
 	for (int i = 0; i < argument_count; i++) {
-		char * arg    = arguments + (i * MODULE__MAX_ARGUMENT_SIZE);
+		char * arg    = arguments + (i * MODULE_MAX_ARGUMENT_SIZE);
 		size_t str_sz = strlen(arg) + 1;
 
 		array_ptr[i] = string_off;
@@ -108,38 +109,39 @@ current_sandbox_build_and_send_client_response(void)
 {
 	int             sndsz                  = 0;
 	struct sandbox *curr                   = current_sandbox_get();
-	int             response_header_length = strlen(HTTP__RESPONSE_200_OK) + strlen(HTTP__RESPONSE_CONTENT_TYPE)
-	                             + strlen(HTTP__RESPONSE_CONTENT_LENGTH);
+	int             response_header_length = strlen(HTTP_RESPONSE_200_OK) + strlen(HTTP_RESPONSE_CONTENT_TYPE)
+	                             + strlen(HTTP_RESPONSE_CONTENT_LENGTH);
 	int body_length = curr->request_response_data_length - response_header_length;
 
 	memset(curr->request_response_data, 0,
-	       strlen(HTTP__RESPONSE_200_OK) + strlen(HTTP__RESPONSE_CONTENT_TYPE)
-	         + strlen(HTTP__RESPONSE_CONTENT_LENGTH));
-	strncpy(curr->request_response_data, HTTP__RESPONSE_200_OK, strlen(HTTP__RESPONSE_200_OK));
-	sndsz += strlen(HTTP__RESPONSE_200_OK);
+	       strlen(HTTP_RESPONSE_200_OK) + strlen(HTTP_RESPONSE_CONTENT_TYPE)
+	         + strlen(HTTP_RESPONSE_CONTENT_LENGTH));
+	strncpy(curr->request_response_data, HTTP_RESPONSE_200_OK, strlen(HTTP_RESPONSE_200_OK));
+	sndsz += strlen(HTTP_RESPONSE_200_OK);
 
 	if (body_length == 0) goto done;
-	strncpy(curr->request_response_data + sndsz, HTTP__RESPONSE_CONTENT_TYPE, strlen(HTTP__RESPONSE_CONTENT_TYPE));
+	strncpy(curr->request_response_data + sndsz, HTTP_RESPONSE_CONTENT_TYPE, strlen(HTTP_RESPONSE_CONTENT_TYPE));
 	if (strlen(curr->module->response_content_type) <= 0) {
 		strncpy(curr->request_response_data + sndsz + strlen("Content-type: "),
-		        HTTP__RESPONSE_CONTENT_TYPE_PLAIN, strlen(HTTP__RESPONSE_CONTENT_TYPE_PLAIN));
+		        HTTP_RESPONSE_CONTENT_TYPE_PLAIN, strlen(HTTP_RESPONSE_CONTENT_TYPE_PLAIN));
 	} else {
 		strncpy(curr->request_response_data + sndsz + strlen("Content-type: "),
 		        curr->module->response_content_type, strlen(curr->module->response_content_type));
 	}
-	sndsz += strlen(HTTP__RESPONSE_CONTENT_TYPE);
+	sndsz += strlen(HTTP_RESPONSE_CONTENT_TYPE);
 	char len[10] = { 0 };
 	sprintf(len, "%d", body_length);
-	strncpy(curr->request_response_data + sndsz, HTTP__RESPONSE_CONTENT_LENGTH,
-	        strlen(HTTP__RESPONSE_CONTENT_LENGTH));
+	strncpy(curr->request_response_data + sndsz, HTTP_RESPONSE_CONTENT_LENGTH,
+	        strlen(HTTP_RESPONSE_CONTENT_LENGTH));
 	strncpy(curr->request_response_data + sndsz + strlen("Content-length: "), len, strlen(len));
-	sndsz += strlen(HTTP__RESPONSE_CONTENT_LENGTH);
+	sndsz += strlen(HTTP_RESPONSE_CONTENT_LENGTH);
 	sndsz += body_length;
 
 done:
 	assert(sndsz == curr->request_response_data_length);
 	// Get End Timestamp
-	curr->total_time = __getcycles() - curr->start_time;
+	curr->total_time = util_rdtsc() - curr->start_time;
+	printf("Function returned in %lu cycles\n", curr->total_time);
 
 #ifndef USE_HTTP_UVIO
 	int r = send(curr->client_socket_descriptor, curr->request_response_data, sndsz, 0);
@@ -205,8 +207,8 @@ current_sandbox_main(void)
 	current_sandbox->http_parser.data = current_sandbox;
 
 	// NOTE: if more headers, do offset by that!
-	int response_header_length = strlen(HTTP__RESPONSE_200_OK) + strlen(HTTP__RESPONSE_CONTENT_TYPE)
-	                             + strlen(HTTP__RESPONSE_CONTENT_LENGTH);
+	int response_header_length = strlen(HTTP_RESPONSE_200_OK) + strlen(HTTP_RESPONSE_CONTENT_TYPE)
+	                             + strlen(HTTP_RESPONSE_CONTENT_LENGTH);
 
 #ifdef USE_HTTP_UVIO
 
@@ -319,7 +321,7 @@ sandbox_allocate(struct module *module, char *arguments, int socket_descriptor, 
 	}
 	sandbox->client_socket_descriptor = socket_descriptor;
 	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
-	for (int i = 0; i < SANDBOX__MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
+	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
 	ps_list_init_d(sandbox);
 
 	// Setup the sandbox's context, stack, and instruction pointer

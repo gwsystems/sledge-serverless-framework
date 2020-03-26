@@ -21,8 +21,8 @@ i32 runtime_log_file_descriptor = -1;
 u32 runtime_total_online_processors                            = 0;
 u32 runtime_total_worker_processors                            = 0;
 u32 runtime_first_worker_processor                             = 0;
-int runtime_worker_threads_argument[WORKER_THREAD__CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
-pthread_t runtime_worker_threads[WORKER_THREAD__CORE_COUNT];
+int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
+pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
 
 /**
@@ -76,11 +76,11 @@ runtime_allocate_available_cores()
 	// If multicore, we'll pin one core as a listener and run sandbox threads on all others
 	if (runtime_total_online_processors > 1) {
 		runtime_first_worker_processor = 1;
-		// WORKER_THREAD__CORE_COUNT can be used as a cap on the number of cores to use
-		// But if there are few cores that WORKER_THREAD__CORE_COUNT, just use what is available
+		// WORKER_THREAD_CORE_COUNT can be used as a cap on the number of cores to use
+		// But if there are few cores that WORKER_THREAD_CORE_COUNT, just use what is available
 		u32 max_possible_workers        = runtime_total_online_processors - 1;
-		runtime_total_worker_processors = (max_possible_workers >= WORKER_THREAD__CORE_COUNT)
-		                                    ? WORKER_THREAD__CORE_COUNT
+		runtime_total_worker_processors = (max_possible_workers >= WORKER_THREAD_CORE_COUNT)
+		                                    ? WORKER_THREAD_CORE_COUNT
 		                                    : max_possible_workers;
 	} else {
 		// If single core, we'll do everything on CPUID 0
@@ -89,7 +89,7 @@ runtime_allocate_available_cores()
 	}
 	printf("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
 	         runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
-	         LISTENER_THREAD__CORE_ID);
+	         LISTENER_THREAD_CORE_ID);
 }
 
 #ifdef DEBUG
@@ -105,7 +105,7 @@ runtime_process_debug_log_behavior()
 	fclose(stdout);
 	fclose(stderr);
 	fclose(stdin);
-	runtime_log_file_descriptor = open(RUNTIME__LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
+	runtime_log_file_descriptor = open(RUNTIME_LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
 	if (runtime_log_file_descriptor < 0) {
 		perror("open");
 		exit(-1);
@@ -166,7 +166,7 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
-	memset(runtime_worker_threads, 0, sizeof(pthread_t) * WORKER_THREAD__CORE_COUNT);
+	memset(runtime_worker_threads, 0, sizeof(pthread_t) * WORKER_THREAD_CORE_COUNT);
 
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();

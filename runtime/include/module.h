@@ -6,8 +6,8 @@
 #include <types.h>
 
 struct module {
-	char                        name[MODULE__MAX_NAME_LENGTH];
-	char                        path[MODULE__MAX_PATH_LENGTH];
+	char                        name[MODULE_MAX_NAME_LENGTH];
+	char                        path[MODULE_MAX_PATH_LENGTH];
 	void *                      dynamic_library_handle; // Handle to the *.so of the serverless function
 	i32                         argument_count;
 	u32                         stack_size; // a specification?
@@ -27,15 +27,15 @@ struct module {
 	//	uv_handle_t srvuv;
 
 	unsigned long max_request_size;
-	char          request_headers[HTTP__MAX_HEADER_COUNT][HTTP__MAX_HEADER_LENGTH];
+	char          request_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
 	int           request_header_count;
-	char          request_content_type[HTTP__MAX_HEADER_VALUE_LENGTH];
+	char          request_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
 
 	// resp size including headers!
 	unsigned long max_response_size;
 	int           response_header_count;
-	char          response_content_type[HTTP__MAX_HEADER_VALUE_LENGTH];
-	char          response_headers[HTTP__MAX_HEADER_COUNT][HTTP__MAX_HEADER_LENGTH];
+	char          response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
+	char          response_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
 
 	// Equals the largest of either max_request_size or max_response_size
 	unsigned long max_request_or_response_size;
@@ -171,10 +171,10 @@ module_set_http_info(struct module *module, int request_count, char *request_hea
 {
 	assert(module);
 	module->request_header_count = request_count;
-	memcpy(module->request_headers, request_headers, HTTP__MAX_HEADER_LENGTH * HTTP__MAX_HEADER_COUNT);
+	memcpy(module->request_headers, request_headers, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 	strcpy(module->request_content_type, request_content_type);
 	module->response_header_count = response_count;
-	memcpy(module->response_headers, response_headers, HTTP__MAX_HEADER_LENGTH * HTTP__MAX_HEADER_COUNT);
+	memcpy(module->response_headers, response_headers, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 	strcpy(module->response_content_type, response_content_type);
 }
 
