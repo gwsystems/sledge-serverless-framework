@@ -21,7 +21,7 @@ DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
  * @param sandbox_request
  **/
 static inline int
-sandbox_request__push_to_dequeue(sandbox_request_t *sandbox_request)
+sandbox_request_push_to_dequeue(sandbox_request_t *sandbox_request)
 {
 	int return_code;
 
@@ -48,7 +48,7 @@ sandbox_request__push_to_dequeue(sandbox_request_t *sandbox_request)
  * @return the new sandbox request
  **/
 static inline sandbox_request_t *
-sandbox_request__allocate(struct module *module, char *arguments, int socket_descriptor,
+sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
                           const struct sockaddr *socket_address, u64 start_time)
 {
 	sandbox_request_t *sandbox_request = (sandbox_request_t *)malloc(sizeof(sandbox_request_t));
@@ -60,7 +60,7 @@ sandbox_request__allocate(struct module *module, char *arguments, int socket_des
 	sandbox_request->start_time        = start_time;
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
-	sandbox_request__push_to_dequeue(sandbox_request);
+	sandbox_request_push_to_dequeue(sandbox_request);
 	return sandbox_request;
 }
 
@@ -69,7 +69,7 @@ sandbox_request__allocate(struct module *module, char *arguments, int socket_des
  * @param sandbox_request the pointer which we want to set to the sandbox request
  **/
 static inline int
-sandbox_request__pop_from_dequeue(sandbox_request_t **sandbox_request)
+sandbox_request_pop_from_dequeue(sandbox_request_t **sandbox_request)
 {
 	int return_code;
 
@@ -100,12 +100,12 @@ sandbox_request__pop_from_dequeue(sandbox_request_t **sandbox_request)
  * @returns A Sandbox Request or NULL
  **/
 static inline sandbox_request_t *
-sandbox_request__steal_from_dequeue(void)
+sandbox_request_steal_from_dequeue(void)
 {
 	sandbox_request_t *sandbox_request = NULL;
 
 #if NCORES == 1
-	sandbox_request__pop_from_dequeue(&sandbox_request);
+	sandbox_request_pop_from_dequeue(&sandbox_request);
 #else
 	int r = deque_steal_sandbox(runtime_global_deque, &sandbox_request);
 	if (r) sandbox_request = NULL;

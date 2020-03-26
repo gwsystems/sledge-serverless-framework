@@ -64,8 +64,8 @@ http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t
 	struct http_request *http_request = &sandbox->http_request;
 
 	if (http_request->last_was_value) http_request->header_count++;
-	assert(http_request->header_count <= HTTP__MAX_HEADER_COUNT);
-	assert(length < HTTP__MAX_HEADER_LENGTH);
+	assert(http_request->header_count <= HTTP_MAX_HEADER_COUNT);
+	assert(length < HTTP_MAX_HEADER_LENGTH);
 
 	http_request->last_was_value                              = 0;
 	http_request->headers[http_request->header_count - 1].key = (char *)
@@ -89,8 +89,8 @@ http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t
 	struct http_request *http_request = &sandbox->http_request;
 
 	http_request->last_was_value = 1;
-	assert(http_request->header_count <= HTTP__MAX_HEADER_COUNT);
-	assert(length < HTTP__MAX_HEADER_VALUE_LENGTH);
+	assert(http_request->header_count <= HTTP_MAX_HEADER_COUNT);
+	assert(length < HTTP_MAX_HEADER_VALUE_LENGTH);
 
 	http_request->headers[http_request->header_count - 1].value = (char *)
 	  at; // it is from the sandbox's request_response_data, should persist.

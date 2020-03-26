@@ -64,7 +64,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (signal_info->si_code == SI_KERNEL) {
 			int rt = 0;
 			// deliver signal to all other runtime threads..
-			for (int i = 0; i < WORKER_THREAD__CORE_COUNT; i++) {
+			for (int i = 0; i < WORKER_THREAD_CORE_COUNT; i++) {
 				if (pthread_self() == runtime_worker_threads[i]) {
 					rt = 1;
 					continue;
@@ -161,8 +161,8 @@ software_interrupt_arm_timer(void)
 	struct itimerval interval_timer;
 
 	memset(&interval_timer, 0, sizeof(struct itimerval));
-	interval_timer.it_value.tv_usec    = SOFTWARE_INTERRUPT__TIME_TO_START_IN_USEC;
-	interval_timer.it_interval.tv_usec = SOFTWARE_INTERRUPT__INTERVAL_DURATION_IN_USEC;
+	interval_timer.it_value.tv_usec    = SOFTWARE_INTERRUPT_TIME_TO_START_IN_USEC;
+	interval_timer.it_interval.tv_usec = SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC;
 
 	int return_code = setitimer(ITIMER_REAL, &interval_timer, NULL);
 	if (return_code) {

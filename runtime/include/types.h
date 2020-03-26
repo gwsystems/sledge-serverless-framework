@@ -117,48 +117,48 @@ typedef enum
 #define debuglog(fmt, ...)
 #endif // DEBUG
 
-#define HTTP__MAX_HEADER_COUNT            16
-#define HTTP__MAX_HEADER_LENGTH           32
-#define HTTP__MAX_HEADER_VALUE_LENGTH     64
-#define HTTP__RESPONSE_200_OK             "HTTP/1.1 200 OK\r\n"
-#define HTTP__RESPONSE_CONTENT_LENGTH     "Content-length:             \r\n\r\n" // content body follows this
-#define HTTP__RESPONSE_CONTENT_TYPE       "Content-type:                                 \r\n"
-#define HTTP__RESPONSE_CONTENT_TYPE_PLAIN "text/plain"
+#define HTTP_MAX_HEADER_COUNT            16
+#define HTTP_MAX_HEADER_LENGTH           32
+#define HTTP_MAX_HEADER_VALUE_LENGTH     64
+#define HTTP_RESPONSE_200_OK             "HTTP/1.1 200 OK\r\n"
+#define HTTP_RESPONSE_CONTENT_LENGTH     "Content-length:             \r\n\r\n" // content body follows this
+#define HTTP_RESPONSE_CONTENT_TYPE       "Content-type:                                 \r\n"
+#define HTTP_RESPONSE_CONTENT_TYPE_PLAIN "text/plain"
 
-#define JSON__MAX_ELEMENT_COUNT 16   // Max number of elements defined in JSON
-#define JSON__MAX_ELEMENT_SIZE  1024 // Max size of a single module in JSON
+#define JSON_MAX_ELEMENT_COUNT 16   // Max number of elements defined in JSON
+#define JSON_MAX_ELEMENT_SIZE  1024 // Max size of a single module in JSON
 
-#define LISTENER_THREAD__CORE_ID          0 // Dedicated Listener Core
-#define LISTENER_THREAD__MAX_EPOLL_EVENTS 1024
+#define LISTENER_THREAD_CORE_ID          0 // Dedicated Listener Core
+#define LISTENER_THREAD_MAX_EPOLL_EVENTS 1024
 
-#define MODULE__DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
-#define MODULE__INITIALIZE_GLOBALS            "populate_globals"  // From Silverfish
-#define MODULE__INITIALIZE_MEMORY             "populate_memory"   // From Silverfish
-#define MODULE__INITIALIZE_TABLE              "populate_table"    // From Silverfish
-#define MODULE__INITIALIZE_LIBC               "wasmf___init_libc" // From Silverfish
-#define MODULE__MAIN                          "wasmf_main"        // From Silverfish
-#define MODULE__MAX_ARGUMENT_COUNT            16                  // Max number of arguments
-#define MODULE__MAX_ARGUMENT_SIZE             64                  // Max size of a single argument
-#define MODULE__MAX_MODULE_COUNT              128                 // Max number of modules
-#define MODULE__MAX_NAME_LENGTH               32                  // Max module name length
-#define MODULE__MAX_PATH_LENGTH               256                 // Max length of path string
-#define MODULE__MAX_PENDING_CLIENT_REQUESTS   1000
+#define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
+#define MODULE_INITIALIZE_GLOBALS            "populate_globals"  // From Silverfish
+#define MODULE_INITIALIZE_MEMORY             "populate_memory"   // From Silverfish
+#define MODULE_INITIALIZE_TABLE              "populate_table"    // From Silverfish
+#define MODULE_INITIALIZE_LIBC               "wasmf___init_libc" // From Silverfish
+#define MODULE_MAIN                          "wasmf_main"        // From Silverfish
+#define MODULE_MAX_ARGUMENT_COUNT            16                  // Max number of arguments
+#define MODULE_MAX_ARGUMENT_SIZE             64                  // Max size of a single argument
+#define MODULE_MAX_MODULE_COUNT              128                 // Max number of modules
+#define MODULE_MAX_NAME_LENGTH               32                  // Max module name length
+#define MODULE_MAX_PATH_LENGTH               256                 // Max length of path string
+#define MODULE_MAX_PENDING_CLIENT_REQUESTS   1000
 
-#define RUNTIME__LOG_FILE                  "awesome.log"
-#define RUNTIME__READ_WRITE_VECTOR_LENGTH  16
-#define RUNTIME__MAX_SANDBOX_REQUEST_COUNT (1 << 19) // random!
+#define RUNTIME_LOG_FILE                  "awesome.log"
+#define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
+#define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19) // random!
 
-#define SANDBOX__FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) // reads lol lol lol upside down
-#define SANDBOX__MAX_IO_HANDLE_COUNT           32
-#define SANDBOX__PULL_BATCH_SIZE               1 // Max # standboxes pulled onto the local runqueue in a single batch
+#define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) // reads lol lol lol upside down
+#define SANDBOX_MAX_IO_HANDLE_COUNT           32
+#define SANDBOX_PULL_BATCH_SIZE               1 // Max # standboxes pulled onto the local runqueue in a single batch
 
-#define SOFTWARE_INTERRUPT__TIME_TO_START_IN_USEC     (10 * 1000) // start timers 10 ms from now.
-#define SOFTWARE_INTERRUPT__INTERVAL_DURATION_IN_USEC (1000 * 5)  // and execute every 5ms
+#define SOFTWARE_INTERRUPT_TIME_TO_START_IN_USEC     (10 * 1000) // start timers 10 ms from now.
+#define SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC (1000 * 5)  // and execute every 5ms
 
 
 // If multicore, use all but the dedicated listener core
 // If there are fewer cores than this, main dynamically overrides this and uses all available
-#define WORKER_THREAD__CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
+#define WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
 
 
 #endif /* SFRT_TYPES_H */

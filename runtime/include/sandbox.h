@@ -53,7 +53,7 @@ struct sandbox {
 	void *arguments;        // arguments from request, must be of module->argument_count size.
 	i32   return_value;
 
-	struct sandbox_io_handle io_handles[SANDBOX__MAX_IO_HANDLE_COUNT];
+	struct sandbox_io_handle io_handles[SANDBOX_MAX_IO_HANDLE_COUNT];
 	struct sockaddr          client_address; // client requesting connection!
 	int                      client_socket_descriptor;
 	uv_tcp_t                 client_libuv_stream;
@@ -136,11 +136,11 @@ sandbox_initialize_io_handle(struct sandbox *sandbox)
 {
 	if (!sandbox) return -1;
 	int io_handle_index;
-	for (io_handle_index = 0; io_handle_index < SANDBOX__MAX_IO_HANDLE_COUNT; io_handle_index++) {
+	for (io_handle_index = 0; io_handle_index < SANDBOX_MAX_IO_HANDLE_COUNT; io_handle_index++) {
 		if (sandbox->io_handles[io_handle_index].file_descriptor < 0) break;
 	}
-	if (io_handle_index == SANDBOX__MAX_IO_HANDLE_COUNT) return -1;
-	sandbox->io_handles[io_handle_index].file_descriptor = SANDBOX__FILE_DESCRIPTOR_PREOPEN_MAGIC;
+	if (io_handle_index == SANDBOX_MAX_IO_HANDLE_COUNT) return -1;
+	sandbox->io_handles[io_handle_index].file_descriptor = SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC;
 	memset(&sandbox->io_handles[io_handle_index].libuv_handle, 0, sizeof(union uv_any_handle));
 	return io_handle_index;
 }
@@ -176,9 +176,9 @@ static inline int
 sandbox_set_file_descriptor(struct sandbox *sandbox, int io_handle_index, int file_descriptor)
 {
 	if (!sandbox) return -1;
-	if (io_handle_index >= SANDBOX__MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
+	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
 	if (file_descriptor < 0
-	    || sandbox->io_handles[io_handle_index].file_descriptor != SANDBOX__FILE_DESCRIPTOR_PREOPEN_MAGIC)
+	    || sandbox->io_handles[io_handle_index].file_descriptor != SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC)
 		return -1;
 	sandbox->io_handles[io_handle_index].file_descriptor = file_descriptor;
 	return io_handle_index;
@@ -194,7 +194,7 @@ static inline int
 sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index)
 {
 	if (!sandbox) return -1;
-	if (io_handle_index >= SANDBOX__MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
+	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
 	return sandbox->io_handles[io_handle_index].file_descriptor;
 }
 
@@ -206,7 +206,7 @@ sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index)
 static inline void
 sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
 {
-	if (io_handle_index >= SANDBOX__MAX_IO_HANDLE_COUNT || io_handle_index < 0) return;
+	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return;
 	// TODO: Do we actually need to call some sort of close function here?
 	sandbox->io_handles[io_handle_index].file_descriptor = -1;
 }
@@ -221,7 +221,7 @@ static inline union uv_any_handle *
 sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 {
 	if (!sandbox) return NULL;
-	if (io_handle_index >= SANDBOX__MAX_IO_HANDLE_COUNT || io_handle_index < 0) return NULL;
+	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return NULL;
 	return &sandbox->io_handles[io_handle_index].libuv_handle;
 }
 
