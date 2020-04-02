@@ -41,12 +41,6 @@ RUN apt-get update \
 	libuv1-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
-# Enable apache2 for svn
-RUN a2enmod dav
-RUN a2enmod dav_svn
-RUN service apache2 restart
-RUN pip3 install numpy
-
 # set to use our installed clang version
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100
 RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-8 100

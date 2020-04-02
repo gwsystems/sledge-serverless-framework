@@ -71,11 +71,6 @@ envsetup() {
   echo "Updating git submodules"
   git submodule update --init --recursive 2>/dev/null || :d
 
-  # Downstream fix to force use of https in the Wasmception Makefile
-  # TODO: Should this be moved upstream?
-  echo "Patching ${SYS_WASMCEPTION}/Makefile to use https:// in place of http://"
-  sed -i 's/http:\/\//https:\/\//' ${SYS_WASMCEPTION}/Makefile
-
   # As a user nicety, warn the user if awsm-dev is detected
   # This UX differs from detecting awsm, which immediately exits
   # This is disabled because it doesn't seem useful
