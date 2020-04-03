@@ -71,6 +71,10 @@ envsetup() {
   echo "Updating git submodules"
   git submodule update --init --recursive 2>/dev/null || :d
 
+  echo "Using Dockerfile.$(uname -m)"
+  rm -f Dockerfile
+  ln -s Dockerfile.$(uname -m) Dockerfile
+
   # As a user nicety, warn the user if awsm-dev is detected
   # This UX differs from detecting awsm, which immediately exits
   # This is disabled because it doesn't seem useful

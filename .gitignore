@@ -33,7 +33,6 @@
 *.out
 *.app
 *.i*86
-*.x86_64
 *.hex
 
 # Debug files
@@ -60,3 +59,6 @@ runtime/tests/tmp/
 
 # Editor Configs
 .vscode
+
+# Symlinks
+Dockerfile
