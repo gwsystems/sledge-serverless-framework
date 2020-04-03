@@ -4,13 +4,15 @@ RTDIR=src/
 CFILES=${RTDIR}/*.c ${RTDIR}/libc/*.c ${RTDIR}/memory/common.c
 RUNTIME=bin/awsmrt
 INC=include/
+ARCH := $(shell uname -m)
 
 OPTFLAGS = -O3
 OPTFLAGS += -flto -g
 LDFLAGS = -Wl,--export-dynamic -ldl -lm
 USE_MEM = USE_MEM_VM
 CFLAGS = ${OPTFLAGS} -D${USE_MEM} -I${INC} -pthread
-CFLAGS += -DX86_64 
+CFLAGS += -D${ARCH}
+CFILES += ${RTDIR}/arch/${ARCH}/*.c
 #CFLAGS += -DDEBUG 
 CFLAGS += -D_GNU_SOURCE
 #CFLAGS += -DLOG_TO_FILE

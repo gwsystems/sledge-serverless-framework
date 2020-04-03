@@ -6,7 +6,6 @@
 #include <signal.h>
 #include <uv.h>
 #include <libuv_callbacks.h>
-#include <util.h>
 #include <current_sandbox.h>
 
 /**
@@ -140,8 +139,7 @@ current_sandbox_build_and_send_client_response(void)
 done:
 	assert(sndsz == curr->request_response_data_length);
 	// Get End Timestamp
-	curr->total_time = util__rdtsc() - curr->start_time;
-	printf("Function returned in %lu cycles\n", curr->total_time);
+	curr->total_time = __getcycles() - curr->start_time;
 
 #ifndef USE_HTTP_UVIO
 	int r = send(curr->client_socket_descriptor, curr->request_response_data, sndsz, 0);

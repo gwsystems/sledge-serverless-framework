@@ -87,7 +87,7 @@ runtime_allocate_available_cores()
 		runtime_first_worker_processor  = 0;
 		runtime_total_worker_processors = 1;
 	}
-	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
+	printf("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
 	         runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
 	         LISTENER_THREAD__CORE_ID);
 }
@@ -138,6 +138,7 @@ runtime_start_runtime_worker_threads()
 		assert(ret == 0);
 	}
 	debuglog("Sandboxing environment ready!\n");
+	printf("aWsm runtime ready!\n");
 
 	for (int i = 0; i < runtime_total_worker_processors; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);
@@ -159,7 +160,7 @@ main(int argc, char **argv)
 	runtime_process_debug_log_behavior();
 #endif
 
-	printf("Starting Awsm\n");
+	printf("Initializing the runtime\n");
 	if (argc != 2) {
 		runtime_usage(argv[0]);
 		exit(-1);
@@ -177,6 +178,8 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
+	printf("Starting listener thread\n");
 	listener_thread_initialize();
+	printf("Starting worker threads\n");
 	runtime_start_runtime_worker_threads();
 }

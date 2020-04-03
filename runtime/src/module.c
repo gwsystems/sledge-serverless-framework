@@ -7,7 +7,6 @@
 #include <module.h>
 #include <module_database.h>
 #include <runtime.h>
-#include <util.h>
 
 /***************************************
  * Private Static Inline
@@ -269,7 +268,6 @@ module_new_from_json(char *file_name)
 				is_active = (strcmp(val, "yes") == 0);
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
 				relative_deadline_us = atoi(val);
-				printf("Set relative deadline to %d us\n", relative_deadline_us);
 			} else if (strcmp(key, "http-req-headers") == 0) {
 				assert(tokens[i + j + 1].type == JSMN_ARRAY);
 				assert(tokens[i + j + 1].size <= HTTP__MAX_HEADER_COUNT);

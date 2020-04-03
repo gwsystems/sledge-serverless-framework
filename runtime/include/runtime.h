@@ -71,4 +71,6 @@ worker_thread_get_libuv_handle(void)
 	return &worker_thread_uvio_handle;
 }
 
+unsigned long long __getcycles(void);
+
 #endif /* SFRT_RUNTIME_H */

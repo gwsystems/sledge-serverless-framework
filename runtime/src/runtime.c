@@ -22,7 +22,6 @@
 #include <sandbox_request.h>
 #include <software_interrupt.h>
 #include <types.h>
-#include <util.h>
 
 /***************************
  * Shared Process State    *
@@ -84,7 +83,7 @@ listener_thread_main(void *dummy)
 	while (true) {
 		int request_count = epoll_wait(runtime_epoll_file_descriptor, epoll_events,
 		                               LISTENER_THREAD__MAX_EPOLL_EVENTS, -1);
-		u64 start_time    = util__rdtsc();
+		u64 start_time    = __getcycles();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
@@ -102,7 +101,6 @@ listener_thread_main(void *dummy)
 				assert(0);
 			}
 			total_requests++;
-			printf("Received Request %d at %lu\n", total_requests, start_time);
 
 			sandbox_request_t *sandbox_request =
 			  sandbox_request__allocate(module, module->name, socket_descriptor,
@@ -254,7 +252,8 @@ worker_thread_process_io(void)
 /**
  * TODO: What is this doing?
  **/
-void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void)
+void __attribute__((noinline)) __attribute__((noreturn))
+worker_thread_sandbox_switch_preempt(void)
 {
 	pthread_kill(pthread_self(), SIGUSR1);
 
