@@ -37,7 +37,7 @@ clean:
 	@echo "Compiling $(@:%_sf=%)"
 	${WASMCC} ${$(@:%_sf=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} ${BENCH_DIR}/$(@:%_sf=%)/*.c $(DUMMY) -o ${TMP_DIR}/$(@:%_sf=%).wasm
 	${SFCC} ${TMP_DIR}/$(@:%_sf=%).wasm -o ${TMP_DIR}/$(@:%_sf=%).bc
-	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} ${TMP_DIR}/$(@:%_sf=%).bc ${MEMC} ${RT_LIBC} ${RT_RT} -lm -o ${TMP_DIR}/$(@:%_sf=%)_wasm.out
+	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} -D${ARCH} ${TMP_DIR}/$(@:%_sf=%).bc ${MEMC} ${RT_LIBC} ${RT_ENV} ${RT_RT} -lm -o ${TMP_DIR}/$(@:%_sf=%)_wasm.out
 	${SFCC} --inline-constant-globals --runtime-globals ${TMP_DIR}/$(@:%_sf=%).wasm -o ${TMP_DIR}/$(@:%_sf=%).bc
 	${CC} --shared -fPIC ${OPTFLAGS} -I${ART_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_sf=%).bc ${AMEMC} ${WASMISA} -lm -o ${TMP_DIR}/$(@:%_sf=%)_wasm.so
 	@cp ${TMP_DIR}/$(@:%_sf=%)_wasm.so ${ABIN_DIR} 
@@ -48,7 +48,7 @@ clean:
 	@echo "Compiling $(@:%_rt=%)"
 	${WASMCC} ${$(@:%_rt=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} $(@:%_rt=%)/*.c $(DUMMY) -o ${TMP_DIR}/$(@:%_rt=%).wasm
 	${SFCC} ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
-	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${MEMC} ${RT_LIBC} ${RT_RT} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.out
+	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} -D${ARCH} ${TMP_DIR}/$(@:%_rt=%).bc ${MEMC} ${RT_LIBC} ${RT_ENV} ${RT_RT} -lm -o ${TMP_DIR}/$(@:%_rt=%)_wasm.out
 	${SFCC} --inline-constant-globals --runtime-globals ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
 	${CC} --shared -fPIC ${OPTFLAGS} -I${ART_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${AMEMC} ${WASMISA} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.so
 	@cp ${TMP_DIR}/$(@:%_rt=%)_wasm.so ${ABIN_DIR} 

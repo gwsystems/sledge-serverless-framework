@@ -2,6 +2,7 @@ BASE=awsm
 SFCC=silverfish
 CC=clang
 WASMCC=wasm32-unknown-unknown-wasm-clang
+ARCH := $(shell uname -m)
 
 OPTFLAGS=-O3 -flto
 #same stack-size for all
@@ -19,6 +20,7 @@ RT_DIR=${BASE_DIR}/runtime/
 RT_MEM=${RT_DIR}/memory/
 RT_LIBC=${RT_DIR}/libc/libc_backing.c
 RT_RT=${RT_DIR}/runtime.c
+RT_ENV=${RT_DIR}/libc/env_${ARCH}.c
 
 MEMC=${RT_MEM}/${MEMC_64}
 DUMMY=${BASE_DIR}/code_benches/dummy.c
