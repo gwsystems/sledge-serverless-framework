@@ -3,8 +3,17 @@
 	url = https://github.com/gparmer/silverfish.git
 	ignore = dirty
 [submodule "runtime/jsmn"]
-	path = runtime/jsmn
-	url = https://github.com/zserge/jsmn.git
+	path = runtime/thirdparty/jsmn
+	url = https://github.com/gwsystems/jsmn.git
 [submodule "runtime/http-parser"]
-	path = runtime/http-parser
-	url = https://github.com/nodejs/http-parser.git
+	path = runtime/thirdparty/http-parser
+	url = https://github.com/gwsystems/http-parser.git
+[submodule "runtime/thirdparty/http-parser"]
+	path = runtime/thirdparty/http-parser
+	url = https://github.com/gwsystems/http-parser.git
+[submodule "runtime/thirdparty/jsmn"]
+	path = runtime/thirdparty/jsmn
+	url = https://github.com/gwsystems/jsmn.git
+[submodule "runtime/thirdparty/ck"]
+	path = runtime/thirdparty/ck
+	url = https://github.com/gwsystems/ck.git

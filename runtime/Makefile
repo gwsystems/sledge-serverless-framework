@@ -28,16 +28,17 @@ CFLAGS += -DNCORES=${NCORES_CONF}
 CFLAGS += -DPAGE_SIZE=$(shell getconf PAGESIZE)
 
 MAKE= make --no-print-directory
+THIRDPARTY=thirdparty
 
-JSMN=jsmn
-JSMNINC=-I${JSMN}
-JSMNCFLAGS=${JSMNINC} -DJSMN_STATIC -DJSMN_STRICT
+THIRDPARTY_DIST=${THIRDPARTY}/dist/
+THIRDPARTY_INC=${THIRDPARTY_DIST}/include/
+THIRDPARTY_LIB=${THIRDPARTY_DIST}/lib/
+LDFLAGS += -L${THIRDPARTY_LIB}
+CFLAGS += -I${THIRDPARTY_INC}
 
-HTTPPARSE=http-parser
-HTTPPARSEINC=-I${HTTPPARSE}
-HTTPPARSESRC=${HTTPPARSE}/http_parser.c
-HTTPPARSECFLAGS=${HTTPPARSEINC}
-CFILES += ${HTTPPARSESRC}
+JSMNCFLAGS=-DJSMN_STATIC -DJSMN_STRICT
+HTTPPARSEOBJ=${THIRDPARTY_LIB}/http_parser.o
+CFILES += ${HTTPPARSEOBJ}
 
 ifeq ($(USE_MEM),USE_MEM_GENERIC)
 CFILES += ${RTDIR}/memory/generic.c
@@ -45,12 +46,16 @@ else ifeq ($(USE_MEM),USE_MEM_VM)
 CFILES += ${RTDIR}/memory/64bit_nix.c
 endif
 
-all: clean runtime #tools
+all: clean runtime
 
 runtime:
 	@echo "Compiling runtime"
 	@mkdir -p bin/
 	@${CC} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} ${HTTPPARSECFLAGS} -L/usr/lib/ -luv $^ -o ${RUNTIME}
+
+thirdparty:
+	@echo "Compiling thirdparty"
+	@${MAKE} -C thirdparty build
 
 tools:
 #	@echo "Compiling tools"
@@ -61,11 +66,14 @@ clean:
 	@echo "Cleaning up runtime"
 	@rm -f ${RUNTIME}
 #	@echo "Cleaning up tools"
-	@${MAKE} -C tools clean
+#	@${MAKE} -C tools clean
+
+distclean: clean
+	@${MAKE} -C thirdparty clean
 
 fetch:
 	@git submodule update --init --recursive
 
-init: fetch clean runtime tools
+init: fetch clean thirdparty runtime
 
-.PHONY: all init clean fetch libuv runtime tools
+.PHONY: all init clean fetch thirdparty runtime tools

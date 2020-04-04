@@ -62,3 +62,6 @@ runtime/tests/tmp/
 
 # Symlinks
 Dockerfile
+
+# Others
+runtime/thirdparty/dist/
