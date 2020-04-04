@@ -10,10 +10,4 @@ __getcycles(void)
 	return virtual_timer_value;
 }
 
-INLINE unsigned long long
-env_getcycles(void)
-{
-        return __getcycles();
-}
-
 #endif

@@ -20,7 +20,7 @@ RT_DIR=${BASE_DIR}/runtime/
 RT_MEM=${RT_DIR}/memory/
 RT_LIBC=${RT_DIR}/libc/libc_backing.c
 RT_RT=${RT_DIR}/runtime.c
-RT_ENV=${RT_DIR}/libc/env_${ARCH}.c
+RT_ENV=${RT_DIR}/libc/env.c ${RT_DIR}/libc/env_${ARCH}.c
 
 MEMC=${RT_MEM}/${MEMC_64}
 DUMMY=${BASE_DIR}/code_benches/dummy.c
