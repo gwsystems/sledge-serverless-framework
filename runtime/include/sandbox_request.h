@@ -50,7 +50,7 @@ sandbox_request_push_to_dequeue(sandbox_request_t *sandbox_request)
  **/
 static inline sandbox_request_t *
 sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
-                          const struct sockaddr *socket_address, u64 start_time)
+                         const struct sockaddr *socket_address, u64 start_time)
 {
 	sandbox_request_t *sandbox_request = (sandbox_request_t *)malloc(sizeof(sandbox_request_t));
 	assert(sandbox_request);
@@ -61,7 +61,8 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->start_time        = start_time;
 	sandbox_request->absolute_deadline = start_time + module->relative_deadline_us * runtime_processor_speed_MHz;
 
-	printf("Set absolute deadline of %lu\n", sandbox_request->absolute_deadline);
+	// TODO: Refactor to log file
+	// printf("Set absolute deadline of %lu\n", sandbox_request->absolute_deadline);
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
 	sandbox_request_push_to_dequeue(sandbox_request);

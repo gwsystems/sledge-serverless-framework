@@ -18,10 +18,11 @@
 i32 runtime_log_file_descriptor = -1;
 #endif
 
-u32 runtime_total_online_processors                           = 0;
-u32 runtime_total_worker_processors                           = 0;
-u32 runtime_first_worker_processor                            = 0;
-int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
+float runtime_processor_speed_MHz                               = 0;
+u32   runtime_total_online_processors                           = 0;
+u32   runtime_total_worker_processors                           = 0;
+u32   runtime_first_worker_processor                            = 0;
+int   runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
 
