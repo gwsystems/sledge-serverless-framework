@@ -27,12 +27,17 @@ wclean:
 	@echo "Cleaning wasmception toolchain"
 	@cd ${SFCC} && make -C wasmception clean && cd ${ROOT}
 
+.PHONY: rtinit
+rtinit:
+	@echo "Building runtime for the first time!"
+	make -C runtime init
+
 .PHONY: runtime
 runtime:
 	@echo "Building runtime!"
 	make -C runtime
 
 .PHONY: install
-install: build
+install: build rtinit
 	@./install.sh wasmception
 
