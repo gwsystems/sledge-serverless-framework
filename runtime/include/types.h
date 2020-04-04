@@ -23,16 +23,11 @@
 #define INLINE __attribute__((always_inline))
 #define WEAK   __attribute__((weak))
 
-#ifndef CACHELINE_SIZE
-#define CACHELINE_SIZE 32
-#endif
-
 #ifndef PAGE_SIZE
 #define PAGE_SIZE (1 << 12)
 #endif
 
-#define CACHE_ALIGNED __attribute__((aligned(CACHELINE_SIZE)))
-#define PAGE_ALIGNED  __attribute__((aligned(PAGE_SIZE)))
+#define PAGE_ALIGNED __attribute__((aligned(PAGE_SIZE)))
 
 /* For this family of macros, do NOT pass zero as the pow2 */
 #define round_to_pow2(x, pow2)    (((unsigned long)(x)) & (~((pow2)-1)))
@@ -89,15 +84,6 @@ typedef void (*mod_glb_fn_t)(void);
 typedef void (*mod_mem_fn_t)(void);
 typedef void (*mod_tbl_fn_t)(void);
 typedef void (*mod_libc_fn_t)(i32, i32);
-
-typedef enum
-{
-	MOD_ARG_MODPATH = 0,
-	MOD_ARG_MODPORT,
-	MOD_ARG_MODNAME,
-	MOD_ARG_MODNARGS,
-	MOD_ARG_MAX,
-} mod_argindex_t;
 
 /**
  * debuglog is a macro that behaves based on the macros DEBUG and LOG_TO_FILE
