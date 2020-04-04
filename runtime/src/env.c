@@ -1,7 +1,6 @@
 /* https://github.com/gwsystems/silverfish/blob/master/runtime/libc/libc_backing.c */
 #include <runtime.h>
 #include <ck_pr.h>
-#include <util.h>
 
 extern i32 inner_syscall_handler(i32 n, i32 a, i32 b, i32 c, i32 d, i32 e, i32 f);
 
@@ -151,5 +150,5 @@ env_cos(double d)
 INLINE unsigned long long
 env_getcycles(void)
 {
-	return util_rdtsc();
+	return __getcycles();
 }

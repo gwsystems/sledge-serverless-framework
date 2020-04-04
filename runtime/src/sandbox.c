@@ -7,7 +7,6 @@
 #include <uv.h>
 #include <libuv_callbacks.h>
 #include <current_sandbox.h>
-#include <util.h>
 
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
@@ -140,7 +139,7 @@ current_sandbox_build_and_send_client_response(void)
 done:
 	assert(sndsz == curr->request_response_data_length);
 	// Get End Timestamp
-	curr->total_time = util_rdtsc() - curr->start_time;
+	curr->total_time = __getcycles() - curr->start_time;
 	printf("Function returned in %lu cycles\n", curr->total_time);
 
 #ifndef USE_HTTP_UVIO

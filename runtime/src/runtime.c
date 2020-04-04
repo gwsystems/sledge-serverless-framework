@@ -22,7 +22,6 @@
 #include <sandbox_request.h>
 #include <software_interrupt.h>
 #include <types.h>
-#include <util.h>
 
 /***************************
  * Shared Process State    *
@@ -84,7 +83,7 @@ listener_thread_main(void *dummy)
 	while (true) {
 		int request_count = epoll_wait(runtime_epoll_file_descriptor, epoll_events,
 		                               LISTENER_THREAD_MAX_EPOLL_EVENTS, -1);
-		u64 start_time    = util_rdtsc();
+		u64 start_time    = __getcycles();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
