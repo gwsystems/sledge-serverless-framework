@@ -20,6 +20,7 @@
 #include <module.h>
 #include <sandbox.h>
 #include <sandbox_request.h>
+#include <sandbox_request_queue.h>
 #include <software_interrupt.h>
 #include <types.h>
 
@@ -27,10 +28,8 @@
  * Shared Process State    *
  **************************/
 
-struct deque_sandbox *runtime_global_deque;
-pthread_mutex_t       runtime_global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
-int                   runtime_epoll_file_descriptor;
-http_parser_settings  runtime_http_parser_settings;
+int                  runtime_epoll_file_descriptor;
+http_parser_settings runtime_http_parser_settings;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -46,10 +45,7 @@ runtime_initialize(void)
 	assert(runtime_epoll_file_descriptor >= 0);
 
 	// Allocate and Initialize the global deque
-	runtime_global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
-	assert(runtime_global_deque);
-	// Note: Below is a Macro
-	deque_init_sandbox(runtime_global_deque, RUNTIME_MAX_SANDBOX_REQUEST_COUNT);
+	sandbox_request_queue_initialize();
 
 	// Mask Signals
 	software_interrupt_mask_signal(SIGUSR1);
@@ -106,8 +102,7 @@ listener_thread_main(void *dummy)
 			  sandbox_request_allocate(module, module->name, socket_descriptor,
 			                           (const struct sockaddr *)&client_address, start_time);
 			assert(sandbox_request);
-
-			// TODO: Refactor sandbox_request_allocate to not add to global request queue and do this here
+			sandbox_request_queue_add(sandbox_request);
 		}
 	}
 
@@ -273,7 +268,7 @@ worker_thread_pull_and_process_sandbox_requests(void)
 
 	while (total_sandboxes_pulled < SANDBOX_PULL_BATCH_SIZE) {
 		sandbox_request_t *sandbox_request;
-		if ((sandbox_request = sandbox_request_steal_from_dequeue()) == NULL) break;
+		if ((sandbox_request = sandbox_request_queue_remove()) == NULL) break;
 		// Actually allocate the sandbox for the requests that we've pulled
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request->module, sandbox_request->arguments,
 		                                           sandbox_request->socket_descriptor,
