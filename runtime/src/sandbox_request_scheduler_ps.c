@@ -44,9 +44,6 @@ sandbox_request_scheduler_ps_initialize()
 	// Initialize local state
 	priority_queue_initialize(&sandbox_request_scheduler_ps, sandbox_request_get_priority);
 
-	// TODO
-
-
 	// Register Function Pointers for Abstract Scheduling API
 	sandbox_request_scheduler_config_t config = { .add    = sandbox_request_scheduler_ps_add,
 		                                      .remove = sandbox_request_scheduler_ps_remove };
