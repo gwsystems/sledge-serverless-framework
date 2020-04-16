@@ -20,7 +20,8 @@
 #include <module.h>
 #include <sandbox.h>
 #include <sandbox_request.h>
-#include <sandbox_request_scheduler_fifo.h>
+// #include <sandbox_request_scheduler_fifo.h>
+#include <sandbox_request_scheduler_ps.h>
 #include <software_interrupt.h>
 #include <types.h>
 
@@ -45,7 +46,8 @@ runtime_initialize(void)
 	assert(runtime_epoll_file_descriptor >= 0);
 
 	// Allocate and Initialize the global deque
-	sandbox_request_scheduler_fifo_initialize();
+	// sandbox_request_scheduler_fifo_initialize();
+	sandbox_request_scheduler_ps_initialize();
 
 	// Mask Signals
 	software_interrupt_mask_signal(SIGUSR1);

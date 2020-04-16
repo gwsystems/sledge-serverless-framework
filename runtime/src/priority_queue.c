@@ -174,6 +174,14 @@ priority_queue_enqueue(struct priority_queue *self, void *value)
 	return rc;
 }
 
+static bool
+priority_queue_is_empty(struct priority_queue *self)
+{
+	assert(self != NULL);
+	assert(self->first_free != 0);
+	return self->first_free == 1;
+}
+
 /**
  * @param self - the priority queue we want to add to
  * @returns The head of the priority queue or NULL when empty
@@ -183,23 +191,21 @@ priority_queue_dequeue(struct priority_queue *self)
 {
 	assert(self != NULL);
 	assert(self->get_priority != NULL);
-	// If first_free is 1, we're empty
-	if (self->first_free == 1) return NULL;
-
+	if (priority_queue_is_empty(self)) return NULL;
 	if (ck_spinlock_fas_trylock(&self->lock) == false) return NULL;
 	// Start of Critical Section
-	void *min                         = self->items[1];
-	self->items[1]                    = self->items[self->first_free - 1];
-	self->items[self->first_free - 1] = NULL;
-	self->first_free--;
-	assert(self->first_free == 1 || self->items[self->first_free - 1] != NULL);
-	// Because of 1-based indices, first_free is 2 when there is only one element
-	if (self->first_free > 2) priority_queue_percolate_down(self);
+	void *min = NULL;
+	if (!priority_queue_is_empty(self)) {
+		min                               = self->items[1];
+		self->items[1]                    = self->items[self->first_free - 1];
+		self->items[self->first_free - 1] = NULL;
+		self->first_free--;
+		// Because of 1-based indices, first_free is 2 when there is only one element
+		if (self->first_free > 2) priority_queue_percolate_down(self);
 
-	if (self->first_free > 1) {
-		self->highest_priority = self->get_priority(self->items[1]);
-	} else {
-		self->highest_priority = ULONG_MAX;
+		// Update the highest priority
+		self->highest_priority = !priority_queue_is_empty(self) ? self->get_priority(self->items[1])
+		                                                        : ULONG_MAX;
 	}
 	ck_spinlock_fas_unlock(&self->lock);
 	// End of Critical Section
