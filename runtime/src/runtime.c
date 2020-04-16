@@ -87,7 +87,7 @@ listener_thread_main(void *dummy)
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
-				assert(0);
+				assert(false);
 			}
 
 			struct sockaddr_in client_address;
@@ -98,7 +98,7 @@ listener_thread_main(void *dummy)
 			int socket_descriptor = accept(es, (struct sockaddr *)&client_address, &client_length);
 			if (socket_descriptor < 0) {
 				perror("accept");
-				assert(0);
+				assert(false);
 			}
 			total_requests++;
 
@@ -152,7 +152,7 @@ __thread arch_context_t worker_thread_base_context;
 __thread uv_loop_t worker_thread_uvio_handle;
 
 // Flag to signify if the thread is currently running callbacks in the libuv event loop
-static __thread unsigned int worker_thread_is_in_callback;
+static __thread bool worker_thread_is_in_callback;
 
 
 /**************************************************
@@ -205,7 +205,7 @@ done:
 void
 worker_thread_block_current_sandbox(void)
 {
-	assert(worker_thread_is_in_callback == 0);
+	assert(worker_thread_is_in_callback == false);
 	software_interrupt_disable();
 	struct sandbox *current_sandbox = current_sandbox_get();
 	ps_list_rem_d(current_sandbox);
@@ -234,7 +234,7 @@ worker_thread_process_io(void)
 	worker_thread_block_current_sandbox();
 #endif /* USE_HTTP_UVIO */
 #else
-	assert(0);
+	assert(false);
 	// it should not be called if not using uvio for http
 #endif
 }
@@ -246,7 +246,7 @@ void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_s
 {
 	pthread_kill(pthread_self(), SIGUSR1);
 
-	assert(0); // should not get here..
+	assert(false); // should not get here..
 	while (true)
 		;
 }
@@ -283,13 +283,13 @@ worker_thread_pull_and_process_sandbox_requests(void)
 void
 worker_thread_execute_libuv_event_loop(void)
 {
-	worker_thread_is_in_callback = 1;
+	worker_thread_is_in_callback = true;
 	int n = uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT), i = 0;
 	while (n > 0) {
 		n--;
 		uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT);
 	}
-	worker_thread_is_in_callback = 0;
+	worker_thread_is_in_callback = false;
 }
 
 /**
@@ -348,14 +348,14 @@ worker_thread_main(void *return_code)
 
 	sandbox_run_queue_initialize();
 	sandbox_completion_queue_initialize();
-	software_interrupt_is_disabled = 0;
+	software_interrupt_is_disabled = false;
 	worker_thread_next_context     = NULL;
 #ifndef PREEMPT_DISABLE
 	software_interrupt_unmask_signal(SIGALRM);
 	software_interrupt_unmask_signal(SIGUSR1);
 #endif
 	uv_loop_init(&worker_thread_uvio_handle);
-	worker_thread_is_in_callback = 0;
+	worker_thread_is_in_callback = false;
 
 	while (true) {
 		worker_thread_execute_runtime_maintenance();
