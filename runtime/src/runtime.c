@@ -325,26 +325,17 @@ worker_thread_get_next_sandbox(int in_interrupt)
 }
 
 /**
- * Tries to free a completed request, executes libuv callbacks, and then gets
- * and returns the standbox at the head of the thread-local runqueue
+ * Tries to free a completed request, executes libuv callbacks
  * @return sandbox or NULL
  **/
-static inline struct sandbox *
-worker_thread_execute_runtime_maintenance_and_get_next_sandbox(void)
+static inline void
+worker_thread_execute_runtime_maintenance(void)
 {
 	assert(current_sandbox_get() == NULL);
-	// Try to free one sandbox from the completion queue
 	sandbox_completion_queue_free(1);
-	// Execute libuv callbacks
 	if (!worker_thread_is_in_callback) worker_thread_execute_libuv_event_loop();
-
-	// Get and return the sandbox at the head of the thread local runqueue
-	software_interrupt_disable();
-	struct sandbox *sandbox = worker_thread_get_next_sandbox(0);
-	software_interrupt_enable();
-	assert(sandbox == NULL || sandbox->state == RUNNABLE);
-	return sandbox;
 }
+
 
 /**
  * The entry function for sandbox worker threads
@@ -368,10 +359,18 @@ worker_thread_main(void *return_code)
 	worker_thread_is_in_callback = 0;
 
 	while (true) {
-		struct sandbox *sandbox = worker_thread_execute_runtime_maintenance_and_get_next_sandbox();
+		worker_thread_execute_runtime_maintenance();
+		software_interrupt_disable();
+		struct sandbox *sandbox = worker_thread_get_next_sandbox(0);
+		software_interrupt_enable();
+		assert(sandbox == NULL || sandbox->state == RUNNABLE);
 		while (sandbox) {
 			worker_thread_switch_to_sandbox(sandbox);
-			sandbox = worker_thread_execute_runtime_maintenance_and_get_next_sandbox();
+			worker_thread_execute_runtime_maintenance();
+			software_interrupt_disable();
+			sandbox = worker_thread_get_next_sandbox(0);
+			software_interrupt_enable();
+			assert(sandbox == NULL || sandbox->state == RUNNABLE);
 		}
 	}
 
