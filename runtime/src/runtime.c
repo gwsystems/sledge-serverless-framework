@@ -22,6 +22,7 @@
 #include <sandbox_request.h>
 // #include <sandbox_request_scheduler_fifo.h>
 #include <sandbox_request_scheduler_ps.h>
+#include <sandbox_run_queue.h>
 #include <software_interrupt.h>
 #include <types.h>
 
@@ -140,7 +141,6 @@ listener_thread_initialize(void)
  * Worker Thread State     *
  **************************/
 
-__thread static struct ps_list_head worker_thread_run_queue;
 __thread static struct ps_list_head worker_thread_completion_queue;
 
 // current sandbox that is active..
@@ -199,7 +199,7 @@ worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 	assert(sandbox->state == BLOCKED);
 	assert(ps_list_singleton_d(sandbox));
 	sandbox->state = RUNNABLE;
-	ps_list_head_append_d(&worker_thread_run_queue, sandbox);
+	sandbox_run_queue_append(sandbox);
 done:
 	software_interrupt_enable();
 }
@@ -280,7 +280,7 @@ worker_thread_pull_and_process_sandbox_requests(void)
 		free(sandbox_request);
 		// Set the sandbox as runnable and place on the local runqueue
 		sandbox->state = RUNNABLE;
-		worker_thread_push_sandbox_to_run_queue(sandbox);
+		sandbox_run_queue_append(sandbox);
 		total_sandboxes_pulled++;
 	}
 
@@ -302,18 +302,6 @@ worker_thread_execute_libuv_event_loop(void)
 	worker_thread_is_in_callback = 0;
 }
 
-/**
- * Append the sandbox to the worker_thread_run_queue
- * @param sandbox sandbox to add
- */
-static inline void
-worker_thread_push_sandbox_to_run_queue(struct sandbox *sandbox)
-{
-	assert(ps_list_singleton_d(sandbox));
-	// fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s,
-	// s->module->name);
-	ps_list_head_append_d(&worker_thread_run_queue, sandbox);
-}
 
 /**
  * Removes the thread from the thread-local runqueue
@@ -336,7 +324,7 @@ worker_thread_get_next_sandbox(int in_interrupt)
 {
 	// If the thread local runqueue is empty and we're not running in the context of an interupt,
 	// pull a fresh batch of sandbox requests from the global queue
-	if (ps_list_head_empty(&worker_thread_run_queue)) {
+	if (sandbox_run_queue_is_empty()) {
 		// this is in an interrupt context, don't steal work here!
 		if (in_interrupt) return NULL;
 		if (worker_thread_pull_and_process_sandbox_requests() == 0) {
@@ -347,12 +335,12 @@ worker_thread_get_next_sandbox(int in_interrupt)
 
 	// Execute Round Robin Scheduling Logic
 	// Grab the sandbox at the head of the thread local runqueue, add it to the end, and return it
-	struct sandbox *sandbox = ps_list_head_first_d(&worker_thread_run_queue, struct sandbox);
+	struct sandbox *sandbox = sandbox_run_queue_get_head();
 	// We are assuming that any sandboxed in the RETURNED state should have been pulled from the local runqueue by
 	// now!
 	assert(sandbox->state != RETURNED);
 	ps_list_rem_d(sandbox);
-	ps_list_head_append_d(&worker_thread_run_queue, sandbox);
+	sandbox_run_queue_append(sandbox);
 	debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 	return sandbox;
 }
@@ -418,7 +406,7 @@ worker_thread_main(void *return_code)
 {
 	arch_context_init(&worker_thread_base_context, 0, 0);
 
-	ps_list_head_init(&worker_thread_run_queue);
+	sandbox_run_queue_initialize();
 	ps_list_head_init(&worker_thread_completion_queue);
 	software_interrupt_is_disabled = 0;
 	worker_thread_next_context     = NULL;

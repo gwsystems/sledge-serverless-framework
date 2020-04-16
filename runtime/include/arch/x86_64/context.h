@@ -2,6 +2,7 @@
 #define ARCH_X86_64_CONTEXT_H
 
 #include <assert.h>
+#include <string.h>
 #include <ucontext.h>
 #include <unistd.h>
 
