@@ -8,6 +8,8 @@
 #include <libuv_callbacks.h>
 #include <current_sandbox.h>
 
+extern http_parser_settings runtime_http_parser_settings;
+
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
  * TODO: why do we have to pass argument count explicitly? Can't we just get this off the sandbox?

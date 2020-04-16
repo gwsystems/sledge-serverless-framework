@@ -143,9 +143,6 @@ listener_thread_initialize(void)
 
 __thread static struct ps_list_head worker_thread_completion_queue;
 
-// current sandbox that is active..
-__thread sandbox_t *worker_thread_current_sandbox = NULL;
-
 // context pointer to switch to when this thread gets a SIGUSR1
 __thread arch_context_t *worker_thread_next_context = NULL;
 

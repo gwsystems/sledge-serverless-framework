@@ -82,7 +82,6 @@ typedef struct sandbox sandbox_t;
  **************************/
 
 
-extern __thread struct sandbox *worker_thread_current_sandbox;
 extern __thread arch_context_t *worker_thread_next_context;
 
 extern void            worker_thread_block_current_sandbox(void);
