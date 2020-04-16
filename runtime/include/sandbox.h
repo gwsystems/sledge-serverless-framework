@@ -3,6 +3,8 @@
 
 #include <ucontext.h>
 #include <uv.h>
+#include <stdbool.h>
+#include "sandbox_request.h"
 
 #include "arch/context.h"
 #include "deque.h"
@@ -95,8 +97,10 @@ extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
  * Public API              *
  **************************/
 
-struct sandbox *sandbox_allocate(struct module *module, char *arguments, int socket_descriptor,
-                                 const struct sockaddr *socket_address, u64 start_time, u64 absolute_deadline);
+// TODO: Why do I have to redeclare this type here?
+typedef struct sandbox_request sandbox_request_t;
+
+struct sandbox *sandbox_allocate(sandbox_request_t *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 

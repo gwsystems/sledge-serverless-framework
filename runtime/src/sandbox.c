@@ -307,9 +307,15 @@ sandbox_allocate_memory(struct module *module)
 }
 
 struct sandbox *
-sandbox_allocate(struct module *module, char *arguments, int socket_descriptor, const struct sockaddr *socket_address,
-                 u64 start_time, u64 absolute_deadline)
+sandbox_allocate(sandbox_request_t *sandbox_request)
 {
+	struct module *        module            = sandbox_request->module;
+	char *                 arguments         = sandbox_request->arguments;
+	int                    socket_descriptor = sandbox_request->socket_descriptor;
+	const struct sockaddr *socket_address    = sandbox_request->socket_address;
+	u64                    start_time        = sandbox_request->start_time;
+	u64                    absolute_deadline = sandbox_request->absolute_deadline;
+
 	if (!module_is_valid(module)) return NULL;
 
 	// FIXME: don't use malloc. huge security problem!

@@ -5,6 +5,8 @@
 #include "types.h"
 #include "runtime.h"
 
+extern float runtime_processor_speed_MHz;
+
 struct sandbox_request {
 	struct module *  module;
 	char *           arguments;
@@ -13,6 +15,7 @@ struct sandbox_request {
 	u64              start_time;        // cycles
 	u64              absolute_deadline; // cycles
 };
+
 typedef struct sandbox_request sandbox_request_t;
 
 DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
