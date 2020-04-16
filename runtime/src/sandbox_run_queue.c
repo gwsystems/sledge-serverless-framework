@@ -21,7 +21,10 @@ sandbox_run_queue_get_head()
 	return ps_list_head_first_d(&sandbox_run_queue, struct sandbox);
 }
 
-// Remove a sandbox from the runqueue
+/**
+ * Removes the thread from the thread-local runqueue
+ * @param sandbox sandbox
+ **/
 void
 sandbox_run_queue_remove(struct sandbox *sandbox_to_remove)
 {

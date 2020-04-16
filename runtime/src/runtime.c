@@ -160,8 +160,6 @@ static __thread unsigned int worker_thread_is_in_callback;
  * Worker Thread Logic
  *************************************************/
 
-static inline void worker_thread_push_sandbox_to_run_queue(struct sandbox *sandbox);
-
 /**
  * @brief Switches to the next sandbox, placing the current sandbox of the completion queue if in RETURNED state
  * @param next The Sandbox Context to switch to or NULL
@@ -299,17 +297,6 @@ worker_thread_execute_libuv_event_loop(void)
 	worker_thread_is_in_callback = 0;
 }
 
-
-/**
- * Removes the thread from the thread-local runqueue
- * @param sandbox sandbox
- **/
-static inline void
-worker_thread_pop_sandbox_from_run_queue(struct sandbox *sandbox)
-{
-	ps_list_rem_d(sandbox);
-}
-
 /**
  * Execute the sandbox at the head of the thread local runqueue
  * If the runqueue is empty, pull a fresh batch of sandbox requests, instantiate them, and then execute the new head
@@ -438,7 +425,7 @@ worker_thread_exit_current_sandbox(void)
 	struct sandbox *current_sandbox = current_sandbox_get();
 	assert(current_sandbox);
 	software_interrupt_disable();
-	worker_thread_pop_sandbox_from_run_queue(current_sandbox);
+	sandbox_run_queue_remove(current_sandbox);
 	current_sandbox->state = RETURNED;
 
 	struct sandbox *next_sandbox = worker_thread_get_next_sandbox(0);
