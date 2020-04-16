@@ -20,7 +20,7 @@
 #include <module.h>
 #include <sandbox.h>
 #include <sandbox_request.h>
-#include <sandbox_request_queue.h>
+#include <sandbox_request_scheduler_fifo.h>
 #include <software_interrupt.h>
 #include <types.h>
 
@@ -45,7 +45,7 @@ runtime_initialize(void)
 	assert(runtime_epoll_file_descriptor >= 0);
 
 	// Allocate and Initialize the global deque
-	sandbox_request_queue_initialize();
+	sandbox_request_scheduler_fifo_initialize();
 
 	// Mask Signals
 	software_interrupt_mask_signal(SIGUSR1);
@@ -102,7 +102,7 @@ listener_thread_main(void *dummy)
 			  sandbox_request_allocate(module, module->name, socket_descriptor,
 			                           (const struct sockaddr *)&client_address, start_time);
 			assert(sandbox_request);
-			sandbox_request_queue_add(sandbox_request);
+			sandbox_request_scheduler_add(sandbox_request);
 		}
 	}
 
@@ -268,7 +268,7 @@ worker_thread_pull_and_process_sandbox_requests(void)
 
 	while (total_sandboxes_pulled < SANDBOX_PULL_BATCH_SIZE) {
 		sandbox_request_t *sandbox_request;
-		if ((sandbox_request = sandbox_request_queue_remove()) == NULL) break;
+		if ((sandbox_request = sandbox_request_scheduler_remove()) == NULL) break;
 		// Actually allocate the sandbox for the requests that we've pulled
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request->module, sandbox_request->arguments,
 		                                           sandbox_request->socket_descriptor,
