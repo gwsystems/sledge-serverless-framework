@@ -5,4 +5,4 @@
 
 void sandbox_request_scheduler_fifo_initialize();
 
-#endif /* SFRT_SANDBOX_REQUEST_QUEUE_H */
+#endif /* SFRT_SANDBOX_REQUEST_SCHEDULER_FIFO_H */
