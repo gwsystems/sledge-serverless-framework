@@ -18,10 +18,11 @@
 i32 runtime_log_file_descriptor = -1;
 #endif
 
-u32 runtime_total_online_processors                            = 0;
-u32 runtime_total_worker_processors                            = 0;
-u32 runtime_first_worker_processor                             = 0;
-int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
+float runtime_processor_speed_MHz                               = 0;
+u32   runtime_total_online_processors                           = 0;
+u32   runtime_total_worker_processors                           = 0;
+u32   runtime_first_worker_processor                            = 0;
+int   runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
 
@@ -88,8 +89,35 @@ runtime_allocate_available_cores()
 		runtime_total_worker_processors = 1;
 	}
 	printf("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
-	         runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
-	         LISTENER_THREAD_CORE_ID);
+	       runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
+	       LISTENER_THREAD_CORE_ID);
+}
+
+/**
+ * Returns a float of the cpu MHz entry for CPU0 in /proc/cpuinfo
+ * We are assuming all cores are the same clock speed, which is not true of many systems
+ * We are also assuming this value is static
+ * @return proceccor speed in MHz
+ **/
+static inline float
+runtime_get_processor_speed_MHz(void)
+{
+	FILE *cmd = popen("grep '^cpu MHz' /proc/cpuinfo | head -n 1 | awk '{print $4}'", "r");
+
+	if (cmd == NULL) return -1;
+
+	float  processor_speed_MHz;
+	size_t n;
+	char   buff[16];
+
+	if ((n = fread(buff, 1, sizeof(buff) - 1, cmd)) <= 0) return -1;
+
+	buff[n] = '\0';
+	if (sscanf(buff, "%f", &processor_speed_MHz) != 1) return -1;
+
+	pclose(cmd);
+
+	return processor_speed_MHz;
 }
 
 #ifdef DEBUG
@@ -167,6 +195,9 @@ main(int argc, char **argv)
 	}
 
 	memset(runtime_worker_threads, 0, sizeof(pthread_t) * WORKER_THREAD_CORE_COUNT);
+
+	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
+	printf("Detected processor speed of %f MHz\n", runtime_processor_speed_MHz);
 
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();

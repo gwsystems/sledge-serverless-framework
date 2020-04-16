@@ -13,6 +13,7 @@ static sandbox_request_t *
 sandbox_request_scheduler_ps_add(void *sandbox_request_raw)
 {
 	// TODO
+	return NULL;
 }
 
 /**
@@ -23,6 +24,7 @@ static sandbox_request_t *
 sandbox_request_scheduler_ps_remove(void)
 {
 	// TODO
+	return NULL;
 }
 
 /**

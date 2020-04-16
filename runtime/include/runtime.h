@@ -8,8 +8,9 @@
 #include "sandbox.h"
 #include "types.h"
 
-extern int                   runtime_epoll_file_descriptor;
-extern __thread uv_loop_t    worker_thread_uvio_handle;
+extern int                runtime_epoll_file_descriptor;
+extern __thread uv_loop_t worker_thread_uvio_handle;
+extern float              runtime_processor_speed_MHz;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);
