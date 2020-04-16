@@ -19,6 +19,7 @@
 #include <http_parser_settings.h>
 #include <module.h>
 #include <sandbox.h>
+#include <sandbox_completion_queue.h>
 #include <sandbox_request.h>
 // #include <sandbox_request_scheduler_fifo.h>
 #include <sandbox_request_scheduler_ps.h>
@@ -141,8 +142,6 @@ listener_thread_initialize(void)
  * Worker Thread State     *
  **************************/
 
-__thread static struct ps_list_head worker_thread_completion_queue;
-
 // context pointer to switch to when this thread gets a SIGUSR1
 __thread arch_context_t *worker_thread_next_context = NULL;
 
@@ -174,8 +173,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	arch_context_t *current_register_context = current_sandbox == NULL ? NULL : &current_sandbox->ctxt;
 	current_sandbox_set(next_sandbox);
 	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
-	if (current_sandbox && current_sandbox->state == RETURNED)
-		worker_thread_push_sandbox_to_completion_queue(current_sandbox);
+	if (current_sandbox && current_sandbox->state == RETURNED) sandbox_completion_queue_add(current_sandbox);
 	worker_thread_next_context = next_register_context;
 	arch_context_switch(current_register_context, next_register_context);
 	software_interrupt_enable();
@@ -330,35 +328,6 @@ worker_thread_get_next_sandbox(int in_interrupt)
 }
 
 /**
- * Adds sandbox to the completion queue
- * @param sandbox
- **/
-void
-worker_thread_push_sandbox_to_completion_queue(struct sandbox *sandbox)
-{
-	assert(ps_list_singleton_d(sandbox));
-	ps_list_head_append_d(&worker_thread_completion_queue, sandbox);
-}
-
-
-/**
- * @brief Pops n sandboxes from the thread local completion queue and then frees them
- * @param number_to_free The number of sandboxes to pop and free
- * @return void
- */
-static inline void
-worker_thread_pop_and_free_n_sandboxes_from_completion_queue(unsigned int number_to_free)
-{
-	for (int i = 0; i < number_to_free; i++) {
-		if (ps_list_head_empty(&worker_thread_completion_queue)) break;
-		struct sandbox *sandbox = ps_list_head_first_d(&worker_thread_completion_queue, struct sandbox);
-		if (!sandbox) break;
-		ps_list_rem_d(sandbox);
-		sandbox_free(sandbox);
-	}
-}
-
-/**
  * Tries to free a completed request, executes libuv callbacks, and then gets
  * and returns the standbox at the head of the thread-local runqueue
  * @return sandbox or NULL
@@ -368,7 +337,7 @@ worker_thread_execute_runtime_maintenance_and_get_next_sandbox(void)
 {
 	assert(current_sandbox_get() == NULL);
 	// Try to free one sandbox from the completion queue
-	worker_thread_pop_and_free_n_sandboxes_from_completion_queue(1);
+	sandbox_completion_queue_free(1);
 	// Execute libuv callbacks
 	if (!worker_thread_is_in_callback) worker_thread_execute_libuv_event_loop();
 
@@ -391,7 +360,7 @@ worker_thread_main(void *return_code)
 	arch_context_init(&worker_thread_base_context, 0, 0);
 
 	sandbox_run_queue_initialize();
-	ps_list_head_init(&worker_thread_completion_queue);
+	sandbox_completion_queue_initialize();
 	software_interrupt_is_disabled = 0;
 	worker_thread_next_context     = NULL;
 #ifndef PREEMPT_DISABLE
