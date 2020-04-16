@@ -126,7 +126,7 @@ software_interrupt_schedule_alarm(void *user_context_raw)
 	if (curr == NULL) goto done;
 
 	// find a next sandbox to run..
-	struct sandbox *next = worker_thread_get_next_sandbox(1);
+	struct sandbox *next = worker_thread_get_next_sandbox(true);
 	if (next == NULL) goto done;
 	if (next == curr) goto done; // only this sandbox to schedule.. return to it!
 	// save the current sandbox, state from user_context!

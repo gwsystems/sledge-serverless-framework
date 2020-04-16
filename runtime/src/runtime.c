@@ -210,7 +210,7 @@ worker_thread_block_current_sandbox(void)
 	struct sandbox *current_sandbox = current_sandbox_get();
 	ps_list_rem_d(current_sandbox);
 	current_sandbox->state       = BLOCKED;
-	struct sandbox *next_sandbox = worker_thread_get_next_sandbox(0);
+	struct sandbox *next_sandbox = worker_thread_get_next_sandbox(false);
 	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", current_sandbox, current_sandbox->module->name,
 	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
 	software_interrupt_enable();
@@ -299,13 +299,12 @@ worker_thread_execute_libuv_event_loop(void)
  * @return the sandbox to execute or NULL if none are available
  **/
 struct sandbox *
-worker_thread_get_next_sandbox(int in_interrupt)
+worker_thread_get_next_sandbox(bool is_in_interrupt)
 {
 	// If the thread local runqueue is empty and we're not running in the context of an interupt,
 	// pull a fresh batch of sandbox requests from the global queue
 	if (sandbox_run_queue_is_empty()) {
-		// this is in an interrupt context, don't steal work here!
-		if (in_interrupt) return NULL;
+		if (is_in_interrupt) return NULL;
 		if (worker_thread_pull_and_process_sandbox_requests() == 0) {
 			// debuglog("[null: null]\n");
 			return NULL;
@@ -361,14 +360,14 @@ worker_thread_main(void *return_code)
 	while (true) {
 		worker_thread_execute_runtime_maintenance();
 		software_interrupt_disable();
-		struct sandbox *sandbox = worker_thread_get_next_sandbox(0);
+		struct sandbox *sandbox = worker_thread_get_next_sandbox(false);
 		software_interrupt_enable();
 		assert(sandbox == NULL || sandbox->state == RUNNABLE);
 		while (sandbox) {
 			worker_thread_switch_to_sandbox(sandbox);
 			worker_thread_execute_runtime_maintenance();
 			software_interrupt_disable();
-			sandbox = worker_thread_get_next_sandbox(0);
+			sandbox = worker_thread_get_next_sandbox(false);
 			software_interrupt_enable();
 			assert(sandbox == NULL || sandbox->state == RUNNABLE);
 		}
@@ -393,7 +392,7 @@ worker_thread_exit_current_sandbox(void)
 	sandbox_run_queue_remove(current_sandbox);
 	current_sandbox->state = RETURNED;
 
-	struct sandbox *next_sandbox = worker_thread_get_next_sandbox(0);
+	struct sandbox *next_sandbox = worker_thread_get_next_sandbox(true);
 	assert(next_sandbox != current_sandbox);
 	software_interrupt_enable();
 	// free resources from "main function execution", as stack still in use.
