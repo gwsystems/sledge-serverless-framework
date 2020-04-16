@@ -2,7 +2,7 @@
 
 
 // The global of our polymorphic interface
-sandbox_request_scheduler_config_t sandbox_request_scheduler;
+static sandbox_request_scheduler_config_t sandbox_request_scheduler;
 
 // Initializes a concrete implementation of the sandbox request scheduler interface
 void

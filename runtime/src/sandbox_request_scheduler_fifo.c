@@ -1,6 +1,6 @@
 #include <sandbox_request_scheduler.h>
 
-// FIFO Globals
+// Local State
 static struct deque_sandbox *runtime_global_deque;
 static pthread_mutex_t       runtime_global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
 
