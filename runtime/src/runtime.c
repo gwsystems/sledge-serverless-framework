@@ -31,8 +31,7 @@
  * Shared Process State    *
  **************************/
 
-int                  runtime_epoll_file_descriptor;
-http_parser_settings runtime_http_parser_settings;
+int runtime_epoll_file_descriptor;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -56,7 +55,7 @@ runtime_initialize(void)
 	software_interrupt_mask_signal(SIGALRM);
 
 	// Initialize http_parser_settings global
-	http_parser_settings_initialize(&runtime_http_parser_settings);
+	http_parser_settings_initialize();
 }
 
 /********************************
@@ -180,17 +179,15 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 }
 
 /**
- * If this sandbox is blocked, mark it as runnable and add to the head of the thread-local runqueue
+ * Mark a blocked sandbox as runnable and add it to the runqueue
  * @param sandbox the sandbox to check and update if blocked
  **/
 void
 worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 {
 	software_interrupt_disable();
-	debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
+	// debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 	if (sandbox->state != BLOCKED) goto done;
-	assert(sandbox->state == BLOCKED);
-	assert(ps_list_singleton_d(sandbox));
 	sandbox->state = RUNNABLE;
 	sandbox_run_queue_append(sandbox);
 done:
@@ -207,10 +204,13 @@ worker_thread_block_current_sandbox(void)
 {
 	assert(worker_thread_is_in_callback == false);
 	software_interrupt_disable();
+
 	struct sandbox *current_sandbox = current_sandbox_get();
-	ps_list_rem_d(current_sandbox);
-	current_sandbox->state       = BLOCKED;
+	sandbox_run_queue_remove(current_sandbox);
+	current_sandbox->state = BLOCKED;
+
 	struct sandbox *next_sandbox = worker_thread_get_next_sandbox(false);
+
 	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", current_sandbox, current_sandbox->module->name,
 	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
 	software_interrupt_enable();

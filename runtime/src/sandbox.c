@@ -7,8 +7,7 @@
 #include <uv.h>
 #include <libuv_callbacks.h>
 #include <current_sandbox.h>
-
-extern http_parser_settings runtime_http_parser_settings;
+#include <http_parser_settings.h>
 
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
@@ -48,14 +47,13 @@ current_sandbox_setup_arguments(i32 argument_count)
  * @param length The size of the request_response_data that we want to parse
  * @returns 0
  *
- * Globals: runtime_http_parser_settings
  **/
 int
 sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 {
 	// Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
 	// it's like a cursor to keep track of what we've read so far
-	http_parser_execute(&sandbox->http_parser, &runtime_http_parser_settings,
+	http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
 	                    sandbox->request_response_data + sandbox->request_response_data_length, length);
 	return 0;
 }
