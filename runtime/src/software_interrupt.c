@@ -55,24 +55,22 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 #ifdef PREEMPT_DISABLE
 	assert(0);
 #else
-	struct sandbox *current_sandbox = current_sandbox_get();
 	ucontext_t *    user_context    = (ucontext_t *)user_context_raw;
+	struct sandbox *current_sandbox = current_sandbox_get();
 
 	switch (signal_type) {
 	case SIGALRM: {
-		// if interrupts are disabled.. increment a per_thread counter and return
+		// SIGALRM is the preemption signal that occurs every quantum of execution
+
+
 		if (signal_info->si_code == SI_KERNEL) {
-			int rt = 0;
-			// deliver signal to all other runtime threads..
+			// deliver signal to all other worker threads..
 			for (int i = 0; i < WORKER_THREAD_CORE_COUNT; i++) {
-				if (pthread_self() == runtime_worker_threads[i]) {
-					rt = 1;
-					continue;
-				}
+				if (pthread_self() == runtime_worker_threads[i]) continue;
 				pthread_kill(runtime_worker_threads[i], SIGALRM);
 			}
-			assert(rt == 1);
 		} else {
+			// What is this?
 			assert(signal_info->si_code == SI_TKILL);
 		}
 		// debuglog("alrm:%d\n", software_interrupt_SIGALRM_count);
@@ -82,7 +80,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (current_sandbox && current_sandbox->state == RETURNED) return;
 		if (worker_thread_next_context) return;
 		if (!software_interrupt_is_enabled()) return;
-		software_interrupt_schedule_alarm(user_context_raw);
+		software_interrupt_schedule_alarm(user_context);
 
 		break;
 	}
@@ -120,28 +118,24 @@ software_interrupt_schedule_alarm(void *user_context_raw)
 	software_interrupt_disable(); // no nesting!
 
 	struct sandbox *current_sandbox = current_sandbox_get();
-	ucontext_t *    user_context    = (ucontext_t *)user_context_raw;
 
-	// no sandboxes running..so nothing to preempt..let the "main" scheduler run its course.
-	if (current_sandbox == NULL) goto done;
+	// If current_sandbox is null, there's nothing to preempt, so let the "main" scheduler run its course.
+	if (current_sandbox != NULL) {
+		// find a next sandbox to run..
+		struct sandbox *next_sandbox = worker_thread_get_next_sandbox();
 
-	// find a next sandbox to run..
-	struct sandbox *next_sandbox = worker_thread_get_next_sandbox(true);
-	if (next_sandbox == NULL) goto done;
-	if (next_sandbox == current_sandbox) goto done; // only this sandbox to schedule.. return to it!
-	// save the current sandbox, state from user_context!
-	arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
+		if (next_sandbox != NULL && next_sandbox != current_sandbox) {
+			ucontext_t *user_context = (ucontext_t *)user_context_raw;
 
-	// current_sandbox_set on it. restore through *user_context..
-	current_sandbox_set(next_sandbox);
+			// Save context to the sandbox we're switching from
+			arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
 
-	if (arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt)) goto skip;
-	// reset if SIGALRM happens before SIGUSR1 and if don't preempt..OR
-	// perhaps switch here for SIGUSR1 and see if we can clear that signal
-	// so it doesn't get called on SIGALRM return..
-	// worker_thread_next_context = NULL;
+			// current_sandbox_set on it. restore through *user_context..
+			current_sandbox_set(next_sandbox);
+			if (arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt)) goto skip;
+		}
+	}
 
-done:
 	software_interrupt_enable();
 skip:
 	return;
