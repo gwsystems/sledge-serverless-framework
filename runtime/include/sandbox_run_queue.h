@@ -2,23 +2,24 @@
 #define SFRT_SANDBOX_RUN_QUEUE_H
 
 #include <stdbool.h>
+#include <sandbox.h>
 
-#include "sandbox.h"
+// Returns pointer back if successful, null otherwise
+typedef struct sandbox *(*sandbox_run_queue_add_t)(struct sandbox *);
+typedef struct sandbox *(*sandbox_run_queue_remove_t)(void);
+typedef bool (*sandbox_run_queue_is_empty_t)(void);
 
-void sandbox_run_queue_initialize();
+typedef struct sandbox_run_queue_config_t {
+	sandbox_run_queue_add_t      add;
+	sandbox_run_queue_is_empty_t is_empty;
+	sandbox_run_queue_remove_t   remove;
+} sandbox_run_queue_config_t;
 
-bool sandbox_run_queue_is_empty();
 
-// Get the sandbox at the head of the thread local runqueue
-struct sandbox *sandbox_run_queue_get_head();
+void sandbox_run_queue_initialize(sandbox_run_queue_config_t *config);
 
-// Remove a sandbox from the runqueue
-void sandbox_run_queue_remove(struct sandbox *sandbox_to_remove);
-
-/**
- * Append the sandbox to the worker_thread_run_queue
- * @param sandbox_to_append
- */
-void sandbox_run_queue_append(struct sandbox *sandbox_to_append);
+struct sandbox *sandbox_run_queue_add(struct sandbox *);
+struct sandbox *sandbox_run_queue_remove();
+bool            sandbox_run_queue_is_empty();
 
 #endif /* SFRT_SANDBOX_RUN_QUEUE_H */

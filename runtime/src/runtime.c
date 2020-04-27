@@ -24,6 +24,8 @@
 // #include <sandbox_request_scheduler_fifo.h>
 #include <sandbox_request_scheduler_ps.h>
 #include <sandbox_run_queue.h>
+// #include <sandbox_run_queue_fifo.h>
+#include <sandbox_run_queue_ps.h>
 #include <software_interrupt.h>
 #include <types.h>
 
@@ -205,7 +207,7 @@ worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 	// debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 	if (sandbox->state == BLOCKED) {
 		sandbox->state = RUNNABLE;
-		sandbox_run_queue_append(sandbox);
+		sandbox_run_queue_add(sandbox);
 	}
 	software_interrupt_enable();
 }
@@ -287,7 +289,7 @@ worker_thread_pull_and_process_sandbox_requests(void)
 		free(sandbox_request);
 		// Set the sandbox as runnable and place on the local runqueue
 		sandbox->state = RUNNABLE;
-		sandbox_run_queue_append(sandbox);
+		sandbox_run_queue_add(sandbox);
 		total_sandboxes_pulled++;
 	}
 
@@ -323,10 +325,9 @@ worker_thread_get_next_sandbox()
 	}
 
 	// Execute Round Robin Scheduling Logic
-	struct sandbox *next_sandbox = sandbox_run_queue_get_head();
+	struct sandbox *next_sandbox = sandbox_run_queue_remove();
 	assert(next_sandbox->state != RETURNED);
-	sandbox_run_queue_remove(next_sandbox);
-	sandbox_run_queue_append(next_sandbox);
+	sandbox_run_queue_add(next_sandbox);
 
 	debuglog("[%p: %s]\n", next_sandbox, next_sandbox->module->name);
 	return next_sandbox;
@@ -342,7 +343,10 @@ worker_thread_main(void *return_code)
 {
 	// Initialize Worker State
 	arch_context_init(&worker_thread_base_context, 0, 0);
-	sandbox_run_queue_initialize();
+
+	// sandbox_run_queue_fifo_initialize();
+	sandbox_run_queue_ps_initialize();
+
 	sandbox_completion_queue_initialize();
 	software_interrupt_is_disabled = false;
 	worker_thread_next_context     = NULL;
