@@ -43,7 +43,7 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->absolute_deadline = start_time + module->relative_deadline_us * runtime_processor_speed_MHz;
 
 	// TODO: Refactor to log file
-	printf("Set absolute deadline of %lu\n", sandbox_request->absolute_deadline);
+	// printf("Set absolute deadline of %lu\n", sandbox_request->absolute_deadline);
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
 	return sandbox_request;
