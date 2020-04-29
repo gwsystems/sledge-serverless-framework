@@ -1,9 +1,12 @@
 #ifndef SFRT_SANDBOX_REQUEST_H
 #define SFRT_SANDBOX_REQUEST_H
 
+#include <stdbool.h>
+
 #include "deque.h"
-#include "types.h"
+#include "module.h"
 #include "runtime.h"
+#include "types.h"
 
 extern float runtime_processor_speed_MHz;
 

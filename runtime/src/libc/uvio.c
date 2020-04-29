@@ -1,4 +1,5 @@
 #include <runtime.h>
+#include <worker_thread.h>
 #include <sandbox.h>
 #include <uv.h>
 #include <http_request.h>
@@ -522,9 +523,9 @@ wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	struct wasm_iovec *iov  = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
 	for (int i = 0; i < iovcnt; i += RUNTIME_READ_WRITE_VECTOR_LENGTH) {
-		uv_fs_t  req                                     = UV_FS_REQ_INIT();
+		uv_fs_t  req                                    = UV_FS_REQ_INIT();
 		uv_buf_t bufs[RUNTIME_READ_WRITE_VECTOR_LENGTH] = { 0 }; // avoid mallocs here!
-		int      j                                       = 0;
+		int      j                                      = 0;
 
 		for (j = 0; j < RUNTIME_READ_WRITE_VECTOR_LENGTH && i + j < iovcnt; j++) {
 			bufs[j] = uv_buf_init(worker_thread_get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len),
@@ -570,9 +571,9 @@ wasm_writev(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	struct wasm_iovec *iov  = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
 	for (int i = 0; i < iovcnt; i += RUNTIME_READ_WRITE_VECTOR_LENGTH) {
-		uv_fs_t  req                                     = UV_FS_REQ_INIT();
+		uv_fs_t  req                                    = UV_FS_REQ_INIT();
 		uv_buf_t bufs[RUNTIME_READ_WRITE_VECTOR_LENGTH] = { 0 }; // avoid mallocs here!
-		int      j                                       = 0;
+		int      j                                      = 0;
 
 		for (j = 0; j < RUNTIME_READ_WRITE_VECTOR_LENGTH && i + j < iovcnt; j++) {
 			bufs[j] = uv_buf_init(worker_thread_get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len),

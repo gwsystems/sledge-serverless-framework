@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <runtime.h>
+#include <worker_thread.h>
 #include <sandbox.h>
 #include <sys/mman.h>
 #include <pthread.h>

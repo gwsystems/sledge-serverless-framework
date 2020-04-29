@@ -12,6 +12,7 @@
 #include <runtime.h>
 #include <sandbox.h>
 #include <software_interrupt.h>
+#include <worker_thread.h>
 
 // Conditionally used by debuglog when DEBUG is set
 #ifdef DEBUG
