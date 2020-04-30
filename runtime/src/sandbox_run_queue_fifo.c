@@ -54,7 +54,8 @@ sandbox_run_queue_fifo_initialize()
 	// Register Function Pointers for Abstract Scheduling API
 	sandbox_run_queue_config_t config = { .add      = sandbox_run_queue_fifo_append,
 		                              .is_empty = sandbox_run_queue_fifo_is_empty,
-		                              .remove   = sandbox_run_queue_fifo_remove_and_return };
+		                              .remove   = sandbox_run_queue_fifo_remove_and_return,
+		                              .delete   = sandbox_run_queue_fifo_remove };
 
 	sandbox_run_queue_initialize(&config);
 }

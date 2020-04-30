@@ -27,7 +27,17 @@ sandbox_request_scheduler_ps_remove(void)
 	return (sandbox_request_t *)priority_queue_dequeue(&sandbox_request_scheduler_ps);
 }
 
-unsigned long long int
+/**
+ *
+ * @returns A Sandbox Request or NULL
+ **/
+static uint64_t
+sandbox_request_scheduler_ps_peek(void)
+{
+	return priority_queue_peek(&sandbox_request_scheduler_ps);
+}
+
+uint64_t
 sandbox_request_get_priority(void *element)
 {
 	sandbox_request_t *sandbox_request = (sandbox_request_t *)element;
@@ -46,7 +56,8 @@ sandbox_request_scheduler_ps_initialize()
 
 	// Register Function Pointers for Abstract Scheduling API
 	sandbox_request_scheduler_config_t config = { .add    = sandbox_request_scheduler_ps_add,
-		                                      .remove = sandbox_request_scheduler_ps_remove };
+		                                      .remove = sandbox_request_scheduler_ps_remove,
+		                                      .peek   = sandbox_request_scheduler_ps_peek };
 
 	sandbox_request_scheduler_initialize(&config);
 }

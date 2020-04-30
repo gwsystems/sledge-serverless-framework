@@ -18,6 +18,13 @@ sandbox_run_queue_add(struct sandbox *sandbox)
 	return sandbox_run_queue.add(sandbox);
 }
 
+void
+sandbox_run_queue_delete(struct sandbox *sandbox)
+{
+	assert(sandbox_run_queue.delete != NULL);
+	sandbox_run_queue.delete(sandbox);
+}
+
 // Removes a sandbox request
 struct sandbox *
 sandbox_run_queue_remove()

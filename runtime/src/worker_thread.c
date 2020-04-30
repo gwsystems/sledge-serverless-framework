@@ -18,7 +18,7 @@
 #include <sandbox_completion_queue.h>
 #include <sandbox_request_scheduler.h>
 #include <sandbox_run_queue.h>
-// #include <sandbox_run_queue_fifo.h>
+#include <sandbox_run_queue_fifo.h>
 #include <sandbox_run_queue_ps.h>
 #include <types.h>
 #include <worker_thread.h>
@@ -102,7 +102,7 @@ worker_thread_block_current_sandbox(void)
 
 	// Remove the sandbox we were just executing from the runqueue and mark as blocked
 	struct sandbox *previous_sandbox = current_sandbox_get();
-	sandbox_run_queue_remove(previous_sandbox);
+	sandbox_run_queue_delete(previous_sandbox);
 	previous_sandbox->state = BLOCKED;
 
 	// Switch to the next sandbox
@@ -269,14 +269,14 @@ worker_thread_exit_current_sandbox(void)
 	struct sandbox *previous_sandbox = current_sandbox_get();
 	assert(previous_sandbox);
 	software_interrupt_disable();
-	sandbox_run_queue_remove(previous_sandbox);
+	sandbox_run_queue_delete(previous_sandbox);
 	previous_sandbox->state = RETURNED;
 
 	struct sandbox *next_sandbox = worker_thread_get_next_sandbox();
 	assert(next_sandbox != previous_sandbox);
 	software_interrupt_enable();
-	// Because the stack is still in use, only unmap linear memory and defer free resources until "main function
-	// execution"
+	// Because the stack is still in use, only unmap linear memory and defer free resources until "main
+	// function execution"
 	munmap(previous_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
 	worker_thread_switch_to_sandbox(next_sandbox);
 }

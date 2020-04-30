@@ -18,7 +18,7 @@
 #include <http_parser_settings.h>
 #include <module.h>
 #include <sandbox_request.h>
-// #include <sandbox_request_scheduler_fifo.h>
+#include <sandbox_request_scheduler_fifo.h>
 #include <sandbox_request_scheduler_ps.h>
 #include <software_interrupt.h>
 #include <types.h>

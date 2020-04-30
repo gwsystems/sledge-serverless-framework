@@ -34,7 +34,19 @@ sandbox_run_queue_ps_remove(void)
 	return (struct sandbox *)priority_queue_dequeue(&sandbox_run_queue_ps);
 }
 
-unsigned long long int
+/**
+ *
+ * @returns A Sandbox Request or NULL
+ **/
+static void
+sandbox_run_queue_ps_delete(struct sandbox *sandbox)
+{
+	assert(sandbox != NULL);
+	int rc = priority_queue_delete(&sandbox_run_queue_ps, sandbox);
+	assert(rc != -2);
+}
+
+uint64_t
 sandbox_get_priority(void *element)
 {
 	struct sandbox *sandbox = (struct sandbox *)element;
@@ -50,7 +62,8 @@ sandbox_run_queue_ps_initialize()
 	// Register Function Pointers for Abstract Scheduling API
 	sandbox_run_queue_config_t config = { .add      = sandbox_run_queue_ps_add,
 		                              .is_empty = sandbox_run_queue_ps_is_empty,
-		                              .remove   = sandbox_run_queue_ps_remove };
+		                              .remove   = sandbox_run_queue_ps_remove,
+		                              .delete   = sandbox_run_queue_ps_delete };
 
 	sandbox_run_queue_initialize(&config);
 }

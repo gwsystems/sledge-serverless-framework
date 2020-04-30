@@ -82,12 +82,11 @@ priority_queue_find_smallest_child(struct priority_queue *self, int parent_index
  * @param self the priority queue
  */
 static inline void
-priority_queue_percolate_down(struct priority_queue *self)
+priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 {
 	assert(self != NULL);
 	assert(self->get_priority != NULL);
 
-	int parent_index     = 1;
 	int left_child_index = 2 * parent_index;
 	while (left_child_index >= 2 && left_child_index < self->first_free) {
 		int smallest_child_index = priority_queue_find_smallest_child(self, parent_index);
@@ -173,6 +172,31 @@ priority_queue_enqueue(struct priority_queue *self, void *value)
 	ck_spinlock_fas_unlock(&self->lock);
 	return rc;
 }
+/**
+ * @param self - the priority queue we want to delete from
+ * @param value - the value we want to delete
+ * @returns 0 on success. -1 on not found. -2 on unable to take lock
+ **/
+int
+priority_queue_delete(struct priority_queue *self, void *value)
+{
+	assert(self != NULL);
+	if (ck_spinlock_fas_trylock(&self->lock) == false) return -2;
+
+	bool did_delete = false;
+	for (int i = 1; i < self->first_free; i++) {
+		if (self->items[i] == value) {
+			self->items[i]                    = self->items[self->first_free - 1];
+			self->items[self->first_free - 1] = NULL;
+			self->first_free--;
+			priority_queue_percolate_down(self, i);
+			did_delete = true;
+		}
+	}
+	ck_spinlock_fas_unlock(&self->lock);
+	if (!did_delete) return -1;
+	return 0;
+}
 
 static bool
 priority_queue_is_empty(struct priority_queue *self)
@@ -201,7 +225,7 @@ priority_queue_dequeue(struct priority_queue *self)
 		self->items[self->first_free - 1] = NULL;
 		self->first_free--;
 		// Because of 1-based indices, first_free is 2 when there is only one element
-		if (self->first_free > 2) priority_queue_percolate_down(self);
+		if (self->first_free > 2) priority_queue_percolate_down(self, 1);
 
 		// Update the highest priority
 		self->highest_priority = !priority_queue_is_empty(self) ? self->get_priority(self->items[1])
@@ -210,4 +234,10 @@ priority_queue_dequeue(struct priority_queue *self)
 	ck_spinlock_fas_unlock(&self->lock);
 	// End of Critical Section
 	return min;
+}
+
+uint64_t
+priority_queue_peek(struct priority_queue *self)
+{
+	return self->highest_priority;
 }
