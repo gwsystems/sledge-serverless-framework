@@ -21,4 +21,4 @@ sandbox_request_t *sandbox_request_scheduler_add(sandbox_request_t *);
 sandbox_request_t *sandbox_request_scheduler_remove();
 uint64_t           sandbox_request_scheduler_peek();
 
-#endif /* SFRT_SANDBOX_REQUEST_QUEUE_H */
+#endif /* SFRT_SANDBOX_REQUEST_SCHEDULER_H */
