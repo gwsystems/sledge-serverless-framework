@@ -10,6 +10,7 @@
  ***************************************/
 
 extern __thread volatile sig_atomic_t software_interrupt_is_disabled;
+extern uint64_t                       SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
 
 /***************************************
  * Public Static Inlines

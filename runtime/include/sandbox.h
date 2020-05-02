@@ -86,10 +86,9 @@ typedef struct sandbox sandbox_t;
 
 extern __thread arch_context_t *worker_thread_next_context;
 
-extern void            worker_thread_block_current_sandbox(void);
-extern void            worker_thread_exit_current_sandbox(void);
-extern struct sandbox *worker_thread_get_next_sandbox(void);
-extern void            worker_thread_process_io(void);
+extern void worker_thread_block_current_sandbox(void);
+extern void worker_thread_exit_current_sandbox(void);
+extern void worker_thread_process_io(void);
 extern void __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void);
 extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
 

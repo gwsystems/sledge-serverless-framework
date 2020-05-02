@@ -26,3 +26,10 @@ sandbox_request_scheduler_remove()
 	assert(sandbox_request_scheduler.remove != NULL);
 	return sandbox_request_scheduler.remove();
 }
+
+uint64_t
+sandbox_request_scheduler_peek()
+{
+	assert(sandbox_request_scheduler.peek != NULL);
+	return sandbox_request_scheduler.peek();
+};

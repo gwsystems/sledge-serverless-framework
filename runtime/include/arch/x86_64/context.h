@@ -5,6 +5,7 @@
 #include <string.h>
 #include <ucontext.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #define ARCH_NREGS       (16 /* GP registers */ + 1 /* for IP */)
 #define ARCH_SIG_JMP_OFF 8
@@ -74,27 +75,38 @@ static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, re
 	*(actx->regs + 16) = ip;
 }
 
+/**
+ * Preempt the current sandbox and start executing the next sandbox
+ * @param mc - the context of the current thread of execution
+ * @param ctx - the context that we want to restore
+ * @return {0,1} 0 = context restored successfully. 1 = special processing because thread was last in a user-level
+ * context switch state
+ **/
 static int
 arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 {
 	assert(ctx != &worker_thread_base_context);
 
-	// if ctx->regs[5] is set, this was last in a user-level context switch state!
-	// else restore mcontext..
-	if (ctx->regs[5]) {
+	// if ctx->regs[5] is set, this was last in a user-level context switch state
+	bool did_user_level_context_switch = ctx->regs[5];
+	if (did_user_level_context_switch) {
 		mc->gregs[REG_RSP] = ctx->regs[5];
 		mc->gregs[REG_RIP] = ctx->regs[16] + ARCH_SIG_JMP_OFF;
 		ctx->regs[5]       = 0;
-
 		return 1;
 	} else {
+		// Restore mcontext
 		memcpy(mc, &ctx->mctx, sizeof(mcontext_t));
 		memset(&ctx->mctx, 0, sizeof(mcontext_t));
+		return 0;
 	}
-
-	return 0;
 }
 
+/**
+ * Save the context of the currently executing process
+ * @param ctx - destination
+ * @param mc - source
+ **/
 static void
 arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
 {
@@ -104,27 +116,26 @@ arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
 	memcpy(&ctx->mctx, mc, sizeof(mcontext_t));
 }
 
-
+/**
+ * @param current - the registers and context of the thing running
+ * @param next - the registers and context of what we're switching to
+ * @return always returns 0, indicating success
+ *
+ * NULL in either of these values indicates the "no sandbox to execute" state,
+ * which defaults to resuming execution of main
+ **/
 static inline int
-arch_context_switch(arch_context_t *ca, arch_context_t *na)
+arch_context_switch(arch_context_t *current, arch_context_t *next)
 {
-	if (!ca) {
-		assert(na);
-		// switching from "no sandbox to execute" state to "executing a sandbox"
-		ca = &worker_thread_base_context;
-	} else if (!na) {
-		assert(ca);
+	// if both current and next are NULL, there is no state change
+	assert(current != NULL || next != NULL);
 
-		// switching from "executing a sandbox" to "no execution" state.
-		na = &worker_thread_base_context;
-	} else {
-		assert(na && ca);
+	// Set any NULLs to worker_thread_base_context to resume execution of main
+	if (current == NULL) current = &worker_thread_base_context;
+	if (next == NULL) next = &worker_thread_base_context;
 
-		// switching between sandboxes.
-	}
-
-	reg_t *cr = ca->regs, *nr = na->regs;
-	assert(cr && nr);
+	reg_t *current_registers = current->regs, *next_registers = next->regs;
+	assert(current_registers && next_registers);
 
 	asm volatile("pushq %%rbp\n\t"
 	             "movq %%rsp, %%rbp\n\t"
@@ -143,7 +154,7 @@ arch_context_switch(arch_context_t *ca, arch_context_t *na)
 	             "3:\n\t"
 	             "popq %%rbp\n\t"
 	             :
-	             : "a"(cr), "b"(nr)
+	             : "a"(current_registers), "b"(next_registers)
 	             : "memory", "cc", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
 	               "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11",
 	               "xmm12", "xmm13", "xmm14", "xmm15");

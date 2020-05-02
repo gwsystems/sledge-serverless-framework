@@ -38,3 +38,10 @@ sandbox_run_queue_is_empty()
 {
 	return sandbox_run_queue_is_empty();
 }
+
+struct sandbox *
+sandbox_run_queue_get_next()
+{
+	assert(sandbox_run_queue.get_next != NULL);
+	return sandbox_run_queue.get_next();
+};

@@ -197,7 +197,9 @@ main(int argc, char **argv)
 
 	memset(runtime_worker_threads, 0, sizeof(pthread_t) * WORKER_THREAD_CORE_COUNT);
 
-	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
+	runtime_processor_speed_MHz                    = runtime_get_processor_speed_MHz();
+	SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES = (uint64_t)SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC
+	                                                 * runtime_processor_speed_MHz;
 	printf("Detected processor speed of %f MHz\n", runtime_processor_speed_MHz);
 
 	runtime_set_resource_limits_to_max();

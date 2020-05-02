@@ -191,7 +191,7 @@ current_sandbox_main(void)
 	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
 	//        return to worker_thread_switch_to_sandbox() api..
 	//        we'd potentially do what we'd in worker_thread_switch_to_sandbox() api here for cleanup..
-	if (!software_interrupt_is_enabled()) {
+	if (software_interrupt_is_enabled() == false) {
 		arch_context_init(&current_sandbox->ctxt, 0, 0);
 		worker_thread_next_context = NULL;
 		software_interrupt_enable();

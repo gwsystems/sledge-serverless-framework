@@ -106,7 +106,7 @@ worker_thread_block_current_sandbox(void)
 	previous_sandbox->state = BLOCKED;
 
 	// Switch to the next sandbox
-	struct sandbox *next_sandbox = worker_thread_get_next_sandbox();
+	struct sandbox *next_sandbox = sandbox_run_queue_get_next();
 	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", previous_sandbox, previous_sandbox->module->name,
 	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
 	software_interrupt_enable();
@@ -148,32 +148,6 @@ void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_s
 }
 
 /**
- * Pulls up to 1..n sandbox requests, allocates them as sandboxes, sets them as runnable and places them on the local
- * runqueue, and then frees the sandbox requests The batch size pulled at once is set by SANDBOX_PULL_BATCH_SIZE
- * @return the number of sandbox requests pulled
- */
-static inline int
-worker_thread_pull_and_process_sandbox_requests(void)
-{
-	int total_sandboxes_pulled = 0;
-
-	while (total_sandboxes_pulled < SANDBOX_PULL_BATCH_SIZE) {
-		sandbox_request_t *sandbox_request;
-		if ((sandbox_request = sandbox_request_scheduler_remove()) == NULL) break;
-		// Actually allocate the sandbox for the requests that we've pulled
-		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
-		assert(sandbox);
-		free(sandbox_request);
-		// Set the sandbox as runnable and place on the local runqueue
-		sandbox->state = RUNNABLE;
-		sandbox_run_queue_add(sandbox);
-		total_sandboxes_pulled++;
-	}
-
-	return total_sandboxes_pulled;
-}
-
-/**
  * Run all outstanding events in the local thread's libuv event loop
  **/
 void
@@ -189,28 +163,6 @@ worker_thread_execute_libuv_event_loop(void)
 }
 
 /**
- * Execute the sandbox at the head of the thread local runqueue
- * If the runqueue is empty, pull a fresh batch of sandbox requests, instantiate them, and then execute the new head
- * @return the sandbox to execute or NULL if none are available
- **/
-struct sandbox *
-worker_thread_get_next_sandbox()
-{
-	if (sandbox_run_queue_is_empty()) {
-		int sandboxes_pulled = worker_thread_pull_and_process_sandbox_requests();
-		if (sandboxes_pulled == 0) return NULL;
-	}
-
-	// Execute Round Robin Scheduling Logic
-	struct sandbox *next_sandbox = sandbox_run_queue_remove();
-	assert(next_sandbox->state != RETURNED);
-	sandbox_run_queue_add(next_sandbox);
-
-	debuglog("[%p: %s]\n", next_sandbox, next_sandbox->module->name);
-	return next_sandbox;
-}
-
-/**
  * The entry function for sandbox worker threads
  * Initializes thread-local state, unmasks signals, sets up libuv loop and
  * @param return_code - argument provided by pthread API. We set to -1 on error
@@ -221,8 +173,8 @@ worker_thread_main(void *return_code)
 	// Initialize Worker State
 	arch_context_init(&worker_thread_base_context, 0, 0);
 
-	// sandbox_run_queue_fifo_initialize();
-	sandbox_run_queue_ps_initialize();
+	sandbox_run_queue_fifo_initialize();
+	// sandbox_run_queue_ps_initialize();
 
 	sandbox_completion_queue_initialize();
 	software_interrupt_is_disabled = false;
@@ -243,7 +195,7 @@ worker_thread_main(void *return_code)
 		if (!worker_thread_is_in_callback) worker_thread_execute_libuv_event_loop();
 
 		software_interrupt_disable();
-		next_sandbox = worker_thread_get_next_sandbox();
+		next_sandbox = sandbox_run_queue_get_next();
 		software_interrupt_enable();
 
 		if (next_sandbox != NULL) {
@@ -272,7 +224,7 @@ worker_thread_exit_current_sandbox(void)
 	sandbox_run_queue_delete(previous_sandbox);
 	previous_sandbox->state = RETURNED;
 
-	struct sandbox *next_sandbox = worker_thread_get_next_sandbox();
+	struct sandbox *next_sandbox = sandbox_run_queue_get_next();
 	assert(next_sandbox != previous_sandbox);
 	software_interrupt_enable();
 	// Because the stack is still in use, only unmap linear memory and defer free resources until "main
