@@ -27,6 +27,14 @@ sandbox_run_queue_fifo_remove(struct sandbox *sandbox_to_remove)
 	ps_list_rem_d(sandbox_to_remove);
 }
 
+struct sandbox *
+sandbox_run_queue_fifo_remove_and_return()
+{
+	struct sandbox *sandbox_to_remove = ps_list_head_first_d(&sandbox_run_queue_fifo, struct sandbox);
+	ps_list_rem_d(sandbox_to_remove);
+	return sandbox_to_remove;
+}
+
 /**
  * Execute the sandbox at the head of the thread local runqueue
  * If the runqueue is empty, pull a fresh batch of sandbox requests, instantiate them, and then execute the new head
@@ -47,7 +55,7 @@ sandbox_run_queue_fifo_get_next()
 	}
 
 	// Execute Round Robin Scheduling Logic
-	struct sandbox *next_sandbox = sandbox_run_queue_remove();
+	struct sandbox *next_sandbox = sandbox_run_queue_fifo_remove_and_return();
 	assert(next_sandbox->state != RETURNED);
 	sandbox_run_queue_add(next_sandbox);
 
@@ -67,14 +75,6 @@ sandbox_run_queue_fifo_append(struct sandbox *sandbox_to_append)
 	return sandbox_to_append;
 }
 
-struct sandbox *
-sandbox_run_queue_fifo_remove_and_return()
-{
-	struct sandbox *sandbox_to_remove = ps_list_head_first_d(&sandbox_run_queue_fifo, struct sandbox);
-	ps_list_rem_d(sandbox_to_remove);
-	return sandbox_to_remove;
-}
-
 
 void
 sandbox_run_queue_fifo_initialize()
@@ -84,7 +84,6 @@ sandbox_run_queue_fifo_initialize()
 	// Register Function Pointers for Abstract Scheduling API
 	sandbox_run_queue_config_t config = { .add      = sandbox_run_queue_fifo_append,
 		                              .is_empty = sandbox_run_queue_fifo_is_empty,
-		                              .remove   = sandbox_run_queue_fifo_remove_and_return,
 		                              .delete   = sandbox_run_queue_fifo_remove,
 		                              .get_next = sandbox_run_queue_fifo_get_next };
 

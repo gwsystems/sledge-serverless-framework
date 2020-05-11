@@ -10,11 +10,16 @@ static struct priority_queue sandbox_request_scheduler_ps;
  * @returns pointer to request if added. NULL otherwise
  **/
 static sandbox_request_t *
-sandbox_request_scheduler_ps_add(void *sandbox_request_raw)
+sandbox_request_scheduler_ps_add(void *sandbox_request)
 {
-	int return_code = priority_queue_enqueue(&sandbox_request_scheduler_ps, sandbox_request_raw);
+	int return_code = priority_queue_enqueue(&sandbox_request_scheduler_ps, sandbox_request, "Request");
 
-	return return_code == 0 ? sandbox_request_raw : NULL;
+	if (return_code == -1) {
+		printf("Request Queue is full\n");
+		exit(EXIT_FAILURE);
+	}
+
+	return return_code == 0 ? sandbox_request : NULL;
 }
 
 /**
@@ -24,7 +29,7 @@ sandbox_request_scheduler_ps_add(void *sandbox_request_raw)
 static sandbox_request_t *
 sandbox_request_scheduler_ps_remove(void)
 {
-	return (sandbox_request_t *)priority_queue_dequeue(&sandbox_request_scheduler_ps);
+	return (sandbox_request_t *)priority_queue_dequeue(&sandbox_request_scheduler_ps, "Request");
 }
 
 /**

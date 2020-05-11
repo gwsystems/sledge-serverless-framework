@@ -2,6 +2,9 @@
 #include "sandbox_run_queue.h"
 #include "priority_queue.h"
 #include "sandbox_request_scheduler.h"
+#include "current_sandbox.h"
+
+#include <stdint.h>
 
 // Local State
 __thread static struct priority_queue sandbox_run_queue_ps;
@@ -9,6 +12,9 @@ __thread static struct priority_queue sandbox_run_queue_ps;
 bool
 sandbox_run_queue_ps_is_empty()
 {
+	int length = priority_queue_length(&sandbox_run_queue_ps);
+	if (length > 1) printf("[is_empty] Runqueue length: %d\n", length);
+	assert(length < 5);
 	return priority_queue_length(&sandbox_run_queue_ps) == 0;
 }
 
@@ -20,9 +26,23 @@ sandbox_run_queue_ps_is_empty()
 static struct sandbox *
 sandbox_run_queue_ps_add(struct sandbox *sandbox)
 {
-	int return_code = priority_queue_enqueue(&sandbox_run_queue_ps, sandbox);
+	int original_length = priority_queue_length(&sandbox_run_queue_ps);
+	if (original_length > 1) printf("[Add] Original Runqueue length: %d\n", original_length);
 
-	return return_code == 0 ? sandbox : NULL;
+	int return_code = priority_queue_enqueue(&sandbox_run_queue_ps, sandbox, "Run Queue");
+	if (return_code == -1) {
+		printf("Thread Runqueue is full!\n");
+		exit(EXIT_FAILURE);
+	}
+
+	int final_length = priority_queue_length(&sandbox_run_queue_ps);
+	if (final_length > 1) printf("[Add] Final Runqueue length: %d\n", final_length);
+
+	assert(final_length == original_length + 1);
+
+	// printf("Added Sandbox to runqueue\n");
+	assert(return_code == 0);
+	return sandbox;
 }
 
 /**
@@ -32,19 +52,18 @@ sandbox_run_queue_ps_add(struct sandbox *sandbox)
 static struct sandbox *
 sandbox_run_queue_ps_remove(void)
 {
-	return (struct sandbox *)priority_queue_dequeue(&sandbox_run_queue_ps);
+	return (struct sandbox *)priority_queue_dequeue(&sandbox_run_queue_ps, "Runqueue");
 }
 
 /**
- *
  * @returns A Sandbox Request or NULL
  **/
 static void
 sandbox_run_queue_ps_delete(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-	int rc = priority_queue_delete(&sandbox_run_queue_ps, sandbox);
-	assert(rc != -2);
+	int rc = priority_queue_delete(&sandbox_run_queue_ps, sandbox, "Runqueue");
+	assert(rc == 0);
 }
 
 /**
@@ -57,48 +76,84 @@ sandbox_run_queue_ps_delete(struct sandbox *sandbox)
 struct sandbox *
 sandbox_run_queue_ps_get_next()
 {
-	// At any point, we may need to run the head of the request scheduler, the head of the local runqueue, or we
-	// might want to continue executing the current sandbox. If we want to keep executing the current sandbox, we
-	// should have a fast path to be able to resume without context switches.
-
-	// If the run queue is empty, we've run the current sandbox to completion
-
-	// We assume that the current sandbox is always on the runqueue when in a runnable state, we know it's the
-	// highest priority thing on the runqueue.
-
-	// Case 1: Current runqueue is empty, so pull from global queue and add to runqueue
-	if (sandbox_run_queue_is_empty()) {
-		sandbox_request_t *sandbox_request = sandbox_request_scheduler_remove();
-		if (sandbox_request == NULL) return NULL;
-		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
-		assert(sandbox);
-		free(sandbox_request);
-		sandbox->state = RUNNABLE;
-		sandbox_run_queue_add(sandbox);
-		return sandbox;
+	if (sandbox_run_queue_ps.first_free != 1) {
+		printf("Runqueue First Free: %d\n", sandbox_run_queue_ps.first_free);
 	}
 
-	// Case 2: Current runqueue is not empty, so compare head of runqueue to head of global request queue and return
-	// highest priority
+	// Try to pull a sandbox request and return NULL if we're unable to get one
+	sandbox_request_t *sandbox_request;
+	if ((sandbox_request = sandbox_request_scheduler_remove()) == NULL) {
+		// printf("Global Request Queue was empty!\n");
+		return NULL;
+	};
 
-	uint64_t global_deadline = sandbox_request_scheduler_peek() - SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
-	// This should be refactored to peek at the top of the runqueue
-	struct sandbox *head_of_runqueue = sandbox_run_queue_remove();
-	uint64_t        local_deadline   = head_of_runqueue->absolute_deadline;
-	sandbox_run_queue_add(head_of_runqueue);
+	// Otherwise, allocate the sandbox request as a runnable sandbox and place on the runqueue
+	printf("Sandbox Runqueue was empty, so adding sandbox from global queue\n");
+	struct sandbox *sandbox = sandbox_allocate(sandbox_request);
+	assert(sandbox);
+	free(sandbox_request);
+	sandbox->state = RUNNABLE;
+	sandbox_run_queue_ps_add(sandbox);
+	return sandbox;
+}
 
-	if (local_deadline <= global_deadline) {
-		return head_of_runqueue;
-	} else {
-		sandbox_request_t *sandbox_request = sandbox_request_scheduler_remove();
-		struct sandbox *   sandbox         = sandbox_allocate(sandbox_request);
-		assert(sandbox);
+
+// Conditionally checks to see if current sandbox should be preempted
+void
+sandbox_run_queue_ps_preempt(ucontext_t *user_context)
+{
+	software_interrupt_disable(); // no nesting!
+
+	struct sandbox *current_sandbox = current_sandbox_get();
+	// If current_sandbox is null, there's nothing to preempt, so let the "main" scheduler run its course.
+	if (current_sandbox == NULL) {
+		software_interrupt_enable();
+		return;
+	};
+
+	// The current sandbox should be the head of the runqueue
+	assert(sandbox_run_queue_ps_is_empty() == false);
+
+	// TODO: Factor quantum and/or sandbox allocation time into decision
+	// uint64_t global_deadline = sandbox_request_scheduler_peek() -
+	// SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
+
+	bool     should_enable_software_interrupt = true;
+	uint64_t local_deadline                   = priority_queue_peek(&sandbox_run_queue_ps);
+	uint64_t global_deadline                  = sandbox_request_scheduler_peek();
+
+	if (local_deadline == ULONG_MAX) { assert(sandbox_run_queue_ps.first_free == 1); };
+
+	// If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it
+	sandbox_request_t *sandbox_request;
+	if (global_deadline < local_deadline && (sandbox_request = sandbox_request_scheduler_remove()) != NULL) {
+		printf("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
+		       sandbox_request->absolute_deadline);
+
+		// Allocate the request
+		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
+		assert(next_sandbox);
 		free(sandbox_request);
-		sandbox->state = RUNNABLE;
-		sandbox_run_queue_add(sandbox);
+		next_sandbox->state = RUNNABLE;
+
+		// Add it to the runqueue
+		printf("adding new sandbox to runqueue\n");
+		sandbox_run_queue_add(next_sandbox);
 		debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
-		return sandbox;
+
+		// Save the context of the currently executing sandbox before switching from it
+		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
+
+		// Update current_sandbox to the next sandbox
+		current_sandbox_set(next_sandbox);
+
+		// And load the context of this new sandbox
+		// RC of 1 indicates that sandbox was last in a user-level context switch state,
+		// so do not enable software interrupts.
+		if (arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt) == 1)
+			should_enable_software_interrupt = false;
 	}
+	if (should_enable_software_interrupt) software_interrupt_enable();
 }
 
 
@@ -118,9 +173,9 @@ sandbox_run_queue_ps_initialize()
 	// Register Function Pointers for Abstract Scheduling API
 	sandbox_run_queue_config_t config = { .add      = sandbox_run_queue_ps_add,
 		                              .is_empty = sandbox_run_queue_ps_is_empty,
-		                              .remove   = sandbox_run_queue_ps_remove,
 		                              .delete   = sandbox_run_queue_ps_delete,
-		                              .get_next = sandbox_run_queue_ps_get_next };
+		                              .get_next = sandbox_run_queue_ps_get_next,
+		                              .preempt  = sandbox_run_queue_ps_preempt };
 
 	sandbox_run_queue_initialize(&config);
 }

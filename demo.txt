@@ -1,0 +1,10 @@
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./awsmrt ../tests/test_fibonacci_multiple.json
+
+
+# fib(40)
+
+ab -n 10000 -c 1000 -p post_body.txt -v 4 localhost:10000/
+
+# fib(10)
+
+ab -n 1000 -c 100 -p post_body2.txt -v 4 localhost:10001/

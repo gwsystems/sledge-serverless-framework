@@ -84,6 +84,7 @@ worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 	// debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 	if (sandbox->state == BLOCKED) {
 		sandbox->state = RUNNABLE;
+		printf("Marking blocked sandbox as runnable\n");
 		sandbox_run_queue_add(sandbox);
 	}
 	software_interrupt_enable();
@@ -173,8 +174,8 @@ worker_thread_main(void *return_code)
 	// Initialize Worker State
 	arch_context_init(&worker_thread_base_context, 0, 0);
 
-	sandbox_run_queue_fifo_initialize();
-	// sandbox_run_queue_ps_initialize();
+	// sandbox_run_queue_fifo_initialize();
+	sandbox_run_queue_ps_initialize();
 
 	sandbox_completion_queue_initialize();
 	software_interrupt_is_disabled = false;

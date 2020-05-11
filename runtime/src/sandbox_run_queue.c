@@ -25,18 +25,12 @@ sandbox_run_queue_delete(struct sandbox *sandbox)
 	sandbox_run_queue.delete(sandbox);
 }
 
-// Removes a sandbox request
-struct sandbox *
-sandbox_run_queue_remove()
-{
-	assert(sandbox_run_queue.remove != NULL);
-	return sandbox_run_queue.remove();
-}
 
 bool
 sandbox_run_queue_is_empty()
 {
-	return sandbox_run_queue_is_empty();
+	assert(sandbox_run_queue.is_empty != NULL);
+	return sandbox_run_queue.is_empty();
 }
 
 struct sandbox *
@@ -44,4 +38,11 @@ sandbox_run_queue_get_next()
 {
 	assert(sandbox_run_queue.get_next != NULL);
 	return sandbox_run_queue.get_next();
+};
+
+void
+sandbox_run_queue_preempt(ucontext_t *context)
+{
+	assert(sandbox_run_queue.preempt != NULL);
+	return sandbox_run_queue.preempt(context);
 };

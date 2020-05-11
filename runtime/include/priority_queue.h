@@ -25,10 +25,10 @@ struct priority_queue {
 };
 
 void     priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_t get_priority);
-int      priority_queue_enqueue(struct priority_queue *self, void *value);
-void *   priority_queue_dequeue(struct priority_queue *self);
+int      priority_queue_enqueue(struct priority_queue *self, void *value, char *name);
+void *   priority_queue_dequeue(struct priority_queue *self, char *name);
 int      priority_queue_length(struct priority_queue *self);
 uint64_t priority_queue_peek(struct priority_queue *self);
-int      priority_queue_delete(struct priority_queue *self, void *value);
+int      priority_queue_delete(struct priority_queue *self, void *value, char *name);
 
 #endif /* PRIORITY_QUEUE_H */

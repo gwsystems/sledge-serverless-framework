@@ -139,12 +139,12 @@ current_sandbox_build_and_send_client_response(void)
 
 done:
 	assert(sndsz == curr->request_response_data_length);
-	// Get End Timestamp
-	u64 end_time     = __getcycles();
-	curr->total_time = end_time - curr->start_time;
+	curr->total_time       = __getcycles() - curr->start_time;
+	uint64_t total_time_us = curr->total_time / runtime_processor_speed_MHz;
+
 	// TODO: Refactor to log file
 	printf("%s():%d, %d, %lu\n", curr->module->name, curr->module->port, curr->module->relative_deadline_us,
-	       (uint64_t)(curr->total_time / runtime_processor_speed_MHz));
+	       total_time_us);
 	// if (end_time < curr->absolute_deadline) {
 	// 	printf("meadDeadline Met with %f us to spare\n",
 	// 	       (curr->absolute_deadline - end_time) / runtime_processor_speed_MHz);

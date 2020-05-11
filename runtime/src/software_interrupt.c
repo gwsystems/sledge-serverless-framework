@@ -117,32 +117,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 static inline void
 software_interrupt_schedule_alarm(void *user_context_raw)
 {
-	software_interrupt_disable(); // no nesting!
-	struct sandbox *current_sandbox                  = current_sandbox_get();
-	bool            should_enable_software_interrupt = true;
-
-	// If current_sandbox is null, there's nothing to preempt, so let the "main" scheduler run its course.
-	if (current_sandbox != NULL) {
-		struct sandbox *next_sandbox = sandbox_run_queue_get_next();
-
-		if (next_sandbox != NULL && next_sandbox != current_sandbox) {
-			ucontext_t *user_context = (ucontext_t *)user_context_raw;
-
-			// Save the context of the currently executing sandbox before switching from it
-			arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
-
-			// Update current_sandbox to the next sandbox
-			current_sandbox_set(next_sandbox);
-
-			// And load the context of this new sandbox
-			// RC of 1 indicates that sandbox was last in a user-level context switch state,
-			// so do not enable software interrupts.
-			if (arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt) == 1)
-				should_enable_software_interrupt = false;
-		}
-	}
-
-	if (should_enable_software_interrupt) software_interrupt_enable();
+	ucontext_t *user_context = (ucontext_t *)user_context_raw;
+	sandbox_run_queue_preempt(user_context);
 }
 
 /***************************************
