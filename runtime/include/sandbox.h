@@ -96,9 +96,6 @@ extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
  * Public API              *
  **************************/
 
-// TODO: Why do I have to redeclare this type here?
-typedef struct sandbox_request sandbox_request_t;
-
 struct sandbox *sandbox_allocate(sandbox_request_t *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
