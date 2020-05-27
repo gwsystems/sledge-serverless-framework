@@ -20,14 +20,18 @@ current_sandbox_get(void)
 void
 current_sandbox_set(struct sandbox *sandbox)
 {
-	// FIXME: critical-section.
-	worker_thread_current_sandbox = sandbox;
-	if (sandbox == NULL) return;
-
-	// Thread Local State about the Current Sandbox
-	sandbox_lmbase        = sandbox->linear_memory_start;
-	sandbox_lmbound       = sandbox->linear_memory_size;
-	module_indirect_table = sandbox->module->indirect_table;
+	// Unpack hierarchy to avoid pointer chasing
+	if (sandbox == NULL) {
+		worker_thread_current_sandbox = NULL;
+		sandbox_lmbase                = NULL;
+		sandbox_lmbound               = 0;
+		module_indirect_table         = NULL;
+	} else {
+		worker_thread_current_sandbox = sandbox;
+		sandbox_lmbase                = sandbox->linear_memory_start;
+		sandbox_lmbound               = sandbox->linear_memory_size;
+		module_indirect_table         = sandbox->module->indirect_table;
+	}
 }
 
 /**
