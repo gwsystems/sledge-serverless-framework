@@ -129,8 +129,7 @@ priority_queue_initialize(struct priority_queue *self, priority_queue_get_priori
 	memset(self->items, 0, sizeof(void *) * MAX);
 
 	ck_spinlock_fas_init(&self->lock);
-	self->first_free = 1;
-	printf("[Init] First Free: %d\n", self->first_free);
+	self->first_free   = 1;
 	self->get_priority = get_priority;
 
 	// We're assuming a min-heap implementation, so set to larget possible value
@@ -144,7 +143,6 @@ priority_queue_initialize(struct priority_queue *self, priority_queue_get_priori
 int
 priority_queue_length(struct priority_queue *self)
 {
-	// printf("[Length] First Free: %d\n", self->first_free);
 	assert(self != NULL);
 	ck_spinlock_fas_lock(&self->lock);
 	assert(ck_spinlock_fas_locked(&self->lock));
@@ -176,7 +174,6 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
 	}
 
 	int post_length = self->first_free - 1;
-	printf("[%s Enqueue] First Free: %d\n", name, self->first_free);
 
 	// We should have appended here
 	assert(post_length == pre_length + 1);
@@ -217,7 +214,6 @@ priority_queue_delete(struct priority_queue *self, void *value, char *name)
 		printf("[priority_queue_delete] Not found!\n");
 		return -1;
 	};
-	printf("[%s Delete] First Free: %d\n", name, self->first_free);
 	return 0;
 }
 
@@ -259,22 +255,10 @@ priority_queue_dequeue(struct priority_queue *self, char *name)
 		self->highest_priority = !priority_queue_is_empty(self) ? self->get_priority(self->items[1])
 		                                                        : ULONG_MAX;
 	}
-	printf("[%s Dequeue] First Free: %d\n", name, self->first_free);
 	ck_spinlock_fas_unlock(&self->lock);
 	// End of Critical Section
 	return min;
 }
-
-// /**
-//  * Returns the head of the priority queue without removing it
-//  **/
-// void *
-// priority_queue_get_head(struct priority_queue *self)
-// {
-// 	ck_spinlock_fas_lock(&self->lock);
-
-// 	ck_spinlock_fas_unlock(&self->lock);
-// }
 
 uint64_t
 priority_queue_peek(struct priority_queue *self)

@@ -75,6 +75,14 @@ sandbox_run_queue_fifo_append(struct sandbox *sandbox_to_append)
 	return sandbox_to_append;
 }
 
+// Conditionally checks to see if current sandbox should be preempted
+// FIFO doesn't preempt, so just return.
+void
+sandbox_run_queue_fifo_preempt(ucontext_t *user_context)
+{
+	return;
+}
+
 
 void
 sandbox_run_queue_fifo_initialize()
@@ -85,7 +93,7 @@ sandbox_run_queue_fifo_initialize()
 	sandbox_run_queue_config_t config = { .add      = sandbox_run_queue_fifo_append,
 		                              .is_empty = sandbox_run_queue_fifo_is_empty,
 		                              .delete   = sandbox_run_queue_fifo_remove,
-		                              .get_next = sandbox_run_queue_fifo_get_next };
-
+		                              .get_next = sandbox_run_queue_fifo_get_next,
+		                              .preempt  = sandbox_run_queue_fifo_preempt };
 	sandbox_run_queue_initialize(&config);
-}
+};

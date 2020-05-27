@@ -27,7 +27,7 @@
  * Worker Thread State     *
  **************************/
 
-// context pointer to switch to when this thread gets a SIGUSR1
+// context pointer used to store and restore a preempted sandbox. SIGUSR1
 __thread arch_context_t *worker_thread_next_context = NULL;
 
 // context of the runtime thread before running sandboxes or to resume its "main".
@@ -44,8 +44,8 @@ static __thread bool worker_thread_is_in_callback;
  *************************************************/
 
 /**
- * @brief Switches to the next sandbox, placing the current sandbox of the completion queue if in RETURNED state
- * @param next The Sandbox Context to switch to or NULL
+ * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in RETURNED state
+ * @param next_sandbox The Sandbox Context to switch to or NULL
  * @return void
  */
 static inline void
@@ -62,7 +62,8 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	// Set the current sandbox to the next
 	current_sandbox_set(next_sandbox);
 
-	// and switch to the associated context. But what is the purpose of worker_thread_next_context?
+	// and switch to the associated context.
+	// Save the context pointer to worker_thread_next_context in case of preemption
 	worker_thread_next_context = next_register_context;
 	arch_context_switch(previous_register_context, next_register_context);
 
@@ -137,7 +138,8 @@ worker_thread_process_io(void)
 }
 
 /**
- * TODO: What is this doing?
+ * Sends the current thread a SIGUSR1, causing a preempted sandbox to be restored
+ * Invoked by asm during a context switch
  **/
 void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void)
 {

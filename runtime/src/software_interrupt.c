@@ -41,7 +41,6 @@ extern pthread_t runtime_worker_threads[];
  ***************************************/
 
 static inline void software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw);
-static inline void software_interrupt_schedule_alarm(void *user_context_raw);
 
 /**
  * The handler function for Software Interrupts (signals)
@@ -64,29 +63,34 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	case SIGALRM: {
 		// SIGALRM is the preemption signal that occurs every quantum of execution
 
-
+		// A POSIX signal is delivered to one of the threads in our process. If sent by the kernel, "broadcast"
+		// by forwarding to all all threads
 		if (signal_info->si_code == SI_KERNEL) {
-			// deliver signal to all other worker threads..
 			for (int i = 0; i < WORKER_THREAD_CORE_COUNT; i++) {
 				if (pthread_self() == runtime_worker_threads[i]) continue;
 				pthread_kill(runtime_worker_threads[i], SIGALRM);
 			}
 		} else {
-			// What is this?
+			// If not sent by the kernel, this should be a signal forwarded from another thread
 			assert(signal_info->si_code == SI_TKILL);
 		}
 		// debuglog("alrm:%d\n", software_interrupt_SIGALRM_count);
 
 		software_interrupt_SIGALRM_count++;
-		// software_interrupt_supported_signals per-core..
-		if (current_sandbox && current_sandbox->state == RETURNED) return;
-		if (worker_thread_next_context) return;
-		if (!software_interrupt_is_enabled()) return;
-		software_interrupt_schedule_alarm(user_context);
 
-		break;
+		// if the current sandbox is NULL or not in a RETURNED state
+		if (current_sandbox && current_sandbox->state == RETURNED) return;
+		// and the next context is NULL
+		if (worker_thread_next_context) return;
+		// and software interrupts are not disabled
+		if (!software_interrupt_is_enabled()) return;
+		// Preempt
+		sandbox_run_queue_preempt(user_context);
+
+		return;
 	}
 	case SIGUSR1: {
+		// SIGUSR1 restores the preempted sandbox stored in worker_thread_next_context
 		// make sure sigalrm doesn't mess this up if nested..
 		assert(!software_interrupt_is_enabled());
 		/* we set current before calling pthread_kill! */
@@ -108,17 +112,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		break;
 	}
 #endif
-}
-
-/**
- * Preempt the current sandbox and start executing the next sandbox
- * @param user_context_raw void* to a user_context struct
- **/
-static inline void
-software_interrupt_schedule_alarm(void *user_context_raw)
-{
-	ucontext_t *user_context = (ucontext_t *)user_context_raw;
-	sandbox_run_queue_preempt(user_context);
 }
 
 /***************************************
