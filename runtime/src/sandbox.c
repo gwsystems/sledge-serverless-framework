@@ -142,10 +142,11 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 
 done:
 	assert(sndsz == sandbox->request_response_data_length);
-	sandbox->total_time    = __getcycles() - sandbox->start_time;
+	uint64_t end_time      = __getcycles();
+	sandbox->total_time    = end_time - sandbox->start_time;
 	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 
-	printf("%s():%d, %d, %lu\n", sandbox->module->name, sandbox->module->port,
+	printf("%s():%d, %u, %lu\n", sandbox->module->name, sandbox->module->port,
 	       sandbox->module->relative_deadline_us, total_time_us);
 
 #ifndef USE_HTTP_UVIO
