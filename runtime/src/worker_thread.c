@@ -179,12 +179,10 @@ worker_thread_execute_libuv_event_loop(void)
 void *
 worker_thread_main(void *return_code)
 {
-	// Initialize Worker State
+	// Initialize Worker Infrastructure
 	arch_context_init(&worker_thread_base_context, 0, 0);
-
 	// sandbox_run_queue_fifo_initialize();
 	sandbox_run_queue_ps_initialize();
-
 	sandbox_completion_queue_initialize();
 	software_interrupt_is_disabled = false;
 	worker_thread_next_context     = NULL;
@@ -194,7 +192,6 @@ worker_thread_main(void *return_code)
 #endif
 	uv_loop_init(&worker_thread_uvio_handle);
 	worker_thread_is_in_callback = false;
-
 
 	// Begin Worker Execution Loop
 	struct sandbox *next_sandbox;
