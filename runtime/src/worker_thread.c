@@ -220,9 +220,8 @@ worker_thread_main(void *return_code)
  * TODO: Consider moving this to a future current_sandbox file. This has thus far proven difficult to move
  **/
 void
-worker_thread_exit_current_sandbox(void)
+worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)
 {
-	struct sandbox *exiting_sandbox = current_sandbox_get();
 	assert(exiting_sandbox);
 
 	// TODO: I do not understand when software interrupts must be disabled?
@@ -235,7 +234,7 @@ worker_thread_exit_current_sandbox(void)
 	// function execution"
 	int rc = munmap(exiting_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
 	if (rc == -1) {
-		perror("worker_thread_exit_current_sandbox - munmap failed");
+		perror("worker_thread_on_sandbox_exit - munmap failed");
 		assert(0);
 	}
 

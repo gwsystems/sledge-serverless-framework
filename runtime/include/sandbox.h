@@ -31,7 +31,6 @@ typedef enum
 	RETURNED
 } sandbox_state_t;
 
-
 struct sandbox {
 	sandbox_state_t state;
 
@@ -87,7 +86,7 @@ typedef struct sandbox sandbox_t;
 extern __thread arch_context_t *worker_thread_next_context;
 
 extern void worker_thread_block_current_sandbox(void);
-extern void worker_thread_exit_current_sandbox(void);
+extern void worker_thread_on_sandbox_exit(sandbox_t *sandbox);
 extern void worker_thread_process_io(void);
 extern void __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void);
 extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
@@ -98,6 +97,7 @@ extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
 
 struct sandbox *sandbox_allocate(sandbox_request_t *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
+void            sandbox_main(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
 

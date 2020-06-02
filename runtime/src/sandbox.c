@@ -12,22 +12,21 @@
 
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
- * TODO: why do we have to pass argument count explicitly? Can't we just get this off the sandbox?
- * @param argument_count
  **/
 static inline void
-current_sandbox_setup_arguments(i32 argument_count)
+sandbox_setup_arguments(struct sandbox *sandbox)
 {
-	struct sandbox *curr      = current_sandbox_get();
-	char *          arguments = current_sandbox_get_arguments();
+	assert(sandbox != NULL);
+	char *arguments      = sandbox_get_arguments(sandbox);
+	i32   argument_count = module_get_argument_count(sandbox->module);
 
 	// whatever gregor has, to be able to pass arguments to a module!
-	curr->arguments_offset = sandbox_lmbound;
-	assert(sandbox_lmbase == curr->linear_memory_start);
+	sandbox->arguments_offset = sandbox_lmbound;
+	assert(sandbox_lmbase == sandbox->linear_memory_start);
 	expand_memory();
 
-	i32 *array_ptr  = worker_thread_get_memory_ptr_void(curr->arguments_offset, argument_count * sizeof(i32));
-	i32  string_off = curr->arguments_offset + (argument_count * sizeof(i32));
+	i32 *array_ptr  = worker_thread_get_memory_ptr_void(sandbox->arguments_offset, argument_count * sizeof(i32));
+	i32  string_off = sandbox->arguments_offset + (argument_count * sizeof(i32));
 
 	for (int i = 0; i < argument_count; i++) {
 		char * arg    = arguments + (i * MODULE_MAX_ARGUMENT_SIZE);
@@ -52,6 +51,8 @@ current_sandbox_setup_arguments(i32 argument_count)
 int
 sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 {
+	assert(sandbox != NULL);
+	assert(length > 0);
 	// Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
 	// it's like a cursor to keep track of what we've read so far
 	http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
@@ -59,43 +60,44 @@ sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 	return 0;
 }
 
-
 /**
  * Receive and Parse the Request for the current sandbox
  * @return 1 on success, 0 if no context, < 0 on failure.
  **/
 static inline int
-current_sandbox_receive_and_parse_client_request(void)
+sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 {
-	struct sandbox *curr               = current_sandbox_get();
-	curr->request_response_data_length = 0;
+	assert(sandbox != NULL);
+
+	sandbox->request_response_data_length = 0;
 #ifndef USE_HTTP_UVIO
 	int r = 0;
-	r     = recv(curr->client_socket_descriptor, (curr->request_response_data), curr->module->max_request_size, 0);
+	r = recv(sandbox->client_socket_descriptor, (sandbox->request_response_data), sandbox->module->max_request_size,
+	         0);
 	if (r <= 0) {
 		if (r < 0) perror("recv1");
 		return r;
 	}
 	while (r > 0) {
-		if (current_sandbox_parse_http_request(r) != 0) return -1;
-		curr->request_response_data_length += r;
-		struct http_request *rh = &curr->http_request;
+		if (sandbox_parse_http_request(sandbox, r) != 0) return -1;
+		sandbox->request_response_data_length += r;
+		struct http_request *rh = &sandbox->http_request;
 		if (rh->message_end) break;
 
-		r = recv(curr->client_socket_descriptor,
-		         (curr->request_response_data + curr->request_response_data_length),
-		         curr->module->max_request_size - curr->request_response_data_length, 0);
+		r = recv(sandbox->client_socket_descriptor,
+		         (sandbox->request_response_data + sandbox->request_response_data_length),
+		         sandbox->module->max_request_size - sandbox->request_response_data_length, 0);
 		if (r < 0) {
 			perror("recv2");
 			return r;
 		}
 	}
 #else
-	int r = uv_read_start((uv_stream_t *)&curr->client_libuv_stream,
+	int r = uv_read_start((uv_stream_t *)&sandbox->client_libuv_stream,
 	                      libuv_callbacks_on_allocate_setup_request_response_data,
 	                      libuv_callbacks_on_read_parse_http_request);
 	worker_thread_process_io();
-	if (curr->request_response_data_length == 0) return 0;
+	if (sandbox->request_response_data_length == 0) return 0;
 #endif
 	return 1;
 }
@@ -105,54 +107,55 @@ current_sandbox_receive_and_parse_client_request(void)
  * @return RC. -1 on Failure
  **/
 static inline int
-current_sandbox_build_and_send_client_response(void)
+sandbox_build_and_send_client_response(struct sandbox *sandbox)
 {
-	int             sndsz                  = 0;
-	struct sandbox *curr                   = current_sandbox_get();
-	int             response_header_length = strlen(HTTP_RESPONSE_200_OK) + strlen(HTTP_RESPONSE_CONTENT_TYPE)
-	                             + strlen(HTTP_RESPONSE_CONTENT_LENGTH);
-	int body_length = curr->request_response_data_length - response_header_length;
+	assert(sandbox != NULL);
 
-	memset(curr->request_response_data, 0,
+	int sndsz                  = 0;
+	int response_header_length = strlen(HTTP_RESPONSE_200_OK) + strlen(HTTP_RESPONSE_CONTENT_TYPE)
+	                             + strlen(HTTP_RESPONSE_CONTENT_LENGTH);
+	int body_length = sandbox->request_response_data_length - response_header_length;
+
+	memset(sandbox->request_response_data, 0,
 	       strlen(HTTP_RESPONSE_200_OK) + strlen(HTTP_RESPONSE_CONTENT_TYPE)
 	         + strlen(HTTP_RESPONSE_CONTENT_LENGTH));
-	strncpy(curr->request_response_data, HTTP_RESPONSE_200_OK, strlen(HTTP_RESPONSE_200_OK));
+	strncpy(sandbox->request_response_data, HTTP_RESPONSE_200_OK, strlen(HTTP_RESPONSE_200_OK));
 	sndsz += strlen(HTTP_RESPONSE_200_OK);
 
 	if (body_length == 0) goto done;
-	strncpy(curr->request_response_data + sndsz, HTTP_RESPONSE_CONTENT_TYPE, strlen(HTTP_RESPONSE_CONTENT_TYPE));
-	if (strlen(curr->module->response_content_type) <= 0) {
-		strncpy(curr->request_response_data + sndsz + strlen("Content-type: "),
+	strncpy(sandbox->request_response_data + sndsz, HTTP_RESPONSE_CONTENT_TYPE, strlen(HTTP_RESPONSE_CONTENT_TYPE));
+	if (strlen(sandbox->module->response_content_type) <= 0) {
+		strncpy(sandbox->request_response_data + sndsz + strlen("Content-type: "),
 		        HTTP_RESPONSE_CONTENT_TYPE_PLAIN, strlen(HTTP_RESPONSE_CONTENT_TYPE_PLAIN));
 	} else {
-		strncpy(curr->request_response_data + sndsz + strlen("Content-type: "),
-		        curr->module->response_content_type, strlen(curr->module->response_content_type));
+		strncpy(sandbox->request_response_data + sndsz + strlen("Content-type: "),
+		        sandbox->module->response_content_type, strlen(sandbox->module->response_content_type));
 	}
 	sndsz += strlen(HTTP_RESPONSE_CONTENT_TYPE);
 	char len[10] = { 0 };
 	sprintf(len, "%d", body_length);
-	strncpy(curr->request_response_data + sndsz, HTTP_RESPONSE_CONTENT_LENGTH,
+	strncpy(sandbox->request_response_data + sndsz, HTTP_RESPONSE_CONTENT_LENGTH,
 	        strlen(HTTP_RESPONSE_CONTENT_LENGTH));
-	strncpy(curr->request_response_data + sndsz + strlen("Content-length: "), len, strlen(len));
+	strncpy(sandbox->request_response_data + sndsz + strlen("Content-length: "), len, strlen(len));
 	sndsz += strlen(HTTP_RESPONSE_CONTENT_LENGTH);
 	sndsz += body_length;
 
 done:
-	assert(sndsz == curr->request_response_data_length);
-	curr->total_time       = __getcycles() - curr->start_time;
-	uint64_t total_time_us = curr->total_time / runtime_processor_speed_MHz;
+	assert(sndsz == sandbox->request_response_data_length);
+	sandbox->total_time    = __getcycles() - sandbox->start_time;
+	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 
-	printf("%s():%d, %d, %lu\n", curr->module->name, curr->module->port, curr->module->relative_deadline_us,
-	       total_time_us);
+	printf("%s():%d, %d, %lu\n", sandbox->module->name, sandbox->module->port,
+	       sandbox->module->relative_deadline_us, total_time_us);
 
 #ifndef USE_HTTP_UVIO
-	int r = send(curr->client_socket_descriptor, curr->request_response_data, sndsz, 0);
+	int r = send(sandbox->client_socket_descriptor, sandbox->request_response_data, sndsz, 0);
 	if (r < 0) {
 		perror("send");
 		return -1;
 	}
 	while (r < sndsz) {
-		int s = send(curr->client_socket_descriptor, curr->request_response_data + r, sndsz - r, 0);
+		int s = send(sandbox->client_socket_descriptor, sandbox->request_response_data + r, sndsz - r, 0);
 		if (s < 0) {
 			perror("send");
 			return -1;
@@ -161,14 +164,64 @@ done:
 	}
 #else
 	uv_write_t req = {
-		.data = curr,
+		.data = sandbox,
 	};
-	uv_buf_t bufv = uv_buf_init(curr->request_response_data, sndsz);
-	int      r    = uv_write(&req, (uv_stream_t *)&curr->client_libuv_stream, &bufv, 1,
+	uv_buf_t bufv = uv_buf_init(sandbox->request_response_data, sndsz);
+	int      r    = uv_write(&req, (uv_stream_t *)&sandbox->client_libuv_stream, &bufv, 1,
                          libuv_callbacks_on_write_wakeup_sandbox);
 	worker_thread_process_io();
 #endif
 	return 0;
+}
+
+static inline void
+sandbox_close_http(struct sandbox *sandbox)
+{
+	assert(sandbox != NULL);
+
+#ifdef USE_HTTP_UVIO
+	uv_close((uv_handle_t *)&sandbox->client_libuv_stream, libuv_callbacks_on_close_wakeup_sakebox);
+	worker_thread_process_io();
+#else
+	close(sandbox->client_socket_descriptor);
+#endif
+}
+
+static inline void
+sandbox_open_http(struct sandbox *sandbox)
+{
+	assert(sandbox != NULL);
+
+	http_parser_init(&sandbox->http_parser, HTTP_REQUEST);
+
+	// Set the sandbox as the data the http-parser has access to
+	sandbox->http_parser.data = sandbox;
+
+#ifdef USE_HTTP_UVIO
+
+	// Initialize libuv TCP stream
+	int r = uv_tcp_init(worker_thread_get_libuv_handle(), (uv_tcp_t *)&sandbox->client_libuv_stream);
+	assert(r == 0);
+
+	// Set the current sandbox as the data the libuv callbacks have access to
+	sandbox->client_libuv_stream.data = sandbox;
+
+	// Open the libuv TCP stream
+	r = uv_tcp_open((uv_tcp_t *)&sandbox->client_libuv_stream, sandbox->client_socket_descriptor);
+	assert(r == 0);
+#endif
+}
+
+// Initialize file descriptors 0, 1, and 2 as io handles 0, 1, 2
+static inline void
+sandbox_initialize_io_handles_and_file_descriptors(struct sandbox *sandbox)
+{
+	int f = sandbox_initialize_io_handle_and_set_file_descriptor(sandbox, 0);
+	assert(f == 0);
+	f = sandbox_initialize_io_handle_and_set_file_descriptor(sandbox, 1);
+	assert(f == 1);
+	f = sandbox_initialize_io_handle_and_set_file_descriptor(sandbox, 2);
+	assert(f == 2);
 }
 
 /**
@@ -179,83 +232,45 @@ done:
 void
 current_sandbox_main(void)
 {
-	struct sandbox *current_sandbox = current_sandbox_get();
-	// FIXME: is this right? this is the first time this sandbox is running.. so it wont
-	//        return to worker_thread_switch_to_sandbox() api..
-	//        we'd potentially do what we'd in worker_thread_switch_to_sandbox() api here for cleanup..
-	if (software_interrupt_is_enabled() == false) {
-		arch_context_init(&current_sandbox->ctxt, 0, 0);
-		worker_thread_next_context = NULL;
-		software_interrupt_enable();
-	}
-	struct module *current_module = sandbox_get_module(current_sandbox);
+	struct sandbox *sandbox = current_sandbox_get();
+	// assert(sandbox != NULL);
+	assert(sandbox->state == RUNNABLE);
+
+	assert(!software_interrupt_is_enabled());
+	arch_context_init(&sandbox->ctxt, 0, 0);
+	worker_thread_next_context = NULL;
+	software_interrupt_enable();
+
+	sandbox_initialize_io_handles_and_file_descriptors(sandbox);
+
+	sandbox_open_http(sandbox);
+
+	// Parse the request. 1 = Success
+	int rc = sandbox_receive_and_parse_client_request(sandbox);
+	if (rc != 1) goto err;
+
+	// Initialize the module
+	struct module *current_module = sandbox_get_module(sandbox);
 	int            argument_count = module_get_argument_count(current_module);
-	// for stdio
+	// alloc_linear_memory();
+	module_initialize_globals(current_module);
+	module_initialize_memory(current_module);
 
-	// Try to initialize file descriptors 0, 1, and 2 as io handles 0, 1, 2
-	// We need to check that we get what we expect, as these IO handles may theoretically have been taken
-	// TODO: why do the file descriptors have to match the io handles?
-	int f = current_sandbox_initialize_io_handle_and_set_file_descriptor(0);
-	assert(f == 0);
-	f = current_sandbox_initialize_io_handle_and_set_file_descriptor(1);
-	assert(f == 1);
-	f = current_sandbox_initialize_io_handle_and_set_file_descriptor(2);
-	assert(f == 2);
+	// Copy the arguments into the WebAssembly sandbox
+	sandbox_setup_arguments(sandbox);
 
-	// Initialize the HTTP-Parser for a request
-	http_parser_init(&current_sandbox->http_parser, HTTP_REQUEST);
+	// Executing the function
+	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
 
-	// Set the current_sandbox as the data the http-parser has access to
-	current_sandbox->http_parser.data = current_sandbox;
+	// Retrieve the result, construct the HTTP response, and send to client
+	sandbox_build_and_send_client_response(sandbox);
 
-	// NOTE: if more headers, do offset by that!
-	int response_header_length = strlen(HTTP_RESPONSE_200_OK) + strlen(HTTP_RESPONSE_CONTENT_TYPE)
-	                             + strlen(HTTP_RESPONSE_CONTENT_LENGTH);
-
-#ifdef USE_HTTP_UVIO
-
-	// Initialize libuv TCP stream
-	int r = uv_tcp_init(worker_thread_get_libuv_handle(), (uv_tcp_t *)&current_sandbox->client_libuv_stream);
-	assert(r == 0);
-
-	// Set the current sandbox as the data the libuv callbacks have access to
-	current_sandbox->client_libuv_stream.data = current_sandbox;
-
-	// Open the libuv TCP stream
-	r = uv_tcp_open((uv_tcp_t *)&current_sandbox->client_libuv_stream, current_sandbox->client_socket_descriptor);
-	assert(r == 0);
-#endif
-
-	// If the HTTP Request returns 1, we've successfully received and parsed the HTTP request, so execute it!
-	if (current_sandbox_receive_and_parse_client_request() > 0) {
-		//
-		current_sandbox->request_response_data_length = response_header_length;
-
-		// Allocate the WebAssembly Sandbox
-		alloc_linear_memory();
-		module_initialize_globals(current_module);
-		module_initialize_memory(current_module);
-
-		// Copy the arguments into the WebAssembly sandbox
-		current_sandbox_setup_arguments(argument_count);
-
-		// Executing the function within the WebAssembly sandbox
-		current_sandbox->return_value = module_main(current_module, argument_count,
-		                                            current_sandbox->arguments_offset);
-
-		// Retrieve the result from the WebAssembly sandbox, construct the HTTP response, and send to client
-		current_sandbox_build_and_send_client_response();
-	}
-
+done:
 	// Cleanup connection and exit sandbox
-
-#ifdef USE_HTTP_UVIO
-	uv_close((uv_handle_t *)&current_sandbox->client_libuv_stream, libuv_callbacks_on_close_wakeup_sakebox);
-	worker_thread_process_io();
-#else
-	close(current_sandbox->client_socket_descriptor);
-#endif
-	worker_thread_exit_current_sandbox();
+	sandbox_close_http(sandbox);
+	worker_thread_on_sandbox_exit(sandbox);
+err:
+	goto done;
 }
 
 /**
