@@ -84,6 +84,7 @@ sandbox_run_queue_ps_get_next()
 
 		// Otherwise, allocate the sandbox request as a runnable sandbox and place on the runqueue
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
+		if (sandbox == NULL) return NULL;
 		assert(sandbox);
 		free(sandbox_request);
 		sandbox->state = RUNNABLE;

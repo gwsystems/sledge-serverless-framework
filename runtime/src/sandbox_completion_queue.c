@@ -9,17 +9,6 @@ sandbox_completion_queue_initialize()
 	ps_list_head_init(&sandbox_completion_queue);
 }
 
-/**
- * Adds sandbox to the completion queue
- * @param sandbox
- **/
-void
-sandbox_completion_queue_add(struct sandbox *sandbox)
-{
-	assert(ps_list_singleton_d(sandbox));
-	ps_list_head_append_d(&sandbox_completion_queue, sandbox);
-}
-
 static inline bool
 sandbox_completion_queue_is_empty()
 {
@@ -27,18 +16,32 @@ sandbox_completion_queue_is_empty()
 }
 
 /**
- * @brief Pops n sandboxes from the thread local completion queue and then frees them
- * @param number_to_free The number of sandboxes to pop and free
+ * Adds sandbox to the completion queue
+ * @param sandbox
+ **/
+void
+sandbox_completion_queue_add(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	assert(ps_list_singleton_d(sandbox));
+	ps_list_head_append_d(&sandbox_completion_queue, sandbox);
+	assert(!sandbox_completion_queue_is_empty());
+}
+
+
+/**
+ * @brief Frees all sandboxes in the thread local completion queue
  * @return void
  */
 void
-sandbox_completion_queue_free(unsigned int number_to_free)
+sandbox_completion_queue_free()
 {
-	for (int i = 0; i < number_to_free; i++) {
-		if (sandbox_completion_queue_is_empty()) break;
-		struct sandbox *sandbox = ps_list_head_first_d(&sandbox_completion_queue, struct sandbox);
-		if (!sandbox) break;
-		ps_list_rem_d(sandbox);
-		sandbox_free(sandbox);
+	struct sandbox *sandbox_iterator;
+	struct sandbox *buffer;
+
+	ps_list_foreach_del_d(&sandbox_completion_queue, sandbox_iterator, buffer)
+	{
+		ps_list_rem_d(sandbox_iterator);
+		sandbox_free(sandbox_iterator);
 	}
 }

@@ -40,6 +40,10 @@ expand_memory(void)
 	}
 
 	// TODO: check sandbox->linear_memory_max_size
+	if (sandbox_lmbound > sandbox->linear_memory_max_size) {
+		printf("expand_memory - Out of Memory!\n");
+		exit(EXIT_FAILURE);
+	}
 	sandbox_lmbound += WASM_PAGE_SIZE;
 	sandbox->linear_memory_size = sandbox_lmbound;
 }

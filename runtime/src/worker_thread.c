@@ -45,7 +45,7 @@ static __thread bool worker_thread_is_in_callback;
 
 /**
  * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in RETURNED state
- * @param next_sandbox The Sandbox Context to switch to or NULL
+ * @param next_sandbox The Sandbox Context to switch to or NULL, which forces return to base context
  * @return void
  */
 static inline void
@@ -67,9 +67,15 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	worker_thread_next_context = next_register_context;
 	arch_context_switch(previous_register_context, next_register_context);
 
+	assert(previous_sandbox == NULL || previous_sandbox->state == RUNNABLE || previous_sandbox->state == BLOCKED
+	       || previous_sandbox->state == RETURNED);
+
 	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
-	if (previous_sandbox != NULL && previous_sandbox->state == RETURNED)
+	if (previous_sandbox != NULL && previous_sandbox->state == RETURNED) {
 		sandbox_completion_queue_add(previous_sandbox);
+	} else if (previous_sandbox != NULL) {
+		printf("Switched away from sandbox is state %d\n", previous_sandbox->state);
+	}
 
 	software_interrupt_enable();
 }
@@ -201,10 +207,9 @@ worker_thread_main(void *return_code)
 		next_sandbox = sandbox_run_queue_get_next();
 		software_interrupt_enable();
 
-		if (next_sandbox != NULL) {
-			worker_thread_switch_to_sandbox(next_sandbox);
-			sandbox_completion_queue_free(1);
-		}
+		if (next_sandbox != NULL) worker_thread_switch_to_sandbox(next_sandbox);
+
+		sandbox_completion_queue_free();
 	}
 
 	*(int *)return_code = -1;
@@ -220,18 +225,25 @@ worker_thread_main(void *return_code)
 void
 worker_thread_exit_current_sandbox(void)
 {
-	// Remove the sandbox that exited from the runqueue and set state to RETURNED
-	struct sandbox *previous_sandbox = current_sandbox_get();
-	assert(previous_sandbox);
-	software_interrupt_disable();
-	sandbox_run_queue_delete(previous_sandbox);
-	previous_sandbox->state = RETURNED;
+	struct sandbox *exiting_sandbox = current_sandbox_get();
+	assert(exiting_sandbox);
 
-	struct sandbox *next_sandbox = sandbox_run_queue_get_next();
-	assert(next_sandbox != previous_sandbox);
+	// TODO: I do not understand when software interrupts must be disabled?
+	software_interrupt_disable();
+	sandbox_run_queue_delete(exiting_sandbox);
+	exiting_sandbox->state = RETURNED;
 	software_interrupt_enable();
+
 	// Because the stack is still in use, only unmap linear memory and defer free resources until "main
 	// function execution"
-	munmap(previous_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
-	worker_thread_switch_to_sandbox(next_sandbox);
+	int rc = munmap(exiting_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
+	if (rc == -1) {
+		perror("worker_thread_exit_current_sandbox - munmap failed");
+		assert(0);
+	}
+
+	sandbox_completion_queue_add(exiting_sandbox);
+
+	// This should force return to main event loop
+	worker_thread_switch_to_sandbox(NULL);
 }

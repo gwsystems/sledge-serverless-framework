@@ -25,12 +25,12 @@ struct sandbox_io_handle {
 
 typedef enum
 {
+	INITIALIZING,
 	RUNNABLE,
 	BLOCKED,
 	RETURNED
 } sandbox_state_t;
 
-// TODO: linear_memory_max_size is not really used
 
 struct sandbox {
 	sandbox_state_t state;
@@ -39,7 +39,7 @@ struct sandbox {
 
 	void *linear_memory_start; // after sandbox struct
 	u32   linear_memory_size;  // from after sandbox struct
-	u32   linear_memory_max_size;
+	u64   linear_memory_max_size;
 
 	void *stack_start; // guess we need a mechanism for stack allocation.
 	u32   stack_size;  // and to set the size of it.

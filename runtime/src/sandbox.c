@@ -259,84 +259,138 @@ current_sandbox_main(void)
 }
 
 /**
- * Allocates the memory for a sandbox to run a module
+ * Allocates a WebAssembly sandbox represented by the following layout
+ * struct sandbox | Buffer for HTTP Req/Resp | 4GB of Wasm Linear Memory | Guard Page
  * @param module the module that we want to run
  * @returns the resulting sandbox or NULL if mmap failed
  **/
 static inline struct sandbox *
 sandbox_allocate_memory(struct module *module)
 {
-	unsigned long memory_size = SBOX_MAX_MEM; // 4GB
+	assert(module != NULL);
 
-	// Why do we add max_request_or_response_size?
-	unsigned long sandbox_size       = sizeof(struct sandbox) + module->max_request_or_response_size;
-	unsigned long linear_memory_size = WASM_PAGE_SIZE * WASM_START_PAGES;
+	char *          error_message          = NULL;
+	unsigned long   linear_memory_size     = WASM_PAGE_SIZE * WASM_START_PAGES; // The initial pages
+	uint64_t        linear_memory_max_size = (uint64_t)SBOX_MAX_MEM;
+	struct sandbox *sandbox                = NULL;
+	unsigned long   sandbox_size           = sizeof(struct sandbox) + module->max_request_or_response_size;
 
-	if (linear_memory_size + sandbox_size > memory_size) return NULL;
+	// Control information should be page-aligned
+	// TODO: Should I use round_up_to_page when setting sandbox_page?
 	assert(round_up_to_page(sandbox_size) == sandbox_size);
 
-	// What does mmap do exactly with file_descriptor -1?
-	void *addr = mmap(NULL, sandbox_size + memory_size + /* guard page */ PAGE_SIZE, PROT_NONE,
+	// At an address of the system's choosing, allocate the memory, marking it as inaccessible
+	errno      = 0;
+	void *addr = mmap(NULL, sandbox_size + linear_memory_max_size + /* guard page */ PAGE_SIZE, PROT_NONE,
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (addr == MAP_FAILED) return NULL;
+	if (addr == MAP_FAILED) {
+		error_message = "sandbox_allocate_memory - memory allocation failed";
+		goto alloc_failed;
+	}
+	sandbox = (struct sandbox *)addr;
 
+	// Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write
+	errno         = 0;
 	void *addr_rw = mmap(addr, sandbox_size + linear_memory_size, PROT_READ | PROT_WRITE,
 	                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	if (addr_rw == MAP_FAILED) {
-		munmap(addr, memory_size + PAGE_SIZE);
-		return NULL;
+		error_message = "set to r/w";
+		goto set_rw_failed;
 	}
 
-	struct sandbox *sandbox = (struct sandbox *)addr;
-	// can it include sandbox as well?
-	sandbox->linear_memory_start = (char *)addr + sandbox_size;
-	sandbox->linear_memory_size  = linear_memory_size;
-	sandbox->module              = module;
-	sandbox->sandbox_size        = sandbox_size;
+	// Populate Sandbox members
+	sandbox->linear_memory_start    = (char *)addr + sandbox_size;
+	sandbox->linear_memory_size     = linear_memory_size;
+	sandbox->linear_memory_max_size = linear_memory_max_size;
+	sandbox->module                 = module;
+	sandbox->sandbox_size           = sandbox_size;
 	module_acquire(module);
 
+done:
 	return sandbox;
+set_rw_failed:
+	sandbox = NULL;
+	errno   = 0;
+	int rc  = munmap(addr, sandbox_size + linear_memory_size + PAGE_SIZE);
+	if (rc == -1) perror("Failed to munmap after fail to set r/w");
+alloc_failed:
+alloc_too_big:
+err:
+	perror(error_message);
+	goto done;
+}
+
+int
+sandbox_allocate_stack(sandbox_t *sandbox)
+{
+	assert(sandbox);
+	assert(sandbox->module);
+
+	errno                = 0;
+	sandbox->stack_size  = sandbox->module->stack_size;
+	sandbox->stack_start = mmap(NULL, sandbox->stack_size, PROT_READ | PROT_WRITE,
+	                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
+	if (sandbox->stack_start == MAP_FAILED) goto err_stack_allocation_failed;
+
+done:
+	return 0;
+err_stack_allocation_failed:
+	perror("sandbox_allocate_stack");
+	return -1;
 }
 
 struct sandbox *
 sandbox_allocate(sandbox_request_t *sandbox_request)
 {
-	struct module *        module            = sandbox_request->module;
-	char *                 arguments         = sandbox_request->arguments;
-	int                    socket_descriptor = sandbox_request->socket_descriptor;
-	const struct sockaddr *socket_address    = sandbox_request->socket_address;
-	u64                    start_time        = sandbox_request->start_time;
-	u64                    absolute_deadline = sandbox_request->absolute_deadline;
+	assert(sandbox_request != NULL);
+	assert(sandbox_request->module != NULL);
+	assert(module_is_valid(sandbox_request->module));
 
-	if (!module_is_valid(module)) return NULL;
+	char *          error_message = NULL;
+	int             rc;
+	struct sandbox *sandbox = NULL;
 
-	// FIXME: don't use malloc. huge security problem!
-	// perhaps, main should be in its own sandbox, when it is not running any sandbox.
-	struct sandbox *sandbox = (struct sandbox *)sandbox_allocate_memory(module);
-	if (!sandbox) return NULL;
+	// Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space
+	errno   = 0;
+	sandbox = (struct sandbox *)sandbox_allocate_memory(sandbox_request->module);
+	if (!sandbox) goto err_memory_allocation_failed;
 
-	// Assign the start time from the request
-	sandbox->start_time        = start_time;
-	sandbox->absolute_deadline = absolute_deadline;
+	// Set state to initializing
+	sandbox->state = INITIALIZING;
 
-	// actual module instantiation!
-	sandbox->arguments   = (void *)arguments;
-	sandbox->stack_size  = module->stack_size;
-	sandbox->stack_start = mmap(NULL, sandbox->stack_size, PROT_READ | PROT_WRITE,
-	                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
-	if (sandbox->stack_start == MAP_FAILED) {
-		perror("mmap");
-		assert(0);
-	}
-	sandbox->client_socket_descriptor = socket_descriptor;
-	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
-	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
-	ps_list_init_d(sandbox);
+	// Allocate the Stack
+	rc = sandbox_allocate_stack(sandbox);
+	if (rc != 0) goto err_stack_allocation_failed;
 
-	// Setup the sandbox's context, stack, and instruction pointer
+	// Copy the socket descriptor, address, and arguments of the client invocation
+	sandbox->absolute_deadline        = sandbox_request->absolute_deadline;
+	sandbox->arguments                = (void *)sandbox_request->arguments;
+	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
+	sandbox->start_time               = sandbox_request->start_time;
+
+	// Initialize the sandbox's context, stack, and instruction pointer
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
 	                  (reg_t)(sandbox->stack_start + sandbox->stack_size));
+
+	// What does it mean if there isn't a socket_address? Shouldn't this be a hard requirement?
+	// It seems that only the socket descriptor is used to send response
+	const struct sockaddr *socket_address = sandbox_request->socket_address;
+	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
+
+	// Initialize file descriptors to -1
+	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
+
+	// Initialize Parsec control structures (used by Completion Queue)
+	ps_list_init_d(sandbox);
+
+done:
 	return sandbox;
+err_stack_allocation_failed:
+	sandbox_free(sandbox);
+err_memory_allocation_failed:
+err:
+	perror(error_message);
+	goto done;
 }
 
 /**
@@ -346,31 +400,48 @@ sandbox_allocate(sandbox_request_t *sandbox_request)
 void
 sandbox_free(struct sandbox *sandbox)
 {
-	// you have to context switch away to free a sandbox.
-	if (!sandbox || sandbox == current_sandbox_get()) return;
+	assert(sandbox != NULL);
+	assert(sandbox != current_sandbox_get());
+	assert(sandbox->state == INITIALIZING || sandbox->state == RETURNED);
 
-	// again sandbox should be done and waiting for the parent.
-	if (sandbox->state != RETURNED) return;
+	char *error_message = NULL;
+	int   rc;
 
-	int sz = sizeof(struct sandbox);
-
-	sz += sandbox->module->max_request_or_response_size;
 	module_release(sandbox->module);
 
 	void * stkaddr = sandbox->stack_start;
 	size_t stksz   = sandbox->stack_size;
 
-	// depending on the memory type
-	// free_linear_memory(sandbox->linear_memory_start, sandbox->linear_memory_size,
-	// sandbox->linear_memory_max_size);
 
-	int ret;
-	// mmaped memory includes sandbox structure in there.
-	ret = munmap(sandbox, sz);
-	if (ret) perror("munmap sandbox");
+	// Free Sandbox Stack
+	errno = 0;
+	rc    = munmap(stkaddr, stksz);
+	if (rc == -1) {
+		error_message = "Failed to unmap stack";
+		goto err_free_stack_failed;
+	};
 
-	// remove stack!
-	// for some reason, removing stack seem to cause crash in some cases.
-	ret = munmap(stkaddr, stksz);
-	if (ret) perror("munmap stack");
+
+	// Free Sandbox Linear Address Space
+	// struct sandbox | HTTP Buffer | 4GB of Wasm Linear Memory | Guard Page
+	// sandbox_size includes the struct and HTTP buffer
+	size_t sandbox_address_space_size = sandbox->sandbox_size + sandbox->linear_memory_max_size
+	                                    + /* guard page */ PAGE_SIZE;
+
+	errno = 0;
+	rc    = munmap(sandbox, sandbox_address_space_size);
+	if (rc == -1) {
+		error_message = "Failed to unmap sandbox";
+		goto err_free_sandbox_failed;
+	};
+
+done:
+	return;
+err_free_sandbox_failed:
+err_free_stack_failed:
+	// Inability to free memory is a fatal error
+	perror(error_message);
+	exit(EXIT_FAILURE);
+err:
+	goto done;
 }

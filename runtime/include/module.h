@@ -126,11 +126,10 @@ module_initialize_memory(struct module *module)
  * @param module
  * @return 1 if valid. 0 if invalid
  **/
-static inline int
+static inline bool
 module_is_valid(struct module *module)
 {
-	if (module && module->dynamic_library_handle && module->main) return 1;
-	return 0;
+	return (module && module->dynamic_library_handle && module->main);
 }
 
 /**
