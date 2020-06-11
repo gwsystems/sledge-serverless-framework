@@ -78,12 +78,17 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		software_interrupt_SIGALRM_count++;
 
-		// if the current sandbox is NULL or not in a RETURNED state
-		if (current_sandbox && current_sandbox->state == RETURNED) return;
-		// and the next context is NULL
+		// if the current sandbox is in a RETURNED state, nothing to preempt, so just return
+		if (current_sandbox && current_sandbox->state == SANDBOX_RETURNED) return;
+
+		// If worker_thread_next_context is not NULL, we have already preempted a sandbox
+		// This approach means that we can only have up to two sandboxes in our worker runqueue
+		// TODO: Use the PQ runqueue to preempt to arbitrary depth
 		if (worker_thread_next_context) return;
-		// and software interrupts are not disabled
+
+		// If software interrupts are disabled, return
 		if (!software_interrupt_is_enabled()) return;
+
 		// Preempt
 		sandbox_run_queue_preempt(user_context);
 
@@ -103,6 +108,15 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		// pick the next from "worker_thread_next_context"..
 		// assert its "sp" to be zero in regs..
 		// memcpy from next context..
+
+		// TODO: Troubleshoot preemption
+		// Start the timer for sandbox execution time
+		// assert(current_sandbox->last_state_change_timestamp == 0);
+		// current_sandbox->last_state_change_timestamp = __getcycles();
+		// assert(current_sandbox->last_state_change_timestamp > 0);
+		// sandbox_set_as_running(current_sandbox);
+
+
 		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
 		worker_thread_next_context = NULL;
 		software_interrupt_enable();

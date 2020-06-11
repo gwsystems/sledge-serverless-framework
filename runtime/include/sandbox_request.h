@@ -15,7 +15,7 @@ struct sandbox_request {
 	char *           arguments;
 	int              socket_descriptor;
 	struct sockaddr *socket_address;
-	u64              start_time;        // cycles
+	u64              request_timestamp; // cycles
 	u64              absolute_deadline; // cycles
 };
 
@@ -29,12 +29,12 @@ DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
  * @param arguments the arguments that we'll pass to the serverless function
  * @param socket_descriptor
  * @param socket_address
- * @param start_time the timestamp of when we receives the request from the network (in cycles)
+ * @param request_timestamp the timestamp of when we receives the request from the network (in cycles)
  * @return the new sandbox request
  **/
 static inline sandbox_request_t *
 sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
-                         const struct sockaddr *socket_address, u64 start_time)
+                         const struct sockaddr *socket_address, u64 request_timestamp)
 {
 	sandbox_request_t *sandbox_request = (sandbox_request_t *)malloc(sizeof(sandbox_request_t));
 	assert(sandbox_request);
@@ -42,8 +42,9 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->arguments         = arguments;
 	sandbox_request->socket_descriptor = socket_descriptor;
 	sandbox_request->socket_address    = (struct sockaddr *)socket_address;
-	sandbox_request->start_time        = start_time;
-	sandbox_request->absolute_deadline = start_time + module->relative_deadline_us * runtime_processor_speed_MHz;
+	sandbox_request->request_timestamp = request_timestamp;
+	sandbox_request->absolute_deadline = request_timestamp
+	                                     + module->relative_deadline_us * runtime_processor_speed_MHz;
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
 	return sandbox_request;

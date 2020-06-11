@@ -25,10 +25,13 @@ struct sandbox_io_handle {
 
 typedef enum
 {
-	INITIALIZING,
-	RUNNABLE,
-	BLOCKED,
-	RETURNED
+	SANDBOX_INITIALIZING,
+	SANDBOX_RUNNABLE,
+	SANDBOX_RUNNING,
+	SANDBOX_BLOCKED,
+	SANDBOX_RETURNED,
+	SANDBOX_COMPLETE,
+	SANDBOX_ERROR
 } sandbox_state_t;
 
 struct sandbox {
@@ -45,9 +48,21 @@ struct sandbox {
 
 	arch_context_t ctxt; // register context for context switch.
 
-	u64 total_time;
-	u64 start_time;
+	u64 request_timestamp;           // Timestamp when request is received
+	u64 allocation_timestamp;        // Timestamp when sandbox is allocated
+	u64 response_timestamp;          // Timestamp when response is sent
+	u64 completion_timestamp;        // Timestamp when sandbox runs to completion
+	u64 last_state_change_timestamp; // Used for bookkeeping of actual execution time
+
+	// Duration of time (in cycles) that the sandbox is in each state
+	u64 initializing_duration;
+	u64 runnable_duration;
+	u64 running_duration;
+	u64 blocked_duration;
+	u64 returned_duration;
+
 	u64 absolute_deadline;
+	u64 total_time; // From Request to Response
 
 	struct module *module; // the module this is an instance of
 
@@ -88,7 +103,7 @@ extern __thread arch_context_t *worker_thread_next_context;
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(sandbox_t *sandbox);
 extern void worker_thread_process_io(void);
-extern void __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void);
+extern void __attribute__((noreturn)) worker_thread_restore_preempted_sandbox(void);
 extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
 
 /***************************
@@ -97,6 +112,8 @@ extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
 
 struct sandbox *sandbox_allocate(sandbox_request_t *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
+void            sandbox_free_linear_memory(struct sandbox *sandbox);
+char *          sandbox_get_state(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
@@ -223,5 +240,13 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return NULL;
 	return &sandbox->io_handles[io_handle_index].libuv_handle;
 }
+
+void sandbox_set_as_initializing(sandbox_t *sandbox);
+void sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *executing_processor_state);
+void sandbox_set_as_running(sandbox_t *sandbox);
+void sandbox_set_as_blocked(sandbox_t *sandbox);
+void sandbox_set_as_returned(sandbox_t *sandbox);
+void sandbox_set_as_complete(sandbox_t *sandbox);
+void sandbox_set_as_error(sandbox_t *sandbox);
 
 #endif /* SFRT_SANDBOX_H */

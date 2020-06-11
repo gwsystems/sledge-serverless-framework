@@ -81,7 +81,7 @@ listener_thread_main(void *dummy)
 		                               LISTENER_THREAD_MAX_EPOLL_EVENTS, -1);
 
 		// Capture Start Time to calculate absolute deadline
-		u64 start_time = __getcycles();
+		u64 request_timestamp = __getcycles();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");
@@ -104,7 +104,7 @@ listener_thread_main(void *dummy)
 			// Allocate a Sandbox Request
 			sandbox_request_t *sandbox_request =
 			  sandbox_request_allocate(module, module->name, socket_descriptor,
-			                           (const struct sockaddr *)&client_address, start_time);
+			                           (const struct sockaddr *)&client_address, request_timestamp);
 			assert(sandbox_request);
 
 			// Add to the Global Sandbox Request Scheduler

@@ -84,11 +84,9 @@ sandbox_run_queue_ps_get_next()
 
 		// Otherwise, allocate the sandbox request as a runnable sandbox and place on the runqueue
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
-		if (sandbox == NULL) return NULL;
-		assert(sandbox);
+		assert(sandbox != NULL);
 		free(sandbox_request);
-		sandbox->state = RUNNABLE;
-		sandbox_run_queue_ps_add(sandbox);
+		sandbox_set_as_runnable(sandbox, NULL);
 		return sandbox;
 	}
 
@@ -135,19 +133,13 @@ sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 		// Allocate the request
 		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
 		assert(next_sandbox);
+		sandbox_set_as_runnable(next_sandbox, NULL);
 		free(sandbox_request);
-		next_sandbox->state = RUNNABLE;
 
-		// Add it to the runqueue
-		printf("adding new sandbox to runqueue\n");
-		sandbox_run_queue_add(next_sandbox);
-		debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 
 		// Save the context of the currently executing sandbox before switching from it
-		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
-
-		// Update current_sandbox to the next sandbox
-		current_sandbox_set(next_sandbox);
+		sandbox_set_as_runnable(current_sandbox, &user_context->uc_mcontext);
+		sandbox_set_as_running(next_sandbox);
 
 		// And load the context of this new sandbox
 		// RC of 1 indicates that sandbox was last in a user-level context switch state,

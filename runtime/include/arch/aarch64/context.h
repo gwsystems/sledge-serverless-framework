@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <ucontext.h>
 
-#define ARCH_NREGS (2) // SP + PC only.
+#define ARCH_NREGS       (2)   // SP + PC only.
 #define ARCH_SIG_JMP_OFF 0x100 // Based on code generated!
 
 /**
@@ -20,7 +20,7 @@ struct arch_context {
 
 typedef struct arch_context arch_context_t;
 
-extern void __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void);
+extern void __attribute__((noreturn)) worker_thread_restore_preempted_sandbox(void);
 extern __thread arch_context_t worker_thread_base_context;
 
 // Initialized a context, zeroing out registers and setting the Instruction and Stack pointers
@@ -30,7 +30,7 @@ arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
 	memset(&actx->mctx, 0, sizeof(mcontext_t));
 	memset((void *)actx->regs, 0, sizeof(reg_t) * ARCH_NREGS);
 
-	*(actx->regs) = sp;
+	*(actx->regs)     = sp;
 	*(actx->regs + 1) = ip;
 }
 
@@ -86,29 +86,28 @@ arch_context_switch(arch_context_t *ca, arch_context_t *na)
 	reg_t *cr = ca->regs, *nr = na->regs;
 	assert(cr && nr);
 
-	asm volatile ( 	"mov x0, sp\n\t"
-			"adr x1, reset%=\n\t"
-			"str x1, [%[curr], 8]\n\t"
-			"str x0, [%[curr]]\n\t"
-			"ldr x2, [%[next]]\n\t"
-			"cbz x2, slow%=\n\t"
-			"ldr x3, [%[next], 8]\n\t"
-			"mov sp, x2\n\t"
-			"br x3\n\t"
-		        "slow%=:\n\t"
-			"br %[slowpath]\n\t"
-			".align 8\n\t"
-			"reset%=:\n\t"
-			"mov x1, #0\n\t"
-			"str x1, [%[next]]\n\t"
-			".align 8\n\t"
-			"exit%=:\n\t"
-			:	
-			: [curr]"r"(cr), [next]"r"(nr), [slowpath]"r"(&worker_thread_sandbox_switch_preempt)
-			: "memory", "cc", "x0", "x1", "x2", "x3",	
-			  "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
-			  "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
-			  "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15" );
+	asm volatile("mov x0, sp\n\t"
+	             "adr x1, reset%=\n\t"
+	             "str x1, [%[curr], 8]\n\t"
+	             "str x0, [%[curr]]\n\t"
+	             "ldr x2, [%[next]]\n\t"
+	             "cbz x2, slow%=\n\t"
+	             "ldr x3, [%[next], 8]\n\t"
+	             "mov sp, x2\n\t"
+	             "br x3\n\t"
+	             "slow%=:\n\t"
+	             "br %[slowpath]\n\t"
+	             ".align 8\n\t"
+	             "reset%=:\n\t"
+	             "mov x1, #0\n\t"
+	             "str x1, [%[next]]\n\t"
+	             ".align 8\n\t"
+	             "exit%=:\n\t"
+	             :
+	             : [ curr ] "r"(cr), [ next ] "r"(nr), [ slowpath ] "r"(&worker_thread_restore_preempted_sandbox)
+	             : "memory", "cc", "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
+	               "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
+	               "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15");
 	return 0;
 }
 

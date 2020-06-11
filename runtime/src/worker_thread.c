@@ -37,7 +37,7 @@ __thread arch_context_t worker_thread_base_context;
 __thread uv_loop_t worker_thread_uvio_handle;
 
 // Flag to signify if the thread is currently running callbacks in the libuv event loop
-static __thread bool worker_thread_is_in_callback;
+static __thread bool worker_thread_is_in_libuv_event_loop;
 
 /**************************************************
  * Worker Thread Logic
@@ -59,24 +59,44 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	struct sandbox *previous_sandbox          = current_sandbox_get();
 	arch_context_t *previous_register_context = previous_sandbox == NULL ? NULL : &previous_sandbox->ctxt;
 
-	// Set the current sandbox to the next
-	current_sandbox_set(next_sandbox);
+	if (next_sandbox == previous_sandbox) {
+		printf("Switching to %p from %p, but are the same\n", next_sandbox, previous_sandbox);
+		assert(0);
+	};
 
 	// and switch to the associated context.
 	// Save the context pointer to worker_thread_next_context in case of preemption
 	worker_thread_next_context = next_register_context;
-	arch_context_switch(previous_register_context, next_register_context);
 
-	assert(previous_sandbox == NULL || previous_sandbox->state == RUNNABLE || previous_sandbox->state == BLOCKED
-	       || previous_sandbox->state == RETURNED);
-
-	// If the current sandbox we're switching from is in a RETURNED state, add to completion queue
-	if (previous_sandbox != NULL && previous_sandbox->state == RETURNED) {
-		sandbox_completion_queue_add(previous_sandbox);
-	} else if (previous_sandbox != NULL) {
-		printf("Switched away from sandbox is state %d\n", previous_sandbox->state);
+	// If the sandbox isn't complete, set as runnable
+	if (previous_sandbox != NULL) {
+		switch (previous_sandbox->state) {
+		case SANDBOX_RETURNED:
+			sandbox_set_as_complete(previous_sandbox);
+			break;
+		case SANDBOX_RUNNING:
+			// In theory, this seems like we should be passing the context to be saved, but this is handled
+			// by arch_context_switch
+			sandbox_set_as_runnable(previous_sandbox, NULL);
+			break;
+		case SANDBOX_ERROR:
+			sandbox_completion_queue_add(previous_sandbox);
+			break;
+		default:
+			printf("Unexpectedly switching from a sandbox in a %s state\n",
+			       sandbox_get_state(previous_sandbox));
+			assert(0);
+		}
 	}
 
+	if (next_sandbox != NULL)
+		sandbox_set_as_running(next_sandbox);
+	else
+		current_sandbox_set(NULL);
+
+	arch_context_switch(previous_register_context, next_register_context);
+
+done:
 	software_interrupt_enable();
 }
 
@@ -89,29 +109,25 @@ worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 {
 	software_interrupt_disable();
 	// debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
-	if (sandbox->state == BLOCKED) {
-		sandbox->state = RUNNABLE;
-		printf("Marking blocked sandbox as runnable\n");
-		sandbox_run_queue_add(sandbox);
-	}
+	assert(sandbox->state == SANDBOX_BLOCKED);
+	sandbox_set_as_runnable(sandbox, NULL);
 	software_interrupt_enable();
 }
 
 
 /**
- * Mark the currently executing sandbox as blocked, remove it from the local runqueue, and pull the sandbox at the head
- *of the runqueue
+ * Mark the currently executing sandbox as blocked, remove it from the local runqueue, and pull the sandbox at
+ *the head of the runqueue
  **/
 void
 worker_thread_block_current_sandbox(void)
 {
-	assert(worker_thread_is_in_callback == false);
+	assert(worker_thread_is_in_libuv_event_loop == false);
 	software_interrupt_disable();
 
 	// Remove the sandbox we were just executing from the runqueue and mark as blocked
 	struct sandbox *previous_sandbox = current_sandbox_get();
-	sandbox_run_queue_delete(previous_sandbox);
-	previous_sandbox->state = BLOCKED;
+	sandbox_set_as_blocked(previous_sandbox);
 
 	// Switch to the next sandbox
 	struct sandbox *next_sandbox = sandbox_run_queue_get_next();
@@ -130,9 +146,9 @@ worker_thread_process_io(void)
 {
 #ifdef USE_HTTP_UVIO
 #ifdef USE_HTTP_SYNC
-	// realistically, we're processing all async I/O on this core when a sandbox blocks on http processing, not
-	// great! if there is a way (TODO), perhaps RUN_ONCE and check if your I/O is processed, if yes, return else do
-	// async block!
+	// realistically, we're processing all async I/O on this core when a sandbox blocks on http processing,
+	// not great! if there is a way (TODO), perhaps RUN_ONCE and check if your I/O is processed, if yes,
+	// return else do async block!
 	uv_run(worker_thread_get_libuv_handle(), UV_RUN_DEFAULT);
 #else  /* USE_HTTP_SYNC */
 	worker_thread_block_current_sandbox();
@@ -147,13 +163,10 @@ worker_thread_process_io(void)
  * Sends the current thread a SIGUSR1, causing a preempted sandbox to be restored
  * Invoked by asm during a context switch
  **/
-void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void)
+void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_restore_preempted_sandbox(void)
 {
 	pthread_kill(pthread_self(), SIGUSR1);
-
 	assert(false); // should not get here..
-	while (true)
-		;
 }
 
 /**
@@ -162,13 +175,13 @@ void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_s
 void
 worker_thread_execute_libuv_event_loop(void)
 {
-	worker_thread_is_in_callback = true;
+	worker_thread_is_in_libuv_event_loop = true;
 	int n = uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT), i = 0;
 	while (n > 0) {
 		n--;
 		uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT);
 	}
-	worker_thread_is_in_callback = false;
+	worker_thread_is_in_libuv_event_loop = false;
 }
 
 /**
@@ -191,14 +204,19 @@ worker_thread_main(void *return_code)
 	software_interrupt_unmask_signal(SIGUSR1);
 #endif
 	uv_loop_init(&worker_thread_uvio_handle);
-	worker_thread_is_in_callback = false;
+	worker_thread_is_in_libuv_event_loop = false;
 
 	// Begin Worker Execution Loop
-	struct sandbox *next_sandbox;
+	struct sandbox *current_sandbox, *next_sandbox;
 	while (true) {
-		assert(current_sandbox_get() == NULL);
-		// If "in a callback", the libuv event loop is triggering this, so we don't need to start it
-		if (!worker_thread_is_in_callback) worker_thread_execute_libuv_event_loop();
+		current_sandbox = current_sandbox_get();
+		if (current_sandbox != NULL) {
+			printf("Worker loop expected current_sandbox to be NULL, but found sandbox in %s state\n",
+			       sandbox_get_state(current_sandbox));
+			assert(0);
+		}
+
+		if (!worker_thread_is_in_libuv_event_loop) worker_thread_execute_libuv_event_loop();
 
 		software_interrupt_disable();
 		next_sandbox = sandbox_run_queue_get_next();
@@ -223,23 +241,6 @@ void
 worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)
 {
 	assert(exiting_sandbox);
-
-	// TODO: I do not understand when software interrupts must be disabled?
-	software_interrupt_disable();
-	sandbox_run_queue_delete(exiting_sandbox);
-	exiting_sandbox->state = RETURNED;
-	software_interrupt_enable();
-
-	// Because the stack is still in use, only unmap linear memory and defer free resources until "main
-	// function execution"
-	int rc = munmap(exiting_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
-	if (rc == -1) {
-		perror("worker_thread_on_sandbox_exit - munmap failed");
-		assert(0);
-	}
-
-	sandbox_completion_queue_add(exiting_sandbox);
-
 	// This should force return to main event loop
 	worker_thread_switch_to_sandbox(NULL);
 }

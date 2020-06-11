@@ -9,6 +9,8 @@
 #include <libuv_callbacks.h>
 #include <current_sandbox.h>
 #include <http_parser_settings.h>
+#include <sandbox_completion_queue.h>
+#include <sandbox_run_queue.h>
 
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
@@ -142,12 +144,6 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 
 done:
 	assert(sndsz == sandbox->request_response_data_length);
-	uint64_t end_time      = __getcycles();
-	sandbox->total_time    = end_time - sandbox->start_time;
-	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
-
-	printf("%s():%d, %u, %lu\n", sandbox->module->name, sandbox->module->port,
-	       sandbox->module->relative_deadline_us, total_time_us);
 
 #ifndef USE_HTTP_UVIO
 	int r = send(sandbox->client_socket_descriptor, sandbox->request_response_data, sndsz, 0);
@@ -225,6 +221,31 @@ sandbox_initialize_io_handles_and_file_descriptors(struct sandbox *sandbox)
 	assert(f == 2);
 }
 
+char *
+sandbox_get_state(struct sandbox *sandbox)
+{
+	assert(sandbox != NULL);
+	switch (sandbox->state) {
+	case SANDBOX_INITIALIZING:
+		return "Initializing";
+	case SANDBOX_RUNNABLE:
+		return "Runnable";
+	case SANDBOX_RUNNING:
+		return "Running";
+	case SANDBOX_BLOCKED:
+		return "Blocked";
+	case SANDBOX_RETURNED:
+		return "Returned";
+	case SANDBOX_COMPLETE:
+		return "Complete";
+	case SANDBOX_ERROR:
+		return "Error";
+	default:
+		// Crash, as this should be exclusive
+		assert(0);
+	}
+}
+
 /**
  * Sandbox execution logic
  * Handles setup, request parsing, WebAssembly initialization, function execution, response building and sending, and
@@ -234,8 +255,13 @@ void
 current_sandbox_main(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
-	// assert(sandbox != NULL);
-	assert(sandbox->state == RUNNABLE);
+	assert(sandbox != NULL);
+	if (sandbox->state != SANDBOX_RUNNING) {
+		printf("Sandbox Unexpectedly transitioning from %s\n", sandbox_get_state(sandbox));
+		assert(0);
+	};
+
+	char *error_message = "";
 
 	assert(!software_interrupt_is_enabled());
 	arch_context_init(&sandbox->ctxt, 0, 0);
@@ -248,7 +274,10 @@ current_sandbox_main(void)
 
 	// Parse the request. 1 = Success
 	int rc = sandbox_receive_and_parse_client_request(sandbox);
-	if (rc != 1) goto err;
+	if (rc != 1) {
+		error_message = "Unable to receive and parse client request";
+		goto err;
+	};
 
 	// Initialize the module
 	struct module *current_module = sandbox_get_module(sandbox);
@@ -261,16 +290,31 @@ current_sandbox_main(void)
 	sandbox_setup_arguments(sandbox);
 
 	// Executing the function
-	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->return_value         = module_main(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->completion_timestamp = __getcycles();
 
 	// Retrieve the result, construct the HTTP response, and send to client
-	sandbox_build_and_send_client_response(sandbox);
+	rc = sandbox_build_and_send_client_response(sandbox);
+	if (rc == -1) {
+		error_message = "Unable to build and send client response";
+		goto err;
+	};
+
+	sandbox->response_timestamp = __getcycles();
+
+	software_interrupt_disable();
+	sandbox_set_as_returned(sandbox);
+	software_interrupt_enable();
 
 done:
 	// Cleanup connection and exit sandbox
 	sandbox_close_http(sandbox);
 	worker_thread_on_sandbox_exit(sandbox);
+	assert(0);
+	return;
 err:
+	perror(error_message);
+	sandbox_set_as_error(sandbox);
 	goto done;
 }
 
@@ -355,14 +399,244 @@ err_stack_allocation_failed:
 	return -1;
 }
 
+/**
+ * Prints key performance metrics for a sandbox to STDOUT
+ * @param sandbox
+ **/
+static inline void
+sandbox_print_perf(sandbox_t *sandbox)
+{
+	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
+	uint64_t queued_us = (sandbox->allocation_timestamp - sandbox->request_timestamp) / runtime_processor_speed_MHz;
+	uint64_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
+	uint64_t runnable_us     = sandbox->runnable_duration / runtime_processor_speed_MHz;
+	uint64_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
+	uint64_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
+	uint64_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
+	printf("%s():%d, state: %s, deadline: %u, actual: %lu, queued: %lu, initializing: %lu, runnable: %lu, running: "
+	       "%lu, blocked: "
+	       "%lu, returned %lu\n",
+	       sandbox->module->name, sandbox->module->port, sandbox_get_state(sandbox),
+	       sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
+	       running_us, blocked_us, returned_us);
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_INITIALIZING state. Because this is the initial state of a new sandbox, we have
+ * to assume that sandbox->state is garbage.
+ *
+ * TODO: Consider zeroing out allocation of the sandbox struct to be able to assert that we are only calling this on a
+ *clean allocation. Additionally, we might want to shift the sandbox states up, so zero is distinct from
+ *SANDBOX_INITIALIZING
+ * @param sandbox
+ **/
+void
+sandbox_set_as_initializing(sandbox_t *sandbox)
+{
+	assert(sandbox);
+	uint64_t now                         = __getcycles();
+	sandbox->allocation_timestamp        = now;
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_INITIALIZING;
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_RUNNABLE state.
+ *
+ * This occurs in the following scenarios:
+ * - A sandbox in the SANDBOX_INITIALIZING state completes initialization and is ready to be run
+ * - A sandbox in the SANDBOX_BLOCKED state completes what was blocking it and is ready to be run
+ * - A sandbox in the SANDBOX_RUNNING state is preempted before competion and is ready to be run
+ *
+ * @param sandbox
+ * @param running_sandbox_context - Optionally save the current context of a sandbox in the SANDBOX_RUNNING state
+ **/
+void
+sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_context)
+{
+	assert(sandbox);
+	assert(sandbox->last_state_change_timestamp > 0);
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	switch (sandbox->state) {
+	case SANDBOX_INITIALIZING: {
+		assert(running_sandbox_context == NULL);
+		sandbox->initializing_duration += duration_of_last_state;
+		sandbox_run_queue_add(sandbox);
+		break;
+	}
+	case SANDBOX_BLOCKED: {
+		assert(running_sandbox_context == NULL);
+		sandbox->blocked_duration += duration_of_last_state;
+		sandbox_run_queue_add(sandbox);
+		break;
+	}
+	case SANDBOX_RUNNING: {
+		// TODO: How to handle the "switch logic"
+		// assert(running_sandbox_context != NULL);
+		if (running_sandbox_context != NULL) arch_mcontext_save(&sandbox->ctxt, running_sandbox_context);
+		sandbox->running_duration += duration_of_last_state;
+		break;
+	}
+	default: {
+		printf("Sandbox Unexpectedly transitioning from %s to Runnable\n", sandbox_get_state(sandbox));
+		assert(0);
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RUNNABLE;
+}
+
+void
+sandbox_set_as_running(sandbox_t *sandbox)
+{
+	assert(sandbox);
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	switch (sandbox->state) {
+	case SANDBOX_RUNNABLE: {
+		sandbox->runnable_duration += duration_of_last_state;
+		current_sandbox_set(sandbox);
+		break;
+	}
+	default: {
+		printf("Sandbox Unexpectedly transitioning from %s to Running\n", sandbox_get_state(sandbox));
+		assert(0);
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RUNNING;
+}
+
+void
+sandbox_set_as_blocked(sandbox_t *sandbox)
+{
+	assert(sandbox);
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	switch (sandbox->state) {
+	case SANDBOX_RUNNING: {
+		sandbox->running_duration += duration_of_last_state;
+		sandbox_run_queue_delete(sandbox);
+		break;
+	}
+	default: {
+		printf("Sandbox Unexpectedly transitioning from %s to Blocked\n", sandbox_get_state(sandbox));
+		assert(0);
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_BLOCKED;
+}
+
+// Because the stack is still in use, only unmap linear memory and defer free resources until
+// "main function execution"
+void
+sandbox_set_as_returned(sandbox_t *sandbox)
+{
+	assert(sandbox);
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	switch (sandbox->state) {
+	case SANDBOX_RUNNING: {
+		sandbox->response_timestamp = now;
+		sandbox->total_time         = now - sandbox->request_timestamp;
+		sandbox->running_duration += duration_of_last_state;
+		sandbox_run_queue_delete(sandbox);
+		sandbox_free_linear_memory(sandbox);
+		break;
+	}
+	default: {
+		printf("Sandbox Unexpectedly transitioning from %s to Returned\n", sandbox_get_state(sandbox));
+		assert(0);
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RETURNED;
+}
+
+void
+sandbox_set_as_error(sandbox_t *sandbox)
+{
+	assert(sandbox);
+	uint64_t now                            = __getcycles();
+	uint64_t duration_of_last_state         = now - sandbox->last_state_change_timestamp;
+	bool     should_add_to_completion_queue = false;
+
+	switch (sandbox->state) {
+	case SANDBOX_RUNNING: {
+		sandbox->running_duration += duration_of_last_state;
+		sandbox_run_queue_delete(sandbox);
+		sandbox_free_linear_memory(sandbox);
+		should_add_to_completion_queue = true;
+		break;
+	}
+	default: {
+		printf("Sandbox Unexpectedly transitioning from %s to Error\n", sandbox_get_state(sandbox));
+		assert(0);
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_ERROR;
+
+	// Note: We defer this until the end of Do not touch sandbox state after adding to the completion queue to
+	// avoid use-after-free bugs
+	if (should_add_to_completion_queue) {
+		sandbox_print_perf(sandbox);
+		sandbox_completion_queue_add(sandbox);
+	};
+}
+
+void
+sandbox_set_as_complete(sandbox_t *sandbox)
+{
+	assert(sandbox);
+	uint64_t now                            = __getcycles();
+	uint64_t duration_of_last_state         = now - sandbox->last_state_change_timestamp;
+	bool     should_add_to_completion_queue = false;
+
+	switch (sandbox->state) {
+	case SANDBOX_RETURNED: {
+		sandbox->completion_timestamp = now;
+		sandbox->returned_duration += duration_of_last_state;
+		should_add_to_completion_queue = true;
+		break;
+	}
+	default: {
+		printf("Sandbox Unexpectedly transitioning from %s to Complete\n", sandbox_get_state(sandbox));
+		assert(0);
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_COMPLETE;
+
+	// Note: We defer this until the end of Do not touch sandbox state after adding to the completion queue to
+	// avoid use-after-free bugs
+	if (should_add_to_completion_queue) {
+		sandbox_print_perf(sandbox);
+		sandbox_completion_queue_add(sandbox);
+	};
+}
+
 struct sandbox *
 sandbox_allocate(sandbox_request_t *sandbox_request)
 {
 	assert(sandbox_request != NULL);
 	assert(sandbox_request->module != NULL);
 	assert(module_is_valid(sandbox_request->module));
+	u64 now = __getcycles();
 
-	char *          error_message = NULL;
+	char *          error_message = "";
 	int             rc;
 	struct sandbox *sandbox = NULL;
 
@@ -371,18 +645,32 @@ sandbox_allocate(sandbox_request_t *sandbox_request)
 	sandbox = (struct sandbox *)sandbox_allocate_memory(sandbox_request->module);
 	if (!sandbox) goto err_memory_allocation_failed;
 
-	// Set state to initializing
-	sandbox->state = INITIALIZING;
+	sandbox_set_as_initializing(sandbox);
 
 	// Allocate the Stack
 	rc = sandbox_allocate_stack(sandbox);
-	if (rc != 0) goto err_stack_allocation_failed;
+	if (rc != 0) {
+		error_message = "failed to allocate sandbox stack";
+		goto err_stack_allocation_failed;
+	};
 
 	// Copy the socket descriptor, address, and arguments of the client invocation
-	sandbox->absolute_deadline        = sandbox_request->absolute_deadline;
+	sandbox->absolute_deadline = sandbox_request->absolute_deadline;
+	sandbox->total_time        = 0;
+
 	sandbox->arguments                = (void *)sandbox_request->arguments;
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
-	sandbox->start_time               = sandbox_request->start_time;
+
+	sandbox->request_timestamp    = sandbox_request->request_timestamp;
+	sandbox->allocation_timestamp = now;
+	sandbox->response_timestamp   = 0;
+	sandbox->completion_timestamp = 0;
+
+	sandbox->initializing_duration = 0;
+	sandbox->runnable_duration     = 0;
+	sandbox->running_duration      = 0;
+	sandbox->blocked_duration      = 0;
+	sandbox->returned_duration     = 0;
 
 	// Initialize the sandbox's context, stack, and instruction pointer
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
@@ -402,11 +690,25 @@ sandbox_allocate(sandbox_request_t *sandbox_request)
 done:
 	return sandbox;
 err_stack_allocation_failed:
-	sandbox_free(sandbox);
+	sandbox_set_as_error(sandbox);
 err_memory_allocation_failed:
 err:
 	perror(error_message);
-	goto done;
+	assert(0);
+}
+
+/**
+ * Free Linear Memory, leaving stack in place
+ * @param sandbox
+ **/
+void
+sandbox_free_linear_memory(struct sandbox *sandbox)
+{
+	int rc = munmap(sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
+	if (rc == -1) {
+		perror("sandbox_free_linear_memory - munmap failed\n");
+		assert(0);
+	}
 }
 
 /**
@@ -417,8 +719,11 @@ void
 sandbox_free(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-	assert(sandbox != current_sandbox_get());
-	assert(sandbox->state == INITIALIZING || sandbox->state == RETURNED);
+
+	if (sandbox->state != SANDBOX_ERROR && sandbox->state != SANDBOX_COMPLETE) {
+		printf("Unexpectedly attempted to free a sandbox in a %s state\n", sandbox_get_state(sandbox));
+		assert(0);
+	};
 
 	char *error_message = NULL;
 	int   rc;
