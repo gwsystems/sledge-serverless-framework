@@ -16,14 +16,14 @@
 
 // Conditionally used by debuglog when DEBUG is set
 #ifdef DEBUG
-i32 runtime_log_file_descriptor = -1;
+int32_t runtime_log_file_descriptor = -1;
 #endif
 
-float runtime_processor_speed_MHz                               = 0;
-u32   runtime_total_online_processors                           = 0;
-u32   runtime_total_worker_processors                           = 0;
-u32   runtime_first_worker_processor                            = 0;
-int   runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
+float    runtime_processor_speed_MHz                          = 0;
+uint32_t runtime_total_online_processors                      = 0;
+uint32_t runtime_total_worker_processors                      = 0;
+uint32_t runtime_first_worker_processor                       = 0;
+int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
 
@@ -80,7 +80,7 @@ runtime_allocate_available_cores()
 		runtime_first_worker_processor = 1;
 		// WORKER_THREAD_CORE_COUNT can be used as a cap on the number of cores to use
 		// But if there are few cores that WORKER_THREAD_CORE_COUNT, just use what is available
-		u32 max_possible_workers        = runtime_total_online_processors - 1;
+		uint32_t max_possible_workers   = runtime_total_online_processors - 1;
 		runtime_total_worker_processors = (max_possible_workers >= WORKER_THREAD_CORE_COUNT)
 		                                    ? WORKER_THREAD_CORE_COUNT
 		                                    : max_possible_workers;

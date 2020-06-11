@@ -37,16 +37,6 @@
 #define round_to_page(x)    round_to_pow2(x, PAGE_SIZE)
 #define round_up_to_page(x) round_up_to_pow2(x, PAGE_SIZE)
 
-// Type alias's so I don't have to write uint32_t a million times
-typedef signed char   i8;
-typedef unsigned char u8;
-typedef int16_t       i16;
-typedef uint16_t      u16;
-typedef int32_t       i32;
-typedef uint32_t      u32;
-typedef int64_t       i64;
-typedef uint64_t      u64;
-
 // FIXME: per-module configuration?
 #define WASM_PAGE_SIZE   (1024 * 64) // 64KB
 #define WASM_START_PAGES (1 << 8)    // 16MB
@@ -57,8 +47,8 @@ typedef uint64_t      u64;
 // These are per module symbols and I'd need to dlsym for each module. instead just use global constants, see above
 // macros. The code generator compiles in the starting number of wasm pages, and the maximum number of pages If we try
 // and allocate more than max_pages, we should fault
-// extern u32 starting_pages;
-// extern u32 max_pages;
+// extern uint32_t starting_pages;
+// extern uint32_t max_pages;
 
 // The code generator also compiles in stubs that populate the linear memory and function table
 void populate_memory(void);
@@ -68,23 +58,23 @@ void populate_table(void);
 #define INDIRECT_TABLE_SIZE (1 << 10)
 
 struct indirect_table_entry {
-	u32   type_id;
-	void *func_pointer;
+	uint32_t type_id;
+	void *   func_pointer;
 };
 
 extern __thread struct indirect_table_entry *module_indirect_table;
 
 // for sandbox linear memory isolation
-extern __thread void *sandbox_lmbase;
-extern __thread u32   sandbox_lmbound;
-extern i32            runtime_log_file_descriptor; // TODO: LOG_TO_FILE logic is untested
+extern __thread void *   sandbox_lmbase;
+extern __thread uint32_t sandbox_lmbound;
+extern int32_t           runtime_log_file_descriptor; // TODO: LOG_TO_FILE logic is untested
 
 // functions in the module to lookup and call per sandbox.
-typedef i32 (*mod_main_fn_t)(i32 a, i32 b);
+typedef int32_t (*mod_main_fn_t)(int32_t a, int32_t b);
 typedef void (*mod_glb_fn_t)(void);
 typedef void (*mod_mem_fn_t)(void);
 typedef void (*mod_tbl_fn_t)(void);
-typedef void (*mod_libc_fn_t)(i32, i32);
+typedef void (*mod_libc_fn_t)(int32_t, int32_t);
 
 /**
  * debuglog is a macro that behaves based on the macros DEBUG and LOG_TO_FILE

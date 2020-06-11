@@ -16,7 +16,7 @@ alloc_linear_memory(void)
 }
 
 void
-free_linear_memory(void *base, u32 bound, u32 max)
+free_linear_memory(void *base, uint32_t bound, uint32_t max)
 {
 	// frees on sandbox_free
 }
@@ -49,7 +49,7 @@ expand_memory(void)
 }
 
 INLINE char *
-get_memory_ptr_for_runtime(u32 offset, u32 bounds_check)
+get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check)
 {
 	// Due to how we setup memory for x86, the virtual memory mechanism will catch the error, if bounds <
 	// WASM_PAGE_SIZE

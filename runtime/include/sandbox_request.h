@@ -15,8 +15,8 @@ struct sandbox_request {
 	char *           arguments;
 	int              socket_descriptor;
 	struct sockaddr *socket_address;
-	u64              request_timestamp; // cycles
-	u64              absolute_deadline; // cycles
+	uint64_t         request_timestamp; // cycles
+	uint64_t         absolute_deadline; // cycles
 };
 
 typedef struct sandbox_request sandbox_request_t;
@@ -34,7 +34,7 @@ DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
  **/
 static inline sandbox_request_t *
 sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
-                         const struct sockaddr *socket_address, u64 request_timestamp)
+                         const struct sockaddr *socket_address, uint64_t request_timestamp)
 {
 	sandbox_request_t *sandbox_request = (sandbox_request_t *)malloc(sizeof(sandbox_request_t));
 	assert(sandbox_request);

@@ -2,11 +2,11 @@
 
 __thread struct indirect_table_entry *module_indirect_table = NULL;
 __thread void *                       sandbox_lmbase        = NULL;
-__thread u32                          sandbox_lmbound       = 0;
+__thread uint32_t                     sandbox_lmbound       = 0;
 
 // Region initialization helper function
 EXPORT void
-initialize_region(u32 offset, u32 data_count, char *data)
+initialize_region(uint32_t offset, uint32_t data_count, char *data)
 {
 	assert(sandbox_lmbound >= data_count);
 	assert(offset < sandbox_lmbound - data_count);
@@ -16,7 +16,7 @@ initialize_region(u32 offset, u32 data_count, char *data)
 }
 
 void
-add_function_to_table(u32 idx, u32 type_id, char *pointer)
+add_function_to_table(uint32_t idx, uint32_t type_id, char *pointer)
 {
 	assert(idx < INDIRECT_TABLE_SIZE);
 

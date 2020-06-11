@@ -37,38 +37,38 @@ typedef enum
 struct sandbox {
 	sandbox_state_t state;
 
-	u32 sandbox_size; // The struct plus enough buffer to hold the request or response (sized off largest)
+	uint32_t sandbox_size; // The struct plus enough buffer to hold the request or response (sized off largest)
 
-	void *linear_memory_start; // after sandbox struct
-	u32   linear_memory_size;  // from after sandbox struct
-	u64   linear_memory_max_size;
+	void *   linear_memory_start; // after sandbox struct
+	uint32_t linear_memory_size;  // from after sandbox struct
+	uint64_t linear_memory_max_size;
 
-	void *stack_start; // guess we need a mechanism for stack allocation.
-	u32   stack_size;  // and to set the size of it.
+	void *   stack_start; // guess we need a mechanism for stack allocation.
+	uint32_t stack_size;  // and to set the size of it.
 
 	arch_context_t ctxt; // register context for context switch.
 
-	u64 request_timestamp;           // Timestamp when request is received
-	u64 allocation_timestamp;        // Timestamp when sandbox is allocated
-	u64 response_timestamp;          // Timestamp when response is sent
-	u64 completion_timestamp;        // Timestamp when sandbox runs to completion
-	u64 last_state_change_timestamp; // Used for bookkeeping of actual execution time
+	uint64_t request_timestamp;           // Timestamp when request is received
+	uint64_t allocation_timestamp;        // Timestamp when sandbox is allocated
+	uint64_t response_timestamp;          // Timestamp when response is sent
+	uint64_t completion_timestamp;        // Timestamp when sandbox runs to completion
+	uint64_t last_state_change_timestamp; // Used for bookkeeping of actual execution time
 
 	// Duration of time (in cycles) that the sandbox is in each state
-	u64 initializing_duration;
-	u64 runnable_duration;
-	u64 running_duration;
-	u64 blocked_duration;
-	u64 returned_duration;
+	uint64_t initializing_duration;
+	uint64_t runnable_duration;
+	uint64_t running_duration;
+	uint64_t blocked_duration;
+	uint64_t returned_duration;
 
-	u64 absolute_deadline;
-	u64 total_time; // From Request to Response
+	uint64_t absolute_deadline;
+	uint64_t total_time; // From Request to Response
 
 	struct module *module; // the module this is an instance of
 
-	i32   arguments_offset; // actual placement of arguments in the sandbox.
-	void *arguments;        // arguments from request, must be of module->argument_count size.
-	i32   return_value;
+	int32_t arguments_offset; // actual placement of arguments in the sandbox.
+	void *  arguments;        // arguments from request, must be of module->argument_count size.
+	int32_t return_value;
 
 	struct sandbox_io_handle io_handles[SANDBOX_MAX_IO_HANDLE_COUNT];
 	struct sockaddr          client_address; // client requesting connection!

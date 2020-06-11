@@ -98,8 +98,8 @@ module_free(struct module *module)
  * @returns A new module or NULL in case of failure
  **/
 struct module *
-module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 relative_deadline_us,
-           int port, int request_size, int response_size)
+module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, uint32_t max_memory,
+           uint32_t relative_deadline_us, int port, int request_size, int response_size)
 {
 	struct module *module = (struct module *)malloc(sizeof(struct module));
 	if (!module) return NULL;
@@ -132,7 +132,7 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 
 	module->argument_count       = argument_count;
 	module->stack_size           = round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size);
-	module->max_memory           = max_memory == 0 ? ((u64)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
+	module->max_memory           = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
 	module->relative_deadline_us = relative_deadline_us;
 	module->socket_descriptor    = -1;
 	module->port                 = port;
@@ -234,18 +234,18 @@ module_new_from_json(char *file_name)
 		memset(request_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 		char *reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 		memset(reponse_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-		i32  request_size                                        = 0;
-		i32  response_size                                       = 0;
-		i32  argument_count                                      = 0;
-		u32  port                                                = 0;
-		u32  relative_deadline_us                                = 0;
-		i32  is_active                                           = 0;
-		i32  request_count                                       = 0;
-		i32  response_count                                      = 0;
-		int  j                                                   = 1;
-		int  ntoks                                               = 2 * tokens[i].size;
-		char request_content_type[HTTP_MAX_HEADER_VALUE_LENGTH]  = { 0 };
-		char response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH] = { 0 };
+		int32_t  request_size                                        = 0;
+		int32_t  response_size                                       = 0;
+		int32_t  argument_count                                      = 0;
+		uint32_t port                                                = 0;
+		uint32_t relative_deadline_us                                = 0;
+		int32_t  is_active                                           = 0;
+		int32_t  request_count                                       = 0;
+		int32_t  response_count                                      = 0;
+		int      j                                                   = 1;
+		int      ntoks                                               = 2 * tokens[i].size;
+		char     request_content_type[HTTP_MAX_HEADER_VALUE_LENGTH]  = { 0 };
+		char     response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH] = { 0 };
 
 		for (; j < ntoks;) {
 			int  ntks     = 1;

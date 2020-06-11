@@ -81,7 +81,7 @@ listener_thread_main(void *dummy)
 		                               LISTENER_THREAD_MAX_EPOLL_EVENTS, -1);
 
 		// Capture Start Time to calculate absolute deadline
-		u64 request_timestamp = __getcycles();
+		uint64_t request_timestamp = __getcycles();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
 				perror("epoll_wait");

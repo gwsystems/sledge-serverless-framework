@@ -8,11 +8,11 @@ extern int runtime_epoll_file_descriptor;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);
-INLINE char *get_function_from_table(u32 idx, u32 type_id);
-INLINE char *get_memory_ptr_for_runtime(u32 offset, u32 bounds_check);
+INLINE char *get_function_from_table(uint32_t idx, uint32_t type_id);
+INLINE char *get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check);
 void         runtime_initialize(void);
 void         listener_thread_initialize(void);
-void         stub_init(i32 offset);
+void         stub_init(int32_t offset);
 
 unsigned long long __getcycles(void);
 

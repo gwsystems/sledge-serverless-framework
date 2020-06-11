@@ -11,7 +11,7 @@
  * UNIX time in ms). This is used to maintain a read replica of the highest
  * priority element that can be used to maintain a read replica
  * @param element
- * @returns priority (a u64)
+ * @returns priority (a uint64_t)
  **/
 typedef uint64_t (*priority_queue_get_priority_t)(void *element);
 
