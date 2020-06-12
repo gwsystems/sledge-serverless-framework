@@ -78,7 +78,8 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	r = recv(sandbox->client_socket_descriptor, (sandbox->request_response_data), sandbox->module->max_request_size,
 	         0);
 	if (r <= 0) {
-		if (r < 0) perror("recv1");
+		if (r < 0) perror("Error reading request data from client socket");
+		if (r == 0) perror("No data to reach from client socket");
 		return r;
 	}
 	while (r > 0) {
@@ -100,7 +101,10 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	                      libuv_callbacks_on_allocate_setup_request_response_data,
 	                      libuv_callbacks_on_read_parse_http_request);
 	worker_thread_process_io();
-	if (sandbox->request_response_data_length == 0) return 0;
+	if (sandbox->request_response_data_length == 0) {
+		perror("request_response_data_length was unexpectedly 0");
+		return 0
+	};
 #endif
 	return 1;
 }
@@ -274,6 +278,7 @@ current_sandbox_main(void)
 	sandbox_open_http(sandbox);
 
 	// Parse the request. 1 = Success
+	errno  = 0;
 	int rc = sandbox_receive_and_parse_client_request(sandbox);
 	if (rc != 1) {
 		error_message = "Unable to receive and parse client request";
@@ -295,7 +300,8 @@ current_sandbox_main(void)
 	sandbox->completion_timestamp = __getcycles();
 
 	// Retrieve the result, construct the HTTP response, and send to client
-	rc = sandbox_build_and_send_client_response(sandbox);
+	errno = 0;
+	rc    = sandbox_build_and_send_client_response(sandbox);
 	if (rc == -1) {
 		error_message = "Unable to build and send client response";
 		goto err;
@@ -432,13 +438,51 @@ sandbox_print_perf(sandbox_t *sandbox)
  * @param sandbox
  **/
 void
-sandbox_set_as_initializing(sandbox_t *sandbox)
+sandbox_set_as_initializing(sandbox_t *sandbox, sandbox_request_t *sandbox_request, uint64_t allocation_timestamp)
 {
-	assert(sandbox);
-	uint64_t now                         = __getcycles();
-	sandbox->allocation_timestamp        = now;
-	sandbox->last_state_change_timestamp = now;
-	sandbox->state                       = SANDBOX_INITIALIZING;
+	assert(sandbox != NULL);
+	assert(sandbox_request != NULL);
+	assert(sandbox_request->arguments != NULL);
+	assert(sandbox_request->request_timestamp > 0);
+	assert(sandbox_request->socket_address != NULL);
+	assert(sandbox_request->socket_descriptor > 0);
+	assert(allocation_timestamp > 0);
+
+	sandbox->request_timestamp           = sandbox_request->request_timestamp;
+	sandbox->allocation_timestamp        = allocation_timestamp;
+	sandbox->response_timestamp          = 0;
+	sandbox->completion_timestamp        = 0;
+	sandbox->last_state_change_timestamp = allocation_timestamp;
+
+	// Initialize the sandbox's context, stack, and instruction pointer
+	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
+	                  (reg_t)(sandbox->stack_start + sandbox->stack_size));
+
+	// Initialize file descriptors to -1
+	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
+
+
+	// Initialize Parsec control structures (used by Completion Queue)
+	ps_list_init_d(sandbox);
+
+
+	// Copy the socket descriptor, address, and arguments of the client invocation
+	sandbox->absolute_deadline = sandbox_request->absolute_deadline;
+	sandbox->total_time        = 0;
+
+	sandbox->arguments                = (void *)sandbox_request->arguments;
+	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
+	memcpy(&sandbox->client_address, sandbox_request->socket_address, sizeof(struct sockaddr));
+
+
+	sandbox->initializing_duration = 0;
+	sandbox->runnable_duration     = 0;
+	sandbox->running_duration      = 0;
+	sandbox->blocked_duration      = 0;
+	sandbox->returned_duration     = 0;
+
+
+	sandbox->state = SANDBOX_INITIALIZING;
 }
 
 /**
@@ -644,53 +688,25 @@ sandbox_allocate(sandbox_request_t *sandbox_request)
 	// Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space
 	errno   = 0;
 	sandbox = (struct sandbox *)sandbox_allocate_memory(sandbox_request->module);
-	if (!sandbox) goto err_memory_allocation_failed;
+	if (!sandbox) {
+		error_message = "failed to allocate sandbox heap and linear memory";
+		goto err_memory_allocation_failed;
+	};
 
-	sandbox_set_as_initializing(sandbox);
-
-	// Allocate the Stack
 	rc = sandbox_allocate_stack(sandbox);
 	if (rc != 0) {
 		error_message = "failed to allocate sandbox stack";
 		goto err_stack_allocation_failed;
 	};
 
-	// Copy the socket descriptor, address, and arguments of the client invocation
-	sandbox->absolute_deadline = sandbox_request->absolute_deadline;
-	sandbox->total_time        = 0;
 
-	sandbox->arguments                = (void *)sandbox_request->arguments;
-	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
+	sandbox_set_as_initializing(sandbox, sandbox_request, now);
 
-	sandbox->request_timestamp    = sandbox_request->request_timestamp;
-	sandbox->allocation_timestamp = now;
-	sandbox->response_timestamp   = 0;
-	sandbox->completion_timestamp = 0;
-
-	sandbox->initializing_duration = 0;
-	sandbox->runnable_duration     = 0;
-	sandbox->running_duration      = 0;
-	sandbox->blocked_duration      = 0;
-	sandbox->returned_duration     = 0;
-
-	// Initialize the sandbox's context, stack, and instruction pointer
-	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
-	                  (reg_t)(sandbox->stack_start + sandbox->stack_size));
-
-	// What does it mean if there isn't a socket_address? Shouldn't this be a hard requirement?
-	// It seems that only the socket descriptor is used to send response
-	const struct sockaddr *socket_address = sandbox_request->socket_address;
-	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
-
-	// Initialize file descriptors to -1
-	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
-
-	// Initialize Parsec control structures (used by Completion Queue)
-	ps_list_init_d(sandbox);
 
 done:
 	return sandbox;
 err_stack_allocation_failed:
+	ps_list_init_d(sandbox);
 	sandbox_set_as_error(sandbox);
 err_memory_allocation_failed:
 err:

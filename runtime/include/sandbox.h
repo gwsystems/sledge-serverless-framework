@@ -241,7 +241,7 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 	return &sandbox->io_handles[io_handle_index].libuv_handle;
 }
 
-void sandbox_set_as_initializing(sandbox_t *sandbox);
+void sandbox_set_as_initializing(sandbox_t *sandbox, sandbox_request_t *sandbox_request, uint64_t allocation_timestamp);
 void sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *executing_processor_state);
 void sandbox_set_as_running(sandbox_t *sandbox);
 void sandbox_set_as_blocked(sandbox_t *sandbox);

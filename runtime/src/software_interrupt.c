@@ -101,6 +101,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		/* we set current before calling pthread_kill! */
 		assert(worker_thread_next_context && (&current_sandbox->ctxt == worker_thread_next_context));
 		assert(signal_info->si_code == SI_TKILL);
+		assert(current_sandbox != NULL);
+		// Check that IP isn't 0
+		assert(current_sandbox->ctxt.regs[16] != 0);
 		// debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
 
 		software_interrupt_SIGUSR_count++;

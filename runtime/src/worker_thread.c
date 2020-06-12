@@ -80,7 +80,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 			sandbox_set_as_runnable(previous_sandbox, NULL);
 			break;
 		case SANDBOX_ERROR:
-			sandbox_completion_queue_add(previous_sandbox);
+			// The state transition already added to completion queue, so just break
 			break;
 		default:
 			printf("Unexpectedly switching from a sandbox in a %s state\n",
