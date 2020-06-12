@@ -84,9 +84,10 @@ sandbox_run_queue_ps_get_next()
 
 		// Otherwise, allocate the sandbox request as a runnable sandbox and place on the runqueue
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
-		assert(sandbox != NULL);
+		// If sandbox is NULL, we failed to allocate, so the request wasn't actually serviced
+		// Should we re-add this to the request queue?
 		free(sandbox_request);
-		sandbox_set_as_runnable(sandbox, NULL);
+		if (sandbox != NULL) sandbox_set_as_runnable(sandbox, NULL);
 		return sandbox;
 	}
 
@@ -96,26 +97,20 @@ sandbox_run_queue_ps_get_next()
 	return sandbox;
 }
 
-
-// Conditionally checks to see if current sandbox should be preempted
+/**
+ * Called by the SIGALRM handler after a quantum
+ * Assumes the caller validates that there is something to preempt
+ * @param user_context - The context of our user-level Worker thread
+ **/
 void
 sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 {
 	software_interrupt_disable(); // no nesting!
-
 	struct sandbox *current_sandbox = current_sandbox_get();
-	// If current_sandbox is null, there's nothing to preempt, so let the "main" scheduler run its course.
-	if (current_sandbox == NULL) {
-		software_interrupt_enable();
-		return;
-	};
-
-	// The current sandbox should be the head of the runqueue
+	assert(current_sandbox != NULL);
 	assert(sandbox_run_queue_ps_is_empty() == false);
+	assert(user_context != NULL);
 
-	// TODO: Factor quantum and/or sandbox allocation time into decision
-	// uint64_t global_deadline = sandbox_request_scheduler_peek() -
-	// SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
 
 	bool     should_enable_software_interrupt = true;
 	uint64_t local_deadline                   = priority_queue_peek(&sandbox_run_queue_ps);
@@ -125,6 +120,9 @@ sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 	if (local_deadline == ULONG_MAX) { assert(sandbox_run_queue_ps.first_free == 1); };
 
 	// If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it
+	// TODO: Factor quantum and/or sandbox allocation time into decision
+	// uint64_t global_deadline = sandbox_request_scheduler_peek() -
+	// SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
 	sandbox_request_t *sandbox_request;
 	if (global_deadline < local_deadline && (sandbox_request = sandbox_request_scheduler_remove()) != NULL) {
 		printf("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
@@ -134,20 +132,17 @@ sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
 		assert(next_sandbox);
 		sandbox_set_as_runnable(next_sandbox, NULL);
+		assert(next_sandbox->state == SANDBOX_RUNNABLE);
 		free(sandbox_request);
-
 
 		// Save the context of the currently executing sandbox before switching from it
 		sandbox_set_as_runnable(current_sandbox, &user_context->uc_mcontext);
-		sandbox_set_as_running(next_sandbox);
 
-		// And load the context of this new sandbox
-		// RC of 1 indicates that sandbox was last in a user-level context switch state,
-		// so do not enable software interrupts.
-		if (arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt) == 1)
-			should_enable_software_interrupt = false;
+		// Set as Running conditionally enables interrupts
+		sandbox_set_as_running(next_sandbox, &user_context->uc_mcontext);
+	} else {
+		software_interrupt_enable();
 	}
-	if (should_enable_software_interrupt) software_interrupt_enable();
 }
 
 

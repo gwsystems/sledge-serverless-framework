@@ -78,7 +78,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		software_interrupt_SIGALRM_count++;
 
-		// if the current sandbox is in a RETURNED state, nothing to preempt, so just return
+		// if the current sandbox is NULL or in a RETURNED state, nothing to preempt, so just return
+		if (!current_sandbox) return;
 		if (current_sandbox && current_sandbox->state == SANDBOX_RETURNED) return;
 
 		// If worker_thread_next_context is not NULL, we have already preempted a sandbox
@@ -117,7 +118,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		// assert(current_sandbox->last_state_change_timestamp == 0);
 		// current_sandbox->last_state_change_timestamp = __getcycles();
 		// assert(current_sandbox->last_state_change_timestamp > 0);
-		// sandbox_set_as_running(current_sandbox);
+		// sandbox_set_as_running(current_sandbox, NULL);
 
 
 		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);

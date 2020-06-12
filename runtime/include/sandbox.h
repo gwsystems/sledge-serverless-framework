@@ -25,13 +25,22 @@ struct sandbox_io_handle {
 
 typedef enum
 {
+	SANDBOX_GARBAGE, // Assuming that mmap zeros out data
+	SANDBOX_SET_AS_INITIALIZING,
 	SANDBOX_INITIALIZING,
+	SANDBOX_SET_AS_RUNNABLE,
 	SANDBOX_RUNNABLE,
+	SANDBOX_SET_AS_RUNNING,
 	SANDBOX_RUNNING,
+	SANDBOX_SET_AS_BLOCKED,
 	SANDBOX_BLOCKED,
+	SANDBOX_SET_AS_RETURNED,
 	SANDBOX_RETURNED,
+	SANDBOX_SET_AS_COMPLETE,
 	SANDBOX_COMPLETE,
-	SANDBOX_ERROR
+	SANDBOX_SET_AS_ERROR,
+	SANDBOX_ERROR,
+	SANDBOX_STATE_COUNT
 } sandbox_state_t;
 
 struct sandbox {
@@ -113,7 +122,7 @@ extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
 struct sandbox *sandbox_allocate(sandbox_request_t *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_free_linear_memory(struct sandbox *sandbox);
-char *          sandbox_get_state(struct sandbox *sandbox);
+char *          sandbox_state_stringify(sandbox_state_t sandbox_state);
 void            sandbox_main(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
@@ -243,7 +252,7 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 
 void sandbox_set_as_initializing(sandbox_t *sandbox, sandbox_request_t *sandbox_request, uint64_t allocation_timestamp);
 void sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *executing_processor_state);
-void sandbox_set_as_running(sandbox_t *sandbox);
+void sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *executing_processor_state);
 void sandbox_set_as_blocked(sandbox_t *sandbox);
 void sandbox_set_as_returned(sandbox_t *sandbox);
 void sandbox_set_as_complete(sandbox_t *sandbox);

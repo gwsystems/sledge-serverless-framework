@@ -72,6 +72,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	if (previous_sandbox != NULL) {
 		switch (previous_sandbox->state) {
 		case SANDBOX_RETURNED:
+			// TODO: I believe that RETURNED and COMPLETE are distinct states for a reason... Why though?
 			sandbox_set_as_complete(previous_sandbox);
 			break;
 		case SANDBOX_RUNNING:
@@ -84,16 +85,17 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 			break;
 		default:
 			printf("Unexpectedly switching from a sandbox in a %s state\n",
-			       sandbox_get_state(previous_sandbox));
+			       sandbox_state_stringify(previous_sandbox->state));
 			assert(0);
 		}
 	}
 
 	if (next_sandbox != NULL)
-		sandbox_set_as_running(next_sandbox);
+		sandbox_set_as_running(next_sandbox, NULL);
 	else
 		current_sandbox_set(NULL);
 
+	// TODO: Can this be some modeled by the state machine?
 	arch_context_switch(previous_register_context, next_register_context);
 
 done:
@@ -212,7 +214,7 @@ worker_thread_main(void *return_code)
 		current_sandbox = current_sandbox_get();
 		if (current_sandbox != NULL) {
 			printf("Worker loop expected current_sandbox to be NULL, but found sandbox in %s state\n",
-			       sandbox_get_state(current_sandbox));
+			       sandbox_state_stringify(current_sandbox->state));
 			assert(0);
 		}
 

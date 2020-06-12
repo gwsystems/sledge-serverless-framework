@@ -227,22 +227,37 @@ sandbox_initialize_io_handles_and_file_descriptors(struct sandbox *sandbox)
 }
 
 char *
-sandbox_get_state(struct sandbox *sandbox)
+sandbox_state_stringify(sandbox_state_t state)
 {
-	assert(sandbox != NULL);
-	switch (sandbox->state) {
+	switch (state) {
+	case SANDBOX_GARBAGE:
+		return "Garbage";
+	case SANDBOX_SET_AS_INITIALIZING:
+		return "Set As Initializing";
 	case SANDBOX_INITIALIZING:
 		return "Initializing";
+	case SANDBOX_SET_AS_RUNNABLE:
+		return "Set As Runnable";
 	case SANDBOX_RUNNABLE:
 		return "Runnable";
+	case SANDBOX_SET_AS_RUNNING:
+		return "Set As Running";
 	case SANDBOX_RUNNING:
 		return "Running";
+	case SANDBOX_SET_AS_BLOCKED:
+		return "Set As Blocked";
 	case SANDBOX_BLOCKED:
 		return "Blocked";
+	case SANDBOX_SET_AS_RETURNED:
+		return "Set As Returned";
 	case SANDBOX_RETURNED:
 		return "Returned";
+	case SANDBOX_SET_AS_COMPLETE:
+		return "Set As Complete";
 	case SANDBOX_COMPLETE:
 		return "Complete";
+	case SANDBOX_SET_AS_ERROR:
+		return "Set As Error";
 	case SANDBOX_ERROR:
 		return "Error";
 	default:
@@ -262,7 +277,8 @@ current_sandbox_main(void)
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
 	if (sandbox->state != SANDBOX_RUNNING) {
-		printf("Sandbox Unexpectedly transitioning from %s\n", sandbox_get_state(sandbox));
+		printf("Expected Sandbox to be in Running state, but found %s\n",
+		       sandbox_state_stringify(sandbox->state));
 		assert(0);
 	};
 
@@ -423,7 +439,7 @@ sandbox_print_perf(sandbox_t *sandbox)
 	printf("%s():%d, state: %s, deadline: %u, actual: %lu, queued: %lu, initializing: %lu, runnable: %lu, running: "
 	       "%lu, blocked: "
 	       "%lu, returned %lu\n",
-	       sandbox->module->name, sandbox->module->port, sandbox_get_state(sandbox),
+	       sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
 	       sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
 	       running_us, blocked_us, returned_us);
 }
@@ -447,12 +463,15 @@ sandbox_set_as_initializing(sandbox_t *sandbox, sandbox_request_t *sandbox_reque
 	assert(sandbox_request->socket_address != NULL);
 	assert(sandbox_request->socket_descriptor > 0);
 	assert(allocation_timestamp > 0);
+	assert(sandbox->state == SANDBOX_GARBAGE);
 
 	sandbox->request_timestamp           = sandbox_request->request_timestamp;
 	sandbox->allocation_timestamp        = allocation_timestamp;
 	sandbox->response_timestamp          = 0;
 	sandbox->completion_timestamp        = 0;
 	sandbox->last_state_change_timestamp = allocation_timestamp;
+	sandbox_state_t last_state           = sandbox->state;
+	sandbox->state                       = SANDBOX_SET_AS_INITIALIZING;
 
 	// Initialize the sandbox's context, stack, and instruction pointer
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
@@ -501,10 +520,12 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
 {
 	assert(sandbox);
 	assert(sandbox->last_state_change_timestamp > 0);
-	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_RUNNABLE;
 
-	switch (sandbox->state) {
+	switch (last_state) {
 	case SANDBOX_INITIALIZING: {
 		assert(running_sandbox_context == NULL);
 		sandbox->initializing_duration += duration_of_last_state;
@@ -518,14 +539,12 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
 		break;
 	}
 	case SANDBOX_RUNNING: {
-		// TODO: How to handle the "switch logic"
-		// assert(running_sandbox_context != NULL);
 		if (running_sandbox_context != NULL) arch_mcontext_save(&sandbox->ctxt, running_sandbox_context);
 		sandbox->running_duration += duration_of_last_state;
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Runnable\n", sandbox_get_state(sandbox));
+		printf("Sandbox Unexpectedly transitioning from %s to Runnable\n", sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -535,20 +554,35 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
 }
 
 void
-sandbox_set_as_running(sandbox_t *sandbox)
+sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *running_sandbox_context)
 {
 	assert(sandbox);
-	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_RUNNING;
 
-	switch (sandbox->state) {
+	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
 		sandbox->runnable_duration += duration_of_last_state;
 		current_sandbox_set(sandbox);
+
+		if (running_sandbox_context != NULL) {
+			// And load the context of this new sandbox
+			// RC of 1 indicates that sandbox was last in a user-level context switch state,
+			// so do not enable software interrupts.
+			bool was_user_level_context_switch = arch_mcontext_restore(running_sandbox_context,
+			                                                           &sandbox->ctxt)
+			                                     == 1;
+
+			if (!was_user_level_context_switch) software_interrupt_enable();
+		}
+
+
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Running\n", sandbox_get_state(sandbox));
+		printf("Sandbox Unexpectedly transitioning from %s to Running\n", sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -561,17 +595,19 @@ void
 sandbox_set_as_blocked(sandbox_t *sandbox)
 {
 	assert(sandbox);
-	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_BLOCKED;
 
-	switch (sandbox->state) {
+	switch (last_state) {
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		sandbox_run_queue_delete(sandbox);
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Blocked\n", sandbox_get_state(sandbox));
+		printf("Sandbox Unexpectedly transitioning from %s to Blocked\n", sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -586,10 +622,12 @@ void
 sandbox_set_as_returned(sandbox_t *sandbox)
 {
 	assert(sandbox);
-	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_RETURNED;
 
-	switch (sandbox->state) {
+	switch (last_state) {
 	case SANDBOX_RUNNING: {
 		sandbox->response_timestamp = now;
 		sandbox->total_time         = now - sandbox->request_timestamp;
@@ -599,7 +637,7 @@ sandbox_set_as_returned(sandbox_t *sandbox)
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Returned\n", sandbox_get_state(sandbox));
+		printf("Sandbox Unexpectedly transitioning from %s to Returned\n", sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -612,11 +650,19 @@ void
 sandbox_set_as_error(sandbox_t *sandbox)
 {
 	assert(sandbox);
-	uint64_t now                            = __getcycles();
-	uint64_t duration_of_last_state         = now - sandbox->last_state_change_timestamp;
-	bool     should_add_to_completion_queue = false;
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_ERROR;
+	bool should_add_to_completion_queue    = false;
 
-	switch (sandbox->state) {
+	switch (last_state) {
+	case SANDBOX_SET_AS_INITIALIZING:
+		// Note: technically, this is a degenerate sandbox that we hand
+		sandbox->initializing_duration += duration_of_last_state;
+		sandbox_free_linear_memory(sandbox);
+		should_add_to_completion_queue = true;
+		break;
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		sandbox_run_queue_delete(sandbox);
@@ -625,7 +671,7 @@ sandbox_set_as_error(sandbox_t *sandbox)
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Error\n", sandbox_get_state(sandbox));
+		printf("Sandbox Unexpectedly transitioning from %s to Error\n", sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -645,11 +691,13 @@ void
 sandbox_set_as_complete(sandbox_t *sandbox)
 {
 	assert(sandbox);
-	uint64_t now                            = __getcycles();
-	uint64_t duration_of_last_state         = now - sandbox->last_state_change_timestamp;
-	bool     should_add_to_completion_queue = false;
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_COMPLETE;
+	bool should_add_to_completion_queue    = false;
 
-	switch (sandbox->state) {
+	switch (last_state) {
 	case SANDBOX_RETURNED: {
 		sandbox->completion_timestamp = now;
 		sandbox->returned_duration += duration_of_last_state;
@@ -657,7 +705,7 @@ sandbox_set_as_complete(sandbox_t *sandbox)
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Complete\n", sandbox_get_state(sandbox));
+		printf("Sandbox Unexpectedly transitioning from %s to Complete\n", sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -699,19 +747,23 @@ sandbox_allocate(sandbox_request_t *sandbox_request)
 		goto err_stack_allocation_failed;
 	};
 
-
 	sandbox_set_as_initializing(sandbox, sandbox_request, now);
-
 
 done:
 	return sandbox;
 err_stack_allocation_failed:
+	// This is a degenerate sandbox that never successfully completed initialization, so we need to hand jam some
+	// things to be able to cleanly transition to ERROR state
+	sandbox->state                       = SANDBOX_SET_AS_INITIALIZING;
+	sandbox->last_state_change_timestamp = now;
 	ps_list_init_d(sandbox);
 	sandbox_set_as_error(sandbox);
 err_memory_allocation_failed:
 err:
 	perror(error_message);
-	assert(0);
+	sandbox = NULL;
+	goto done;
+	// assert(0);
 }
 
 /**
@@ -738,7 +790,8 @@ sandbox_free(struct sandbox *sandbox)
 	assert(sandbox != NULL);
 
 	if (sandbox->state != SANDBOX_ERROR && sandbox->state != SANDBOX_COMPLETE) {
-		printf("Unexpectedly attempted to free a sandbox in a %s state\n", sandbox_get_state(sandbox));
+		printf("Unexpectedly attempted to free a sandbox in a %s state\n",
+		       sandbox_state_stringify(sandbox->state));
 		assert(0);
 	};
 
