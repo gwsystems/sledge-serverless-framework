@@ -97,31 +97,28 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	}
 	case SIGUSR1: {
 		// SIGUSR1 restores the preempted sandbox stored in worker_thread_next_context
-		// make sure sigalrm doesn't mess this up if nested..
+
+		// Invariants
+
+		// Software Interrupts are disabled in userspace (this has nothing to do with masking / unmasking)
 		assert(!software_interrupt_is_enabled());
-		/* we set current before calling pthread_kill! */
-		assert(worker_thread_next_context && (&current_sandbox->ctxt == worker_thread_next_context));
-		assert(signal_info->si_code == SI_TKILL);
+
 		assert(current_sandbox != NULL);
-		// Check that IP isn't 0
-		assert(current_sandbox->ctxt.regs[16] != 0);
+
+		// The current sandbox's context is pointed to by worker_thread_next_context
+		// TODO: Revisit this in the future
+		assert(worker_thread_next_context && (&current_sandbox->ctxt == worker_thread_next_context));
+
+		// The signal was sent by a thread, not the kernel
+		assert(signal_info->si_code == SI_TKILL);
+
+		// The current sandbox has a valid Instruction Pointer
+		assert(current_sandbox->ctxt.regs[UREG_RSP] != 0);
+		assert(current_sandbox->ctxt.regs[UREG_RIP] != 0);
+
 		// debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
-
 		software_interrupt_SIGUSR_count++;
-		// do not save current sandbox.. it is in co-operative switch..
-		// pick the next from "worker_thread_next_context"..
-		// assert its "sp" to be zero in regs..
-		// memcpy from next context..
-
-		// TODO: Troubleshoot preemption
-		// Start the timer for sandbox execution time
-		// assert(current_sandbox->last_state_change_timestamp == 0);
-		// current_sandbox->last_state_change_timestamp = __getcycles();
-		// assert(current_sandbox->last_state_change_timestamp > 0);
-		// sandbox_set_as_running(current_sandbox, NULL);
-
-
-		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
+		sandbox_set_as_running(current_sandbox, &user_context->uc_mcontext);
 		worker_thread_next_context = NULL;
 		software_interrupt_enable();
 		break;

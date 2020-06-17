@@ -136,7 +136,7 @@ sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 		free(sandbox_request);
 
 		// Save the context of the currently executing sandbox before switching from it
-		sandbox_set_as_runnable(current_sandbox, &user_context->uc_mcontext);
+		sandbox_set_as_preempted(current_sandbox, &user_context->uc_mcontext);
 
 		// Set as Running conditionally enables interrupts
 		sandbox_set_as_running(next_sandbox, &user_context->uc_mcontext);

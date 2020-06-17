@@ -230,12 +230,12 @@ char *
 sandbox_state_stringify(sandbox_state_t state)
 {
 	switch (state) {
-	case SANDBOX_GARBAGE:
-		return "Garbage";
-	case SANDBOX_SET_AS_INITIALIZING:
-		return "Set As Initializing";
-	case SANDBOX_INITIALIZING:
-		return "Initializing";
+	case SANDBOX_UNINITIALIZED:
+		return "Uninitialized";
+	case SANDBOX_SET_AS_INITIALIZED:
+		return "Set As Initialized";
+	case SANDBOX_INITIALIZED:
+		return "Initialized";
 	case SANDBOX_SET_AS_RUNNABLE:
 		return "Set As Runnable";
 	case SANDBOX_RUNNABLE:
@@ -244,6 +244,10 @@ sandbox_state_stringify(sandbox_state_t state)
 		return "Set As Running";
 	case SANDBOX_RUNNING:
 		return "Running";
+	case SANDBOX_SET_AS_PREEMPTED:
+		return "Set As Preempted";
+	case SANDBOX_PREEMPTED:
+		return "Preempted";
 	case SANDBOX_SET_AS_BLOCKED:
 		return "Set As Blocked";
 	case SANDBOX_BLOCKED:
@@ -445,16 +449,16 @@ sandbox_print_perf(sandbox_t *sandbox)
 }
 
 /**
- * Transitions a sandbox to the SANDBOX_INITIALIZING state. Because this is the initial state of a new sandbox, we have
+ * Transitions a sandbox to the SANDBOX_INITIALIZED state. Because this is the initial state of a new sandbox, we have
  * to assume that sandbox->state is garbage.
  *
  * TODO: Consider zeroing out allocation of the sandbox struct to be able to assert that we are only calling this on a
- *clean allocation. Additionally, we might want to shift the sandbox states up, so zero is distinct from
- *SANDBOX_INITIALIZING
+ * clean allocation. Additionally, we might want to shift the sandbox states up, so zero is distinct from
+ * SANDBOX_INITIALIZED
  * @param sandbox
  **/
 void
-sandbox_set_as_initializing(sandbox_t *sandbox, sandbox_request_t *sandbox_request, uint64_t allocation_timestamp)
+sandbox_set_as_initialized(sandbox_t *sandbox, sandbox_request_t *sandbox_request, uint64_t allocation_timestamp)
 {
 	assert(sandbox != NULL);
 	assert(sandbox_request != NULL);
@@ -463,7 +467,7 @@ sandbox_set_as_initializing(sandbox_t *sandbox, sandbox_request_t *sandbox_reque
 	assert(sandbox_request->socket_address != NULL);
 	assert(sandbox_request->socket_descriptor > 0);
 	assert(allocation_timestamp > 0);
-	assert(sandbox->state == SANDBOX_GARBAGE);
+	assert(sandbox->state == SANDBOX_UNINITIALIZED);
 
 	sandbox->request_timestamp           = sandbox_request->request_timestamp;
 	sandbox->allocation_timestamp        = allocation_timestamp;
@@ -471,7 +475,7 @@ sandbox_set_as_initializing(sandbox_t *sandbox, sandbox_request_t *sandbox_reque
 	sandbox->completion_timestamp        = 0;
 	sandbox->last_state_change_timestamp = allocation_timestamp;
 	sandbox_state_t last_state           = sandbox->state;
-	sandbox->state                       = SANDBOX_SET_AS_INITIALIZING;
+	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
 
 	// Initialize the sandbox's context, stack, and instruction pointer
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
@@ -496,19 +500,49 @@ sandbox_set_as_initializing(sandbox_t *sandbox, sandbox_request_t *sandbox_reque
 
 	sandbox->initializing_duration = 0;
 	sandbox->runnable_duration     = 0;
+	sandbox->preempted_duration    = 0;
 	sandbox->running_duration      = 0;
 	sandbox->blocked_duration      = 0;
 	sandbox->returned_duration     = 0;
 
 
-	sandbox->state = SANDBOX_INITIALIZING;
+	sandbox->state = SANDBOX_INITIALIZED;
+}
+
+static void
+dump_regs(const mcontext_t *ctxt)
+{
+	printf("REG_R8: %lld\n", ctxt->gregs[0]);
+	printf("REG_R9: %lld\n", ctxt->gregs[1]);
+	printf("REG_R10: %lld\n", ctxt->gregs[2]);
+	printf("REG_R11: %lld\n", ctxt->gregs[3]);
+	printf("REG_R12: %lld\n", ctxt->gregs[4]);
+	printf("REG_R13: %lld\n", ctxt->gregs[5]);
+	printf("REG_R14: %lld\n", ctxt->gregs[6]);
+	printf("REG_R15: %lld\n", ctxt->gregs[7]);
+	printf("REG_RDI: %lld\n", ctxt->gregs[8]);
+	printf("REG_RSI: %lld\n", ctxt->gregs[9]);
+	printf("REG_RBP: %lld\n", ctxt->gregs[10]);
+	printf("REG_RBX: %lld\n", ctxt->gregs[11]);
+	printf("REG_RDX: %lld\n", ctxt->gregs[12]);
+	printf("REG_RAX: %lld\n", ctxt->gregs[13]);
+	printf("REG_RCX: %lld\n", ctxt->gregs[14]);
+	printf("REG_RSP: %lld\n", ctxt->gregs[15]);
+	printf("REG_RIP: %lld\n", ctxt->gregs[16]);
+	printf("REG_EFL: %lld\n", ctxt->gregs[17]);
+	printf("REG_CSGSFS: %lld\n", ctxt->gregs[18]);
+	printf("REG_ERR: %lld\n", ctxt->gregs[19]);
+	printf("REG_TRAPNO: %lld\n", ctxt->gregs[20]);
+	printf("REG_OLDMASK: %lld\n", ctxt->gregs[21]);
+	printf("REG_CR2: %lld\n", ctxt->gregs[22]);
+	// Ignoring FPU
 }
 
 /**
  * Transitions a sandbox to the SANDBOX_RUNNABLE state.
  *
  * This occurs in the following scenarios:
- * - A sandbox in the SANDBOX_INITIALIZING state completes initialization and is ready to be run
+ * - A sandbox in the SANDBOX_INITIALIZED state completes initialization and is ready to be run
  * - A sandbox in the SANDBOX_BLOCKED state completes what was blocking it and is ready to be run
  * - A sandbox in the SANDBOX_RUNNING state is preempted before competion and is ready to be run
  *
@@ -526,7 +560,7 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
 	sandbox->state                         = SANDBOX_SET_AS_RUNNABLE;
 
 	switch (last_state) {
-	case SANDBOX_INITIALIZING: {
+	case SANDBOX_INITIALIZED: {
 		assert(running_sandbox_context == NULL);
 		sandbox->initializing_duration += duration_of_last_state;
 		sandbox_run_queue_add(sandbox);
@@ -536,11 +570,6 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
 		assert(running_sandbox_context == NULL);
 		sandbox->blocked_duration += duration_of_last_state;
 		sandbox_run_queue_add(sandbox);
-		break;
-	}
-	case SANDBOX_RUNNING: {
-		if (running_sandbox_context != NULL) arch_mcontext_save(&sandbox->ctxt, running_sandbox_context);
-		sandbox->running_duration += duration_of_last_state;
 		break;
 	}
 	default: {
@@ -557,28 +586,30 @@ void
 sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *running_sandbox_context)
 {
 	assert(sandbox);
-	uint64_t        now                    = __getcycles();
-	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
-	sandbox_state_t last_state             = sandbox->state;
-	sandbox->state                         = SANDBOX_SET_AS_RUNNING;
+	uint64_t        now                      = __getcycles();
+	uint64_t        duration_of_last_state   = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state               = sandbox->state;
+	bool            should_enable_interrupts = false;
+
+	sandbox->state = SANDBOX_SET_AS_RUNNING;
 
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
 		sandbox->runnable_duration += duration_of_last_state;
 		current_sandbox_set(sandbox);
 
+		// If we are doing an Initialized->Runnable->Running
 		if (running_sandbox_context != NULL) {
-			// And load the context of this new sandbox
-			// RC of 1 indicates that sandbox was last in a user-level context switch state,
-			// so do not enable software interrupts.
-			bool was_user_level_context_switch = arch_mcontext_restore(running_sandbox_context,
-			                                                           &sandbox->ctxt)
-			                                     == 1;
-
-			if (!was_user_level_context_switch) software_interrupt_enable();
+			arch_mcontext_restore(running_sandbox_context, &sandbox->ctxt);
+			should_enable_interrupts = true;
 		}
-
-
+		break;
+	}
+	case SANDBOX_PREEMPTED: {
+		assert(running_sandbox_context != NULL);
+		sandbox->preempted_duration += duration_of_last_state;
+		current_sandbox_set(sandbox);
+		arch_context_restore(running_sandbox_context, &sandbox->ctxt);
 		break;
 	}
 	default: {
@@ -589,6 +620,36 @@ sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *running_sandbox_context)
 
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RUNNING;
+
+	if (should_enable_interrupts) software_interrupt_enable();
+}
+
+void
+sandbox_set_as_preempted(sandbox_t *sandbox, const mcontext_t *running_sandbox_context)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_PREEMPTED;
+
+	switch (last_state) {
+	case SANDBOX_RUNNING: {
+		assert(running_sandbox_context != NULL);
+		assert(running_sandbox_context->gregs[REG_RIP] != 0);
+		arch_mcontext_save(&sandbox->ctxt, running_sandbox_context);
+		sandbox->running_duration += duration_of_last_state;
+		break;
+	}
+	default: {
+		printf("Sandbox Unexpectedly transitioning from %s to Preempted\n",
+		       sandbox_state_stringify(last_state));
+		assert(0);
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_PREEMPTED;
 }
 
 void
@@ -657,7 +718,7 @@ sandbox_set_as_error(sandbox_t *sandbox)
 	bool should_add_to_completion_queue    = false;
 
 	switch (last_state) {
-	case SANDBOX_SET_AS_INITIALIZING:
+	case SANDBOX_SET_AS_INITIALIZED:
 		// Note: technically, this is a degenerate sandbox that we hand
 		sandbox->initializing_duration += duration_of_last_state;
 		sandbox_free_linear_memory(sandbox);
@@ -747,14 +808,14 @@ sandbox_allocate(sandbox_request_t *sandbox_request)
 		goto err_stack_allocation_failed;
 	};
 
-	sandbox_set_as_initializing(sandbox, sandbox_request, now);
+	sandbox_set_as_initialized(sandbox, sandbox_request, now);
 
 done:
 	return sandbox;
 err_stack_allocation_failed:
 	// This is a degenerate sandbox that never successfully completed initialization, so we need to hand jam some
 	// things to be able to cleanly transition to ERROR state
-	sandbox->state                       = SANDBOX_SET_AS_INITIALIZING;
+	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
 	sandbox->last_state_change_timestamp = now;
 	ps_list_init_d(sandbox);
 	sandbox_set_as_error(sandbox);

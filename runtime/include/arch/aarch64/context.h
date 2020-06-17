@@ -18,14 +18,13 @@ struct arch_context {
 	mcontext_t mctx;
 };
 
-typedef struct arch_context arch_context_t;
 
 extern void __attribute__((noreturn)) worker_thread_restore_preempted_sandbox(void);
-extern __thread arch_context_t worker_thread_base_context;
+extern __thread struct arch_context worker_thread_base_context;
 
 // Initialized a context, zeroing out registers and setting the Instruction and Stack pointers
 static inline void
-arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
+arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
 	memset(&actx->mctx, 0, sizeof(mcontext_t));
 	memset((void *)actx->regs, 0, sizeof(reg_t) * ARCH_NREGS);
@@ -35,7 +34,7 @@ arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
 }
 
 static int
-arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
+arch_mcontext_restore(mcontext_t *mc, struct arch_context *ctx)
 {
 	assert(ctx != &worker_thread_base_context);
 
@@ -56,7 +55,7 @@ arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 }
 
 static void
-arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
+arch_mcontext_save(struct arch_context *ctx, mcontext_t *mc)
 {
 	assert(ctx != &worker_thread_base_context);
 
@@ -66,7 +65,7 @@ arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
 
 
 static inline int
-arch_context_switch(arch_context_t *ca, arch_context_t *na)
+arch_context_switch(struct arch_context *ca, struct arch_context *na)
 {
 	if (!ca) {
 		assert(na);

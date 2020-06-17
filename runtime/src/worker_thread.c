@@ -28,10 +28,10 @@
  **************************/
 
 // context pointer used to store and restore a preempted sandbox. SIGUSR1
-__thread arch_context_t *worker_thread_next_context = NULL;
+__thread struct arch_context *worker_thread_next_context = NULL;
 
 // context of the runtime thread before running sandboxes or to resume its "main".
-__thread arch_context_t worker_thread_base_context;
+__thread struct arch_context worker_thread_base_context;
 
 // libuv i/o loop handle per sandboxing thread!
 __thread uv_loop_t worker_thread_uvio_handle;
@@ -51,13 +51,13 @@ static __thread bool worker_thread_is_in_libuv_event_loop;
 static inline void
 worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 {
-	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
+	struct arch_context *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
 
 	software_interrupt_disable();
 
 	// Get the old sandbox we're switching from
-	struct sandbox *previous_sandbox          = current_sandbox_get();
-	arch_context_t *previous_register_context = previous_sandbox == NULL ? NULL : &previous_sandbox->ctxt;
+	struct sandbox *     previous_sandbox          = current_sandbox_get();
+	struct arch_context *previous_register_context = previous_sandbox == NULL ? NULL : &previous_sandbox->ctxt;
 
 	if (next_sandbox == previous_sandbox) {
 		printf("Switching to %p from %p, but are the same\n", next_sandbox, previous_sandbox);
@@ -72,13 +72,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	if (previous_sandbox != NULL) {
 		switch (previous_sandbox->state) {
 		case SANDBOX_RETURNED:
-			// TODO: I believe that RETURNED and COMPLETE are distinct states for a reason... Why though?
 			sandbox_set_as_complete(previous_sandbox);
-			break;
-		case SANDBOX_RUNNING:
-			// In theory, this seems like we should be passing the context to be saved, but this is handled
-			// by arch_context_switch
-			sandbox_set_as_runnable(previous_sandbox, NULL);
 			break;
 		case SANDBOX_ERROR:
 			// The state transition already added to completion queue, so just break
@@ -95,7 +89,6 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	else
 		current_sandbox_set(NULL);
 
-	// TODO: Can this be some modeled by the state machine?
 	arch_context_switch(previous_register_context, next_register_context);
 
 done:
@@ -130,6 +123,7 @@ worker_thread_block_current_sandbox(void)
 	// Remove the sandbox we were just executing from the runqueue and mark as blocked
 	struct sandbox *previous_sandbox = current_sandbox_get();
 	sandbox_set_as_blocked(previous_sandbox);
+	current_sandbox_set(NULL);
 
 	// Switch to the next sandbox
 	struct sandbox *next_sandbox = sandbox_run_queue_get_next();

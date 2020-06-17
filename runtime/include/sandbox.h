@@ -25,13 +25,15 @@ struct sandbox_io_handle {
 
 typedef enum
 {
-	SANDBOX_GARBAGE, // Assuming that mmap zeros out data
-	SANDBOX_SET_AS_INITIALIZING,
-	SANDBOX_INITIALIZING,
+	SANDBOX_UNINITIALIZED, // Assuming that mmap zeros out data. Uninitialized?
+	SANDBOX_SET_AS_INITIALIZED,
+	SANDBOX_INITIALIZED,
 	SANDBOX_SET_AS_RUNNABLE,
 	SANDBOX_RUNNABLE,
 	SANDBOX_SET_AS_RUNNING,
 	SANDBOX_RUNNING,
+	SANDBOX_SET_AS_PREEMPTED,
+	SANDBOX_PREEMPTED,
 	SANDBOX_SET_AS_BLOCKED,
 	SANDBOX_BLOCKED,
 	SANDBOX_SET_AS_RETURNED,
@@ -55,7 +57,7 @@ struct sandbox {
 	void *   stack_start; // guess we need a mechanism for stack allocation.
 	uint32_t stack_size;  // and to set the size of it.
 
-	arch_context_t ctxt; // register context for context switch.
+	struct arch_context ctxt; // register context for context switch.
 
 	uint64_t request_timestamp;           // Timestamp when request is received
 	uint64_t allocation_timestamp;        // Timestamp when sandbox is allocated
@@ -66,6 +68,7 @@ struct sandbox {
 	// Duration of time (in cycles) that the sandbox is in each state
 	uint64_t initializing_duration;
 	uint64_t runnable_duration;
+	uint64_t preempted_duration;
 	uint64_t running_duration;
 	uint64_t blocked_duration;
 	uint64_t returned_duration;
@@ -107,7 +110,7 @@ typedef struct sandbox sandbox_t;
  **************************/
 
 
-extern __thread arch_context_t *worker_thread_next_context;
+extern __thread struct arch_context *worker_thread_next_context;
 
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(sandbox_t *sandbox);
@@ -250,10 +253,11 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 	return &sandbox->io_handles[io_handle_index].libuv_handle;
 }
 
-void sandbox_set_as_initializing(sandbox_t *sandbox, sandbox_request_t *sandbox_request, uint64_t allocation_timestamp);
+void sandbox_set_as_initialized(sandbox_t *sandbox, sandbox_request_t *sandbox_request, uint64_t allocation_timestamp);
 void sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *executing_processor_state);
 void sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *executing_processor_state);
 void sandbox_set_as_blocked(sandbox_t *sandbox);
+void sandbox_set_as_preempted(sandbox_t *sandbox, const mcontext_t *executing_processor_state);
 void sandbox_set_as_returned(sandbox_t *sandbox);
 void sandbox_set_as_complete(sandbox_t *sandbox);
 void sandbox_set_as_error(sandbox_t *sandbox);
