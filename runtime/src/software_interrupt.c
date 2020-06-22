@@ -98,11 +98,19 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	case SIGUSR1: {
 		// SIGUSR1 restores the preempted sandbox stored in worker_thread_next_context
 
+		// TODO: This was somehow causing sandboxes already acti
+		// If worker_thread_next_context is NULL, assume the preempted sandbox was already resumed
+		if (worker_thread_next_context == NULL) {
+			if (!software_interrupt_is_enabled()) software_interrupt_enable();
+			break;
+		};
+
 		// Invariants
 
 		// Software Interrupts are disabled in userspace (this has nothing to do with masking / unmasking)
 		assert(!software_interrupt_is_enabled());
 
+		// The worker thread was running a sandbox when preempted
 		assert(current_sandbox != NULL);
 
 		// The current sandbox's context is pointed to by worker_thread_next_context
@@ -113,12 +121,17 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		assert(signal_info->si_code == SI_TKILL);
 
 		// The current sandbox has a valid Instruction Pointer
-		assert(current_sandbox->ctxt.regs[UREG_RSP] != 0);
-		assert(current_sandbox->ctxt.regs[UREG_RIP] != 0);
+		// TODO: What is the state here???
+		// assert(current_sandbox->ctxt.regs[UREG_RSP] != 0);
+		// assert(current_sandbox->ctxt.regs[UREG_RIP] != 0);
 
 		// debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
 		software_interrupt_SIGUSR_count++;
-		sandbox_set_as_running(current_sandbox, &user_context->uc_mcontext);
+
+		// TODO: For some reason, a sandbox can be in the SANDBOX_RUNNING state here...
+		// This feels like a hack, but just exit in this case.
+		if (current_sandbox->state == SANDBOX_PREEMPTED)
+			sandbox_set_as_running(current_sandbox, &user_context->uc_mcontext);
 		worker_thread_next_context = NULL;
 		software_interrupt_enable();
 		break;

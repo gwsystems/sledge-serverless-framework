@@ -273,7 +273,7 @@ sandbox_state_stringify(sandbox_state_t state)
 /**
  * Sandbox execution logic
  * Handles setup, request parsing, WebAssembly initialization, function execution, response building and sending, and
- *cleanup
+ * cleanup
  **/
 void
 current_sandbox_main(void)
@@ -468,6 +468,7 @@ sandbox_set_as_initialized(sandbox_t *sandbox, sandbox_request_t *sandbox_reques
 	assert(sandbox_request->socket_descriptor > 0);
 	assert(allocation_timestamp > 0);
 	assert(sandbox->state == SANDBOX_UNINITIALIZED);
+	printf("Thread %lu | Sandbox %lu | Uninitialized => Initialized\n", pthread_self(), allocation_timestamp);
 
 	sandbox->request_timestamp           = sandbox_request->request_timestamp;
 	sandbox->allocation_timestamp        = allocation_timestamp;
@@ -558,6 +559,8 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_RUNNABLE;
+	printf("Thread %lu | Sandbox %lu | %s => Runnable\n", pthread_self(), sandbox->allocation_timestamp,
+	       sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
@@ -573,7 +576,8 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Runnable\n", sandbox_state_stringify(last_state));
+		printf("Thread %lu | Sandbox %lu | Illegal transition from %s to Runnable\n", pthread_self(),
+		       sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -582,8 +586,21 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
 	sandbox->state                       = SANDBOX_RUNNABLE;
 }
 
+/**
+ * Transitions a sandbox to the SANDBOX_RUNNING state.
+ *
+ * This occurs in the following scenarios:
+ * - A sandbox is in a RUNNABLE state
+ * 		- after initialization. This sandbox has thus not yet been executed
+ * 		- after previously executing, blocking, waking up.
+ * - A sandbox in the PREEMPTED state is now the highest priority work to execute
+ *
+ * @param sandbox
+ * @param worker_thread_active_context - the worker thread context that is going to execute this sandbox. Only provided
+ * when performing a full mcontext restore
+ **/
 void
-sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *running_sandbox_context)
+sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *worker_thread_active_context)
 {
 	assert(sandbox);
 	uint64_t        now                      = __getcycles();
@@ -592,28 +609,47 @@ sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *running_sandbox_context)
 	bool            should_enable_interrupts = false;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
+	printf("Thread %lu | Sandbox %lu | %s => Running\n", pthread_self(), sandbox->allocation_timestamp,
+	       sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
-		sandbox->runnable_duration += duration_of_last_state;
 		current_sandbox_set(sandbox);
+		// assert(worker_thread_active_context != NULL);
 
 		// If we are doing an Initialized->Runnable->Running
-		if (running_sandbox_context != NULL) {
-			arch_mcontext_restore(running_sandbox_context, &sandbox->ctxt);
-			should_enable_interrupts = true;
+		// If worker_thread_active_context is provided, we should restore the standbox
+		// If it's NULL, assume the caller invokes arch_context_switch
+		if (worker_thread_active_context != NULL) {
+			printf("Restoring mcontext of type, %d\n", sandbox->ctxt.variant);
+			switch (sandbox->ctxt.variant) {
+			case ARCH_CONTEXT_SLOW:
+				assert(0);
+				arch_mcontext_restore(worker_thread_active_context, &sandbox->ctxt);
+				break;
+			case ARCH_CONTEXT_QUICK:
+				arch_context_restore(worker_thread_active_context, &sandbox->ctxt);
+				break;
+			default:
+				printf("Unexpected variant!\n");
+				assert(0);
+			}
+			// printf("Should restore!\n");
+			// should_enable_interrupts = true;
 		}
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
-		assert(running_sandbox_context != NULL);
+		assert(worker_thread_active_context != NULL);
 		sandbox->preempted_duration += duration_of_last_state;
 		current_sandbox_set(sandbox);
-		arch_context_restore(running_sandbox_context, &sandbox->ctxt);
+		if (worker_thread_active_context != NULL)
+			arch_mcontext_restore(worker_thread_active_context, &sandbox->ctxt);
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Running\n", sandbox_state_stringify(last_state));
+		printf("Thread %lu | Sandbox %lu | Illegal transition from %s to Running\n", pthread_self(),
+		       sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -632,6 +668,8 @@ sandbox_set_as_preempted(sandbox_t *sandbox, const mcontext_t *running_sandbox_c
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_PREEMPTED;
+	printf("Thread %lu | Sandbox %lu | %s => Preempted\n", pthread_self(), sandbox->allocation_timestamp,
+	       sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -642,8 +680,8 @@ sandbox_set_as_preempted(sandbox_t *sandbox, const mcontext_t *running_sandbox_c
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Preempted\n",
-		       sandbox_state_stringify(last_state));
+		printf("Thread %lu | Sandbox %lu | Illegal transition from %s to Preempted\n", pthread_self(),
+		       sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -660,6 +698,8 @@ sandbox_set_as_blocked(sandbox_t *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_BLOCKED;
+	printf("Thread %lu | Sandbox %lu | %s => Blocked\n", pthread_self(), sandbox->allocation_timestamp,
+	       sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -668,7 +708,8 @@ sandbox_set_as_blocked(sandbox_t *sandbox)
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Blocked\n", sandbox_state_stringify(last_state));
+		printf("Thread %lu | Sandbox %lu | Illegal transition from %s to Blocked\n", pthread_self(),
+		       sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -687,6 +728,8 @@ sandbox_set_as_returned(sandbox_t *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_RETURNED;
+	printf("Thread %lu | Sandbox %lu | %s => Returned\n", pthread_self(), sandbox->allocation_timestamp,
+	       sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -698,7 +741,8 @@ sandbox_set_as_returned(sandbox_t *sandbox)
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Returned\n", sandbox_state_stringify(last_state));
+		printf("Thread %lu | Sandbox %lu | Illegal transition from %s to Returned\n", pthread_self(),
+		       sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -716,6 +760,8 @@ sandbox_set_as_error(sandbox_t *sandbox)
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_ERROR;
 	bool should_add_to_completion_queue    = false;
+	printf("Thread %lu | Sandbox %lu | %s => Error\n", pthread_self(), sandbox->allocation_timestamp,
+	       sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_SET_AS_INITIALIZED:
@@ -732,7 +778,8 @@ sandbox_set_as_error(sandbox_t *sandbox)
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Error\n", sandbox_state_stringify(last_state));
+		printf("Thread %lu | Sandbox %lu | Illegal transition from %s to Error\n", pthread_self(),
+		       sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
@@ -757,6 +804,8 @@ sandbox_set_as_complete(sandbox_t *sandbox)
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_COMPLETE;
 	bool should_add_to_completion_queue    = false;
+	printf("Thread %lu | Sandbox %lu | %s => Complete\n", pthread_self(), sandbox->allocation_timestamp,
+	       sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_RETURNED: {
@@ -766,7 +815,8 @@ sandbox_set_as_complete(sandbox_t *sandbox)
 		break;
 	}
 	default: {
-		printf("Sandbox Unexpectedly transitioning from %s to Complete\n", sandbox_state_stringify(last_state));
+		printf("Thread %lu | Sandbox %lu | Illegal transition from %s to Error\n", pthread_self(),
+		       sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
 		assert(0);
 	}
 	}
