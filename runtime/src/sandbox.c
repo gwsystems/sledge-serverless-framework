@@ -290,7 +290,7 @@ current_sandbox_main(void)
 
 	assert(!software_interrupt_is_enabled());
 	arch_context_init(&sandbox->ctxt, 0, 0);
-	worker_thread_next_context = NULL;
+	worker_thread_is_switching_context = false;
 	software_interrupt_enable();
 
 	sandbox_initialize_io_handles_and_file_descriptors(sandbox);
@@ -548,10 +548,9 @@ dump_regs(const mcontext_t *ctxt)
  * - A sandbox in the SANDBOX_RUNNING state is preempted before competion and is ready to be run
  *
  * @param sandbox
- * @param running_sandbox_context - Optionally save the current context of a sandbox in the SANDBOX_RUNNING state
  **/
 void
-sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_context)
+sandbox_set_as_runnable(sandbox_t *sandbox)
 {
 	assert(sandbox);
 	assert(sandbox->last_state_change_timestamp > 0);
@@ -564,13 +563,11 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
 
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
-		assert(running_sandbox_context == NULL);
 		sandbox->initializing_duration += duration_of_last_state;
 		sandbox_run_queue_add(sandbox);
 		break;
 	}
 	case SANDBOX_BLOCKED: {
-		assert(running_sandbox_context == NULL);
 		sandbox->blocked_duration += duration_of_last_state;
 		sandbox_run_queue_add(sandbox);
 		break;
@@ -600,7 +597,7 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
  * when performing a full mcontext restore
  **/
 void
-sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *active_context)
+sandbox_set_as_running(sandbox_t *sandbox)
 {
 	assert(sandbox);
 	uint64_t        now                      = __getcycles();
@@ -614,41 +611,14 @@ sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *active_context)
 
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
+		sandbox->runnable_duration += duration_of_last_state;
 		current_sandbox_set(sandbox);
-		// assert(active_context != NULL);
-
-		// If we are doing an Initialized->Runnable->Running
-		// If active_context is provided, we should restore the standbox
-		// If it's NULL, assume the caller invokes arch_context_switch
-		if (active_context != NULL) {
-			printf("Restoring mcontext of type, %d\n", sandbox->ctxt.variant);
-			switch (sandbox->ctxt.variant) {
-			case ARCH_CONTEXT_SLOW:
-				// TODO: Is this possible? I expect not!
-				assert(0);
-				arch_mcontext_restore(active_context, &sandbox->ctxt);
-				break;
-			case ARCH_CONTEXT_QUICK:
-				arch_context_restore(active_context, &sandbox->ctxt);
-				break;
-			default:
-				printf("Unexpected variant!\n");
-				assert(0);
-			}
-
-			// TODO: I'm unsure about the desired behavior here...
-			// printf("Should restore!\n");
-			// should_enable_interrupts = true;
-		}
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
 		// is active_context an invarient here?
 		sandbox->preempted_duration += duration_of_last_state;
 		current_sandbox_set(sandbox);
-		assert(active_context == NULL);
-		// TODO: Set Thread Local Flag that preemption in progress ?
-		// if (active_context != NULL) arch_mcontext_restore(active_context, &sandbox->ctxt);
 		break;
 	}
 	default: {
@@ -664,31 +634,8 @@ sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *active_context)
 	if (should_enable_interrupts) software_interrupt_enable();
 }
 
-// // How does this relate to existing functions?
-// void
-// sandbox_switch(struct sandbox *current, struct sandbox *next)
-// {
-// 	assert(current != NULL);
-// 	assert(next != NULL);
-
-// 	switch (next->ctxt.variant) {
-// 	case ARCH_CONTEXT_QUICK: {
-// 		sandbox_set_as_preempted(current, NULL);
-// 		sandbox_set_as_running(next, NULL);
-// 		arch_context_switch(&current->ctxt, &next->ctxt);
-// 	}
-// 	case ARCH_CONTEXT_SLOW: {
-// 		// TODO
-// 	}
-// 	default:
-// 		printf("Error!\n");
-// 	}
-
-// 	if (next->ctxt.variant == ARCH_CONTEXT_QUICK) {}
-// }
-
 void
-sandbox_set_as_preempted(sandbox_t *sandbox, const mcontext_t *running_sandbox_context)
+sandbox_set_as_preempted(sandbox_t *sandbox)
 {
 	assert(sandbox);
 	uint64_t        now                    = __getcycles();
@@ -700,12 +647,6 @@ sandbox_set_as_preempted(sandbox_t *sandbox, const mcontext_t *running_sandbox_c
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
-		// TODO: Is this actually useful?
-		assert(running_sandbox_context == NULL);
-		// if (running_sandbox_context) {
-		// 	assert(running_sandbox_context->gregs[REG_RIP] != 0);
-		// 	arch_mcontext_save(&sandbox->ctxt, running_sandbox_context);
-		// }
 		sandbox->running_duration += duration_of_last_state;
 		break;
 	}

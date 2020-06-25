@@ -27,8 +27,7 @@
  * Worker Thread State     *
  **************************/
 
-// context pointer used to store and restore a preempted sandbox. SIGUSR1
-__thread struct arch_context *worker_thread_next_context = NULL;
+__thread bool worker_thread_is_switching_context = false;
 
 // context of the runtime thread before running sandboxes or to resume its "main".
 __thread struct arch_context worker_thread_base_context;
@@ -83,13 +82,13 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 	// If we are switching to a new sandbox that we haven't preempted before, buffer the context
 	// I don't yet fully understand why.
-	if (next_sandbox->state == SANDBOX_RUNNABLE) worker_thread_next_context = next_context;
+	worker_thread_is_switching_context = true;
 
 	struct sandbox *current_sandbox = current_sandbox_get();
 
 	if (current_sandbox == NULL) {
 		// Switching from "Base Context"
-		sandbox_set_as_running(next_sandbox, NULL);
+		sandbox_set_as_running(next_sandbox);
 
 		printf("Thread %lu | Switching from Base Context to Sandbox %lu\n", pthread_self(),
 		       next_sandbox->allocation_timestamp);
@@ -101,7 +100,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 		worker_thread_transition_exiting_sandbox(current_sandbox);
 
-		sandbox_set_as_running(next_sandbox, NULL);
+		sandbox_set_as_running(next_sandbox);
 
 		printf("Thread %lu | Switching from Sandbox %lu to Sandbox %lu\n", pthread_self(),
 		       current_sandbox->allocation_timestamp, next_sandbox->allocation_timestamp);
@@ -119,7 +118,7 @@ static inline void
 worker_thread_switch_to_base_context()
 {
 	// I'm still figuring this global out. I believe this should always have been cleared by this point
-	assert(worker_thread_next_context == NULL);
+	assert(worker_thread_is_switching_context == false);
 
 	software_interrupt_disable();
 
@@ -146,7 +145,7 @@ worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 	software_interrupt_disable();
 	// debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 	assert(sandbox->state == SANDBOX_BLOCKED);
-	sandbox_set_as_runnable(sandbox, NULL);
+	sandbox_set_as_runnable(sandbox);
 	software_interrupt_enable();
 }
 
@@ -246,8 +245,8 @@ worker_thread_main(void *return_code)
 
 	sandbox_completion_queue_initialize();
 
-	software_interrupt_is_disabled = false;
-	worker_thread_next_context     = NULL;
+	software_interrupt_is_disabled     = false;
+	worker_thread_is_switching_context = false;
 
 #ifndef PREEMPT_DISABLE
 	software_interrupt_unmask_signal(SIGALRM);

@@ -85,7 +85,7 @@ sandbox_run_queue_ps_get_next()
 		// If sandbox is NULL, we failed to allocate, so the request wasn't actually serviced
 		// Should we re-add this to the request queue?
 		free(sandbox_request);
-		if (sandbox != NULL) sandbox_set_as_runnable(sandbox, NULL);
+		if (sandbox != NULL) sandbox_set_as_runnable(sandbox);
 		return sandbox;
 	} else {
 		// Resume the sandbox at the top of the runqueue
@@ -131,15 +131,15 @@ sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 		// Allocate the request
 		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
 		assert(next_sandbox);
-		sandbox_set_as_runnable(next_sandbox, NULL);
+		sandbox_set_as_runnable(next_sandbox);
 		assert(next_sandbox->state == SANDBOX_RUNNABLE);
 		free(sandbox_request);
 
 		// Save the context of the currently executing sandbox before switching from it
-		sandbox_set_as_preempted(current_sandbox, NULL);
+		sandbox_set_as_preempted(current_sandbox);
 
 		// Set as Running conditionally enables interrupts
-		sandbox_set_as_running(next_sandbox, NULL);
+		sandbox_set_as_running(next_sandbox);
 		arch_context_switch(&current_sandbox->ctxt, &next_sandbox->ctxt);
 
 	} else {

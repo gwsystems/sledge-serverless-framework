@@ -110,7 +110,7 @@ typedef struct sandbox sandbox_t;
  **************************/
 
 
-extern __thread struct arch_context *worker_thread_next_context;
+extern __thread bool worker_thread_is_switching_context;
 
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(sandbox_t *sandbox);
@@ -254,10 +254,10 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 }
 
 void sandbox_set_as_initialized(sandbox_t *sandbox, sandbox_request_t *sandbox_request, uint64_t allocation_timestamp);
-void sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *executing_processor_state);
-void sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *executing_processor_state);
+void sandbox_set_as_runnable(sandbox_t *sandbox);
+void sandbox_set_as_running(sandbox_t *sandbox);
 void sandbox_set_as_blocked(sandbox_t *sandbox);
-void sandbox_set_as_preempted(sandbox_t *sandbox, const mcontext_t *executing_processor_state);
+void sandbox_set_as_preempted(sandbox_t *sandbox);
 void sandbox_set_as_returned(sandbox_t *sandbox);
 void sandbox_set_as_complete(sandbox_t *sandbox);
 void sandbox_set_as_error(sandbox_t *sandbox);

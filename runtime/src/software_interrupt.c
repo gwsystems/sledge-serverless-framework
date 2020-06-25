@@ -82,10 +82,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (!current_sandbox) return;
 		if (current_sandbox && current_sandbox->state == SANDBOX_RETURNED) return;
 
-		// If worker_thread_next_context is not NULL, we have already preempted a sandbox
-		// This approach means that we can only have up to two sandboxes in our worker runqueue
-		// TODO: Use the PQ runqueue to preempt to arbitrary depth
-		if (worker_thread_next_context) return;
+		if (worker_thread_is_switching_context) return;
 
 		// If software interrupts are disabled, return
 		if (!software_interrupt_is_enabled()) return;
@@ -96,19 +93,21 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		return;
 	}
 	case SIGUSR1: {
-		// SIGUSR1 restores the preempted sandbox stored in worker_thread_next_context
+		// SIGUSR1 restores a preempted sandbox using mcontext
 
 		assert(!software_interrupt_is_enabled());
 		assert(current_sandbox != NULL);
 		assert(signal_info->si_code == SI_TKILL); // Signal sent by a thread, not the kernel
 		assert(current_sandbox->state == SANDBOX_PREEMPTED);
+		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_SLOW);
 		assert(current_sandbox->ctxt.regs[UREG_RSP] != 0);
 		assert(current_sandbox->ctxt.regs[UREG_RIP] != 0);
 
 		software_interrupt_SIGUSR_count++;
-		sandbox_set_as_running(current_sandbox, &user_context->uc_mcontext);
+		sandbox_set_as_running(current_sandbox);
+		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
 
-		worker_thread_next_context = NULL;
+		worker_thread_is_switching_context = false;
 		software_interrupt_enable();
 		break;
 	}
