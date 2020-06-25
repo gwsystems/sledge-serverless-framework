@@ -38,7 +38,7 @@ struct arch_context {
 	mcontext_t        mctx;             // Used during preemption
 };
 
-extern void __attribute__((noreturn)) worker_thread_restore_preempted_sandbox(void);
+extern void __attribute__((noreturn)) worker_thread_mcontext_restore(void);
 extern __thread struct arch_context worker_thread_base_context;
 
 static void __attribute__((noinline)) arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
@@ -54,13 +54,19 @@ static void __attribute__((noinline)) arch_context_init(struct arch_context *act
 		 * so push sp on this new stack and use
 		 * that new sp as sp for switching to sandbox!
 		 */
-		asm volatile("movq %%rsp, %%rbx\n\t"
-		             "movq %%rax, %%rsp\n\t"
-		             "pushq %%rax\n\t"
-		             "movq %%rsp, %%rax\n\t"
-		             "movq %%rbx, %%rsp\n\t"
+		asm volatile("movq %%rsp, %%rbx\n\t" // Save stack pointer to B
+		             "movq %%rax, %%rsp\n\t" // Copy A(sp) to actual stack pointer
+		             "pushq %%rax\n\t"       // Push A(sp) onto the stack
+		             "movq %%rsp, %%rax\n\t" // Copy the actual stack pointer to A(sp)
+		             "movq %%rbx, %%rsp\n\t" // Restore stack pointer from B
+
+		             // Output
 		             : "=a"(sp)
+
+		             // Input
 		             : "a"(sp)
+
+		             // Clobber
 		             : "memory", "cc", "rbx");
 	}
 
@@ -70,32 +76,25 @@ static void __attribute__((noinline)) arch_context_init(struct arch_context *act
 }
 
 /**
- * Set the active context of the current worker thread to the provided sandbox.
- * This method restores the full mcontext stored in the arch_context struct, so while similar to arch_context_restore,
- * it is more expensive.
- * @param worker_thread_active_context - the context of the current worker thread
+ * Restore a full mcontext
+ * Writes sandbox_context to active_context and then zeroes sandbox_context out
+ * @param active_context - the context of the current worker thread
  * @param sandbox_context - the context that we want to restore
  **/
 static void
-arch_mcontext_restore(mcontext_t *worker_thread_active_context, struct arch_context *sandbox_context)
+arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_context)
 {
-	assert(sandbox_context->variant == ARCH_CONTEXT_SLOW);
+	assert(active_context != NULL);
 	assert(sandbox_context != NULL);
+
+	// Validate that the sandbox_context is well formed
+	assert(sandbox_context->variant == ARCH_CONTEXT_SLOW);
+	assert(sandbox_context->mctx.gregs[REG_RSP] != 0);
+	assert(sandbox_context->mctx.gregs[REG_RIP] != 0);
+
 	assert(sandbox_context != &worker_thread_base_context);
 
-	// We are setting the worker thread's active context to the mcontext stored in sandbox_context
-	// So we assert that the instruction pointer and stack pointer in this context is not 0.
-	if (sandbox_context->mctx.gregs[REG_RIP] == 0) {
-		printf("Mcontext not set. Was quick context set? %lu\n", sandbox_context->regs[UREG_RIP]);
-		assert(0);
-	}
-	// assert(sandbox_context->mctx.gregs[REG_RSP] != 0);
-	if (sandbox_context->mctx.gregs[REG_RSP] == 0) {
-		printf("Mcontext not set. Was quick context set? %lu\n", sandbox_context->regs[UREG_RSP]);
-		assert(0);
-	}
-
-	memcpy(worker_thread_active_context, &sandbox_context->mctx, sizeof(mcontext_t));
+	memcpy(active_context, &sandbox_context->mctx, sizeof(mcontext_t));
 	memset(&sandbox_context->mctx, 0, sizeof(mcontext_t));
 }
 
@@ -109,6 +108,7 @@ arch_mcontext_restore(mcontext_t *worker_thread_active_context, struct arch_cont
 static void
 arch_context_restore(mcontext_t *worker_thread_active_context, struct arch_context *sandbox_context)
 {
+	assert(worker_thread_active_context != NULL);
 	assert(sandbox_context->variant == ARCH_CONTEXT_QUICK);
 	assert(sandbox_context != NULL);
 	assert(sandbox_context != &worker_thread_base_context);
@@ -130,7 +130,7 @@ arch_context_restore(mcontext_t *worker_thread_active_context, struct arch_conte
 static void
 arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *worker_thread_active_context)
 {
-	assert(worker_thread_active_context != 0);
+	assert(worker_thread_active_context != NULL);
 	assert(sandbox_context != &worker_thread_base_context);
 	assert(worker_thread_active_context->gregs[REG_RIP] != 0);
 	assert(worker_thread_active_context->gregs[REG_RSP] != 0);
@@ -177,42 +177,42 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	  "movq %%rsp, (%%rax)\n\t" // current_registers[0] (stack_pointer) = stack_pointer
 
 	  // Check if the stack pointer of the context we're trying to switch to is 0.
-	  // If the stack pointer is 0, we were preempted, so we have to restore using mcontext
+	  // If the stack pointer is 0, the sandbox was preempted, so we have to restore using mcontext because
 	  // If it is, the context cannot be loaded, so jump to label 0 to restore the preempted sandbox
-	  "cmpq $0, (%%rbx)\n\t" // if (next_registers[0] == 0); If the stack pointer destination context is 0,
-	                         // restore the existing sandbox
-	  "je 1f\n\t"            // 	goto 1
+	  "cmpq $0, (%%rbx)\n\t" // if (next_registers[0] == 0); If the target stack pointer is 0,
+	  "je 1f\n\t"            // 	goto 1; restore the existing sandbox
 
-	  // Success Case
-	  // If the stack pointer we're trying to switch to is not 0, write it to the actual stack pointer
-	  // and jump to the target instruction
+	  // Fast Path
+	  // The stack pointer we're trying to switch was not zeroed-out, so that means we can do a "fast switch"
+	  // We can just write update the stack pointer and jump to the target instruction
 	  "movq (%%rbx), %%rsp\n\t" // stack_pointer = next_registers[0] (stack_pointer)
 	  "jmpq *8(%%rbx)\n\t"      // immediate jump to next_registers[1] (instruction_pointer)
 
-	  // Failure Case
-	  // The state of the context we're trying to switch to is invalid, so restore the sandbox by executing
-	  // worker_thread_restore_preempted_sandbox to fires off a SIGUSR1, triggering a signal handler,
-	  "1:\n\t"                                           // 1:
-	  "call worker_thread_restore_preempted_sandbox\n\t" // 	worker_thread_restore_preempted_sandbox()
-	  ".align 8\n\t"                                     //		V FALLTHROUGH V
+	  // Slow Path
+	  // If the stack pointer is 0, that means the sandbox was preempted, which means that we need to fallback
+	  // to a full mcontext-based context switch. We do this by invoking worker_thread_mcontext_restore
+	  // which fires a SIGUSR1 signal. The SIGUSR1 signal handler executes the mcontext-based context switch.
+	  "1:\n\t"                                  // 1:
+	  "call worker_thread_mcontext_restore\n\t" // 	worker_thread_mcontext_restore()
+	  ".align 8\n\t"                            //		V FALLTHROUGH V
 
-	  // Where the "switch from" sandbox resumes execution
+	  // Where preempted sandbox resumes
+	  // rbx contains the preempted sandbox's IP and SP in this context
 	  "2:\n\t"               // 2:
-	  "movq $0, (%%rbx)\n\t" //		next_registers[0] = 0; Stack Pointer is zeroed out
-	  ".align 8\n\t"         //		V FALLTHROUGH V
+	  "movq $0, (%%rbx)\n\t" //		The preempted sandbox clears its own stack pointer to force it to use
+	  "movq $1, (%%rcx)\n\t" //		next->variant = ARCH_CONTEXT_QUICK;
+	  ".align 8\n\t"         //
 	  "3:\n\t"               // 3:
 	  "popq %%rbp\n\t"       // 	base_pointer = stack[--stack_len]; Base Pointer is restored
 
 	  // Output List
 	  :
 	  // Input List
-	  : "a"(current_registers), "b"(next_registers)
+	  : "a"(current_registers), "b"(next_registers), "c"(&next->variant)
 	  // Clobber List. This is long because of the context switch
-	  : "memory", "cc", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "xmm0",
-	    "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13",
-	    "xmm14", "xmm15");
-
-	next->variant = ARCH_CONTEXT_QUICK;
+	  : "memory", "cc", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "xmm0", "xmm1",
+	    "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14",
+	    "xmm15");
 
 	return 0;
 }

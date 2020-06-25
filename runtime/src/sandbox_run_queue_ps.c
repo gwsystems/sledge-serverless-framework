@@ -64,8 +64,8 @@ sandbox_run_queue_ps_delete(struct sandbox *sandbox)
 }
 
 /**
- * This function determines the next sandbox to run. This is either the head of the runqueue or the head of the request
- *queue
+ * This function determines the next sandbox to run.
+ * This is either the head of the runqueue or the head of the request queue
  *
  * Execute the sandbox at the head of the thread local runqueue
  * If the runqueue is empty, pull a fresh batch of sandbox requests, instantiate them, and then execute the new head
@@ -76,25 +76,24 @@ sandbox_run_queue_ps_get_next()
 {
 	if (sandbox_run_queue_is_empty()) {
 		// Try to pull a sandbox request and return NULL if we're unable to get one
-		sandbox_request_t *sandbox_request;
-		if ((sandbox_request = sandbox_request_scheduler_remove()) == NULL) {
-			// printf("Global Request Queue was empty!\n");
-			return NULL;
-		};
+		sandbox_request_t *sandbox_request = sandbox_request_scheduler_remove();
+		if (sandbox_request == NULL) return NULL;
 
 		// Otherwise, allocate the sandbox request as a runnable sandbox and place on the runqueue
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
+		// TODO: Improve error handling
 		// If sandbox is NULL, we failed to allocate, so the request wasn't actually serviced
 		// Should we re-add this to the request queue?
 		free(sandbox_request);
 		if (sandbox != NULL) sandbox_set_as_runnable(sandbox, NULL);
 		return sandbox;
+	} else {
+		// Resume the sandbox at the top of the runqueue
+		// TODO: Modify to allow getting the top of the min heap without removing it
+		struct sandbox *sandbox = sandbox_run_queue_ps_remove();
+		sandbox_run_queue_ps_add(sandbox);
+		return sandbox;
 	}
-
-	// Resume the sandbox at the top of the runqueue
-	struct sandbox *sandbox = sandbox_run_queue_ps_remove();
-	sandbox_run_queue_ps_add(sandbox);
-	return sandbox;
 }
 
 /**
@@ -125,7 +124,8 @@ sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 	// SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
 	sandbox_request_t *sandbox_request;
 	if (global_deadline < local_deadline && (sandbox_request = sandbox_request_scheduler_remove()) != NULL) {
-		printf("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
+		printf("Thread %lu | Sandbox %lu | Had deadline of %lu. Preempted for Request with %lu\n",
+		       pthread_self(), current_sandbox->allocation_timestamp, local_deadline,
 		       sandbox_request->absolute_deadline);
 
 		// Allocate the request
@@ -136,10 +136,12 @@ sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 		free(sandbox_request);
 
 		// Save the context of the currently executing sandbox before switching from it
-		sandbox_set_as_preempted(current_sandbox, &user_context->uc_mcontext);
+		sandbox_set_as_preempted(current_sandbox, NULL);
 
 		// Set as Running conditionally enables interrupts
-		sandbox_set_as_running(next_sandbox, &user_context->uc_mcontext);
+		sandbox_set_as_running(next_sandbox, NULL);
+		arch_context_switch(&current_sandbox->ctxt, &next_sandbox->ctxt);
+
 	} else {
 		software_interrupt_enable();
 	}

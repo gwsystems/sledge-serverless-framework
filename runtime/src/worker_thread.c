@@ -43,6 +43,10 @@ static __thread bool worker_thread_is_in_libuv_event_loop;
  * Worker Thread Logic
  *************************************************/
 
+/**
+ * Conditionally triggers appropriate state changes for exiting sandboxes
+ * @param exiting_sandbox - The sandbox that ran to completion
+ **/
 static inline void
 worker_thread_transition_exiting_sandbox(struct sandbox *exiting_sandbox)
 {
@@ -50,13 +54,15 @@ worker_thread_transition_exiting_sandbox(struct sandbox *exiting_sandbox)
 
 	switch (exiting_sandbox->state) {
 	case SANDBOX_RETURNED:
+		// We draw a distinction between RETURNED and COMPLETED because a sandbox cannot add itself to the
+		// completion queue
 		sandbox_set_as_complete(exiting_sandbox);
 		break;
 	case SANDBOX_ERROR:
-		// The state transition already added to completion queue, so just break
+		// Terminal State, so just break
 		break;
 	default:
-		printf("Unexpectedly switching from a sandbox in a %s state\n",
+		printf("Cooperatively switching from a sandbox in a non-terminal %s state\n",
 		       sandbox_state_stringify(exiting_sandbox->state));
 		assert(0);
 	}
@@ -64,6 +70,7 @@ worker_thread_transition_exiting_sandbox(struct sandbox *exiting_sandbox)
 
 /**
  * Switches to the next sandbox, placing the current sandbox on the completion queue if in RETURNED state
+ * TODO: Confirm that this can gracefully resume sandboxes in a PREEMPTED state
  * @param next_sandbox The Sandbox Context to switch to
  */
 static inline void
@@ -71,33 +78,37 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 {
 	assert(next_sandbox != NULL);
 	struct arch_context *next_context = &next_sandbox->ctxt;
-	assert(next_context != NULL);
-	struct arch_context *current_context = NULL;
 
 	software_interrupt_disable();
 
+	// If we are switching to a new sandbox that we haven't preempted before, buffer the context
+	// I don't yet fully understand why.
+	if (next_sandbox->state == SANDBOX_RUNNABLE) worker_thread_next_context = next_context;
+
 	struct sandbox *current_sandbox = current_sandbox_get();
-	if (current_sandbox != NULL) current_context = &current_sandbox->ctxt;
 
-	// Invariant: We should never be switching to the same thing
-	if (next_sandbox == current_sandbox) {
-		printf("Switching to %p from %p, but are the same\n", next_sandbox, current_sandbox);
-		assert(0);
-	};
+	if (current_sandbox == NULL) {
+		// Switching from "Base Context"
+		sandbox_set_as_running(next_sandbox, NULL);
 
-	// and switch to the associated context.
-	// Save the context pointer to worker_thread_next_context in case of preemption
-	worker_thread_next_context = next_context;
+		printf("Thread %lu | Switching from Base Context to Sandbox %lu\n", pthread_self(),
+		       next_sandbox->allocation_timestamp);
 
-	// Trigger the appropriate state transition for the sandbox we're switching from
-	if (current_sandbox != NULL) worker_thread_transition_exiting_sandbox(current_sandbox);
+		arch_context_switch(NULL, next_context);
+	} else {
+		// Switching between sandboxes
+		assert(next_sandbox != current_sandbox);
 
-	// The worker thread active context is passed as NULL because the restore is accomplished by
-	// arch_context_switch below
-	sandbox_set_as_running(next_sandbox, NULL);
+		worker_thread_transition_exiting_sandbox(current_sandbox);
 
-	// Uses the "lightweight" context switch mechanism
-	arch_context_switch(current_context, next_context);
+		sandbox_set_as_running(next_sandbox, NULL);
+
+		printf("Thread %lu | Switching from Sandbox %lu to Sandbox %lu\n", pthread_self(),
+		       current_sandbox->allocation_timestamp, next_sandbox->allocation_timestamp);
+
+		arch_context_switch(&current_sandbox->ctxt, next_context);
+	}
+
 	software_interrupt_enable();
 }
 
@@ -107,25 +118,21 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 static inline void
 worker_thread_switch_to_base_context()
 {
-	struct arch_context *next_context    = &worker_thread_base_context;
-	struct arch_context *current_context = NULL;
+	// I'm still figuring this global out. I believe this should always have been cleared by this point
+	assert(worker_thread_next_context == NULL);
 
 	software_interrupt_disable();
 
 	struct sandbox *current_sandbox = current_sandbox_get();
 	assert(current_sandbox != NULL);
+	assert(&current_sandbox->ctxt != &worker_thread_base_context);
 
-	current_context = &current_sandbox->ctxt;
-	assert(current_context != &worker_thread_base_context);
+	worker_thread_transition_exiting_sandbox(current_sandbox);
 
-
-	// Trigger the appropriate state transition for the sandbox we're switching from
-	if (current_sandbox != NULL) worker_thread_transition_exiting_sandbox(current_sandbox);
-
-
-	worker_thread_next_context = NULL;
 	current_sandbox_set(NULL);
-	arch_context_switch(current_context, &worker_thread_base_context);
+	printf("Thread %lu | Switching from Sandbox %lu to Base Context\n", pthread_self(),
+	       current_sandbox->allocation_timestamp);
+	arch_context_switch(&current_sandbox->ctxt, &worker_thread_base_context);
 	software_interrupt_enable();
 }
 
@@ -151,26 +158,29 @@ worker_thread_wakeup_sandbox(sandbox_t *sandbox)
  * Is this accomplished by the runqueue design?
  **/
 void
-worker_thread_block_current_sandbox(void)
+worker_thread_block_current_sandbox()
 {
 	assert(worker_thread_is_in_libuv_event_loop == false);
 	software_interrupt_disable();
 
 	// Remove the sandbox we were just executing from the runqueue and mark as blocked
-	struct sandbox *previous_sandbox = current_sandbox_get();
-	sandbox_set_as_blocked(previous_sandbox);
+	struct sandbox *current_sandbox = current_sandbox_get();
+	assert(current_sandbox->state == SANDBOX_RUNNING);
+	sandbox_set_as_blocked(current_sandbox);
 	current_sandbox_set(NULL);
 
-	// Switch to the next sandbox
+	// Try to get another sandbox to run
 	struct sandbox *next_sandbox = sandbox_run_queue_get_next();
-	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", previous_sandbox, previous_sandbox->module->name,
-	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
-	software_interrupt_enable();
 
-	if (next_sandbox)
-		worker_thread_switch_to_sandbox(next_sandbox);
-	else
+	// If able to get one, switch to it. Otherwise, return to base context
+	if (next_sandbox == NULL) {
 		worker_thread_switch_to_base_context();
+	} else {
+		debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", current_sandbox, current_sandbox->module->name,
+		         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
+		software_interrupt_enable();
+		worker_thread_switch_to_sandbox(next_sandbox);
+	}
 }
 
 
@@ -199,8 +209,9 @@ worker_thread_process_io(void)
  * Sends the current thread a SIGUSR1, causing a preempted sandbox to be restored
  * Invoked by asm during a context switch
  **/
-void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_restore_preempted_sandbox(void)
+void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_mcontext_restore(void)
 {
+	printf("Thread %lu | Signaling SIGUSR1 on self to initiate mcontext restore...\n", pthread_self());
 	pthread_kill(pthread_self(), SIGUSR1);
 	assert(false); // should not get here..
 }
@@ -228,23 +239,28 @@ worker_thread_execute_libuv_event_loop(void)
 void *
 worker_thread_main(void *return_code)
 {
-	// Initialize Worker Infrastructure
 	arch_context_init(&worker_thread_base_context, 0, 0);
+
 	// sandbox_run_queue_fifo_initialize();
 	sandbox_run_queue_ps_initialize();
+
 	sandbox_completion_queue_initialize();
+
 	software_interrupt_is_disabled = false;
 	worker_thread_next_context     = NULL;
+
 #ifndef PREEMPT_DISABLE
 	software_interrupt_unmask_signal(SIGALRM);
 	software_interrupt_unmask_signal(SIGUSR1);
 #endif
+
 	uv_loop_init(&worker_thread_uvio_handle);
 	worker_thread_is_in_libuv_event_loop = false;
 
 	// Begin Worker Execution Loop
 	struct sandbox *current_sandbox, *next_sandbox;
 	while (true) {
+		// This only is here to neurotically check that current_sandbox is NULL
 		current_sandbox = current_sandbox_get();
 		if (current_sandbox != NULL) {
 			printf("Worker loop expected current_sandbox to be NULL, but found sandbox in %s state\n",
@@ -252,14 +268,18 @@ worker_thread_main(void *return_code)
 			assert(0);
 		}
 
+		// Execute libuv event loop
 		if (!worker_thread_is_in_libuv_event_loop) worker_thread_execute_libuv_event_loop();
 
+		// Try to get a new sandbox to execute
 		software_interrupt_disable();
 		next_sandbox = sandbox_run_queue_get_next();
 		software_interrupt_enable();
 
+		// If successful, run it
 		if (next_sandbox != NULL) worker_thread_switch_to_sandbox(next_sandbox);
 
+		// Free all sandboxes on the completion queue
 		sandbox_completion_queue_free();
 	}
 
@@ -270,8 +290,7 @@ worker_thread_main(void *return_code)
 /**
  * Called when the function in the sandbox exits
  * Removes the standbox from the thread-local runqueue, sets its state to RETURNED,
- * releases the linear memory, and then switches to the sandbox at the head of the runqueue
- * TODO: Consider moving this to a future current_sandbox file. This has thus far proven difficult to move
+ * releases the linear memory, and then returns to the base context
  **/
 void
 worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)

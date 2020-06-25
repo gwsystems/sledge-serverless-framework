@@ -596,11 +596,11 @@ sandbox_set_as_runnable(sandbox_t *sandbox, const mcontext_t *running_sandbox_co
  * - A sandbox in the PREEMPTED state is now the highest priority work to execute
  *
  * @param sandbox
- * @param worker_thread_active_context - the worker thread context that is going to execute this sandbox. Only provided
+ * @param active_context - the worker thread context that is going to execute this sandbox. Only provided
  * when performing a full mcontext restore
  **/
 void
-sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *worker_thread_active_context)
+sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *active_context)
 {
 	assert(sandbox);
 	uint64_t        now                      = __getcycles();
@@ -615,36 +615,40 @@ sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *worker_thread_active_cont
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
 		current_sandbox_set(sandbox);
-		// assert(worker_thread_active_context != NULL);
+		// assert(active_context != NULL);
 
 		// If we are doing an Initialized->Runnable->Running
-		// If worker_thread_active_context is provided, we should restore the standbox
+		// If active_context is provided, we should restore the standbox
 		// If it's NULL, assume the caller invokes arch_context_switch
-		if (worker_thread_active_context != NULL) {
+		if (active_context != NULL) {
 			printf("Restoring mcontext of type, %d\n", sandbox->ctxt.variant);
 			switch (sandbox->ctxt.variant) {
 			case ARCH_CONTEXT_SLOW:
+				// TODO: Is this possible? I expect not!
 				assert(0);
-				arch_mcontext_restore(worker_thread_active_context, &sandbox->ctxt);
+				arch_mcontext_restore(active_context, &sandbox->ctxt);
 				break;
 			case ARCH_CONTEXT_QUICK:
-				arch_context_restore(worker_thread_active_context, &sandbox->ctxt);
+				arch_context_restore(active_context, &sandbox->ctxt);
 				break;
 			default:
 				printf("Unexpected variant!\n");
 				assert(0);
 			}
+
+			// TODO: I'm unsure about the desired behavior here...
 			// printf("Should restore!\n");
 			// should_enable_interrupts = true;
 		}
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
-		assert(worker_thread_active_context != NULL);
+		// is active_context an invarient here?
 		sandbox->preempted_duration += duration_of_last_state;
 		current_sandbox_set(sandbox);
-		if (worker_thread_active_context != NULL)
-			arch_mcontext_restore(worker_thread_active_context, &sandbox->ctxt);
+		assert(active_context == NULL);
+		// TODO: Set Thread Local Flag that preemption in progress ?
+		// if (active_context != NULL) arch_mcontext_restore(active_context, &sandbox->ctxt);
 		break;
 	}
 	default: {
@@ -660,6 +664,29 @@ sandbox_set_as_running(sandbox_t *sandbox, mcontext_t *worker_thread_active_cont
 	if (should_enable_interrupts) software_interrupt_enable();
 }
 
+// // How does this relate to existing functions?
+// void
+// sandbox_switch(struct sandbox *current, struct sandbox *next)
+// {
+// 	assert(current != NULL);
+// 	assert(next != NULL);
+
+// 	switch (next->ctxt.variant) {
+// 	case ARCH_CONTEXT_QUICK: {
+// 		sandbox_set_as_preempted(current, NULL);
+// 		sandbox_set_as_running(next, NULL);
+// 		arch_context_switch(&current->ctxt, &next->ctxt);
+// 	}
+// 	case ARCH_CONTEXT_SLOW: {
+// 		// TODO
+// 	}
+// 	default:
+// 		printf("Error!\n");
+// 	}
+
+// 	if (next->ctxt.variant == ARCH_CONTEXT_QUICK) {}
+// }
+
 void
 sandbox_set_as_preempted(sandbox_t *sandbox, const mcontext_t *running_sandbox_context)
 {
@@ -673,9 +700,12 @@ sandbox_set_as_preempted(sandbox_t *sandbox, const mcontext_t *running_sandbox_c
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
-		assert(running_sandbox_context != NULL);
-		assert(running_sandbox_context->gregs[REG_RIP] != 0);
-		arch_mcontext_save(&sandbox->ctxt, running_sandbox_context);
+		// TODO: Is this actually useful?
+		assert(running_sandbox_context == NULL);
+		// if (running_sandbox_context) {
+		// 	assert(running_sandbox_context->gregs[REG_RIP] != 0);
+		// 	arch_mcontext_save(&sandbox->ctxt, running_sandbox_context);
+		// }
 		sandbox->running_duration += duration_of_last_state;
 		break;
 	}

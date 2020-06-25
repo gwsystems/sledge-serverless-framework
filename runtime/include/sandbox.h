@@ -115,7 +115,7 @@ extern __thread struct arch_context *worker_thread_next_context;
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(sandbox_t *sandbox);
 extern void worker_thread_process_io(void);
-extern void __attribute__((noreturn)) worker_thread_restore_preempted_sandbox(void);
+extern void __attribute__((noreturn)) worker_thread_mcontext_restore(void);
 extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
 
 /***************************
