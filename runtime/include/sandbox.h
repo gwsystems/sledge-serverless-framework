@@ -110,7 +110,7 @@ typedef struct sandbox sandbox_t;
  **************************/
 
 
-extern __thread bool worker_thread_is_switching_context;
+extern __thread volatile bool worker_thread_is_switching_context;
 
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(sandbox_t *sandbox);

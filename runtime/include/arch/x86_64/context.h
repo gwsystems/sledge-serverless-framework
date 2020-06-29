@@ -28,9 +28,10 @@ typedef uint64_t reg_t;
 // The enum is compared directly in assembly, so maintain integral values!
 enum ARCH_CONTEXT
 {
-	ARCH_CONTEXT_UNUSED = 0,
-	ARCH_CONTEXT_QUICK  = 1,
-	ARCH_CONTEXT_SLOW   = 2
+	ARCH_CONTEXT_UNUSED  = 0,
+	ARCH_CONTEXT_QUICK   = 1,
+	ARCH_CONTEXT_SLOW    = 2,
+	ARCH_CONTEXT_RUNNING = 3
 };
 
 struct arch_context {
@@ -41,7 +42,7 @@ struct arch_context {
 
 extern void __attribute__((noreturn)) worker_thread_mcontext_restore(void);
 extern __thread struct arch_context worker_thread_base_context;
-extern __thread bool                worker_thread_is_switching_context;
+extern __thread volatile bool       worker_thread_is_switching_context;
 
 static void __attribute__((noinline)) arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
@@ -104,45 +105,45 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
  * Restore a sandbox that was previously executing and preempted for higher-priority work.
  * This method restores only the instruction pointer and stack pointer registers rather than a full mcontext, so it is
  * less expensive than arch_mcontext_restore.
- * @param worker_thread_active_context - the context of the current worker thread
+ * @param active_context - the context of the current worker thread
  * @param sandbox_context - the context that we want to restore
  **/
-// static void
-// arch_context_restore(mcontext_t *worker_thread_active_context, struct arch_context *sandbox_context)
-// {
-// 	assert(worker_thread_active_context != NULL);
-// 	assert(sandbox_context->variant == ARCH_CONTEXT_QUICK);
-// 	assert(sandbox_context != NULL);
-// 	assert(sandbox_context != &worker_thread_base_context);
+static void
+arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_context)
+{
+	assert(active_context != NULL);
+	assert(sandbox_context->variant == ARCH_CONTEXT_QUICK);
+	assert(sandbox_context != NULL);
+	assert(sandbox_context != &worker_thread_base_context);
 
-// 	// TODO: Phani explained that we need to be able to restore a sandbox with an IP of 0. Why is this?
-// 	assert(sandbox_context->regs[UREG_RSP]);
+	// TODO: Phani explained that we need to be able to restore a sandbox with an IP of 0. Why is this?
+	assert(sandbox_context->regs[UREG_RSP]);
 
-// 	worker_thread_active_context->gregs[REG_RSP] = sandbox_context->regs[UREG_RSP];
-// 	worker_thread_active_context->gregs[REG_RIP] = sandbox_context->regs[UREG_RIP] + ARCH_SIG_JMP_OFF;
-// 	sandbox_context->regs[UREG_RSP]              = 0;
-// 	sandbox_context->regs[UREG_RIP]              = 0;
-// }
+	active_context->gregs[REG_RSP]  = sandbox_context->regs[UREG_RSP];
+	active_context->gregs[REG_RIP]  = sandbox_context->regs[UREG_RIP] + ARCH_SIG_JMP_OFF;
+	sandbox_context->regs[UREG_RSP] = 0;
+	sandbox_context->regs[UREG_RIP] = 0;
+}
 
 /**
  * Save the full mcontext of the currently executing process
  * @param sandbox_context - destination
- * @param worker_thread_active_context - source
+ * @param active_context - source
  **/
-// static void
-// arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *worker_thread_active_context)
-// {
-// 	assert(worker_thread_active_context != NULL);
-// 	assert(sandbox_context != &worker_thread_base_context);
-// 	assert(worker_thread_active_context->gregs[REG_RIP] != 0);
-// 	assert(worker_thread_active_context->gregs[REG_RSP] != 0);
+static void
+arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *active_context)
+{
+	assert(active_context != NULL);
+	assert(sandbox_context != &worker_thread_base_context);
+	assert(active_context->gregs[REG_RIP] != 0);
+	assert(active_context->gregs[REG_RSP] != 0);
 
-// 	sandbox_context->regs[UREG_RSP] = 0;
-// 	sandbox_context->regs[UREG_RIP] = 0;
+	sandbox_context->regs[UREG_RSP] = 0;
+	sandbox_context->regs[UREG_RIP] = 0;
 
-// 	sandbox_context->variant = ARCH_CONTEXT_SLOW;
-// 	memcpy(&sandbox_context->mctx, worker_thread_active_context, sizeof(mcontext_t));
-// }
+	sandbox_context->variant = ARCH_CONTEXT_SLOW;
+	memcpy(&sandbox_context->mctx, active_context, sizeof(mcontext_t));
+}
 
 /**
  * @param current - the registers and context of the thing running
@@ -162,6 +163,8 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	// Set any NULLs to worker_thread_base_context to resume execution of main
 	if (current == NULL) current = &worker_thread_base_context;
 	if (next == NULL) next = &worker_thread_base_context;
+	assert(next->variant != ARCH_CONTEXT_RUNNING);
+	assert(next->variant != ARCH_CONTEXT_UNUSED);
 
 	reg_t *current_registers = current->regs, *next_registers = next->regs;
 	assert(current_registers && next_registers);
@@ -172,20 +175,19 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	  "movq %%rsp, %%rbp\n\t" // base_pointer = stack_pointer. Start new Frame
 
 	  // Save the IP and stack pointer to the context of the sandbox we're switching from
+	  // and set as a QUICK context switch
 	  "movq $2f, 8(%%rax)\n\t"  // Write the address of label 2 to current_registers[1] (instruction_pointer).
 	  "movq %%rsp, (%%rax)\n\t" // current_registers[0] (stack_pointer) = stack_pointer
+	  "movq $1, (%%rcx)\n\t"    // current->variant = ARCH_CONTEXT_QUICK;
 
-	  // Check if the stack pointer of the context we're trying to switch to is 0.
-	  // If the stack pointer is 0, the sandbox was preempted, so we have to restore using mcontext because
-	  // If it is, the context cannot be loaded, so jump to label 0 to restore the preempted sandbox
+	  // Check if the variant of the context we're trying to switch to is SLOW (mcontext-based)
+	  // If it is, jump to label 1 to restore the preempted sandbox
 	  "cmpq $2, (%%rcx)\n\t" // if (next->variant == ARCH_CONTEXT_SLOW);
 	  "je 1f\n\t"            // 	goto 1; restore the existing sandbox using mcontext
 
 	  // Fast Path
-	  // The stack pointer we're trying to switch was not zeroed-out, so that means we can do a "fast switch"
 	  // We can just write update the stack pointer and jump to the target instruction
 	  "movq (%%rbx), %%rsp\n\t" // stack_pointer = next_registers[0] (stack_pointer)
-	  "movq $0, (%%rdx)\n\t"    //		worker_thread_is_switching_context = 0;
 	  "jmpq *8(%%rbx)\n\t"      // immediate jump to next_registers[1] (instruction_pointer)
 
 	  // Slow Path
@@ -194,12 +196,12 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	  // which fires a SIGUSR1 signal. The SIGUSR1 signal handler executes the mcontext-based context switch.
 	  "1:\n\t"                                  // 1:
 	  "call worker_thread_mcontext_restore\n\t" // 	worker_thread_mcontext_restore()
-	  ".align 8\n\t"                            //		V FALLTHROUGH V
+	  ".align 8\n\t"                            //		
 
 	  // Where preempted sandbox resumes
 	  // rbx contains the preempted sandbox's IP and SP in this context
 	  "2:\n\t"               // 2:
-	  "movq $1, (%%rcx)\n\t" //		next->variant = ARCH_CONTEXT_QUICK;
+	  "movq $3, (%%rdx)\n\t" //		next->variant = ARCH_CONTEXT_QUICK;
 	  ".align 8\n\t"         //
 	  "3:\n\t"               // 3:
 	  "popq %%rbp\n\t"       // 	base_pointer = stack[--stack_len]; Base Pointer is restored
@@ -207,12 +209,13 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	  // Output List
 	  :
 	  // Input List
-	  : "a"(current_registers), "b"(next_registers), "c"(&next->variant), "d"(&worker_thread_is_switching_context)
+	  : "a"(current_registers), "b"(next_registers), "c"(&current->variant), "d"(&next->variant)
 	  // Clobber List. This is long because of the context switch
 	  : "memory", "cc", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "xmm0", "xmm1", "xmm2",
 	    "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14",
 	    "xmm15");
 
+	worker_thread_is_switching_context = false;
 	return 0;
 }
 

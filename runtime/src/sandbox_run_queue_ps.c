@@ -122,11 +122,17 @@ sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 	// TODO: Factor quantum and/or sandbox allocation time into decision
 	// uint64_t global_deadline = sandbox_request_scheduler_peek() -
 	// SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
-	sandbox_request_t *sandbox_request;
-	if (global_deadline < local_deadline && (sandbox_request = sandbox_request_scheduler_remove()) != NULL) {
-		printf("Thread %lu | Sandbox %lu | Had deadline of %lu. Preempted for Request with %lu\n",
-		       pthread_self(), current_sandbox->allocation_timestamp, local_deadline,
-		       sandbox_request->absolute_deadline);
+	if (global_deadline < local_deadline) {
+		printf("Thread %lu | Sandbox %lu | Had deadline of %lu. Trying to preempt for request with %lu\n",
+		       pthread_self(), current_sandbox->allocation_timestamp, local_deadline, global_deadline);
+
+		sandbox_request_t *sandbox_request = sandbox_request_scheduler_remove();
+		if (sandbox_request == NULL) {
+			software_interrupt_enable();
+			printf("Thread %lu | Sandbox %lu | Unable to get lock, so not preempting\n", pthread_self(),
+			       current_sandbox->allocation_timestamp);
+			return;
+		}
 
 		// Allocate the request
 		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
@@ -135,13 +141,17 @@ sandbox_run_queue_ps_preempt(ucontext_t *user_context)
 		assert(next_sandbox->state == SANDBOX_RUNNABLE);
 		free(sandbox_request);
 
+		worker_thread_is_switching_context = true;
 		// Save the context of the currently executing sandbox before switching from it
 		sandbox_set_as_preempted(current_sandbox);
 
+		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
+
 		// Set as Running conditionally enables interrupts
 		sandbox_set_as_running(next_sandbox);
-		arch_context_switch(&current_sandbox->ctxt, &next_sandbox->ctxt);
-
+		printf("Thread %lu | Switching from sandbox %lu to sandbox %lu\n", pthread_self(),
+		       current_sandbox->allocation_timestamp, next_sandbox->allocation_timestamp);
+		arch_context_switch(NULL, &next_sandbox->ctxt);
 	} else {
 		software_interrupt_enable();
 	}

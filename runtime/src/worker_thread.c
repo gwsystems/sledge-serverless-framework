@@ -27,7 +27,6 @@
  * Worker Thread State     *
  **************************/
 
-__thread bool worker_thread_is_switching_context = false;
 
 // context of the runtime thread before running sandboxes or to resume its "main".
 __thread struct arch_context worker_thread_base_context;
@@ -36,7 +35,8 @@ __thread struct arch_context worker_thread_base_context;
 __thread uv_loop_t worker_thread_uvio_handle;
 
 // Flag to signify if the thread is currently running callbacks in the libuv event loop
-static __thread bool worker_thread_is_in_libuv_event_loop;
+__thread volatile bool worker_thread_is_switching_context   = false;
+__thread static bool   worker_thread_is_in_libuv_event_loop = false;
 
 /**************************************************
  * Worker Thread Logic
@@ -117,7 +117,6 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 static inline void
 worker_thread_switch_to_base_context()
 {
-	// I'm still figuring this global out. I believe this should always have been cleared by this point
 	assert(worker_thread_is_switching_context == false);
 
 	software_interrupt_disable();
@@ -291,9 +290,10 @@ worker_thread_main(void *return_code)
  * Removes the standbox from the thread-local runqueue, sets its state to RETURNED,
  * releases the linear memory, and then returns to the base context
  **/
-void
+__attribute__((noreturn)) void
 worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)
 {
 	assert(exiting_sandbox);
 	worker_thread_switch_to_base_context();
+	assert(0);
 }
