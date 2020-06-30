@@ -41,8 +41,9 @@ static inline char *
 worker_thread_get_memory_string(u32 offset, u32 max_length)
 {
 	for (int i = 0; i < max_length; i++) {
-		if (worker_thread_get_memory_character(offset + i) == '\0')
+		if (worker_thread_get_memory_character(offset + i) == '\0') {
 			return worker_thread_get_memory_ptr_void(offset, 1);
+		}
 	}
 	return NULL;
 }
