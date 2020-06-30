@@ -14,13 +14,14 @@ struct http_request {
 	int                header_count;
 	char *             body;
 	int                body_length;
-	int                body_read_length; // How far we've read
-	// additional for http-parser
-	int last_was_value; // http-parser flag used to help the http-parser callbacks differentiate between header
-	                    // fields and values to know when to allocate a new header
-	int header_end;     // boolean flag set when header processing is complete
-	int message_begin;  // boolean flag set when body processing begins
-	int message_end;    // boolean flag set when body processing is complete
+	int                body_read_length; /* How far we've read */
+
+	/* additional members for http-parser */
+	int last_was_value; /* http-parser flag used to help the http-parser callbacks differentiate between header
+	                       fields and values to know when to allocate a new header */
+	int header_end;     /* boolean flag set when header processing is complete */
+	int message_begin;  /* boolean flag set when body processing begins */
+	int message_end;    /* boolean flag set when body processing is complete */
 };
 
 /***************************************************

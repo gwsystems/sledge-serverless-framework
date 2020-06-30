@@ -19,7 +19,7 @@ static http_parser_settings runtime_http_parser_settings;
  * @param at the start of the URL
  * @param length the length of the URL
  * @returns 0
- **/
+ */
 int
 http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 {
@@ -33,7 +33,7 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
  * http-parser callback called when parsing of a new message begins
  * Sets the HTTP Request's message_begin and last_was_value flags to true
  * @param parser
- **/
+ */
 int
 http_parser_settings_on_message_begin(http_parser *parser)
 {
@@ -41,7 +41,7 @@ http_parser_settings_on_message_begin(http_parser *parser)
 	struct http_request *http_request = &sandbox->http_request;
 
 	http_request->message_begin  = 1;
-	http_request->last_was_value = 1; // should always start with a header..
+	http_request->last_was_value = 1; /* should always start with a header */
 	return 0;
 }
 
@@ -56,7 +56,7 @@ http_parser_settings_on_message_begin(http_parser *parser)
  * @param at start address of the header field
  * @param length length of the header field
  * @returns 0
- **/
+ */
 int
 http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t length)
 {
@@ -67,9 +67,10 @@ http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t
 	assert(http_request->header_count <= HTTP_MAX_HEADER_COUNT);
 	assert(length < HTTP_MAX_HEADER_LENGTH);
 
-	http_request->last_was_value                              = 0;
-	http_request->headers[http_request->header_count - 1].key = (char *)
-	  at; // it is from the sandbox's request_response_data, should persist.
+	http_request->last_was_value = 0;
+
+	/* it is from the sandbox's request_response_data, should persist. */
+	http_request->headers[http_request->header_count - 1].key = (char *)at;
 
 	return 0;
 }
@@ -81,7 +82,7 @@ http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t
  * @param at start address of the header value
  * @param length length of the header value
  * @returns 0
- **/
+ */
 int
 http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t length)
 {
@@ -92,8 +93,8 @@ http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t
 	assert(http_request->header_count <= HTTP_MAX_HEADER_COUNT);
 	assert(length < HTTP_MAX_HEADER_VALUE_LENGTH);
 
-	http_request->headers[http_request->header_count - 1].value = (char *)
-	  at; // it is from the sandbox's request_response_data, should persist.
+	/* it is from the sandbox's request_response_data, should persist. */
+	http_request->headers[http_request->header_count - 1].value = (char *)at;
 
 	return 0;
 }
@@ -102,7 +103,7 @@ http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t
  * http-parser callback called when header parsing is complete
  * Just sets the HTTP Request's header_end flag to true
  * @param parser
- **/
+ */
 int
 http_parser_settings_on_header_end(http_parser *parser)
 {
@@ -120,7 +121,7 @@ http_parser_settings_on_header_end(http_parser *parser)
  * @param at
  * @param length
  * @returns 0
- **/
+ */
 int
 http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 {
@@ -141,7 +142,8 @@ http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 /**
  * Sets the HTTP Request's message_end flag to true
  * @param parser
- **/
+ * @returns 0
+ */
 int
 http_parser_settings_on_msg_end(http_parser *parser)
 {
@@ -173,7 +175,7 @@ http_parser_settings_register_callbacks(http_parser_settings *settings)
 
 /**
  * This is really the only function that should have to be called to setup this structure
- **/
+ */
 void
 http_parser_settings_initialize()
 {

@@ -11,16 +11,15 @@ extern int            module_database_free_offset;
 
 /**
  * Adds a module to the in-memory module DB
- * Note: This was static inline, which I've unwound. I am unclear of the perf implications of this
  * @param module module to add
  * @return 0 on success. Aborts program on failure
- **/
+ */
 static inline int
 module_database_add(struct module *module)
 {
 	assert(module->socket_descriptor == -1);
 
-	// __sync_fetch_and_add is provided by GCC
+	/* __sync_fetch_and_add is provided by GCC */
 	int f = __sync_fetch_and_add(&module_database_free_offset, 1);
 	assert(f < MODULE_MAX_MODULE_COUNT);
 	module_database[f] = module;

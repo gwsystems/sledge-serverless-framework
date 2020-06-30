@@ -8,14 +8,14 @@
 
 /****************************
  * Private Helper Functions *
- ****************************/
+ ***************************/
 
 /**
  * Adds a value to the end of the binary heap
  * @param self the priority queue
  * @param new_item the value we are adding
  * @return 0 on success. -1 when priority queue is full
- **/
+ */
 static inline int
 priority_queue_append(struct priority_queue *self, void *new_item)
 {
@@ -46,7 +46,7 @@ priority_queue_percolate_up(struct priority_queue *self)
 		void *temp         = self->items[i / 2];
 		self->items[i / 2] = self->items[i];
 		self->items[i]     = temp;
-		// If percolated to highest priority, update highest priority
+		/* If percolated to highest priority, update highest priority */
 		if (i / 2 == 1) self->highest_priority = self->get_priority(self->items[1]);
 	}
 }
@@ -69,14 +69,14 @@ priority_queue_find_smallest_child(struct priority_queue *self, int parent_index
 	int right_child_index = 2 * parent_index + 1;
 	assert(self->items[left_child_index] != NULL);
 
-	// If we don't have a right child or the left child is smaller, return it
+	/* If we don't have a right child or the left child is smaller, return it */
 	if (right_child_index == self->first_free) {
 		return left_child_index;
 	} else if (self->get_priority(self->items[left_child_index])
 	           < self->get_priority(self->items[right_child_index])) {
 		return left_child_index;
 	} else {
-		// Otherwise, return the right child
+		/* Otherwise, return the right child */
 		return right_child_index;
 	}
 }
@@ -96,11 +96,11 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 	int left_child_index = 2 * parent_index;
 	while (left_child_index >= 2 && left_child_index < self->first_free) {
 		int smallest_child_index = priority_queue_find_smallest_child(self, parent_index);
-		// Once the parent is equal to or less than its smallest child, break;
+		/* Once the parent is equal to or less than its smallest child, break; */
 		if (self->get_priority(self->items[parent_index])
 		    <= self->get_priority(self->items[smallest_child_index]))
 			break;
-		// Otherwise, swap and continue down the tree
+		/* Otherwise, swap and continue down the tree */
 		void *temp                        = self->items[smallest_child_index];
 		self->items[smallest_child_index] = self->items[parent_index];
 		self->items[parent_index]         = temp;
@@ -112,14 +112,13 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 
 /*********************
  * Public API        *
- *********************/
+ ********************/
 
 /**
  * Initialized the Priority Queue Data structure
  * @param self the priority_queue to initialize
- * @param get_priority pointer to a function that returns the priority of an
- *element
- **/
+ * @param get_priority pointer to a function that returns the priority of an element
+ */
 void
 priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_t get_priority)
 {
@@ -132,14 +131,14 @@ priority_queue_initialize(struct priority_queue *self, priority_queue_get_priori
 	self->first_free   = 1;
 	self->get_priority = get_priority;
 
-	// We're assuming a min-heap implementation, so set to larget possible value
+	/* We're assuming a min-heap implementation, so set to larget possible value */
 	self->highest_priority = ULONG_MAX;
 }
 
 /**
  * @param self the priority_queue
  * @returns the number of elements in the priority queue
- **/
+ */
 int
 priority_queue_length(struct priority_queue *self)
 {
@@ -155,7 +154,7 @@ priority_queue_length(struct priority_queue *self)
  * @param self - the priority queue we want to add to
  * @param value - the value we want to add
  * @returns 0 on success. -1 on full. -2 on unable to take lock
- **/
+ */
 int
 priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
 {
@@ -164,7 +163,7 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
 
 	int pre_length = self->first_free - 1;
 
-	// Start of Critical Section
+	/* Start of Critical Section */
 	if (priority_queue_append(self, value) == -1) {
 		printf("Priority Queue is full");
 		fflush(stdout);
@@ -175,16 +174,16 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
 
 	int post_length = self->first_free - 1;
 
-	// We should have appended here
+	/* We should have appended here */
 	assert(post_length == pre_length + 1);
 
-	// If this is the first element we add, update the highest priority
+	/* If this is the first element we add, update the highest priority */
 	if (self->first_free == 2) {
 		self->highest_priority = self->get_priority(value);
 	} else {
 		priority_queue_percolate_up(self);
 	}
-	// End of Critical Section
+	/* End of Critical Section */
 	ck_spinlock_fas_unlock(&self->lock);
 	return 0;
 }
@@ -192,7 +191,7 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
  * @param self - the priority queue we want to delete from
  * @param value - the value we want to delete
  * @returns 0 on success. -1 on not found. -2 on unable to take lock
- **/
+ */
 int
 priority_queue_delete(struct priority_queue *self, void *value, char *name)
 {
@@ -232,7 +231,7 @@ priority_queue_is_empty(struct priority_queue *self)
 /**
  * @param self - the priority queue we want to add to
  * @returns The head of the priority queue or NULL when empty
- **/
+ */
 void *
 priority_queue_dequeue(struct priority_queue *self, char *name)
 {
@@ -242,21 +241,21 @@ priority_queue_dequeue(struct priority_queue *self, char *name)
 
 	ck_spinlock_fas_lock(&self->lock);
 	assert(ck_spinlock_fas_locked(&self->lock));
-	// Start of Critical Section
+	/* Start of Critical Section */
 	void *min = NULL;
 	if (!priority_queue_is_empty(self)) {
 		min                           = self->items[1];
 		self->items[1]                = self->items[--self->first_free];
 		self->items[self->first_free] = NULL;
-		// Because of 1-based indices, first_free is 2 when there is only one element
+		/* Because of 1-based indices, first_free is 2 when there is only one element */
 		if (self->first_free > 2) priority_queue_percolate_down(self, 1);
 
-		// Update the highest priority
+		/* Update the highest priority */
 		self->highest_priority = !priority_queue_is_empty(self) ? self->get_priority(self->items[1])
 		                                                        : ULONG_MAX;
 	}
 	ck_spinlock_fas_unlock(&self->lock);
-	// End of Critical Section
+	/* End of Critical Section */
 	return min;
 }
 

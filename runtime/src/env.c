@@ -22,7 +22,7 @@ env___syscall(i32 n, i32 a, i32 b, i32 c, i32 d, i32 e, i32 f)
 void
 env___unmapself(u32 base, u32 size)
 {
-	// Just do some no op
+	/* Just do some no op */
 }
 
 i32
@@ -135,7 +135,7 @@ env_do_barrier(i32 x)
 	ck_pr_barrier();
 }
 
-// Floating point routines
+/* Floating point routines */
 INLINE double
 env_sin(double d)
 {

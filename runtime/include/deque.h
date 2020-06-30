@@ -19,7 +19,8 @@
  * PPoPP implementation paper, "Correct and Efficient Work-Stealing for Weak Memory Models"
  * https://www.di.ens.fr/~zappa/readings/ppopp13.pdf
  */
-// TODO: dynamic resize!
+
+/* TODO: Implement the ability to dynamically resize! */
 #define DEQUE_MAX_SZ (1 << 23)
 
 #define DEQUE_PROTOTYPE(name, type)                                                               \

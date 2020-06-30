@@ -12,7 +12,7 @@
  * Encodes a sandbox's HTTP Response as an array of buffers
  * @param sandbox the sandbox containing the HTTP response we want to encode as buffers
  * @returns the number of buffers used to store the HTTP Response
- **/
+ */
 int
 http_response_encode_as_vector(struct http_response *http_response)
 {
@@ -33,7 +33,7 @@ http_response_encode_as_vector(struct http_response *http_response)
 		buffer_count++;
 		http_response->bufs[buffer_count] = uv_buf_init(http_response->status + http_response->status_length
 		                                                  - 2,
-		                                                2); // for crlf
+		                                                2); /* for crlf */
 		buffer_count++;
 	}
 #else
@@ -67,7 +67,7 @@ http_response_encode_as_vector(struct http_response *http_response)
  * @param body string of the body that we want to set
  * @param length the length of the header string
  * @returns 0 (abends program in case of error)
- **/
+ */
 int
 http_response_set_body(struct http_response *http_response, char *body, int length)
 {
@@ -84,7 +84,7 @@ http_response_set_body(struct http_response *http_response, char *body, int leng
  * @param header string containing the header that we want to append
  * @param length the length of the header string
  * @returns 0 (abends program in case of error)
- **/
+ */
 int
 http_response_set_header(struct http_response *http_response, char *header, int length)
 {
@@ -102,7 +102,7 @@ http_response_set_header(struct http_response *http_response, char *header, int 
  * @param status string of the status we want to set
  * @param length the length of the status
  * @returns 0 (abends program in case of error)
- **/
+ */
 int
 http_response_set_status(struct http_response *http_response, char *status, int length)
 {

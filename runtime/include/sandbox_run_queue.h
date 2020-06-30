@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <sandbox.h>
 
-// Returns pointer back if successful, null otherwise
+/* Returns pointer back if successful, null otherwise */
 typedef struct sandbox *(*sandbox_run_queue_add_t)(struct sandbox *);
 typedef bool (*sandbox_run_queue_is_empty_t)(void);
 typedef void (*sandbox_run_queue_delete_t)(struct sandbox *sandbox);
@@ -24,7 +24,7 @@ typedef struct sandbox_run_queue_config_t {
 void sandbox_run_queue_initialize(sandbox_run_queue_config_t *config);
 
 
-// This is currently only used by worker_thread_wakeup_sandbox
+/* This is currently only used by worker_thread_wakeup_sandbox */
 struct sandbox *sandbox_run_queue_add(struct sandbox *);
 void            sandbox_run_queue_delete(struct sandbox *);
 bool            sandbox_run_queue_is_empty();

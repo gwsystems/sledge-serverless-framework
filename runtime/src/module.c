@@ -8,43 +8,44 @@
 #include <module_database.h>
 #include <runtime.h>
 
-/***************************************
- * Private Static Inline
- ***************************************/
+/*************************
+ * Private Static Inline *
+ ************************/
 
 /**
  * Start the module as a server listening at module->port
  * @param module
- **/
+ */
 static inline void
 module_listen(struct module *module)
 {
-	// Allocate a new socket
+	/* Allocate a new socket */
 	int socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
 	assert(socket_descriptor > 0);
 
-	// Configure socket address as [all addresses]:[module->port]
+	/* Configure socket address as [all addresses]:[module->port] */
 	module->socket_address.sin_family      = AF_INET;
 	module->socket_address.sin_addr.s_addr = htonl(INADDR_ANY);
 	module->socket_address.sin_port        = htons((unsigned short)module->port);
 
-	// Configure the socket to allow multiple sockets to bind to the same host and port
+	/* Configure the socket to allow multiple sockets to bind to the same host and port */
 	int optval = 1;
 	setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
 	optval = 1;
 	setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
-	// Bind to the interface
+	/* Bind to the interface */
 	if (bind(socket_descriptor, (struct sockaddr *)&module->socket_address, sizeof(module->socket_address)) < 0) {
 		perror("bind");
 		assert(0);
 	}
 
-	// Listen to the interface? Check that it is live?
+	/* Listen to the interface? Check that it is live? */
 	if (listen(socket_descriptor, MODULE_MAX_PENDING_CLIENT_REQUESTS) < 0) assert(0);
 
 
-	// Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP requests
+	/* Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP
+	requests */
 	module->socket_descriptor = socket_descriptor;
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)module;
@@ -64,17 +65,17 @@ module_listen(struct module *module)
  *
  * TODO: Untested Functionality. Unsure if this will work
  * @param module - the module to teardown
- **/
+ */
 void
 module_free(struct module *module)
 {
 	if (module == NULL) return;
 	if (module->dynamic_library_handle == NULL) return;
 
-	// Do not free if we still have oustanding references
+	/* Do not free if we still have oustanding references */
 	if (module->reference_count) return;
 
-	// TODO: What about the module database? Do we need to do any cleanup there?
+	/* TODO: What about the module database? Do we need to do any cleanup there? */
 
 	close(module->socket_descriptor);
 	dlclose(module->dynamic_library_handle);
@@ -96,7 +97,7 @@ module_free(struct module *module)
  * @param port
  * @param request_size
  * @returns A new module or NULL in case of failure
- **/
+ */
 struct module *
 module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 relative_deadline_us,
            int port, int request_size, int response_size)
@@ -106,11 +107,11 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 
 	memset(module, 0, sizeof(struct module));
 
-	// Load the dynamic library *.so file with lazy function call binding and deep binding
+	/* Load the dynamic library *.so file with lazy function call binding and deep binding */
 	module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
 	if (module->dynamic_library_handle == NULL) goto dl_open_error;
 
-	// Resolve the symbols in the dynamic library *.so file
+	/* Resolve the symbols in the dynamic library *.so file */
 	module->main = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MODULE_MAIN);
 	if (module->main == NULL) goto dl_error;
 
@@ -126,7 +127,7 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 	module->initialize_libc = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_LIBC);
 	if (module->initialize_libc == NULL) goto dl_error;
 
-	// Set fields in the module struct
+	/* Set fields in the module struct */
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
 	strncpy(module->path, path, MODULE_MAX_PATH_LENGTH);
 
@@ -143,25 +144,25 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 	module->max_request_or_response_size = round_up_to_page(request_size > response_size ? request_size
 	                                                                                     : response_size);
 
-	// module_indirect_table is a thread-local struct
+	/* module_indirect_table is a thread-local struct */
 	struct indirect_table_entry *cache_tbl = module_indirect_table;
 
-	// assumption: All modules are created at program start before we enable preemption or enable the execution of
-	// any worker threads We are checking that thread-local module_indirect_table is NULL to prove that we aren't
-	// yet preempting If we want to be able to do this later, we can possibly defer module_initialize_table until
-	// the first invocation
+	/* assumption: All modules are created at program start before we enable preemption or enable the execution
+	   of any worker threads We are checking that thread-local module_indirect_table is NULL to prove that we aren't
+	   yet preempting If we want to be able to do this later, we can possibly defer module_initialize_table until
+	   the first invocation */
 	assert(cache_tbl == NULL);
 
-	// TODO: determine why we have to set the module_indirect_table state before calling table init and then restore
-	// the existing value What is the relationship between these things?
+	/* TODO: determine why we have to set the module_indirect_table state before calling table init and then
+	 * restore the existing value. What is the relationship between these things? */
 	module_indirect_table = module->indirect_table;
 	module_initialize_table(module);
 	module_indirect_table = cache_tbl;
 
-	// Add the module to the in-memory module DB
+	/* Add the module to the in-memory module DB */
 	module_database_add(module);
 
-	// Start listening for requests
+	/* Start listening for requests */
 	module_listen(module);
 
 	return module;
@@ -183,7 +184,7 @@ dl_open_error:
 int
 module_new_from_json(char *file_name)
 {
-	// Use stat to get file attributes and make sure file is there and OK
+	/* Use stat to get file attributes and make sure file is there and OK */
 	struct stat stat_buffer;
 	memset(&stat_buffer, 0, sizeof(struct stat));
 	if (stat(file_name, &stat_buffer) < 0) {
@@ -191,14 +192,15 @@ module_new_from_json(char *file_name)
 		return -1;
 	}
 
-	// Open the file
+	/* Open the file */
 	FILE *module_file = fopen(file_name, "r");
 	if (!module_file) {
 		perror("fopen");
 		return -1;
 	}
 
-	// Initialize a Buffer, Read the file into the buffer, and then check that the buffer size equals the file size
+	/* Initialize a Buffer, Read the file into the buffer, and then check that the buffer size equals the file
+	size */
 	char *file_buffer = malloc(stat_buffer.st_size);
 	memset(file_buffer, 0, stat_buffer.st_size);
 	int total_chars_read = fread(file_buffer, sizeof(char), stat_buffer.st_size, module_file);
@@ -208,15 +210,15 @@ module_new_from_json(char *file_name)
 		return -1;
 	}
 
-	// Close the file
+	/* Close the file */
 	fclose(module_file);
 
-	// Initialize the Jasmine Parser and an array to hold the tokens
+	/* Initialize the Jasmine Parser and an array to hold the tokens */
 	jsmn_parser module_parser;
 	jsmn_init(&module_parser);
 	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
 
-	// Use Jasmine to parse the JSON
+	/* Use Jasmine to parse the JSON */
 	int total_tokens = jsmn_parse(&module_parser, file_buffer, strlen(file_buffer), tokens,
 	                              sizeof(tokens) / sizeof(tokens[0]));
 	if (total_tokens < 0) {
@@ -308,10 +310,10 @@ module_new_from_json(char *file_name)
 			j += ntks;
 		}
 		i += ntoks;
-		// do not load if it is not active
+		/* do not load if it is not active */
 		if (is_active == 0) continue;
 
-		// Allocate a module based on the values from the JSON
+		/* Allocate a module based on the values from the JSON */
 		struct module *module = module_new(module_name, module_path, argument_count, 0, 0, relative_deadline_us,
 		                                   port, request_size, response_size);
 		assert(module);

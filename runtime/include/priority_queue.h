@@ -12,10 +12,10 @@
  * priority element that can be used to maintain a read replica
  * @param element
  * @returns priority (a u64)
- **/
+ */
 typedef uint64_t (*priority_queue_get_priority_t)(void *element);
 
-// We assume that priority is expressed in terms of a 64 bit unsigned integral
+/* We assume that priority is expressed in terms of a 64 bit unsigned integral */
 struct priority_queue {
 	ck_spinlock_fas_t             lock;
 	uint64_t                      highest_priority;

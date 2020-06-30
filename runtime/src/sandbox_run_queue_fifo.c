@@ -10,7 +10,7 @@ sandbox_run_queue_fifo_is_empty()
 	return ps_list_head_empty(&sandbox_run_queue_fifo);
 }
 
-// Get the sandbox at the head of the thread local runqueue
+/* Get the sandbox at the head of the thread local runqueue */
 struct sandbox *
 sandbox_run_queue_fifo_get_head()
 {
@@ -20,7 +20,7 @@ sandbox_run_queue_fifo_get_head()
 /**
  * Removes the thread from the thread-local runqueue
  * @param sandbox sandbox
- **/
+ */
 void
 sandbox_run_queue_fifo_remove(struct sandbox *sandbox_to_remove)
 {
@@ -39,7 +39,7 @@ sandbox_run_queue_fifo_remove_and_return()
  * Execute the sandbox at the head of the thread local runqueue
  * If the runqueue is empty, pull a fresh batch of sandbox requests, instantiate them, and then execute the new head
  * @return the sandbox to execute or NULL if none are available
- **/
+ */
 struct sandbox *
 sandbox_run_queue_fifo_get_next()
 {
@@ -54,7 +54,7 @@ sandbox_run_queue_fifo_get_next()
 		return sandbox;
 	}
 
-	// Execute Round Robin Scheduling Logic
+	/* Execute Round Robin Scheduling Logic */
 	struct sandbox *next_sandbox = sandbox_run_queue_fifo_remove_and_return();
 	assert(next_sandbox->state != RETURNED);
 	sandbox_run_queue_add(next_sandbox);
@@ -64,7 +64,10 @@ sandbox_run_queue_fifo_get_next()
 }
 
 
-// Append a sandbox to the runqueue
+/**
+ * Append a sandbox to the runqueue
+ * @returns the appended sandbox
+ */
 struct sandbox *
 sandbox_run_queue_fifo_append(struct sandbox *sandbox_to_append)
 {
@@ -75,8 +78,9 @@ sandbox_run_queue_fifo_append(struct sandbox *sandbox_to_append)
 	return sandbox_to_append;
 }
 
-// Conditionally checks to see if current sandbox should be preempted
-// FIFO doesn't preempt, so just return.
+/**
+ * Conditionally checks to see if current sandbox should be preempted FIFO doesn't preempt, so just return.
+ */
 void
 sandbox_run_queue_fifo_preempt(ucontext_t *user_context)
 {
@@ -89,7 +93,7 @@ sandbox_run_queue_fifo_initialize()
 {
 	ps_list_head_init(&sandbox_run_queue_fifo);
 
-	// Register Function Pointers for Abstract Scheduling API
+	/* Register Function Pointers for Abstract Scheduling API */
 	sandbox_run_queue_config_t config = { .add      = sandbox_run_queue_fifo_append,
 		                              .is_empty = sandbox_run_queue_fifo_is_empty,
 		                              .delete   = sandbox_run_queue_fifo_remove,

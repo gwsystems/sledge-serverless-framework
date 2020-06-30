@@ -3,7 +3,7 @@
 
 #include <sandbox_request.h>
 
-// Returns pointer back if successful, null otherwise
+/* Returns pointer back if successful, null otherwise */
 typedef sandbox_request_t *(*sandbox_request_scheduler_add_t)(void *);
 typedef sandbox_request_t *(*sandbox_request_scheduler_remove_t)(void);
 typedef uint64_t (*sandbox_request_scheduler_peek_t)(void);

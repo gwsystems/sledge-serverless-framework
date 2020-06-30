@@ -15,8 +15,8 @@ struct sandbox_request {
 	char *           arguments;
 	int              socket_descriptor;
 	struct sockaddr *socket_address;
-	u64              start_time;        // cycles
-	u64              absolute_deadline; // cycles
+	u64              start_time;        /* cycles */
+	u64              absolute_deadline; /* cycles */
 };
 
 typedef struct sandbox_request sandbox_request_t;
@@ -31,7 +31,7 @@ DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
  * @param socket_address
  * @param start_time the timestamp of when we receives the request from the network (in cycles)
  * @return the new sandbox request
- **/
+ */
 static inline sandbox_request_t *
 sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
                          const struct sockaddr *socket_address, u64 start_time)

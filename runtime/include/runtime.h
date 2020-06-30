@@ -1,7 +1,7 @@
 #ifndef SFRT_RUNTIME_H
 #define SFRT_RUNTIME_H
 
-#include <sys/epoll.h> // for epoll_create1(), epoll_ctl(), struct epoll_event
+#include <sys/epoll.h> /* for epoll_create1(), epoll_ctl(), struct epoll_event */
 #include "types.h"
 
 extern int runtime_epoll_file_descriptor;

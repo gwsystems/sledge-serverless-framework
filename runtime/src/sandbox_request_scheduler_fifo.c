@@ -1,6 +1,5 @@
 #include <sandbox_request_scheduler.h>
 
-// Local State
 static struct deque_sandbox *runtime_global_deque;
 static pthread_mutex_t       runtime_global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -8,15 +7,15 @@ static pthread_mutex_t       runtime_global_deque_mutex = PTHREAD_MUTEX_INITIALI
  * Pushes a sandbox request to the global deque
  * @param sandbox_request
  * @returns pointer to request if added. NULL otherwise
- **/
+ */
 static sandbox_request_t *
 sandbox_request_scheduler_fifo_add(void *sandbox_request_raw)
 {
 	sandbox_request_t *sandbox_request = (sandbox_request_t *)sandbox_request_raw;
 	int                return_code     = 1;
 
-// TODO: Running the runtime and listener cores on a single shared core is untested
-// We are unsure if the locking behavior is correct, so there may be deadlocks
+/* TODO: Running the runtime and listener cores on a single shared core is untested
+We are unsure if the locking behavior is correct, so there may be deadlocks */
 #if NCORES == 1
 	pthread_mutex_lock(&runtime_global_deque_mutex);
 #endif
@@ -40,7 +39,7 @@ sandbox_request_scheduler_fifo_add(void *sandbox_request_raw)
  * and add an assert in "steal" function for NCORES == 1.
  *
  * @returns A Sandbox Request or NULL
- **/
+ */
 static sandbox_request_t *
 sandbox_request_scheduler_fifo_remove(void)
 {
@@ -60,13 +59,13 @@ sandbox_request_scheduler_fifo_remove(void)
 void
 sandbox_request_scheduler_fifo_initialize()
 {
-	// Allocate and Initialize the global deque
+	/* Allocate and Initialize the global deque */
 	runtime_global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
 	assert(runtime_global_deque);
-	// Note: Below is a Macro
+	/* Note: Below is a Macro */
 	deque_init_sandbox(runtime_global_deque, RUNTIME_MAX_SANDBOX_REQUEST_COUNT);
 
-	// Register Function Pointers for Abstract Scheduling API
+	/* Register Function Pointers for Abstract Scheduling API */
 	sandbox_request_scheduler_config_t config = { .add    = sandbox_request_scheduler_fifo_add,
 		                                      .remove = sandbox_request_scheduler_fifo_remove };
 

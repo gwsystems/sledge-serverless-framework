@@ -5,16 +5,16 @@
 #include <assert.h>
 #include <signal.h>
 
-/***************************************
- * Externs
- ***************************************/
+/************
+ * Externs  *
+ ***********/
 
 extern __thread volatile sig_atomic_t software_interrupt_is_disabled;
 extern uint64_t                       SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
 
-/***************************************
- * Public Static Inlines
- ***************************************/
+/*************************
+ * Public Static Inlines *
+ ************************/
 
 static inline void
 software_interrupt_disable(void)
@@ -46,7 +46,7 @@ software_interrupt_is_enabled(void)
  * Masks a signal on the current thread
  * @param signal - the signal you want to mask
  * @return 0 on success. Exits program otherwise
- **/
+ */
 static inline int
 software_interrupt_mask_signal(int signal)
 {
@@ -71,7 +71,7 @@ software_interrupt_mask_signal(int signal)
  * Unmasks a signal on the current thread
  * @param signal - the signal you want to unmask
  * @return 0 on success. Exits program otherwise
- **/
+ */
 static inline int
 software_interrupt_unmask_signal(int signal)
 {
@@ -92,9 +92,9 @@ software_interrupt_unmask_signal(int signal)
 	return 0;
 }
 
-/***************************************
- * Exports from module.c
- ***************************************/
+/*************************
+ * Exports from module.c *
+ ************************/
 
 void software_interrupt_initialize(void);
 void software_interrupt_arm_timer(void);

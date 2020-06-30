@@ -14,23 +14,23 @@
 #include <software_interrupt.h>
 #include <worker_thread.h>
 
-// Conditionally used by debuglog when DEBUG is set
+/* Conditionally used by debuglog when DEBUG is set */
 #ifdef DEBUG
 i32 runtime_log_file_descriptor = -1;
 #endif
 
-float runtime_processor_speed_MHz                               = 0;
-u32   runtime_total_online_processors                           = 0;
-u32   runtime_total_worker_processors                           = 0;
-u32   runtime_first_worker_processor                            = 0;
-int   runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; // The worker sets its argument to -1 on error
+float runtime_processor_speed_MHz                             = 0;
+u32   runtime_total_online_processors                         = 0;
+u32   runtime_total_worker_processors                         = 0;
+u32   runtime_first_worker_processor                          = 0;
+int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; /* The worker sets its argument to -1 on error */
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
 
 /**
  * Returns instructions on use of CLI if used incorrectly
  * @param cmd - The command the user entered
- **/
+ */
 static void
 runtime_usage(char *cmd)
 {
@@ -41,7 +41,7 @@ runtime_usage(char *cmd)
 /**
  * Sets the process data segment (RLIMIT_DATA) and # file descriptors
  * (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
- **/
+ */
 void
 runtime_set_resource_limits_to_max()
 {
@@ -68,24 +68,24 @@ runtime_set_resource_limits_to_max()
 
 /**
  * Check the number of cores and the compiler flags and allocate available cores
- **/
+ */
 void
 runtime_allocate_available_cores()
 {
-	// Find the number of processors currently online
+	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
 
-	// If multicore, we'll pin one core as a listener and run sandbox threads on all others
+	/* If multicore, we'll pin one core as a listener and run sandbox threads on all others */
 	if (runtime_total_online_processors > 1) {
 		runtime_first_worker_processor = 1;
-		// WORKER_THREAD_CORE_COUNT can be used as a cap on the number of cores to use
-		// But if there are few cores that WORKER_THREAD_CORE_COUNT, just use what is available
+		/* WORKER_THREAD_CORE_COUNT can be used as a cap on the number of cores to use, but if there are few
+		 * cores that WORKER_THREAD_CORE_COUNT, just use what is available */
 		u32 max_possible_workers        = runtime_total_online_processors - 1;
 		runtime_total_worker_processors = (max_possible_workers >= WORKER_THREAD_CORE_COUNT)
 		                                    ? WORKER_THREAD_CORE_COUNT
 		                                    : max_possible_workers;
 	} else {
-		// If single core, we'll do everything on CPUID 0
+		/* If single core, we'll do everything on CPUID 0 */
 		runtime_first_worker_processor  = 0;
 		runtime_total_worker_processors = 1;
 	}
@@ -99,7 +99,7 @@ runtime_allocate_available_cores()
  * We are assuming all cores are the same clock speed, which is not true of many systems
  * We are also assuming this value is static
  * @return proceccor speed in MHz
- **/
+ */
 static inline float
 runtime_get_processor_speed_MHz(void)
 {
@@ -126,7 +126,7 @@ runtime_get_processor_speed_MHz(void)
  * Controls the behavior of the debuglog macro defined in types.h
  * If LOG_TO_FILE is defined, close stdin, stdout, stderr, and debuglog writes to a logfile named awesome.log.
  * Otherwise, it writes to STDOUT
- **/
+ */
 void
 runtime_process_debug_log_behavior()
 {
@@ -141,13 +141,13 @@ runtime_process_debug_log_behavior()
 	}
 #else
 	runtime_log_file_descriptor = 1;
-#endif // LOG_TO_FILE
+#endif /* LOG_TO_FILE */
 }
-#endif // DEBUG
+#endif /* DEBUG */
 
 /**
  * Starts all worker threads and sleeps forever on pthread_join, which should never return
- **/
+ */
 void
 runtime_start_runtime_worker_threads()
 {

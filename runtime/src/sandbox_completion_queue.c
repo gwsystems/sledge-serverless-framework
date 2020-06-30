@@ -17,8 +17,8 @@ sandbox_completion_queue_is_empty()
 
 /**
  * Adds sandbox to the completion queue
- * @param sandbox
- **/
+ * @param sandbox to add to completion queue
+ */
 void
 sandbox_completion_queue_add(struct sandbox *sandbox)
 {

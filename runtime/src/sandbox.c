@@ -12,7 +12,7 @@
 
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
- **/
+ */
 static inline void
 sandbox_setup_arguments(struct sandbox *sandbox)
 {
@@ -20,7 +20,7 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 	char *arguments      = sandbox_get_arguments(sandbox);
 	i32   argument_count = module_get_argument_count(sandbox->module);
 
-	// whatever gregor has, to be able to pass arguments to a module!
+	/* whatever gregor has, to be able to pass arguments to a module! */
 	sandbox->arguments_offset = sandbox_lmbound;
 	assert(sandbox_lmbase == sandbox->linear_memory_start);
 	expand_memory();
@@ -33,7 +33,7 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 		size_t str_sz = strlen(arg) + 1;
 
 		array_ptr[i] = string_off;
-		// why get_memory_ptr_for_runtime??
+		/* why get_memory_ptr_for_runtime?? */
 		strncpy(get_memory_ptr_for_runtime(string_off, str_sz), arg, strlen(arg));
 
 		string_off += str_sz;
@@ -47,14 +47,14 @@ sandbox_setup_arguments(struct sandbox *sandbox)
  * @param length The size of the request_response_data that we want to parse
  * @returns 0
  *
- **/
+ */
 int
 sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 {
 	assert(sandbox != NULL);
 	assert(length > 0);
-	// Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
-	// it's like a cursor to keep track of what we've read so far
+	/* Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
+	it's like a cursor to keep track of what we've read so far */
 	http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
 	                    sandbox->request_response_data + sandbox->request_response_data_length, length);
 	return 0;
@@ -63,7 +63,7 @@ sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 /**
  * Receive and Parse the Request for the current sandbox
  * @return 1 on success, 0 if no context, < 0 on failure.
- **/
+ */
 static inline int
 sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 {
@@ -105,7 +105,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 /**
  * Sends Response Back to Client
  * @return RC. -1 on Failure
- **/
+ */
 static inline int
 sandbox_build_and_send_client_response(struct sandbox *sandbox)
 {
@@ -195,25 +195,28 @@ sandbox_open_http(struct sandbox *sandbox)
 
 	http_parser_init(&sandbox->http_parser, HTTP_REQUEST);
 
-	// Set the sandbox as the data the http-parser has access to
+	/* Set the sandbox as the data the http-parser has access to */
 	sandbox->http_parser.data = sandbox;
 
 #ifdef USE_HTTP_UVIO
 
-	// Initialize libuv TCP stream
+	/* Initialize libuv TCP stream */
 	int r = uv_tcp_init(worker_thread_get_libuv_handle(), (uv_tcp_t *)&sandbox->client_libuv_stream);
 	assert(r == 0);
 
-	// Set the current sandbox as the data the libuv callbacks have access to
+	/* Set the current sandbox as the data the libuv callbacks have access to */
 	sandbox->client_libuv_stream.data = sandbox;
 
-	// Open the libuv TCP stream
+	/* Open the libuv TCP stream */
 	r = uv_tcp_open((uv_tcp_t *)&sandbox->client_libuv_stream, sandbox->client_socket_descriptor);
 	assert(r == 0);
 #endif
 }
 
-// Initialize file descriptors 0, 1, and 2 as io handles 0, 1, 2
+/**
+ * Initialize files descriptors 0, 1, and 2 as io handles 0, 1, 2
+ * @param sandbox - the sandbox on which we are initializing file descriptors
+ */
 static inline void
 sandbox_initialize_io_handles_and_file_descriptors(struct sandbox *sandbox)
 {
@@ -228,8 +231,8 @@ sandbox_initialize_io_handles_and_file_descriptors(struct sandbox *sandbox)
 /**
  * Sandbox execution logic
  * Handles setup, request parsing, WebAssembly initialization, function execution, response building and sending, and
- *cleanup
- **/
+ * cleanup
+ */
 void
 current_sandbox_main(void)
 {
@@ -246,28 +249,28 @@ current_sandbox_main(void)
 
 	sandbox_open_http(sandbox);
 
-	// Parse the request. 1 = Success
+	/* Parse the request. 1 = Success */
 	int rc = sandbox_receive_and_parse_client_request(sandbox);
 	if (rc != 1) goto err;
 
-	// Initialize the module
+	/* Initialize the module */
 	struct module *current_module = sandbox_get_module(sandbox);
 	int            argument_count = module_get_argument_count(current_module);
 	// alloc_linear_memory();
 	module_initialize_globals(current_module);
 	module_initialize_memory(current_module);
 
-	// Copy the arguments into the WebAssembly sandbox
+	/* Copy the arguments into the WebAssembly sandbox */
 	sandbox_setup_arguments(sandbox);
 
-	// Executing the function
+	/* Executing the function */
 	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
 
-	// Retrieve the result, construct the HTTP response, and send to client
+	/* Retrieve the result, construct the HTTP response, and send to client */
 	sandbox_build_and_send_client_response(sandbox);
 
 done:
-	// Cleanup connection and exit sandbox
+	/* Cleanup connection and exit sandbox */
 	sandbox_close_http(sandbox);
 	worker_thread_on_sandbox_exit(sandbox);
 err:
@@ -279,23 +282,23 @@ err:
  * struct sandbox | Buffer for HTTP Req/Resp | 4GB of Wasm Linear Memory | Guard Page
  * @param module the module that we want to run
  * @returns the resulting sandbox or NULL if mmap failed
- **/
+ */
 static inline struct sandbox *
 sandbox_allocate_memory(struct module *module)
 {
 	assert(module != NULL);
 
 	char *          error_message          = NULL;
-	unsigned long   linear_memory_size     = WASM_PAGE_SIZE * WASM_START_PAGES; // The initial pages
+	unsigned long   linear_memory_size     = WASM_PAGE_SIZE * WASM_START_PAGES; /* The initial pages */
 	uint64_t        linear_memory_max_size = (uint64_t)SBOX_MAX_MEM;
 	struct sandbox *sandbox                = NULL;
 	unsigned long   sandbox_size           = sizeof(struct sandbox) + module->max_request_or_response_size;
 
-	// Control information should be page-aligned
-	// TODO: Should I use round_up_to_page when setting sandbox_page?
+	/* Control information should be page-aligned
+	        TODO: Should I use round_up_to_page when setting sandbox_page? */
 	assert(round_up_to_page(sandbox_size) == sandbox_size);
 
-	// At an address of the system's choosing, allocate the memory, marking it as inaccessible
+	/* At an address of the system's choosing, allocate the memory, marking it as inaccessible */
 	errno      = 0;
 	void *addr = mmap(NULL, sandbox_size + linear_memory_max_size + /* guard page */ PAGE_SIZE, PROT_NONE,
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -305,7 +308,7 @@ sandbox_allocate_memory(struct module *module)
 	}
 	sandbox = (struct sandbox *)addr;
 
-	// Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write
+	/* Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write */
 	errno         = 0;
 	void *addr_rw = mmap(addr, sandbox_size + linear_memory_size, PROT_READ | PROT_WRITE,
 	                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
@@ -314,7 +317,7 @@ sandbox_allocate_memory(struct module *module)
 		goto set_rw_failed;
 	}
 
-	// Populate Sandbox members
+	/* Populate Sandbox members */
 	sandbox->linear_memory_start    = (char *)addr + sandbox_size;
 	sandbox->linear_memory_size     = linear_memory_size;
 	sandbox->linear_memory_max_size = linear_memory_max_size;
@@ -366,37 +369,37 @@ sandbox_allocate(sandbox_request_t *sandbox_request)
 	int             rc;
 	struct sandbox *sandbox = NULL;
 
-	// Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space
+	/* Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space */
 	errno   = 0;
 	sandbox = (struct sandbox *)sandbox_allocate_memory(sandbox_request->module);
 	if (!sandbox) goto err_memory_allocation_failed;
 
-	// Set state to initializing
+	/* Set state to initializing */
 	sandbox->state = INITIALIZING;
 
-	// Allocate the Stack
+	/* Allocate the Stack */
 	rc = sandbox_allocate_stack(sandbox);
 	if (rc != 0) goto err_stack_allocation_failed;
 
-	// Copy the socket descriptor, address, and arguments of the client invocation
+	/* Copy the socket descriptor, address, and arguments of the client invocation */
 	sandbox->absolute_deadline        = sandbox_request->absolute_deadline;
 	sandbox->arguments                = (void *)sandbox_request->arguments;
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
 	sandbox->start_time               = sandbox_request->start_time;
 
-	// Initialize the sandbox's context, stack, and instruction pointer
+	/* Initialize the sandbox's context, stack, and instruction pointer */
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
 	                  (reg_t)(sandbox->stack_start + sandbox->stack_size));
 
-	// What does it mean if there isn't a socket_address? Shouldn't this be a hard requirement?
-	// It seems that only the socket descriptor is used to send response
+	/* TODO: What does it mean if there isn't a socket_address? Shouldn't this be a hard requirement?
+	        It seems that only the socket descriptor is used to send response */
 	const struct sockaddr *socket_address = sandbox_request->socket_address;
 	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
 
-	// Initialize file descriptors to -1
+	/* Initialize file descriptors to -1 */
 	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
 
-	// Initialize Parsec control structures (used by Completion Queue)
+	/* Initialize Parsec control structures (used by Completion Queue) */
 	ps_list_init_d(sandbox);
 
 done:
@@ -412,7 +415,7 @@ err:
 /**
  * Free stack and heap resources.. also any I/O handles.
  * @param sandbox
- **/
+ */
 void
 sandbox_free(struct sandbox *sandbox)
 {
@@ -429,7 +432,7 @@ sandbox_free(struct sandbox *sandbox)
 	size_t stksz   = sandbox->stack_size;
 
 
-	// Free Sandbox Stack
+	/* Free Sandbox Stack */
 	errno = 0;
 	rc    = munmap(stkaddr, stksz);
 	if (rc == -1) {
@@ -438,9 +441,9 @@ sandbox_free(struct sandbox *sandbox)
 	};
 
 
-	// Free Sandbox Linear Address Space
-	// struct sandbox | HTTP Buffer | 4GB of Wasm Linear Memory | Guard Page
-	// sandbox_size includes the struct and HTTP buffer
+	/* Free Sandbox Linear Address Space
+	struct sandbox | HTTP Buffer | 4GB of Wasm Linear Memory | Guard Page
+	sandbox_size includes the struct and HTTP buffer */
 	size_t sandbox_address_space_size = sandbox->sandbox_size + sandbox->linear_memory_max_size
 	                                    + /* guard page */ PAGE_SIZE;
 
@@ -455,7 +458,7 @@ done:
 	return;
 err_free_sandbox_failed:
 err_free_stack_failed:
-	// Inability to free memory is a fatal error
+	/* Inability to free memory is a fatal error */
 	perror(error_message);
 	exit(EXIT_FAILURE);
 err:

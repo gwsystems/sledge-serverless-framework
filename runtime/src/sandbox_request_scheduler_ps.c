@@ -1,14 +1,13 @@
 #include <sandbox_request_scheduler.h>
 #include "priority_queue.h"
 
-// Local State
 static struct priority_queue sandbox_request_scheduler_ps;
 
 /**
  * Pushes a sandbox request to the global deque
  * @param sandbox_request
  * @returns pointer to request if added. NULL otherwise
- **/
+ */
 static sandbox_request_t *
 sandbox_request_scheduler_ps_add(void *sandbox_request)
 {
@@ -25,7 +24,7 @@ sandbox_request_scheduler_ps_add(void *sandbox_request)
 /**
  *
  * @returns A Sandbox Request or NULL
- **/
+ */
 static sandbox_request_t *
 sandbox_request_scheduler_ps_remove(void)
 {
@@ -35,7 +34,7 @@ sandbox_request_scheduler_ps_remove(void)
 /**
  *
  * @returns A Sandbox Request or NULL
- **/
+ */
 static uint64_t
 sandbox_request_scheduler_ps_peek(void)
 {
@@ -51,15 +50,13 @@ sandbox_request_get_priority(void *element)
 
 
 /**
- *
- **/
+ * Initializes the variant and registers against the polymorphic interface
+ */
 void
 sandbox_request_scheduler_ps_initialize()
 {
-	// Initialize local state
 	priority_queue_initialize(&sandbox_request_scheduler_ps, sandbox_request_get_priority);
 
-	// Register Function Pointers for Abstract Scheduling API
 	sandbox_request_scheduler_config_t config = { .add    = sandbox_request_scheduler_ps_add,
 		                                      .remove = sandbox_request_scheduler_ps_remove,
 		                                      .peek   = sandbox_request_scheduler_ps_peek };

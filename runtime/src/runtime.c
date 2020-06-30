@@ -1,15 +1,15 @@
-// Something is not idempotent with this or some other include.
-// If placed in Local Includes, error is triggered that memset was implicitly declared
+/* Something is not idempotent with this or some other include. If placed in Local Includes, error is triggered that
+ * memset was implicitly declared */
 #include <runtime.h>
 
 /***************************
  * External Includes       *
  **************************/
-#include <pthread.h>  // POSIX Threads
-#include <signal.h>   // POSIX Signals
-#include <sched.h>    // Wasmception. Included as submodule
-#include <sys/mman.h> // Wasmception. Included as submodule
-#include <uv.h>       // Libub
+#include <pthread.h>
+#include <signal.h>
+#include <sched.h>    /* Wasmception. Included as submodule */
+#include <sys/mman.h> /* Wasmception. Included as submodule */
+#include <uv.h>
 
 /***************************
  * Local Includes          *
@@ -31,7 +31,7 @@ int runtime_epoll_file_descriptor;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
- ******************************************/
+ *****************************************/
 
 /**
  * Initialize runtime global state, mask signals, and init http parser
@@ -39,25 +39,27 @@ int runtime_epoll_file_descriptor;
 void
 runtime_initialize(void)
 {
-	// Setup epoll
+	/* Setup epoll */
 	runtime_epoll_file_descriptor = epoll_create1(0);
 	assert(runtime_epoll_file_descriptor >= 0);
 
-	// Allocate and Initialize the global deque
+	/* Allocate and Initialize the global deque
+	TODO: Improve to expose variant as a config
+	*/
 	// sandbox_request_scheduler_fifo_initialize();
 	sandbox_request_scheduler_ps_initialize();
 
-	// Mask Signals
+	/* Mask Signals */
 	software_interrupt_mask_signal(SIGUSR1);
 	software_interrupt_mask_signal(SIGALRM);
 
-	// Initialize http_parser_settings global
+	/* Initialize http_parser_settings global */
 	http_parser_settings_initialize();
 }
 
-/********************************
- * Listener Thread Logic        *
- ********************************/
+/*************************
+ * Listener Thread Logic *
+ ************************/
 
 /**
  * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and pushes
@@ -80,7 +82,7 @@ listener_thread_main(void *dummy)
 		int request_count = epoll_wait(runtime_epoll_file_descriptor, epoll_events,
 		                               LISTENER_THREAD_MAX_EPOLL_EVENTS, -1);
 
-		// Capture Start Time to calculate absolute deadline
+		/* Capture Start Time to calculate absolute deadline */
 		u64 start_time = __getcycles();
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) {
@@ -88,7 +90,7 @@ listener_thread_main(void *dummy)
 				assert(false);
 			}
 
-			// Accept Client Request
+			/* Accept Client Request */
 			struct sockaddr_in client_address;
 			socklen_t          client_length = sizeof(client_address);
 			struct module *    module        = (struct module *)epoll_events[i].data.ptr;
@@ -101,13 +103,13 @@ listener_thread_main(void *dummy)
 			}
 			total_requests++;
 
-			// Allocate a Sandbox Request
+			/* Allocate a Sandbox Request */
 			sandbox_request_t *sandbox_request =
 			  sandbox_request_allocate(module, module->name, socket_descriptor,
 			                           (const struct sockaddr *)&client_address, start_time);
 			assert(sandbox_request);
 
-			// Add to the Global Sandbox Request Scheduler
+			/* Add to the Global Sandbox Request Scheduler */
 			sandbox_request_scheduler_add(sandbox_request);
 		}
 	}
