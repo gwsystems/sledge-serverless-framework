@@ -21,10 +21,10 @@ struct priority_queue {
 	uint64_t                         highest_priority;
 	void *                           items[MAX];
 	int                              first_free;
-	priority_queue_get_priority_fn_t get_priority;
+	priority_queue_get_priority_fn_t get_priority_fn;
 };
 
-void     priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_fn_t get_priority);
+void     priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_fn_t get_priority_fn);
 int      priority_queue_enqueue(struct priority_queue *self, void *value, char *name);
 void *   priority_queue_dequeue(struct priority_queue *self, char *name);
 int      priority_queue_length(struct priority_queue *self);

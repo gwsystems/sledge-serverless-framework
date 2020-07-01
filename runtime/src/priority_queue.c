@@ -36,17 +36,17 @@ static inline void
 priority_queue_percolate_up(struct priority_queue *self)
 {
 	assert(self != NULL);
-	assert(self->get_priority != NULL);
+	assert(self->get_priority_fn != NULL);
 	assert(ck_spinlock_fas_locked(&self->lock));
 
 	for (int i = self->first_free - 1;
-	     i / 2 != 0 && self->get_priority(self->items[i]) < self->get_priority(self->items[i / 2]); i /= 2) {
-		assert(self->get_priority(self->items[i]) != ULONG_MAX);
+	     i / 2 != 0 && self->get_priority_fn(self->items[i]) < self->get_priority_fn(self->items[i / 2]); i /= 2) {
+		assert(self->get_priority_fn(self->items[i]) != ULONG_MAX);
 		void *temp         = self->items[i / 2];
 		self->items[i / 2] = self->items[i];
 		self->items[i]     = temp;
 		/* If percolated to highest priority, update highest priority */
-		if (i / 2 == 1) self->highest_priority = self->get_priority(self->items[1]);
+		if (i / 2 == 1) self->highest_priority = self->get_priority_fn(self->items[1]);
 	}
 }
 
@@ -61,7 +61,7 @@ priority_queue_find_smallest_child(struct priority_queue *self, int parent_index
 {
 	assert(self != NULL);
 	assert(parent_index >= 1 && parent_index < self->first_free);
-	assert(self->get_priority != NULL);
+	assert(self->get_priority_fn != NULL);
 	assert(ck_spinlock_fas_locked(&self->lock));
 
 	int left_child_index  = 2 * parent_index;
@@ -71,8 +71,8 @@ priority_queue_find_smallest_child(struct priority_queue *self, int parent_index
 	/* If we don't have a right child or the left child is smaller, return it */
 	if (right_child_index == self->first_free) {
 		return left_child_index;
-	} else if (self->get_priority(self->items[left_child_index])
-	           < self->get_priority(self->items[right_child_index])) {
+	} else if (self->get_priority_fn(self->items[left_child_index])
+	           < self->get_priority_fn(self->items[right_child_index])) {
 		return left_child_index;
 	} else {
 		/* Otherwise, return the right child */
@@ -89,15 +89,15 @@ static inline void
 priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 {
 	assert(self != NULL);
-	assert(self->get_priority != NULL);
+	assert(self->get_priority_fn != NULL);
 	assert(ck_spinlock_fas_locked(&self->lock));
 
 	int left_child_index = 2 * parent_index;
 	while (left_child_index >= 2 && left_child_index < self->first_free) {
 		int smallest_child_index = priority_queue_find_smallest_child(self, parent_index);
 		/* Once the parent is equal to or less than its smallest child, break; */
-		if (self->get_priority(self->items[parent_index])
-		    <= self->get_priority(self->items[smallest_child_index]))
+		if (self->get_priority_fn(self->items[parent_index])
+		    <= self->get_priority_fn(self->items[smallest_child_index]))
 			break;
 		/* Otherwise, swap and continue down the tree */
 		void *temp                        = self->items[smallest_child_index];
@@ -116,19 +116,19 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 /**
  * Initialized the Priority Queue Data structure
  * @param self the priority_queue to initialize
- * @param get_priority pointer to a function that returns the priority of an element
+ * @param get_priority_fn pointer to a function that returns the priority of an element
  */
 void
-priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_fn_t get_priority)
+priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_fn_t get_priority_fn)
 {
 	assert(self != NULL);
-	assert(get_priority != NULL);
+	assert(get_priority_fn != NULL);
 
 	memset(self->items, 0, sizeof(void *) * MAX);
 
 	ck_spinlock_fas_init(&self->lock);
-	self->first_free   = 1;
-	self->get_priority = get_priority;
+	self->first_free      = 1;
+	self->get_priority_fn = get_priority_fn;
 
 	/* We're assuming a min-heap implementation, so set to larget possible value */
 	self->highest_priority = ULONG_MAX;
@@ -176,7 +176,7 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
 
 	/* If this is the first element we add, update the highest priority */
 	if (self->first_free == 2) {
-		self->highest_priority = self->get_priority(value);
+		self->highest_priority = self->get_priority_fn(value);
 	} else {
 		priority_queue_percolate_up(self);
 	}
@@ -232,7 +232,7 @@ void *
 priority_queue_dequeue(struct priority_queue *self, char *name)
 {
 	assert(self != NULL);
-	assert(self->get_priority != NULL);
+	assert(self->get_priority_fn != NULL);
 	if (priority_queue_is_empty(self)) return NULL;
 
 	ck_spinlock_fas_lock(&self->lock);
@@ -247,7 +247,7 @@ priority_queue_dequeue(struct priority_queue *self, char *name)
 
 		/* Update the highest priority */
 		if (!priority_queue_is_empty(self)) {
-			self->highest_priority = self->get_priority(self->items[1]);
+			self->highest_priority = self->get_priority_fn(self->items[1]);
 		} else {
 			self->highest_priority = ULONG_MAX;
 		}

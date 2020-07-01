@@ -43,7 +43,7 @@ sandbox_request_scheduler_ps_peek(void)
 }
 
 uint64_t
-sandbox_request_get_priority(void *element)
+sandbox_request_get_priority_fn(void *element)
 {
 	sandbox_request_t *sandbox_request = (sandbox_request_t *)element;
 	return sandbox_request->absolute_deadline;
@@ -56,7 +56,7 @@ sandbox_request_get_priority(void *element)
 void
 sandbox_request_scheduler_ps_initialize()
 {
-	priority_queue_initialize(&sandbox_request_scheduler_ps, sandbox_request_get_priority);
+	priority_queue_initialize(&sandbox_request_scheduler_ps, sandbox_request_get_priority_fn);
 
 	sandbox_request_scheduler_config_t config = { .add    = sandbox_request_scheduler_ps_add,
 		                                      .remove = sandbox_request_scheduler_ps_remove,
