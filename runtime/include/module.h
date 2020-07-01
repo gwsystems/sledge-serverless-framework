@@ -19,11 +19,13 @@ struct module {
 	int                         socket_descriptor;
 	int                         port;
 
-	/* unfortunately, using UV for accepting connections is not great!
-	on_connection, to create a new accepted connection, will have to
-	init a tcp handle, which requires a uvloop. cannot use main as
-	rest of the connection is handled in sandboxing threads, with per-core(per-thread) tls data-structures.
-	so, using direct epoll for accepting connections. */
+	/*
+	 * unfortunately, using UV for accepting connections is not great!
+	 * on_connection, to create a new accepted connection, will have to init a tcp handle,
+	 * which requires a uvloop. cannot use main as rest of the connection is handled in
+	 * sandboxing threads, with per-core(per-thread) tls data-structures.
+	 * so, using direct epoll for accepting connections.
+	 */
 
 	// TODO: Should this be removed?
 	//	uv_handle_t srvuv;
