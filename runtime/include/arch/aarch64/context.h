@@ -1,5 +1,4 @@
-#ifndef ARCH_AARCH64_CONTEXT_H
-#define ARCH_AARCH64_CONTEXT_H
+#pragma once
 
 #include <unistd.h>
 #include <ucontext.h>
@@ -112,5 +111,3 @@ arch_context_switch(arch_context_t *ca, arch_context_t *na)
 	               "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15");
 	return 0;
 }
-
-#endif /* ARCH_AARCH64_CONTEXT_H */

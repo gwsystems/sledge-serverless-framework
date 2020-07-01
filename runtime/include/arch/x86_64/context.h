@@ -1,5 +1,4 @@
-#ifndef ARCH_X86_64_CONTEXT_H
-#define ARCH_X86_64_CONTEXT_H
+#pragma once
 
 #include <assert.h>
 #include <string.h>
@@ -162,5 +161,3 @@ arch_context_switch(arch_context_t *current, arch_context_t *next)
 
 	return 0;
 }
-
-#endif /* ARCH_X86_64_CONTEXT_H */

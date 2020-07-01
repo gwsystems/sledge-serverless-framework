@@ -1,5 +1,4 @@
-#ifndef SFRT_SANDBOX_REQUEST_SCHEDULER_H
-#define SFRT_SANDBOX_REQUEST_SCHEDULER_H
+#pragma once
 
 #include <sandbox_request.h>
 
@@ -20,5 +19,3 @@ void sandbox_request_scheduler_initialize(sandbox_request_scheduler_config_t *co
 sandbox_request_t *sandbox_request_scheduler_add(sandbox_request_t *);
 sandbox_request_t *sandbox_request_scheduler_remove();
 uint64_t           sandbox_request_scheduler_peek();
-
-#endif /* SFRT_SANDBOX_REQUEST_SCHEDULER_H */

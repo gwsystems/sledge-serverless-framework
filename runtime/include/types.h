@@ -1,5 +1,4 @@
-#ifndef SFRT_TYPES_H
-#define SFRT_TYPES_H
+#pragma once
 
 #include <assert.h>
 #include <errno.h>
@@ -150,6 +149,3 @@ typedef void (*mod_libc_fn_t)(i32, i32);
 /* If multicore, use all but the dedicated listener core
 If there are fewer cores than this, main dynamically overrides this and uses all available */
 #define WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
-
-
-#endif /* SFRT_TYPES_H */

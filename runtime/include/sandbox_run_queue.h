@@ -1,5 +1,4 @@
-#ifndef SFRT_SANDBOX_RUN_QUEUE_H
-#define SFRT_SANDBOX_RUN_QUEUE_H
+#pragma once
 
 #include <stdbool.h>
 #include <sandbox.h>
@@ -29,6 +28,3 @@ void            sandbox_run_queue_delete(struct sandbox *);
 bool            sandbox_run_queue_is_empty();
 struct sandbox *sandbox_run_queue_get_next();
 void            sandbox_run_queue_preempt(ucontext_t *);
-
-
-#endif /* SFRT_SANDBOX_RUN_QUEUE_H */

@@ -1,5 +1,4 @@
-#ifndef SFRT_MODULE_DATABASE_H
-#define SFRT_MODULE_DATABASE_H
+#pragma once
 
 #include <module.h>
 
@@ -25,5 +24,3 @@ module_database_add(struct module *module)
 
 	return 0;
 }
-
-#endif /* SFRT_MODULE_DATABASE_H */

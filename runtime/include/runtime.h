@@ -1,5 +1,4 @@
-#ifndef SFRT_RUNTIME_H
-#define SFRT_RUNTIME_H
+#pragma once
 
 #include <sys/epoll.h> /* for epoll_create1(), epoll_ctl(), struct epoll_event */
 #include "types.h"
@@ -15,5 +14,3 @@ void         listener_thread_initialize(void);
 void         stub_init(i32 offset);
 
 unsigned long long __getcycles(void);
-
-#endif /* SFRT_RUNTIME_H */

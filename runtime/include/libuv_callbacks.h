@@ -1,6 +1,4 @@
-
-#ifndef SFRT_LIBUV_CALLBACKS_H
-#define SFRT_LIBUV_CALLBACKS_H
+#pragma once
 
 #include <assert.h>
 #include <runtime.h>
@@ -89,5 +87,3 @@ libuv_callbacks_on_allocate_setup_request_response_data(uv_handle_t *h, size_t s
 	buf->base         = (sandbox->request_response_data + sandbox->request_response_data_length);
 	buf->len          = l > suggested ? suggested : l;
 }
-
-#endif /* SFRT_SANDBOX_H */

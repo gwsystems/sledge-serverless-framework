@@ -1,5 +1,4 @@
-#ifndef SFRT_SOFTWARE_INTERRUPT_H
-#define SFRT_SOFTWARE_INTERRUPT_H
+#pragma once
 
 #include <stdbool.h>
 #include <assert.h>
@@ -99,5 +98,3 @@ software_interrupt_unmask_signal(int signal)
 void software_interrupt_initialize(void);
 void software_interrupt_arm_timer(void);
 void software_interrupt_disarm_timer(void);
-
-#endif /* SFRT_SOFTWARE_INTERRUPT_H */

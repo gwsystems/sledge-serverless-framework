@@ -1,8 +1,6 @@
-#ifndef SFRT_MODULE_H
-#define SFRT_MODULE_H
+#pragma once
 
 #include <uv.h>
-
 #include <types.h>
 
 struct module {
@@ -190,5 +188,3 @@ void           module_free(struct module *module);
 struct module *module_new(char *mod_name, char *mod_path, i32 argument_count, u32 stack_sz, u32 max_heap,
                           u32 relative_deadline_us, int port, int req_sz, int resp_sz);
 int            module_new_from_json(char *filename);
-
-#endif /* SFRT_MODULE_H */

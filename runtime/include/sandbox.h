@@ -1,5 +1,4 @@
-#ifndef SFRT_SANDBOX_H
-#define SFRT_SANDBOX_H
+#pragma once
 
 #include <ucontext.h>
 #include <uv.h>
@@ -224,5 +223,3 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return NULL;
 	return &sandbox->io_handles[io_handle_index].libuv_handle;
 }
-
-#endif /* SFRT_SANDBOX_H */

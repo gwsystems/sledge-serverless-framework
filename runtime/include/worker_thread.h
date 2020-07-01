@@ -1,5 +1,4 @@
-#ifndef SFRT_WORKER_THREAD_H
-#define SFRT_WORKER_THREAD_H
+#pragma once
 
 #include <uv.h>
 #include "types.h"
@@ -56,5 +55,3 @@ worker_thread_get_libuv_handle(void)
 {
 	return &worker_thread_uvio_handle;
 }
-
-#endif /* SFRT_WORKER_THREAD_H */

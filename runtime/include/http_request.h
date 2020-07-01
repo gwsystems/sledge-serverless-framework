@@ -1,5 +1,4 @@
-#ifndef SFRT_HTTP_REQUEST_H
-#define SFRT_HTTP_REQUEST_H
+#pragma once
 
 #include <types.h>
 
@@ -28,5 +27,3 @@ struct http_request {
  * General HTTP Request Functions                  *
  **************************************************/
 int http_request_get_body(struct http_request *http_request, char **body);
-
-#endif /* SFRT_HTTP_HEADER_H */

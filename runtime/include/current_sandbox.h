@@ -1,5 +1,4 @@
-#ifndef SFRT_CURRENT_SANDBOX_H
-#define SFRT_CURRENT_SANDBOX_H
+#pragma once
 
 #include "sandbox.h"
 #include "types.h"
@@ -11,5 +10,3 @@ union uv_any_handle *current_sandbox_get_libuv_handle(int io_handle_index);
 int                  current_sandbox_initialize_io_handle(void);
 void                 current_sandbox_set(struct sandbox *sandbox);
 int                  current_sandbox_set_file_descriptor(int io_handle_index, int file_descriptor);
-
-#endif /* SFRT_CURRENT_SANDBOX_H */

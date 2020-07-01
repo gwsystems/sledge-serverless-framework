@@ -1,5 +1,4 @@
-#ifndef SFRT_SANDBOX_REQUEST_H
-#define SFRT_SANDBOX_REQUEST_H
+#pragma once
 
 #include <stdbool.h>
 
@@ -48,5 +47,3 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
 	return sandbox_request;
 }
-
-#endif /* SFRT_SANDBOX_REQUEST_H */
