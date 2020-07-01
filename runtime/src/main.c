@@ -104,7 +104,6 @@ static inline float
 runtime_get_processor_speed_MHz(void)
 {
 	FILE *cmd = popen("grep '^cpu MHz' /proc/cpuinfo | head -n 1 | awk '{print $4}'", "r");
-
 	if (cmd == NULL) return -1;
 
 	float  processor_speed_MHz;
