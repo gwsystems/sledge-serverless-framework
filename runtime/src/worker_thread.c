@@ -51,7 +51,8 @@ static __thread bool worker_thread_is_in_callback;
 static inline void
 worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 {
-	arch_context_t *next_register_context = next_sandbox == NULL ? NULL : &next_sandbox->ctxt;
+	arch_context_t *next_register_context = NULL;
+	if (next_sandbox != NULL) next_register_context = &next_sandbox->ctxt;
 
 	software_interrupt_disable();
 
