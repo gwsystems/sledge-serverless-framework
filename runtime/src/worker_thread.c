@@ -144,8 +144,9 @@ worker_thread_process_io(void)
 }
 
 /**
- * Sends the current thread a SIGUSR1, causing a preempted sandbox to be restored
- * Invoked by asm during a context switch
+ * We need to switch back to a previously preempted thread. The only way to restore all of its registers is to use
+ * sigreturn. To get to sigreturn, we need to send ourselves a signal, then update the registers we should return to,
+ * then sigreturn (by returning from the handler).
  */
 void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void)
 {
