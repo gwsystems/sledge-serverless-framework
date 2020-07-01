@@ -25,7 +25,6 @@ priority_queue_append(struct priority_queue *self, void *new_item)
 	if (self->first_free >= MAX) return -1;
 
 	self->items[self->first_free++] = new_item;
-	// self->first_free++;
 	return 0;
 }
 
@@ -144,7 +143,6 @@ priority_queue_length(struct priority_queue *self)
 {
 	assert(self != NULL);
 	ck_spinlock_fas_lock(&self->lock);
-	assert(ck_spinlock_fas_locked(&self->lock));
 	int length = self->first_free - 1;
 	ck_spinlock_fas_unlock(&self->lock);
 	return length;
@@ -163,7 +161,6 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
 
 	int pre_length = self->first_free - 1;
 
-	/* Start of Critical Section */
 	if (priority_queue_append(self, value) == -1) {
 		printf("Priority Queue is full");
 		fflush(stdout);
@@ -183,7 +180,6 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
 	} else {
 		priority_queue_percolate_up(self);
 	}
-	/* End of Critical Section */
 	ck_spinlock_fas_unlock(&self->lock);
 	return 0;
 }
@@ -240,8 +236,7 @@ priority_queue_dequeue(struct priority_queue *self, char *name)
 	if (priority_queue_is_empty(self)) return NULL;
 
 	ck_spinlock_fas_lock(&self->lock);
-	assert(ck_spinlock_fas_locked(&self->lock));
-	/* Start of Critical Section */
+
 	void *min = NULL;
 	if (!priority_queue_is_empty(self)) {
 		min                           = self->items[1];
@@ -251,17 +246,25 @@ priority_queue_dequeue(struct priority_queue *self, char *name)
 		if (self->first_free > 2) priority_queue_percolate_down(self, 1);
 
 		/* Update the highest priority */
-		self->highest_priority = !priority_queue_is_empty(self) ? self->get_priority(self->items[1])
-		                                                        : ULONG_MAX;
+		if (!priority_queue_is_empty(self)) {
+			self->highest_priority = self->get_priority(self->items[1]);
+		} else {
+			self->highest_priority = ULONG_MAX;
+		}
 	}
 	ck_spinlock_fas_unlock(&self->lock);
-	/* End of Critical Section */
+
 	return min;
 }
 
+/**
+ * Peek at the priority of the highest priority task without having to take the lock
+ * Because this is a min-heap PQ, the highest priority is the lowest 64-bit integer
+ * This is used to store an absolute deadline
+ * @returns value of highest priority value in queue or ULONG_MAX if empty
+ */
 uint64_t
 priority_queue_peek(struct priority_queue *self)
 {
-	uint64_t highest_priority = self->highest_priority;
-	return highest_priority;
+	return self->highest_priority;
 }
