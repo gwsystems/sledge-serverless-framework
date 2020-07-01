@@ -23,7 +23,8 @@ We are unsure if the locking behavior is correct, so there may be deadlocks */
 #if NCORES == 1
 	pthread_mutex_unlock(&runtime_global_deque_mutex);
 #endif
-	return (return_code == 0) ? sandbox_request_raw : NULL;
+	if (return_code != 0) return NULL;
+	return sandbox_request_raw;
 }
 
 /**

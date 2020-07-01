@@ -137,12 +137,16 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 	module->relative_deadline_us = relative_deadline_us;
 	module->socket_descriptor    = -1;
 	module->port                 = port;
+
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
 	if (response_size == 0) response_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
-	module->max_request_size             = request_size;
-	module->max_response_size            = response_size;
-	module->max_request_or_response_size = round_up_to_page(request_size > response_size ? request_size
-	                                                                                     : response_size);
+	module->max_request_size  = request_size;
+	module->max_response_size = response_size;
+	if (request_size > response_size) {
+		module->max_request_or_response_size = round_up_to_page(request_size);
+	} else {
+		module->max_request_or_response_size = round_up_to_page(response_size);
+	}
 
 	/* module_indirect_table is a thread-local struct */
 	struct indirect_table_entry *cache_tbl = module_indirect_table;

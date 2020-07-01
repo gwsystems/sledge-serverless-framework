@@ -81,9 +81,9 @@ runtime_allocate_available_cores()
 		/* WORKER_THREAD_CORE_COUNT can be used as a cap on the number of cores to use, but if there are few
 		 * cores that WORKER_THREAD_CORE_COUNT, just use what is available */
 		u32 max_possible_workers        = runtime_total_online_processors - 1;
-		runtime_total_worker_processors = (max_possible_workers >= WORKER_THREAD_CORE_COUNT)
-		                                    ? WORKER_THREAD_CORE_COUNT
-		                                    : max_possible_workers;
+		runtime_total_worker_processors = max_possible_workers;
+		if (max_possible_workers >= WORKER_THREAD_CORE_COUNT)
+			runtime_total_worker_processors = WORKER_THREAD_CORE_COUNT;
 	} else {
 		/* If single core, we'll do everything on CPUID 0 */
 		runtime_first_worker_processor  = 0;

@@ -58,7 +58,8 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 	/* Get the old sandbox we're switching from */
 	struct sandbox *previous_sandbox          = current_sandbox_get();
-	arch_context_t *previous_register_context = previous_sandbox == NULL ? NULL : &previous_sandbox->ctxt;
+	arch_context_t *previous_register_context = NULL;
+	if (previous_sandbox != NULL) previous_register_context = &previous_sandbox->ctxt;
 
 	/* Set the current sandbox to the next */
 	current_sandbox_set(next_sandbox);

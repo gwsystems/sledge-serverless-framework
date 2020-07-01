@@ -18,7 +18,8 @@ sandbox_request_scheduler_ps_add(void *sandbox_request)
 		exit(EXIT_FAILURE);
 	}
 
-	return return_code == 0 ? sandbox_request : NULL;
+	if (return_code != 0) return NULL;
+	return sandbox_request;
 }
 
 /**

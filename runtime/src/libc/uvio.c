@@ -141,7 +141,7 @@ wasm_write(i32 file_descriptor, i32 buf_offset, i32 buf_size)
 		char *          buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
 		struct sandbox *s      = current_sandbox_get();
 		int             l      = s->module->max_response_size - s->request_response_data_length;
-		l                      = l > buf_size ? buf_size : l;
+		if (l > buf_size) l = buf_size;
 		if (l == 0) return 0;
 		memcpy(s->request_response_data + s->request_response_data_length, buffer, l);
 		s->request_response_data_length += l;
