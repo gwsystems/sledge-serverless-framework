@@ -18,8 +18,8 @@
 #include <http_parser_settings.h>
 #include <module.h>
 #include <sandbox_request.h>
-#include <sandbox_request_scheduler_fifo.h>
-#include <sandbox_request_scheduler_ps.h>
+#include <global_request_scheduler_deque.h>
+#include <global_request_scheduler_minheap.h>
 #include <software_interrupt.h>
 #include <types.h>
 
@@ -46,8 +46,8 @@ runtime_initialize(void)
 	/* Allocate and Initialize the global deque
 	TODO: Improve to expose variant as a config
 	*/
-	// sandbox_request_scheduler_fifo_initialize();
-	sandbox_request_scheduler_ps_initialize();
+	// global_request_scheduler_deque_initialize();
+	global_request_scheduler_minheap_initialize();
 
 	/* Mask Signals */
 	software_interrupt_mask_signal(SIGUSR1);
@@ -110,7 +110,7 @@ listener_thread_main(void *dummy)
 			assert(sandbox_request);
 
 			/* Add to the Global Sandbox Request Scheduler */
-			sandbox_request_scheduler_add(sandbox_request);
+			global_request_scheduler_add(sandbox_request);
 		}
 	}
 

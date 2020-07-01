@@ -1,7 +1,7 @@
-#include <sandbox_request_scheduler.h>
+#include <global_request_scheduler.h>
 
-static struct deque_sandbox *runtime_global_deque;
-static pthread_mutex_t       runtime_global_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
+static struct deque_sandbox *global_request_scheduler_deque;
+static pthread_mutex_t       global_request_scheduler_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * Pushes a sandbox request to the global deque
@@ -9,7 +9,7 @@ static pthread_mutex_t       runtime_global_deque_mutex = PTHREAD_MUTEX_INITIALI
  * @returns pointer to request if added. NULL otherwise
  */
 static sandbox_request_t *
-sandbox_request_scheduler_fifo_add(void *sandbox_request_raw)
+global_request_scheduler_deque_add(void *sandbox_request_raw)
 {
 	sandbox_request_t *sandbox_request = (sandbox_request_t *)sandbox_request_raw;
 	int                return_code     = 1;
@@ -17,11 +17,11 @@ sandbox_request_scheduler_fifo_add(void *sandbox_request_raw)
 /* TODO: Running the runtime and listener cores on a single shared core is untested
 We are unsure if the locking behavior is correct, so there may be deadlocks */
 #if NCORES == 1
-	pthread_mutex_lock(&runtime_global_deque_mutex);
+	pthread_mutex_lock(&global_request_scheduler_deque_mutex);
 #endif
-	return_code = deque_push_sandbox(runtime_global_deque, &sandbox_request);
+	return_code = deque_push_sandbox(global_request_scheduler_deque, &sandbox_request);
 #if NCORES == 1
-	pthread_mutex_unlock(&runtime_global_deque_mutex);
+	pthread_mutex_unlock(&global_request_scheduler_deque_mutex);
 #endif
 	if (return_code != 0) return NULL;
 	return sandbox_request_raw;
@@ -42,33 +42,33 @@ We are unsure if the locking behavior is correct, so there may be deadlocks */
  * @returns A Sandbox Request or NULL
  */
 static sandbox_request_t *
-sandbox_request_scheduler_fifo_remove(void)
+global_request_scheduler_deque_remove(void)
 {
 	sandbox_request_t *sandbox_request;
 
 #if NCORES == 1
-	pthread_mutex_lock(&runtime_global_deque_mutex);
-	return_code = deque_pop_sandbox(runtime_global_deque, sandbox_request);
-	pthread_mutex_unlock(&runtime_global_deque_mutex);
+	pthread_mutex_lock(&global_request_scheduler_deque_mutex);
+	return_code = deque_pop_sandbox(global_request_scheduler_deque, sandbox_request);
+	pthread_mutex_unlock(&global_request_scheduler_deque_mutex);
 #else
-	int return_code = deque_steal_sandbox(runtime_global_deque, &sandbox_request);
+	int return_code = deque_steal_sandbox(global_request_scheduler_deque, &sandbox_request);
 #endif
 	if (return_code) sandbox_request = NULL;
 	return sandbox_request;
 }
 
 void
-sandbox_request_scheduler_fifo_initialize()
+global_request_scheduler_deque_initialize()
 {
 	/* Allocate and Initialize the global deque */
-	runtime_global_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
-	assert(runtime_global_deque);
+	global_request_scheduler_deque = (struct deque_sandbox *)malloc(sizeof(struct deque_sandbox));
+	assert(global_request_scheduler_deque);
 	/* Note: Below is a Macro */
-	deque_init_sandbox(runtime_global_deque, RUNTIME_MAX_SANDBOX_REQUEST_COUNT);
+	deque_init_sandbox(global_request_scheduler_deque, RUNTIME_MAX_SANDBOX_REQUEST_COUNT);
 
 	/* Register Function Pointers for Abstract Scheduling API */
-	sandbox_request_scheduler_config_t config = { .add    = sandbox_request_scheduler_fifo_add,
-		                                      .remove = sandbox_request_scheduler_fifo_remove };
+	struct global_request_scheduler_config config = { .add_fn    = global_request_scheduler_deque_add,
+		                                          .remove_fn = global_request_scheduler_deque_remove };
 
-	sandbox_request_scheduler_initialize(&config);
+	global_request_scheduler_initialize(&config);
 }

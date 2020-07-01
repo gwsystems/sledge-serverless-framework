@@ -15,11 +15,11 @@ If placed in Local Includes, error is triggered that memset was implicitly decla
  * Local Includes          *
  **************************/
 #include <current_sandbox.h>
-#include <sandbox_completion_queue.h>
-#include <sandbox_request_scheduler.h>
-#include <sandbox_run_queue.h>
-#include <sandbox_run_queue_fifo.h>
-#include <sandbox_run_queue_ps.h>
+#include <global_request_scheduler.h>
+#include <local_completion_queue.h>
+#include <local_runqueue.h>
+#include <local_runqueue_list.h>
+#include <local_runqueue_minheap.h>
 #include <types.h>
 #include <worker_thread.h>
 
@@ -74,7 +74,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 	/* If the current sandbox we're switching from is in a RETURNED state, add to completion queue */
 	if (previous_sandbox != NULL && previous_sandbox->state == RETURNED) {
-		sandbox_completion_queue_add(previous_sandbox);
+		local_completion_queue_add(previous_sandbox);
 	} else if (previous_sandbox != NULL) {
 		printf("Switched away from sandbox is state %d\n", previous_sandbox->state);
 	}
@@ -94,7 +94,7 @@ worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 	if (sandbox->state == BLOCKED) {
 		sandbox->state = RUNNABLE;
 		printf("Marking blocked sandbox as runnable\n");
-		sandbox_run_queue_add(sandbox);
+		local_runqueue_add(sandbox);
 	}
 	software_interrupt_enable();
 }
@@ -112,11 +112,11 @@ worker_thread_block_current_sandbox(void)
 
 	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
 	struct sandbox *previous_sandbox = current_sandbox_get();
-	sandbox_run_queue_delete(previous_sandbox);
+	local_runqueue_delete(previous_sandbox);
 	previous_sandbox->state = BLOCKED;
 
 	/* Switch to the next sandbox */
-	struct sandbox *next_sandbox = sandbox_run_queue_get_next();
+	struct sandbox *next_sandbox = local_runqueue_get_next();
 	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", previous_sandbox, previous_sandbox->module->name,
 	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
 	software_interrupt_enable();
@@ -184,9 +184,9 @@ worker_thread_main(void *return_code)
 {
 	/* Initialize Worker Infrastructure */
 	arch_context_init(&worker_thread_base_context, 0, 0);
-	// sandbox_run_queue_fifo_initialize();
-	sandbox_run_queue_ps_initialize();
-	sandbox_completion_queue_initialize();
+	// local_runqueue_list_initialize();
+	local_runqueue_minheap_initialize();
+	local_completion_queue_initialize();
 	software_interrupt_is_disabled = false;
 	worker_thread_next_context     = NULL;
 #ifndef PREEMPT_DISABLE
@@ -204,12 +204,12 @@ worker_thread_main(void *return_code)
 		if (!worker_thread_is_in_callback) worker_thread_execute_libuv_event_loop();
 
 		software_interrupt_disable();
-		next_sandbox = sandbox_run_queue_get_next();
+		next_sandbox = local_runqueue_get_next();
 		software_interrupt_enable();
 
 		if (next_sandbox != NULL) worker_thread_switch_to_sandbox(next_sandbox);
 
-		sandbox_completion_queue_free();
+		local_completion_queue_free();
 	}
 
 	*(int *)return_code = -1;
@@ -229,7 +229,7 @@ worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)
 
 	/* TODO: I do not understand when software interrupts must be disabled? */
 	software_interrupt_disable();
-	sandbox_run_queue_delete(exiting_sandbox);
+	local_runqueue_delete(exiting_sandbox);
 	exiting_sandbox->state = RETURNED;
 	software_interrupt_enable();
 
@@ -241,7 +241,7 @@ worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)
 		assert(0);
 	}
 
-	sandbox_completion_queue_add(exiting_sandbox);
+	local_completion_queue_add(exiting_sandbox);
 
 	/* This should force return to main event loop */
 	worker_thread_switch_to_sandbox(NULL);

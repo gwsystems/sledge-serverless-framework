@@ -13,7 +13,7 @@
 #include <arch/context.h>
 #include <software_interrupt.h>
 #include <current_sandbox.h>
-#include "sandbox_run_queue.h"
+#include "local_runqueue.h"
 
 /*******************
  * Process Globals *
@@ -85,7 +85,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		/* and software interrupts are not disabled */
 		if (!software_interrupt_is_enabled()) return;
 		/* Preempt */
-		sandbox_run_queue_preempt(user_context);
+		local_runqueue_preempt(user_context);
 
 		return;
 	}
