@@ -39,8 +39,10 @@ arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 {
 	assert(ctx != &worker_thread_base_context);
 
-	/* if ctx->regs[0] is set, this was last in a user-level context switch state!
-	else restore mcontext.. */
+	/*
+	 * if ctx->regs[0] is set, this was last in a user-level context switch state!
+	 * else restore mcontext..
+	 */
 	if (ctx->regs[0]) {
 		mc->sp       = ctx->regs[0];
 		mc->pc       = ctx->regs[1] + ARCH_SIG_JMP_OFF;
