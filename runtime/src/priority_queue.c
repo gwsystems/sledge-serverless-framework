@@ -119,7 +119,7 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
  * @param get_priority pointer to a function that returns the priority of an element
  */
 void
-priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_t get_priority)
+priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_fn_t get_priority)
 {
 	assert(self != NULL);
 	assert(get_priority != NULL);

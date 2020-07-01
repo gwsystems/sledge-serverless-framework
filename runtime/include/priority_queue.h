@@ -13,18 +13,18 @@
  * @param element
  * @returns priority (a u64)
  */
-typedef uint64_t (*priority_queue_get_priority_t)(void *element);
+typedef uint64_t (*priority_queue_get_priority_fn_t)(void *element);
 
 /* We assume that priority is expressed in terms of a 64 bit unsigned integral */
 struct priority_queue {
-	ck_spinlock_fas_t             lock;
-	uint64_t                      highest_priority;
-	void *                        items[MAX];
-	int                           first_free;
-	priority_queue_get_priority_t get_priority;
+	ck_spinlock_fas_t                lock;
+	uint64_t                         highest_priority;
+	void *                           items[MAX];
+	int                              first_free;
+	priority_queue_get_priority_fn_t get_priority;
 };
 
-void     priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_t get_priority);
+void     priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_fn_t get_priority);
 int      priority_queue_enqueue(struct priority_queue *self, void *value, char *name);
 void *   priority_queue_dequeue(struct priority_queue *self, char *name);
 int      priority_queue_length(struct priority_queue *self);
