@@ -52,8 +52,7 @@ current_sandbox_set(struct sandbox *sandbox)
 int
 current_sandbox_initialize_io_handle(void)
 {
-	struct sandbox *sandbox = current_sandbox_get();
-	return sandbox_initialize_io_handle(sandbox);
+	return sandbox_initialize_io_handle(current_sandbox_get());
 }
 
 int sandbox_parse_http_request(struct sandbox *sandbox, size_t l);
@@ -68,8 +67,7 @@ int sandbox_parse_http_request(struct sandbox *sandbox, size_t l);
 int
 current_sandbox_set_file_descriptor(int io_handle_index, int file_descriptor)
 {
-	struct sandbox *sandbox = current_sandbox_get();
-	return sandbox_set_file_descriptor(sandbox, io_handle_index, file_descriptor);
+	return sandbox_set_file_descriptor(current_sandbox_get(), io_handle_index, file_descriptor);
 }
 
 /**
