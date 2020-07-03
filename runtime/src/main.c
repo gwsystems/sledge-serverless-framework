@@ -103,21 +103,28 @@ runtime_allocate_available_cores()
 static inline float
 runtime_get_processor_speed_MHz(void)
 {
+	float return_value;
+
 	FILE *cmd = popen("grep '^cpu MHz' /proc/cpuinfo | head -n 1 | awk '{print $4}'", "r");
-	if (cmd == NULL) return -1;
+	if (cmd == NULL) goto err;
 
 	float  processor_speed_MHz;
 	size_t n;
 	char   buff[16];
 
-	if ((n = fread(buff, 1, sizeof(buff) - 1, cmd)) <= 0) return -1;
+	if ((n = fread(buff, 1, sizeof(buff) - 1, cmd)) <= 0) goto err;
 
 	buff[n] = '\0';
-	if (sscanf(buff, "%f", &processor_speed_MHz) != 1) return -1;
+	if (sscanf(buff, "%f", &processor_speed_MHz) != 1) goto err;
 
+	return_value = processor_speed_MHz;
+
+done:
 	pclose(cmd);
-
-	return processor_speed_MHz;
+	return return_value;
+err:
+	return_value = -1;
+	goto done;
 }
 
 #ifdef DEBUG
