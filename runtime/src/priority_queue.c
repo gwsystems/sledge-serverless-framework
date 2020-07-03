@@ -4,7 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <priority_queue.h>
+#include "panic.h"
+#include "priority_queue.h"
 
 /****************************
  * Private Helper Functions *
@@ -161,13 +162,7 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
 
 	int pre_length = self->first_free - 1;
 
-	if (priority_queue_append(self, value) == -1) {
-		printf("Priority Queue is full");
-		fflush(stdout);
-		exit(EXIT_FAILURE);
-		ck_spinlock_fas_unlock(&self->lock);
-		return -1;
-	}
+	if (priority_queue_append(self, value) == -1) panic("Priority Queue is full");
 
 	int post_length = self->first_free - 1;
 
