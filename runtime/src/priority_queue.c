@@ -181,7 +181,7 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
 /**
  * @param self - the priority queue we want to delete from
  * @param value - the value we want to delete
- * @returns 0 on success. -1 on not found. -2 on unable to take lock
+ * @returns 0 on success. -1 on not found
  */
 int
 priority_queue_delete(struct priority_queue *self, void *value, char *name)
@@ -198,12 +198,9 @@ priority_queue_delete(struct priority_queue *self, void *value, char *name)
 			did_delete = true;
 		}
 	}
+
 	ck_spinlock_fas_unlock(&self->lock);
-	assert(did_delete);
-	if (!did_delete) {
-		printf("[priority_queue_delete] Not found!\n");
-		return -1;
-	};
+	if (!did_delete) return -1;
 	return 0;
 }
 

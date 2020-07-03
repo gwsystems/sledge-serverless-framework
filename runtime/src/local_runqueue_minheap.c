@@ -1,10 +1,12 @@
+#include <stdint.h>
+
+#include "current_sandbox.h"
+#include "global_request_scheduler.h"
 #include "local_runqueue.h"
 #include "local_runqueue_minheap.h"
-#include "global_request_scheduler.h"
-#include "current_sandbox.h"
+#include "panic.h"
 #include "priority_queue.h"
 
-#include <stdint.h>
 
 __thread static struct priority_queue local_runqueue_minheap;
 
@@ -63,7 +65,10 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	int rc = priority_queue_delete(&local_runqueue_minheap, sandbox, "Runqueue");
-	assert(rc == 0);
+	if (rc == -1) {
+		panic("Err: Thread Local %lu tried to delete sandbox %lu from runqueue, but was not present\n",
+		      pthread_self(), sandbox->start_time);
+	}
 }
 
 /**

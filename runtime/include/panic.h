@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-__attribute__((noreturn)) void
+__attribute__((noreturn)) static inline void
 panic(const char *format, ...)
 {
 	va_list args;
