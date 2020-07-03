@@ -1,14 +1,16 @@
 #include <assert.h>
-#include <runtime.h>
-#include <worker_thread.h>
-#include <sandbox.h>
 #include <sys/mman.h>
 #include <pthread.h>
 #include <signal.h>
 #include <uv.h>
-#include <libuv_callbacks.h>
-#include <current_sandbox.h>
-#include <http_parser_settings.h>
+
+#include "current_sandbox.h"
+#include "http_parser_settings.h"
+#include "libuv_callbacks.h"
+#include "runtime.h"
+#include "sandbox.h"
+#include "types.h"
+#include "worker_thread.h"
 
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
@@ -21,8 +23,8 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 	i32   argument_count = module_get_argument_count(sandbox->module);
 
 	/* whatever gregor has, to be able to pass arguments to a module! */
-	sandbox->arguments_offset = sandbox_lmbound;
-	assert(sandbox_lmbase == sandbox->linear_memory_start);
+	sandbox->arguments_offset = local_sandbox_member_cache.linear_memory_size;
+	assert(local_sandbox_member_cache.linear_memory_start == sandbox->linear_memory_start);
 	expand_memory();
 
 	i32 *array_ptr  = worker_thread_get_memory_ptr_void(sandbox->arguments_offset, argument_count * sizeof(i32));

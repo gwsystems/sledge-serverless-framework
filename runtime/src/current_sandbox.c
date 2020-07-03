@@ -1,7 +1,14 @@
 #include "current_sandbox.h"
+#include "types.h"
 
 /* current sandbox that is active.. */
 static __thread sandbox_t *worker_thread_current_sandbox = NULL;
+
+__thread struct sandbox_member_cache local_sandbox_member_cache = {
+	.linear_memory_start   = NULL,
+	.linear_memory_size    = 0,
+	.module_indirect_table = NULL,
+};
 
 /**
  * Getter for the current sandbox executing on this thread
@@ -22,15 +29,19 @@ current_sandbox_set(struct sandbox *sandbox)
 {
 	/* Unpack hierarchy to avoid pointer chasing */
 	if (sandbox == NULL) {
+		local_sandbox_member_cache = (struct sandbox_member_cache){
+			.linear_memory_start   = NULL,
+			.linear_memory_size    = 0,
+			.module_indirect_table = NULL,
+		};
 		worker_thread_current_sandbox = NULL;
-		sandbox_lmbase                = NULL;
-		sandbox_lmbound               = 0;
-		module_indirect_table         = NULL;
 	} else {
+		local_sandbox_member_cache = (struct sandbox_member_cache){
+			.linear_memory_start   = sandbox->linear_memory_start,
+			.linear_memory_size    = sandbox->linear_memory_size,
+			.module_indirect_table = sandbox->module->indirect_table,
+		};
 		worker_thread_current_sandbox = sandbox;
-		sandbox_lmbase                = sandbox->linear_memory_start;
-		sandbox_lmbound               = sandbox->linear_memory_size;
-		module_indirect_table         = sandbox->module->indirect_table;
 	}
 }
 

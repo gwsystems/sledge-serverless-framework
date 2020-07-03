@@ -1,9 +1,11 @@
-#include <runtime.h>
-#include <worker_thread.h>
-#include <sandbox.h>
 #include <uv.h>
-#include <http_request.h>
-#include <current_sandbox.h>
+
+#include "current_sandbox.h"
+#include "http_request.h"
+#include "runtime.h"
+#include "sandbox.h"
+#include "types.h"
+#include "worker_thread.h"
 
 // What should we tell the child program its UID and GID are?
 #define UID 0xFF
@@ -462,7 +464,7 @@ wasm_mmap(i32 addr, i32 len, i32 prot, i32 flags, i32 file_descriptor, i32 offse
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
-	i32 result = sandbox_lmbound;
+	i32 result = local_sandbox_member_cache.linear_memory_size;
 	for (int i = 0; i < len / WASM_PAGE_SIZE; i++) { expand_memory(); }
 
 	return result;

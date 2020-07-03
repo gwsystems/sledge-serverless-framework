@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include <uv.h>
 
-#include <module.h>
-#include <module_database.h>
-#include <runtime.h>
+#include "types.h"
+#include "module.h"
+#include "module_database.h"
+#include "runtime.h"
 
 /*************************
  * Private Static Inline *
@@ -148,20 +149,22 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 		module->max_request_or_response_size = round_up_to_page(response_size);
 	}
 
-	/* module_indirect_table is a thread-local struct */
-	struct indirect_table_entry *cache_tbl = module_indirect_table;
+	/* Table initialization calls a function that runs within the sandbox. Rather than setting the current sandbox,
+	 * we partially fake this out by only setting the module_indirect_table and then clearing after table
+	 * initialization is complete.
+	 *
+	 * assumption: This approach depends on module_new only being invoked at program start before preemption is
+	 * enabled. We are check that local_sandbox_member_cache.module_indirect_table is NULL to gain confidence that
+	 * we are not invoking this in a way that clobbers a current module.
+	 *
+	 * If we want to be able to do this later, we can possibly defer module_initialize_table until the first
+	 * invocation
+	 */
 
-	/* assumption: All modules are created at program start before we enable preemption or enable the execution
-	   of any worker threads We are checking that thread-local module_indirect_table is NULL to prove that we aren't
-	   yet preempting If we want to be able to do this later, we can possibly defer module_initialize_table until
-	   the first invocation */
-	assert(cache_tbl == NULL);
-
-	/* TODO: determine why we have to set the module_indirect_table state before calling table init and then
-	 * restore the existing value. What is the relationship between these things? */
-	module_indirect_table = module->indirect_table;
+	assert(local_sandbox_member_cache.module_indirect_table == NULL);
+	local_sandbox_member_cache.module_indirect_table = module->indirect_table;
 	module_initialize_table(module);
-	module_indirect_table = cache_tbl;
+	local_sandbox_member_cache.module_indirect_table = NULL;
 
 	/* Add the module to the in-memory module DB */
 	module_database_add(module);
