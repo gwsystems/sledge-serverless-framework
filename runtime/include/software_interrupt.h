@@ -1,8 +1,8 @@
 #pragma once
 
-#include <stdbool.h>
 #include <assert.h>
 #include <signal.h>
+#include <stdbool.h>
 
 /************
  * Externs  *

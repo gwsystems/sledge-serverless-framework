@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include <uv.h>
 
-#include "types.h"
 #include "module.h"
 #include "module_database.h"
 #include "runtime.h"
+#include "types.h"
 
 /*************************
  * Private Static Inline *

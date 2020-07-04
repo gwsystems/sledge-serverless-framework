@@ -1,8 +1,9 @@
 #pragma once
 
 #include <http_parser.h>
-#include <types.h>
 #include <sys/uio.h>
+
+#include "types.h"
 
 /* Conditionally load libuv */
 #ifdef USE_HTTP_UVIO

@@ -1,10 +1,11 @@
 #pragma once
 
 #include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <ucontext.h>
 #include <unistd.h>
-#include <stdbool.h>
 
 #define ARCH_NREGS       (16 /* GP registers */ + 1 /* for IP */)
 #define ARCH_SIG_JMP_OFF 8

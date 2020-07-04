@@ -1,7 +1,8 @@
 #pragma once
 
 #include <uv.h>
-#include <types.h>
+
+#include "types.h"
 
 struct module {
 	char                        name[MODULE_MAX_NAME_LENGTH];

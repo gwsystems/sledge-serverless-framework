@@ -1,4 +1,4 @@
-#include <local_runqueue.h>
+#include "local_runqueue.h"
 
 static struct local_runqueue_config local_runqueue;
 

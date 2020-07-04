@@ -1,7 +1,8 @@
 #pragma once
 
 #include <stdbool.h>
-#include <sandbox.h>
+
+#include "sandbox.h"
 
 /* Returns pointer back if successful, null otherwise */
 typedef struct sandbox *(*local_runqueue_add_fn_t)(struct sandbox *);

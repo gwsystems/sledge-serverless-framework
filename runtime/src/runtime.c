@@ -1,27 +1,18 @@
-/* Something is not idempotent with this or some other include. If placed in Local Includes, error is triggered that
- * memset was implicitly declared */
-#include <runtime.h>
-
-/***************************
- * External Includes       *
- **************************/
 #include <pthread.h>
 #include <signal.h>
-#include <sched.h>    /* Wasmception. Included as submodule */
-#include <sys/mman.h> /* Wasmception. Included as submodule */
+#include <sched.h>
+#include <sys/mman.h>
 #include <uv.h>
 
-/***************************
- * Local Includes          *
- **************************/
-#include <arch/context.h>
-#include <http_parser_settings.h>
-#include <module.h>
-#include <sandbox_request.h>
-#include <global_request_scheduler_deque.h>
-#include <global_request_scheduler_minheap.h>
-#include <software_interrupt.h>
-#include <types.h>
+#include "arch/context.h"
+#include "global_request_scheduler_deque.h"
+#include "global_request_scheduler_minheap.h"
+#include "http_parser_settings.h"
+#include "module.h"
+#include "runtime.h"
+#include "sandbox_request.h"
+#include "software_interrupt.h"
+#include "types.h"
 
 /***************************
  * Shared Process State    *

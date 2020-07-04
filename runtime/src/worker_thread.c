@@ -1,27 +1,18 @@
-/* Something is not idempotent with this or some other include.
-If placed in Local Includes, error is triggered that memset was implicitly declared */
-#include <runtime.h>
-
-/***************************
- * External Includes       *
- **************************/
 #include <pthread.h>
 #include <signal.h>
-#include <sched.h>    /* Wasmception. Included as submodule */
-#include <sys/mman.h> /* Wasmception. Included as submodule */
+#include <sched.h>
+#include <sys/mman.h>
 #include <uv.h>
 
-/***************************
- * Local Includes          *
- **************************/
-#include <current_sandbox.h>
-#include <global_request_scheduler.h>
-#include <local_completion_queue.h>
-#include <local_runqueue.h>
-#include <local_runqueue_list.h>
-#include <local_runqueue_minheap.h>
-#include <types.h>
-#include <worker_thread.h>
+#include "current_sandbox.h"
+#include "global_request_scheduler.h"
+#include "local_completion_queue.h"
+#include "local_runqueue.h"
+#include "local_runqueue_list.h"
+#include "local_runqueue_minheap.h"
+#include "runtime.h"
+#include "types.h"
+#include "worker_thread.h"
 
 /***************************
  * Worker Thread State     *

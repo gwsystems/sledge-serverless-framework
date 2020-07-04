@@ -1,7 +1,7 @@
 #include <assert.h>
-#include <sys/mman.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/mman.h>
 #include <uv.h>
 
 #include "current_sandbox.h"

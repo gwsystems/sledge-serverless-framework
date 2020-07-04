@@ -1,19 +1,19 @@
+#include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <ucontext.h>
 
-#include <types.h>
-#include <sandbox.h>
-#include <module.h>
-#include <arch/context.h>
-#include <software_interrupt.h>
-#include <current_sandbox.h>
+#include "arch/context.h"
+#include "current_sandbox.h"
 #include "local_runqueue.h"
+#include "module.h"
+#include "sandbox.h"
+#include "software_interrupt.h"
+#include "types.h"
 
 /*******************
  * Process Globals *

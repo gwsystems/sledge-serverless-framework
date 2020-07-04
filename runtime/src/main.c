@@ -1,18 +1,18 @@
 #include <ctype.h>
 #include <dlfcn.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
 #include <sched.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
 
-#include <module.h>
-#include <runtime.h>
-#include <sandbox.h>
-#include <software_interrupt.h>
-#include <worker_thread.h>
+#include "module.h"
+#include "runtime.h"
+#include "sandbox.h"
+#include "software_interrupt.h"
+#include "worker_thread.h"
 
 /* Conditionally used by debuglog when DEBUG is set */
 #ifdef DEBUG

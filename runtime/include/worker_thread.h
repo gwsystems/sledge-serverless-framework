@@ -1,6 +1,7 @@
 #pragma once
 
 #include <uv.h>
+
 #include "types.h"
 
 extern __thread uv_loop_t worker_thread_uvio_handle;
