@@ -1,5 +1,6 @@
 /* Code from https://github.com/gwsystems/silverfish/blob/master/runtime/memory/64bit_nix.c */
 #include "current_sandbox.h"
+#include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
 #include "types.h"
@@ -36,16 +37,12 @@ expand_memory(void)
 
 	void *map_result = mmap(page_address, WASM_PAGE_SIZE, PROT_READ | PROT_WRITE,
 	                        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-	if (map_result == MAP_FAILED) {
-		perror("Mapping of new memory failed");
-		exit(1);
-	}
 
-	// TODO: check sandbox->linear_memory_max_size
-	if (local_sandbox_member_cache.linear_memory_size > sandbox->linear_memory_max_size) {
-		printf("expand_memory - Out of Memory!\n");
-		exit(EXIT_FAILURE);
-	}
+	// TODO: Refactor to return RC signifying out-of-mem to caller
+	if (map_result == MAP_FAILED) panic("Mapping of new memory failed");
+	if (local_sandbox_member_cache.linear_memory_size > sandbox->linear_memory_max_size)
+		panic("expand_memory - Out of Memory!\n");
+
 	local_sandbox_member_cache.linear_memory_size += WASM_PAGE_SIZE;
 	// local_sandbox_member_cache is "forked state", so update authoritative member
 	sandbox->linear_memory_size = local_sandbox_member_cache.linear_memory_size;
