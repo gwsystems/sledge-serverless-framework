@@ -68,14 +68,13 @@ local_runqueue_list_get_next()
  * Append a sandbox to the runqueue
  * @returns the appended sandbox
  */
-struct sandbox *
+void
 local_runqueue_list_append(struct sandbox *sandbox_to_append)
 {
 	assert(ps_list_singleton_d(sandbox_to_append));
 	// fprintf(stderr, "(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, s,
 	// s->module->name);
 	ps_list_head_append_d(&local_runqueue_list, sandbox_to_append);
-	return sandbox_to_append;
 }
 
 /**

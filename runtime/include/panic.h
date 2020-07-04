@@ -11,5 +11,5 @@ panic(const char *format, ...)
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
-	exit(EXIT_FAILURE);
+	assert(0);
 }

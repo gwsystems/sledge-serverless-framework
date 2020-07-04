@@ -12,9 +12,8 @@ local_runqueue_initialize(struct local_runqueue_config *config)
 /**
  * Adds a sandbox request to the run queue
  * @param sandbox to add
- * @returns sandbox that was added (or NULL?)
  */
-struct sandbox *
+void
 local_runqueue_add(struct sandbox *sandbox)
 {
 	assert(local_runqueue.add_fn != NULL);

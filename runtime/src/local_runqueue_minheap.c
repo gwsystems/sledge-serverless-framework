@@ -25,25 +25,18 @@ local_runqueue_minheap_is_empty()
 /**
  * Adds a sandbox to the run queue
  * @param sandbox
- * @returns pointer to request if added. NULL otherwise
+ * @returns pointer to sandbox added
  */
-static struct sandbox *
+void
 local_runqueue_minheap_add(struct sandbox *sandbox)
 {
 	int original_length = priority_queue_length(&local_runqueue_minheap);
 
 	int return_code = priority_queue_enqueue(&local_runqueue_minheap, sandbox, "Runqueue");
-	if (return_code == -1) {
-		printf("Thread Runqueue is full!\n");
-		exit(EXIT_FAILURE);
-	}
+	if (return_code == -1) panic("Thread Runqueue is full!\n");
 
-	int final_length = priority_queue_length(&local_runqueue_minheap);
-
-	assert(final_length == original_length + 1);
-
-	assert(return_code == 0);
-	return sandbox;
+	/* Assumption: Should always take lock because thread-local runqueue */
+	assert(return_code != -2);
 }
 
 /**
