@@ -44,8 +44,14 @@ struct sandbox *
 local_runqueue_list_get_next()
 {
 	if (local_runqueue_is_empty()) {
-		sandbox_request_t *sandbox_request = global_request_scheduler_remove();
-		if (sandbox_request == NULL) return NULL;
+		sandbox_request_t *sandbox_request;
+
+		int return_code = global_request_scheduler_remove(&sandbox_request);
+		if (return_code != 0) return NULL;
+
+		/* TODO: sandbox_allocate should free sandbox_request on success */
+		/* TODO: sandbox_allocate should return RC so we can readd sandbox_request to global_request_scheduler
+		 * if needed */
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
 		assert(sandbox);
 		free(sandbox_request);

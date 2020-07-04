@@ -24,11 +24,22 @@ struct priority_queue {
 	priority_queue_get_priority_fn_t get_priority_fn;
 };
 
+/**
+ * Checks if a priority queue is empty
+ * @param self the priority queue to check
+ * @returns true if empty, else otherwise
+ */
+static inline bool
+priority_queue_is_empty(struct priority_queue *self)
+{
+	return self->highest_priority == ULONG_MAX;
+}
+
 void     priority_queue_initialize(struct priority_queue *self, priority_queue_get_priority_fn_t get_priority_fn);
-int      priority_queue_enqueue(struct priority_queue *self, void *value, char *name);
-void *   priority_queue_dequeue(struct priority_queue *self, char *name);
+int      priority_queue_enqueue(struct priority_queue *self, void *value);
+int      priority_queue_dequeue(struct priority_queue *self, void **dequeued_element);
 int      priority_queue_length(struct priority_queue *self);
 uint64_t priority_queue_peek(struct priority_queue *self);
-int      priority_queue_delete(struct priority_queue *self, void *value, char *name);
+int      priority_queue_delete(struct priority_queue *self, void *value);
 
 #endif /* PRIORITY_QUEUE_H */

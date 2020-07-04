@@ -110,6 +110,19 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 	}
 }
 
+/**
+ * Checks if a priority queue is empty
+ * @param self the priority queue to check
+ * @returns true if empty, else otherwise
+ */
+static inline bool
+priority_queue_is_empty_locked(struct priority_queue *self)
+{
+	assert(self != NULL);
+	assert(ck_spinlock_fas_locked(&self->lock));
+	return self->first_free == 1;
+}
+
 /*********************
  * Public API        *
  ********************/
@@ -152,22 +165,15 @@ priority_queue_length(struct priority_queue *self)
 /**
  * @param self - the priority queue we want to add to
  * @param value - the value we want to add
- * @returns 0 on success. -1 on full. -2 on unable to take lock
+ * @returns 0 on success. -1 on full.
  */
 int
-priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
+priority_queue_enqueue(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
 	ck_spinlock_fas_lock(&self->lock);
 
-	int pre_length = self->first_free - 1;
-
-	if (priority_queue_append(self, value) == -1) panic("Priority Queue is full");
-
-	int post_length = self->first_free - 1;
-
-	/* We should have appended here */
-	assert(post_length == pre_length + 1);
+	if (priority_queue_append(self, value) == -1) return -1;
 
 	/* If this is the first element we add, update the highest priority */
 	if (self->first_free == 2) {
@@ -184,7 +190,7 @@ priority_queue_enqueue(struct priority_queue *self, void *value, char *name)
  * @returns 0 on success. -1 on not found
  */
 int
-priority_queue_delete(struct priority_queue *self, void *value, char *name)
+priority_queue_delete(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
 	ck_spinlock_fas_lock(&self->lock);
@@ -204,49 +210,48 @@ priority_queue_delete(struct priority_queue *self, void *value, char *name)
 	return 0;
 }
 
-static bool
-priority_queue_is_empty(struct priority_queue *self)
-{
-	assert(self != NULL);
-	bool caller_locked = ck_spinlock_fas_locked(&self->lock);
-	if (!caller_locked) ck_spinlock_fas_lock(&self->lock);
-	assert(self->first_free != 0);
-	bool is_empty = self->first_free == 1;
-	if (!caller_locked) ck_spinlock_fas_unlock(&self->lock);
-	return is_empty;
-}
-
 /**
  * @param self - the priority queue we want to add to
- * @returns The head of the priority queue or NULL when empty
+ * @param dequeued_element a pointer to set to the dequeued element
+ * @returns RC 0 if successfully set dequeued_element, -1 if empty, -2 if unable to take lock
  */
-void *
-priority_queue_dequeue(struct priority_queue *self, char *name)
+int
+priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 {
 	assert(self != NULL);
+	assert(dequeued_element != NULL);
 	assert(self->get_priority_fn != NULL);
-	if (priority_queue_is_empty(self)) return NULL;
 
-	ck_spinlock_fas_lock(&self->lock);
+	int return_code;
 
-	void *min = NULL;
-	if (!priority_queue_is_empty(self)) {
-		min                           = self->items[1];
-		self->items[1]                = self->items[--self->first_free];
-		self->items[self->first_free] = NULL;
-		/* Because of 1-based indices, first_free is 2 when there is only one element */
-		if (self->first_free > 2) priority_queue_percolate_down(self, 1);
+	if (ck_spinlock_fas_trylock(&self->lock) == false) {
+		return_code = -2;
+		goto done;
+	};
 
-		/* Update the highest priority */
-		if (!priority_queue_is_empty(self)) {
-			self->highest_priority = self->get_priority_fn(self->items[1]);
-		} else {
-			self->highest_priority = ULONG_MAX;
-		}
+	if (priority_queue_is_empty_locked(self)) {
+		return_code = -1;
+		goto release_lock;
 	}
-	ck_spinlock_fas_unlock(&self->lock);
 
-	return min;
+	*dequeued_element             = self->items[1];
+	self->items[1]                = self->items[--self->first_free];
+	self->items[self->first_free] = NULL;
+	/* Because of 1-based indices, first_free is 2 when there is only one element */
+	if (self->first_free > 2) priority_queue_percolate_down(self, 1);
+
+	/* Update the highest priority */
+	if (!priority_queue_is_empty_locked(self)) {
+		self->highest_priority = self->get_priority_fn(self->items[1]);
+	} else {
+		self->highest_priority = ULONG_MAX;
+	}
+	return_code = 0;
+
+release_lock:
+	ck_spinlock_fas_unlock(&self->lock);
+done:
+	return return_code;
 }
 
 /**

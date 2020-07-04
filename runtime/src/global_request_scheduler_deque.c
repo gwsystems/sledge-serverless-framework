@@ -39,22 +39,27 @@ We are unsure if the locking behavior is correct, so there may be deadlocks */
  * perhaps not good. We might just add the #if in the scheduling code which should explicitly call "pop" for single core
  * and add an assert in "steal" function for NCORES == 1.
  *
- * @returns A Sandbox Request or NULL
+ * @returns 0 if successfully returned a sandbox request, -1 if empty, -2 if atomic instruction unsuccessful
  */
-static sandbox_request_t *
-global_request_scheduler_deque_remove(void)
+static int
+global_request_scheduler_deque_remove(sandbox_request_t **removed_sandbox_request)
 {
-	sandbox_request_t *sandbox_request;
-
+	int return_code;
 #if NCORES == 1
 	pthread_mutex_lock(&global_request_scheduler_deque_mutex);
-	return_code = deque_pop_sandbox(global_request_scheduler_deque, sandbox_request);
+	return_code = deque_pop_sandbox(global_request_scheduler_deque, *removed_sandbox_request);
 	pthread_mutex_unlock(&global_request_scheduler_deque_mutex);
 #else
-	int return_code = deque_steal_sandbox(global_request_scheduler_deque, &sandbox_request);
+	return_code = deque_steal_sandbox(global_request_scheduler_deque, removed_sandbox_request);
+	/* The Deque uses different return codes other than 0, so map here */
+	if (return_code == -2) {
+		return_code = -1;
+	} else if (return_code == -11) {
+		return_code = -2;
+	}
+
 #endif
-	if (return_code) sandbox_request = NULL;
-	return sandbox_request;
+	return return_code;
 }
 
 void

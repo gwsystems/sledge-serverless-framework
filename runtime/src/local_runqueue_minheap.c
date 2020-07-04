@@ -17,9 +17,7 @@ __thread static struct priority_queue local_runqueue_minheap;
 bool
 local_runqueue_minheap_is_empty()
 {
-	int length = priority_queue_length(&local_runqueue_minheap);
-	assert(length < 5);
-	return priority_queue_length(&local_runqueue_minheap) == 0;
+	return priority_queue_is_empty(&local_runqueue_minheap);
 }
 
 /**
@@ -30,23 +28,20 @@ local_runqueue_minheap_is_empty()
 void
 local_runqueue_minheap_add(struct sandbox *sandbox)
 {
-	int original_length = priority_queue_length(&local_runqueue_minheap);
-
-	int return_code = priority_queue_enqueue(&local_runqueue_minheap, sandbox, "Runqueue");
+	int return_code = priority_queue_enqueue(&local_runqueue_minheap, sandbox);
+	/* TODO: propagate RC to caller */
 	if (return_code == -1) panic("Thread Runqueue is full!\n");
-
-	/* Assumption: Should always take lock because thread-local runqueue */
-	assert(return_code != -2);
 }
 
 /**
  * Removes the highest priority sandbox from the run queue
- * @returns A Sandbox or NULL if empty
+ * @param pointer to test to address of removed sandbox if successful
+ * @returns 0 if successful, -1 if empty, -2 if unable to take lock
  */
-static struct sandbox *
-local_runqueue_minheap_remove()
+static int
+local_runqueue_minheap_remove(struct sandbox **to_remove)
 {
-	return (struct sandbox *)priority_queue_dequeue(&local_runqueue_minheap, "Runqueue");
+	return priority_queue_dequeue(&local_runqueue_minheap, (void **)to_remove);
 }
 
 /**
@@ -57,7 +52,7 @@ static void
 local_runqueue_minheap_delete(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-	int rc = priority_queue_delete(&local_runqueue_minheap, sandbox, "Runqueue");
+	int rc = priority_queue_delete(&local_runqueue_minheap, sandbox);
 	if (rc == -1) {
 		panic("Err: Thread Local %lu tried to delete sandbox %lu from runqueue, but was not present\n",
 		      pthread_self(), sandbox->start_time);
@@ -75,24 +70,31 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 struct sandbox *
 local_runqueue_minheap_get_next()
 {
-	if (local_runqueue_is_empty()) {
-		/* Try to pull a sandbox request and return NULL if we're unable to get one */
-		sandbox_request_t *sandbox_request;
-		if ((sandbox_request = global_request_scheduler_remove()) == NULL) { return NULL; };
+	struct sandbox *sandbox    = NULL;
+	int             sandbox_rc = local_runqueue_minheap_remove(&sandbox);
 
-		/* Otherwise, allocate the sandbox request as a runnable sandbox and place on the runqueue */
-		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
-		if (sandbox == NULL) return NULL;
+	if (sandbox_rc == 0) {
+		/* Sandbox ready pulled from local runqueue */
+
+		/* TODO: We remove and immediately re-add sandboxes. This seems like extra work. Consider an API to get
+		 * the min without removing it
+		 */
+		local_runqueue_minheap_add(sandbox);
+	} else if (sandbox_rc == -1) {
+		/* local runqueue was empty, try to pull a sandbox request and return NULL if we're unable to get one */
+		sandbox_request_t *sandbox_request;
+		int                sandbox_request_rc = global_request_scheduler_remove(&sandbox_request);
+		if (sandbox_request_rc != 0) return NULL;
+
+		sandbox = sandbox_allocate(sandbox_request);
 		assert(sandbox);
 		free(sandbox_request);
 		sandbox->state = RUNNABLE;
 		local_runqueue_minheap_add(sandbox);
-		return sandbox;
+	} else if (sandbox_rc == -2) {
+		/* Unable to take lock, so just return NULL and try later */
+		assert(sandbox == NULL);
 	}
-
-	/* Resume the sandbox at the top of the runqueue */
-	struct sandbox *sandbox = local_runqueue_minheap_remove();
-	local_runqueue_minheap_add(sandbox);
 	return sandbox;
 }
 
@@ -128,7 +130,13 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 
 	/* If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it */
 	sandbox_request_t *sandbox_request;
-	if (global_deadline < local_deadline && (sandbox_request = global_request_scheduler_remove()) != NULL) {
+	if (global_deadline < local_deadline) {
+		sandbox_request_t *sandbox_request;
+		int                return_code = global_request_scheduler_remove(&sandbox_request);
+
+		// If we were unable to get a sandbox_request, exit
+		if (return_code == -1 || return_code == -2) goto done;
+
 		printf("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
 		       sandbox_request->absolute_deadline);
 
@@ -155,6 +163,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		if (arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt) == 1)
 			should_enable_software_interrupt = false;
 	}
+done:
 	if (should_enable_software_interrupt) software_interrupt_enable();
 }
 

@@ -30,11 +30,11 @@ global_request_scheduler_add(sandbox_request_t *sandbox_request)
  * Removes a sandbox request according to the scheduling policy of the variant
  * @returns pointer to a sandbox request
  */
-sandbox_request_t *
-global_request_scheduler_remove()
+int
+global_request_scheduler_remove(sandbox_request_t **removed_sandbox)
 {
 	assert(global_request_scheduler.remove_fn != NULL);
-	return global_request_scheduler.remove_fn();
+	return global_request_scheduler.remove_fn(removed_sandbox);
 }
 
 /**

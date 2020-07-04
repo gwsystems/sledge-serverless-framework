@@ -1,4 +1,5 @@
 #include "global_request_scheduler.h"
+#include "panic.h"
 #include "priority_queue.h"
 
 static struct priority_queue global_request_scheduler_minheap;
@@ -11,25 +12,20 @@ static struct priority_queue global_request_scheduler_minheap;
 static sandbox_request_t *
 global_request_scheduler_minheap_add(void *sandbox_request)
 {
-	int return_code = priority_queue_enqueue(&global_request_scheduler_minheap, sandbox_request, "Request");
-
-	if (return_code == -1) {
-		printf("Request Queue is full\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if (return_code != 0) return NULL;
+	int return_code = priority_queue_enqueue(&global_request_scheduler_minheap, sandbox_request);
+	/* TODO: Propagate -1 to caller */
+	if (return_code == -1) panic("Request Queue is full\n");
 	return sandbox_request;
 }
 
 /**
- *
- * @returns A Sandbox Request or NULL
+ * @param pointer to the pointer that we want to set to the address of the removed sandbox request
+ * @returns 0 if successful, -1 if empty, -2 if unable to take lock or perform atomic operation
  */
-static sandbox_request_t *
-global_request_scheduler_minheap_remove(void)
+int
+global_request_scheduler_minheap_remove(sandbox_request_t **removed_sandbox_request)
 {
-	return (sandbox_request_t *)priority_queue_dequeue(&global_request_scheduler_minheap, "Request");
+	return priority_queue_dequeue(&global_request_scheduler_minheap, (void **)removed_sandbox_request);
 }
 
 /**
