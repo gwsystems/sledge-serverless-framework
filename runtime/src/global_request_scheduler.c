@@ -28,7 +28,8 @@ global_request_scheduler_add(sandbox_request_t *sandbox_request)
 
 /**
  * Removes a sandbox request according to the scheduling policy of the variant
- * @returns pointer to a sandbox request
+ * @param removed_sandbox where to write the adddress of the removed sandbox
+ * @returns 0 if successful, -1 if empty, -2 if unable to take lock or perform atomic operation
  */
 int
 global_request_scheduler_remove(sandbox_request_t **removed_sandbox)
