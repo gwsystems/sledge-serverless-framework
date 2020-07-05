@@ -2,6 +2,7 @@
 
 #include "current_sandbox.h"
 #include "http_request.h"
+#include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
 #include "types.h"
@@ -452,15 +453,8 @@ wasm_mmap(i32 addr, i32 len, i32 prot, i32 flags, i32 file_descriptor, i32 offse
 {
 	int d = current_sandbox_get_file_descriptor(file_descriptor);
 	if (file_descriptor >= 0) assert(d >= 0);
-	if (addr != 0) {
-		printf("parameter void *addr is not supported!\n");
-		assert(0);
-	}
-
-	if (d != -1) {
-		printf("file mapping is not supported!\n");
-		assert(0);
-	}
+	if (addr != 0) panic("parameter void *addr is not supported!\n");
+	if (d != -1) panic("file mapping is not supported!\n");
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
@@ -1151,8 +1145,7 @@ inner_syscall_handler(i32 n, i32 a, i32 b, i32 c, i32 d, i32 e, i32 f)
 	case SYS_RECVFROM:
 		return wasm_recvfrom(a, b, c, d, e, f);
 	}
-	printf("syscall %d (%d, %d, %d, %d, %d, %d)\n", n, a, b, c, d, e, f);
-	assert(0);
 
+	panic("syscall %d (%d, %d, %d, %d, %d, %d)\n", n, a, b, c, d, e, f);
 	return 0;
 }

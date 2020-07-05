@@ -67,7 +67,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	if (previous_sandbox != NULL && previous_sandbox->state == RETURNED) {
 		local_completion_queue_add(previous_sandbox);
 	} else if (previous_sandbox != NULL) {
-		printf("Switched away from sandbox is state %d\n", previous_sandbox->state);
+		debuglog("Switched away from sandbox is state %d\n", previous_sandbox->state);
 	}
 
 	software_interrupt_enable();
@@ -84,7 +84,7 @@ worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 	// debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 	if (sandbox->state == BLOCKED) {
 		sandbox->state = RUNNABLE;
-		printf("Marking blocked sandbox as runnable\n");
+		debuglog("Marking blocked sandbox as runnable\n");
 		local_runqueue_add(sandbox);
 	}
 	software_interrupt_enable();

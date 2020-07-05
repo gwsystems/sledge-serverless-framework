@@ -137,9 +137,8 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		// If we were unable to get a sandbox_request, exit
 		if (return_code == -1 || return_code == -2) goto done;
 
-		printf("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
-		       sandbox_request->absolute_deadline);
-
+		debuglog("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
+		         sandbox_request->absolute_deadline);
 		/* Allocate the request */
 		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
 		assert(next_sandbox);
@@ -147,7 +146,6 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		next_sandbox->state = RUNNABLE;
 
 		/* Add it to the runqueue */
-		printf("adding new sandbox to runqueue\n");
 		local_runqueue_add(next_sandbox);
 		debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 

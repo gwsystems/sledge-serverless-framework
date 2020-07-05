@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "module.h"
+#include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
 #include "software_interrupt.h"
@@ -34,7 +35,6 @@ pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 static void
 runtime_usage(char *cmd)
 {
-	printf("%s <modules_file>\n", cmd);
 	debuglog("%s <modules_file>\n", cmd);
 }
 
@@ -89,9 +89,9 @@ runtime_allocate_available_cores()
 		runtime_first_worker_processor  = 0;
 		runtime_total_worker_processors = 1;
 	}
-	printf("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
-	       runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
-	       LISTENER_THREAD_CORE_ID);
+	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
+	         runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
+	         LISTENER_THREAD_CORE_ID);
 }
 
 /**
@@ -173,7 +173,6 @@ runtime_start_runtime_worker_threads()
 		assert(ret == 0);
 	}
 	debuglog("Sandboxing environment ready!\n");
-	printf("aWsm runtime ready!\n");
 
 	for (int i = 0; i < runtime_total_worker_processors; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);
@@ -184,7 +183,6 @@ runtime_start_runtime_worker_threads()
 		}
 	}
 
-	printf("\nWorker Threads unexpectedly returned!!\n");
 	exit(-1);
 }
 
@@ -195,7 +193,7 @@ main(int argc, char **argv)
 	runtime_process_debug_log_behavior();
 #endif
 
-	printf("Initializing the runtime\n");
+	debuglog("Initializing the runtime\n");
 	if (argc != 2) {
 		runtime_usage(argv[0]);
 		exit(-1);
@@ -206,20 +204,17 @@ main(int argc, char **argv)
 	runtime_processor_speed_MHz                    = runtime_get_processor_speed_MHz();
 	SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES = (uint64_t)SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC
 	                                                 * runtime_processor_speed_MHz;
-	printf("Detected processor speed of %f MHz\n", runtime_processor_speed_MHz);
+	debuglog("Detected processor speed of %f MHz\n", runtime_processor_speed_MHz);
 
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();
 	runtime_initialize();
 
 	debuglog("Parsing modules file [%s]\n", argv[1]);
-	if (module_new_from_json(argv[1])) {
-		printf("failed to parse modules file[%s]\n", argv[1]);
-		exit(-1);
-	}
+	if (module_new_from_json(argv[1])) panic("failed to parse modules file[%s]\n", argv[1]);
 
-	printf("Starting listener thread\n");
+	debuglog("Starting listener thread\n");
 	listener_thread_initialize();
-	printf("Starting worker threads\n");
+	debuglog("Starting worker threads\n");
 	runtime_start_runtime_worker_threads();
 }

@@ -7,6 +7,7 @@
 #include "current_sandbox.h"
 #include "http_parser_settings.h"
 #include "libuv_callbacks.h"
+#include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
 #include "types.h"
@@ -148,8 +149,8 @@ done:
 	sandbox->total_time    = end_time - sandbox->start_time;
 	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 
-	printf("%s():%d, %u, %lu\n", sandbox->module->name, sandbox->module->port,
-	       sandbox->module->relative_deadline_us, total_time_us);
+	debuglog("%s():%d, %u, %lu\n", sandbox->module->name, sandbox->module->port,
+	         sandbox->module->relative_deadline_us, total_time_us);
 
 #ifndef USE_HTTP_UVIO
 	int r = send(sandbox->client_socket_descriptor, sandbox->request_response_data, sndsz, 0);
@@ -239,7 +240,7 @@ void
 current_sandbox_main(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
-	// assert(sandbox != NULL);
+	assert(sandbox != NULL);
 	assert(sandbox->state == RUNNABLE);
 
 	assert(!software_interrupt_is_enabled());
@@ -253,7 +254,7 @@ current_sandbox_main(void)
 
 	/* Parse the request. 1 = Success */
 	int rc = sandbox_receive_and_parse_client_request(sandbox);
-	if (rc != 1) goto err;
+	if (rc != 1) goto done;
 
 	/* Initialize the module */
 	struct module *current_module = sandbox_get_module(sandbox);
@@ -275,8 +276,6 @@ done:
 	/* Cleanup connection and exit sandbox */
 	sandbox_close_http(sandbox);
 	worker_thread_on_sandbox_exit(sandbox);
-err:
-	goto done;
 }
 
 /**
@@ -335,7 +334,6 @@ set_rw_failed:
 	int rc  = munmap(addr, sandbox_size + linear_memory_size + PAGE_SIZE);
 	if (rc == -1) perror("Failed to munmap after fail to set r/w");
 alloc_failed:
-alloc_too_big:
 err:
 	perror(error_message);
 	goto done;
@@ -460,9 +458,7 @@ done:
 	return;
 err_free_sandbox_failed:
 err_free_stack_failed:
-	/* Inability to free memory is a fatal error */
-	perror(error_message);
-	exit(EXIT_FAILURE);
 err:
-	goto done;
+	/* Errors freeing memory is a fatal error */
+	panic(error_message);
 }
