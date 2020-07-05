@@ -29,8 +29,10 @@ global_request_scheduler_minheap_remove(sandbox_request_t **removed_sandbox_requ
 }
 
 /**
- *
- * @returns A Sandbox Request or NULL
+ * Peek at the priority of the highest priority task without having to take the lock
+ * Because this is a min-heap PQ, the highest priority is the lowest 64-bit integer
+ * This is used to store an absolute deadline
+ * @returns value of highest priority value in queue or ULONG_MAX if empty
  */
 static uint64_t
 global_request_scheduler_minheap_peek(void)
