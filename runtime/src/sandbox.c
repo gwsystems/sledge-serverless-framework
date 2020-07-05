@@ -380,63 +380,70 @@ err_stack_allocation_failed:
 	return -1;
 }
 
-struct sandbox *
-sandbox_allocate(struct sandbox_request *sandbox_request)
+/**
+ * Allocates a new sandbox from a sandbox request, freeing the sandbox request on success
+ * @param sandbox pointer to destination pointer to set to newly allocated sandbox
+ * @param sandbox_request request being allocated
+ * @returns 0 on success, -1 on error
+ */
+int
+sandbox_allocate(struct sandbox **sandbox, struct sandbox_request *sandbox_request)
 {
+	assert(sandbox != NULL);
 	assert(sandbox_request != NULL);
 	assert(sandbox_request->module != NULL);
 	assert(module_is_valid(sandbox_request->module));
 
-	char *          error_message = "";
-	int             rc;
-	struct sandbox *sandbox = NULL;
+	char *error_message = "";
+	int   rc;
 
 	/* Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space */
-	sandbox = (struct sandbox *)sandbox_allocate_memory(sandbox_request->module);
+	*sandbox = (struct sandbox *)sandbox_allocate_memory(sandbox_request->module);
 	if (!sandbox) {
 		error_message = "failed to allocate sandbox heap and linear memory";
 		goto err_memory_allocation_failed;
 	}
 
 	/* Set state to initializing */
-	sandbox->state = SANDBOX_INITIALIZING;
+	(*sandbox)->state = SANDBOX_INITIALIZING;
 
 	/* Allocate the Stack */
-	rc = sandbox_allocate_stack(sandbox);
-	if (rc != 0) {
+	if (sandbox_allocate_stack(*sandbox) == -1) {
 		error_message = "failed to allocate sandbox heap and linear memory";
 		goto err_stack_allocation_failed;
 	}
 
 	/* Copy the socket descriptor, address, and arguments of the client invocation */
-	sandbox->absolute_deadline         = sandbox_request->absolute_deadline;
-	sandbox->arguments                 = (void *)sandbox_request->arguments;
-	sandbox->client_socket_descriptor  = sandbox_request->socket_descriptor;
-	sandbox->request_arrival_timestamp = sandbox_request->request_arrival_timestamp;
+	(*sandbox)->absolute_deadline         = sandbox_request->absolute_deadline;
+	(*sandbox)->arguments                 = (void *)sandbox_request->arguments;
+	(*sandbox)->client_socket_descriptor  = sandbox_request->socket_descriptor;
+	(*sandbox)->request_arrival_timestamp = sandbox_request->request_arrival_timestamp;
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
-	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
-	                  (reg_t)(sandbox->stack_start + sandbox->stack_size));
+	arch_context_init(&(*sandbox)->ctxt, (reg_t)current_sandbox_main,
+	                  (reg_t)((*sandbox)->stack_start + (*sandbox)->stack_size));
 
 	/* TODO: What does it mean if there isn't a socket_address? Shouldn't this be a hard requirement?
 	        It seems that only the socket descriptor is used to send response */
 	const struct sockaddr *socket_address = sandbox_request->socket_address;
-	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
+	if (socket_address) memcpy(&(*sandbox)->client_address, socket_address, sizeof(struct sockaddr));
 
 	/* Initialize file descriptors to -1 */
-	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
+	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) (*sandbox)->io_handles[i].file_descriptor = -1;
 
 	/* Initialize Parsec control structures (used by Completion Queue) */
-	ps_list_init_d(sandbox);
+	ps_list_init_d(*sandbox);
 
+	free(sandbox_request);
+	rc = 0;
 done:
-	return sandbox;
+	return rc;
 err_stack_allocation_failed:
-	sandbox_free(sandbox);
+	sandbox_free(*sandbox);
 err_memory_allocation_failed:
 err:
 	perror(error_message);
-	sandbox = NULL;
+	rc = -1;
 	goto done;
 }
 

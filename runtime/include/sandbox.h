@@ -92,11 +92,13 @@ extern void worker_thread_wakeup_sandbox(struct sandbox *sandbox);
  * Public API              *
  **************************/
 
-struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
-void            sandbox_free(struct sandbox *sandbox);
-void            sandbox_main(struct sandbox *sandbox);
-int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
+int sandbox_allocate(struct sandbox **sandbox, struct sandbox_request *sandbox_request);
+#define SANDBOX_ALLOCATE_OK  0
+#define SANDBOX_ALLOCATE_ERR -1
 
+void sandbox_free(struct sandbox *sandbox);
+void sandbox_main(struct sandbox *sandbox);
+int  sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
 /**
  * Given a sandbox, returns the module that sandbox is executing
