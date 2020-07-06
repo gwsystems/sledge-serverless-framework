@@ -56,14 +56,14 @@ local_runqueue_list_get_next()
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
 		assert(sandbox);
 		free(sandbox_request);
-		sandbox->state = RUNNABLE;
+		sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_add(sandbox);
 		return sandbox;
 	}
 
 	/* Execute Round Robin Scheduling Logic */
 	struct sandbox *next_sandbox = local_runqueue_list_remove_and_return();
-	assert(next_sandbox->state != RETURNED);
+	assert(next_sandbox->state != SANDBOX_RETURNED);
 	local_runqueue_add(next_sandbox);
 
 	debuglog("[%p: %s]\n", next_sandbox, next_sandbox->module->name);

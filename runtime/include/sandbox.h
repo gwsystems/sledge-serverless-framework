@@ -24,10 +24,10 @@ struct sandbox_io_handle {
 
 typedef enum
 {
-	INITIALIZING,
-	RUNNABLE,
-	BLOCKED,
-	RETURNED
+	SANDBOX_INITIALIZING,
+	SANDBOX_RUNNABLE,
+	SANDBOX_BLOCKED,
+	SANDBOX_RETURNED
 } sandbox_state_t;
 
 struct sandbox {

@@ -78,8 +78,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		software_interrupt_SIGALRM_count++;
 
-		/* if the current sandbox is NULL or not in a RETURNED state */
-		if (current_sandbox && current_sandbox->state == RETURNED) return;
+		/* if the current sandbox is NULL or not in a returned state */
+		if (current_sandbox && current_sandbox->state == SANDBOX_RETURNED) return;
 		/* and the next context is NULL */
 		if (worker_thread_next_context) return;
 		/* and software interrupts are not disabled */

@@ -89,7 +89,7 @@ local_runqueue_minheap_get_next()
 		sandbox = sandbox_allocate(sandbox_request);
 		assert(sandbox);
 		free(sandbox_request);
-		sandbox->state = RUNNABLE;
+		sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_minheap_add(sandbox);
 	} else if (sandbox_rc == -2) {
 		/* Unable to take lock, so just return NULL and try later */
@@ -143,7 +143,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
 		assert(next_sandbox);
 		free(sandbox_request);
-		next_sandbox->state = RUNNABLE;
+		next_sandbox->state = SANDBOX_RUNNABLE;
 
 		/* Add it to the runqueue */
 		local_runqueue_add(next_sandbox);

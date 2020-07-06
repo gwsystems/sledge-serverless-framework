@@ -241,7 +241,7 @@ current_sandbox_main(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
-	assert(sandbox->state == RUNNABLE);
+	assert(sandbox->state == SANDBOX_RUNNABLE);
 
 	assert(!software_interrupt_is_enabled());
 	arch_context_init(&sandbox->ctxt, 0, 0);
@@ -375,7 +375,7 @@ sandbox_allocate(sandbox_request_t *sandbox_request)
 	if (!sandbox) goto err_memory_allocation_failed;
 
 	/* Set state to initializing */
-	sandbox->state = INITIALIZING;
+	sandbox->state = SANDBOX_INITIALIZING;
 
 	/* Allocate the Stack */
 	rc = sandbox_allocate_stack(sandbox);
@@ -421,7 +421,7 @@ sandbox_free(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	assert(sandbox != current_sandbox_get());
-	assert(sandbox->state == INITIALIZING || sandbox->state == RETURNED);
+	assert(sandbox->state == SANDBOX_INITIALIZING || sandbox->state == SANDBOX_RETURNED);
 
 	char *error_message = NULL;
 	int   rc;

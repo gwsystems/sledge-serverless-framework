@@ -37,7 +37,7 @@ static __thread bool worker_thread_is_in_callback;
  **********************/
 
 /**
- * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in RETURNED state
+ * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in SANDBOX_RETURNED state
  * @param next_sandbox The Sandbox Context to switch to or NULL, which forces return to base context
  * @return void
  */
@@ -62,11 +62,11 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	worker_thread_next_context = next_register_context;
 	arch_context_switch(previous_register_context, next_register_context);
 
-	assert(previous_sandbox == NULL || previous_sandbox->state == RUNNABLE || previous_sandbox->state == BLOCKED
-	       || previous_sandbox->state == RETURNED);
+	assert(previous_sandbox == NULL || previous_sandbox->state == SANDBOX_RUNNABLE
+	       || previous_sandbox->state == SANDBOX_BLOCKED || previous_sandbox->state == SANDBOX_RETURNED);
 
-	/* If the current sandbox we're switching from is in a RETURNED state, add to completion queue */
-	if (previous_sandbox != NULL && previous_sandbox->state == RETURNED) {
+	/* If the current sandbox we're switching from is in a SANDBOX_RETURNED state, add to completion queue */
+	if (previous_sandbox != NULL && previous_sandbox->state == SANDBOX_RETURNED) {
 		local_completion_queue_add(previous_sandbox);
 	} else if (previous_sandbox != NULL) {
 		debuglog("Switched away from sandbox is state %d\n", previous_sandbox->state);
@@ -83,9 +83,9 @@ void
 worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 {
 	software_interrupt_disable();
-	if (sandbox->state != BLOCKED) goto done;
+	if (sandbox->state != SANDBOX_BLOCKED) goto done;
 
-	sandbox->state = RUNNABLE;
+	sandbox->state = SANDBOX_RUNNABLE;
 	debuglog("Marking blocked sandbox as runnable\n");
 	local_runqueue_add(sandbox);
 
@@ -107,7 +107,7 @@ worker_thread_block_current_sandbox(void)
 	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
 	struct sandbox *previous_sandbox = current_sandbox_get();
 	local_runqueue_delete(previous_sandbox);
-	previous_sandbox->state = BLOCKED;
+	previous_sandbox->state = SANDBOX_BLOCKED;
 
 	/* Switch to the next sandbox */
 	struct sandbox *next_sandbox = local_runqueue_get_next();
@@ -211,7 +211,7 @@ worker_thread_main(void *return_code)
 
 /**
  * Called when the function in the sandbox exits
- * Removes the standbox from the thread-local runqueue, sets its state to RETURNED,
+ * Removes the standbox from the thread-local runqueue, sets its state to SANDBOX_RETURNED,
  * releases the linear memory, and then switches to the sandbox at the head of the runqueue
  * TODO: Consider moving this to a future current_sandbox file. This has thus far proven difficult to move
  */
@@ -223,7 +223,7 @@ worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)
 	/* TODO: I do not understand when software interrupts must be disabled? */
 	software_interrupt_disable();
 	local_runqueue_delete(exiting_sandbox);
-	exiting_sandbox->state = RETURNED;
+	exiting_sandbox->state = SANDBOX_RETURNED;
 	software_interrupt_enable();
 
 	/* Because the stack is still in use, only unmap linear memory and defer free resources until "main
