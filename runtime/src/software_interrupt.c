@@ -20,7 +20,7 @@
  ******************/
 
 static const int software_interrupt_supported_signals[] = { SIGALRM, SIGUSR1 };
-uint64_t         SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
+uint64_t         software_interrupt_interval_duration_in_cycles;
 
 /******************
  * Thread Globals *

@@ -119,7 +119,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 
 	// TODO: Factor quantum and/or sandbox allocation time into decision
 	// uint64_t global_deadline = global_request_scheduler_peek() -
-	// SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_CYCLES;
+	// software_interrupt_interval_duration_in_cycles;
 
 	bool     should_enable_software_interrupt = true;
 	uint64_t local_deadline                   = priority_queue_peek(&local_runqueue_minheap);
