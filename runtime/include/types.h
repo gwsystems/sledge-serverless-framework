@@ -16,7 +16,6 @@
 #include <time.h>
 #include <unistd.h>
 
-
 #define EXPORT __attribute__((visibility("default")))
 #define IMPORT __attribute__((visibility("default")))
 
@@ -118,8 +117,8 @@ typedef void (*mod_libc_fn_t)(i32, i32);
 #define HTTP_RESPONSE_CONTENT_TYPE       "Content-type:                                 \r\n"
 #define HTTP_RESPONSE_CONTENT_TYPE_PLAIN "text/plain"
 
-#define JSON_MAX_ELEMENT_COUNT 16   /* Max number of elements defined in JSON */
-#define JSON_MAX_ELEMENT_SIZE  1024 /* Max size of a single module in JSON */
+#define JSON_MAX_ELEMENT_COUNT 16
+#define JSON_MAX_ELEMENT_SIZE  1024
 
 #define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
 #define LISTENER_THREAD_MAX_EPOLL_EVENTS 1024
@@ -133,11 +132,11 @@ typedef void (*mod_libc_fn_t)(i32, i32);
 #define MODULE_INITIALIZE_LIBC    "wasmf___init_libc"
 #define MODULE_MAIN               "wasmf_main"
 
-#define MODULE_MAX_ARGUMENT_COUNT          16  /* Max number of arguments */
-#define MODULE_MAX_ARGUMENT_SIZE           64  /* Max size of a single argument */
-#define MODULE_MAX_MODULE_COUNT            128 /* Max number of modules */
-#define MODULE_MAX_NAME_LENGTH             32  /* Max module name length */
-#define MODULE_MAX_PATH_LENGTH             256 /* Max length of path string */
+#define MODULE_MAX_ARGUMENT_COUNT          16
+#define MODULE_MAX_ARGUMENT_SIZE           64
+#define MODULE_MAX_MODULE_COUNT            128
+#define MODULE_MAX_NAME_LENGTH             32
+#define MODULE_MAX_PATH_LENGTH             256
 #define MODULE_MAX_PENDING_CLIENT_REQUESTS 1000
 
 #define RUNTIME_LOG_FILE                  "awesome.log"
@@ -146,11 +145,9 @@ typedef void (*mod_libc_fn_t)(i32, i32);
 
 #define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) /* upside down LOLLOLLOL 🤣😂🤣*/
 #define SANDBOX_MAX_IO_HANDLE_COUNT           32
-#define SANDBOX_PULL_BATCH_SIZE               1 /* Max # standboxes pulled onto the local runqueue in a single batch */
 
-#define SOFTWARE_INTERRUPT_TIME_TO_START_IN_USEC     (10 * 1000) /* start timers 10 ms from now. */
-#define SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC (1000 * 5)  /* and execute every 5ms */
-
+#define SOFTWARE_INTERRUPT_TIME_TO_START_IN_USEC     (10 * 1000) /* 10 ms */
+#define SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC (5 * 1000)  /* 5 ms */
 
 /* If multicore, use all but the dedicated listener core
 If there are fewer cores than this, main dynamically overrides this and uses all available */
