@@ -94,13 +94,15 @@ arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 		mc->gregs[REG_RSP] = ctx->regs[5];
 		mc->gregs[REG_RIP] = ctx->regs[16] + ARCH_SIG_JMP_OFF;
 		ctx->regs[5]       = 0;
+
 		return 1;
-	} else {
-		/* Restore mcontext */
-		memcpy(mc, &ctx->mctx, sizeof(mcontext_t));
-		memset(&ctx->mctx, 0, sizeof(mcontext_t));
-		return 0;
 	}
+
+	/* Restore mcontext */
+	memcpy(mc, &ctx->mctx, sizeof(mcontext_t));
+	memset(&ctx->mctx, 0, sizeof(mcontext_t));
+
+	return 0;
 }
 
 /**
