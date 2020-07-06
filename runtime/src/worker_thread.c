@@ -83,12 +83,13 @@ void
 worker_thread_wakeup_sandbox(sandbox_t *sandbox)
 {
 	software_interrupt_disable();
-	// debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
-	if (sandbox->state == BLOCKED) {
-		sandbox->state = RUNNABLE;
-		debuglog("Marking blocked sandbox as runnable\n");
-		local_runqueue_add(sandbox);
-	}
+	if (sandbox->state != BLOCKED) goto done;
+
+	sandbox->state = RUNNABLE;
+	debuglog("Marking blocked sandbox as runnable\n");
+	local_runqueue_add(sandbox);
+
+done:
 	software_interrupt_enable();
 }
 
