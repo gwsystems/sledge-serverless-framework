@@ -205,8 +205,7 @@ worker_thread_main(void *return_code)
 		local_completion_queue_free();
 	}
 
-	*(int *)return_code = -1;
-	pthread_exit(return_code);
+	panic("Worker Thread unexpectedly completed run loop.");
 }
 
 /**
