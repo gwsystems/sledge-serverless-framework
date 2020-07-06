@@ -158,7 +158,8 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 	 * we are not invoking this in a way that clobbers a current module.
 	 *
 	 * If we want to be able to do this later, we can possibly defer module_initialize_table until the first
-	 * invocation
+	 * invocation. Alternatively, we can maintain the module_indirect_table per sandbox and call initialize
+	 * on each sandbox if this "assumption" is too restrictive and we're ready to pay a per-sandbox performance hit.
 	 */
 
 	assert(local_sandbox_context_cache.module_indirect_table == NULL);
