@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sched.h>
@@ -10,6 +11,7 @@
 #include "local_runqueue.h"
 #include "local_runqueue_list.h"
 #include "local_runqueue_minheap.h"
+#include "panic.h"
 #include "runtime.h"
 #include "types.h"
 #include "worker_thread.h"
@@ -226,11 +228,9 @@ worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)
 
 	/* Because the stack is still in use, only unmap linear memory and defer free resources until "main
 	function execution" */
+	errno  = 0;
 	int rc = munmap(exiting_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
-	if (rc == -1) {
-		perror("worker_thread_on_sandbox_exit - munmap failed");
-		assert(0);
-	}
+	if (rc == -1) panic("worker_thread_on_sandbox_exit - munmap failed with errno - %s\n", strerror(errno));
 
 	local_completion_queue_add(exiting_sandbox);
 
