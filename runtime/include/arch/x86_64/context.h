@@ -7,29 +7,15 @@
 #include <ucontext.h>
 #include <unistd.h>
 
-#define ARCH_NREGS       (16 /* GP registers */ + 1 /* for IP */)
 #define ARCH_SIG_JMP_OFF 8
 
-/*
- * Register strict ordering>
- * rax = (regs + 0) = 0(%%reg)
- * rbx = (regs + 1) = 8(%%reg)
- * rcx = (regs + 2) = 16(%%reg)
- * rdx = (regs + 3) = 24(%%reg)
- * rbp = (regs + 4) = 32(%%reg)
- * rsp = (regs + 5) = 40(%%reg)
- * rsi = (regs + 6) = 48(%%reg)
- * rdi = (regs + 7) = 56(%%reg)
- * r8 = (regs + 8) = 64(%%reg)
- * r9 = (regs + 9) = 72(%%reg)
- * r10 = (regs + 10) = 80(%%reg)
- * r11 = (regs + 11) = 88(%%reg)
- * r12 = (regs + 12) = 96(%%reg)
- * r13 = (regs + 13) = 104(%%reg)
- * r14 = (regs + 14) = 112(%%reg)
- * r15 = (regs + 15) = 120(%%reg)
- * rip = (regs + 16) = 128(%%reg)
- */
+// Userspace Registers.
+enum UREGS
+{
+	UREG_RSP,
+	UREG_RIP,
+	UREG_COUNT
+};
 
 typedef uint64_t reg_t;
 
@@ -39,7 +25,7 @@ typedef uint64_t reg_t;
  */
 
 struct arch_context {
-	reg_t      regs[ARCH_NREGS];
+	reg_t      regs[UREG_COUNT];
 	mcontext_t mctx;
 };
 
@@ -51,7 +37,7 @@ extern __thread arch_context_t worker_thread_base_context;
 static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
 {
 	memset(&actx->mctx, 0, sizeof(mcontext_t));
-	memset((void *)actx->regs, 0, sizeof(reg_t) * ARCH_NREGS);
+	memset((void *)actx->regs, 0, sizeof(reg_t) * UREG_COUNT);
 
 	if (sp) {
 		/*
@@ -71,8 +57,8 @@ static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, re
 		             : "memory", "cc", "rbx");
 	}
 
-	*(actx->regs + 5)  = sp;
-	*(actx->regs + 16) = ip;
+	actx->regs[UREG_RSP] = sp;
+	actx->regs[UREG_RIP] = ip;
 }
 
 /**
@@ -88,12 +74,14 @@ arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 {
 	assert(ctx != &worker_thread_base_context);
 
-	/* if ctx->regs[5] is set, this was last in a user-level context switch state */
-	bool did_user_level_context_switch = ctx->regs[5];
+	/* if ctx->regs[0] is set, this was last in a user-level context switch state!
+	 * else restore mcontext..
+	 */
+	bool did_user_level_context_switch = ctx->regs[UREG_RSP];
 	if (did_user_level_context_switch) {
-		mc->gregs[REG_RSP] = ctx->regs[5];
-		mc->gregs[REG_RIP] = ctx->regs[16] + ARCH_SIG_JMP_OFF;
-		ctx->regs[5]       = 0;
+		mc->gregs[REG_RSP]  = ctx->regs[UREG_RSP];
+		mc->gregs[REG_RIP]  = ctx->regs[UREG_RIP] + ARCH_SIG_JMP_OFF;
+		ctx->regs[UREG_RSP] = 0;
 
 		return 1;
 	}
@@ -115,7 +103,7 @@ arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
 {
 	assert(ctx != &worker_thread_base_context);
 
-	ctx->regs[5] = 0;
+	ctx->regs[UREG_RSP] = 0;
 	memcpy(&ctx->mctx, mc, sizeof(mcontext_t));
 }
 
@@ -142,17 +130,17 @@ arch_context_switch(arch_context_t *current, arch_context_t *next)
 
 	asm volatile("pushq %%rbp\n\t"
 	             "movq %%rsp, %%rbp\n\t"
-	             "movq $2f, 128(%%rax)\n\t"
-	             "movq %%rsp, 40(%%rax)\n\t"
-	             "cmpq $0, 40(%%rbx)\n\t"
+	             "movq $2f, 8(%%rax)\n\t"
+	             "movq %%rsp, (%%rax)\n\t"
+	             "cmpq $0, (%%rbx)\n\t"
 	             "je 1f\n\t"
-	             "movq 40(%%rbx), %%rsp\n\t"
-	             "jmpq *128(%%rbx)\n\t"
+	             "movq (%%rbx), %%rsp\n\t"
+	             "jmpq *8(%%rbx)\n\t"
 	             "1:\n\t"
 	             "call worker_thread_sandbox_switch_preempt\n\t"
 	             ".align 8\n\t"
 	             "2:\n\t"
-	             "movq $0, 40(%%rbx)\n\t"
+	             "movq $0, (%%rbx)\n\t"
 	             ".align 8\n\t"
 	             "3:\n\t"
 	             "popq %%rbp\n\t"
