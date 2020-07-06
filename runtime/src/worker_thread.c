@@ -58,12 +58,13 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	current_sandbox_set(next_sandbox);
 
 	/* ...and switch to the associated context.
-	Save the context pointer to worker_thread_next_context in case of preemption */
+	 * Save the context pointer to worker_thread_next_context in case of preemption
+	 */
 	worker_thread_next_context = next_register_context;
 	arch_context_switch(previous_register_context, next_register_context);
 
-	assert(previous_sandbox == NULL || previous_sandbox->state == SANDBOX_RUNNABLE
-	       || previous_sandbox->state == SANDBOX_BLOCKED || previous_sandbox->state == SANDBOX_RETURNED);
+	/* If previous sandbox is not NULL, ensure a valid state */
+	assert(previous_sandbox == NULL || previous_sandbox->state != SANDBOX_INITIALIZING);
 
 	/* If the current sandbox we're switching from is in a SANDBOX_RETURNED state, add to completion queue */
 	if (previous_sandbox != NULL && previous_sandbox->state == SANDBOX_RETURNED) {
