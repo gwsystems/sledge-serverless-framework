@@ -154,17 +154,17 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 	 * initialization is complete.
 	 *
 	 * assumption: This approach depends on module_new only being invoked at program start before preemption is
-	 * enabled. We are check that local_sandbox_member_cache.module_indirect_table is NULL to gain confidence that
+	 * enabled. We are check that local_sandbox_context_cache.module_indirect_table is NULL to gain confidence that
 	 * we are not invoking this in a way that clobbers a current module.
 	 *
 	 * If we want to be able to do this later, we can possibly defer module_initialize_table until the first
 	 * invocation
 	 */
 
-	assert(local_sandbox_member_cache.module_indirect_table == NULL);
-	local_sandbox_member_cache.module_indirect_table = module->indirect_table;
+	assert(local_sandbox_context_cache.module_indirect_table == NULL);
+	local_sandbox_context_cache.module_indirect_table = module->indirect_table;
 	module_initialize_table(module);
-	local_sandbox_member_cache.module_indirect_table = NULL;
+	local_sandbox_context_cache.module_indirect_table = NULL;
 
 	/* Add the module to the in-memory module DB */
 	module_database_add(module);

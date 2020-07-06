@@ -458,7 +458,7 @@ wasm_mmap(i32 addr, i32 len, i32 prot, i32 flags, i32 file_descriptor, i32 offse
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
-	i32 result = local_sandbox_member_cache.linear_memory_size;
+	i32 result = local_sandbox_context_cache.linear_memory_size;
 	for (int i = 0; i < len / WASM_PAGE_SIZE; i++) { expand_memory(); }
 
 	return result;

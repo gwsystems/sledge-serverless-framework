@@ -74,13 +74,13 @@ struct indirect_table_entry {
 };
 
 /* Cache of Frequently Accessed Members used to avoid pointer chasing */
-struct sandbox_member_cache {
+struct sandbox_context_cache {
 	struct indirect_table_entry *module_indirect_table;
 	void *                       linear_memory_start;
 	u32                          linear_memory_size;
 };
 
-extern __thread struct sandbox_member_cache local_sandbox_member_cache;
+extern __thread struct sandbox_context_cache local_sandbox_context_cache;
 
 /* TODO: LOG_TO_FILE logic is untested */
 extern i32 runtime_log_file_descriptor;

@@ -4,7 +4,7 @@
 /* current sandbox that is active.. */
 static __thread sandbox_t *worker_thread_current_sandbox = NULL;
 
-__thread struct sandbox_member_cache local_sandbox_member_cache = {
+__thread struct sandbox_context_cache local_sandbox_context_cache = {
 	.linear_memory_start   = NULL,
 	.linear_memory_size    = 0,
 	.module_indirect_table = NULL,
@@ -29,14 +29,14 @@ current_sandbox_set(struct sandbox *sandbox)
 {
 	/* Unpack hierarchy to avoid pointer chasing */
 	if (sandbox == NULL) {
-		local_sandbox_member_cache = (struct sandbox_member_cache){
+		local_sandbox_context_cache = (struct sandbox_context_cache){
 			.linear_memory_start   = NULL,
 			.linear_memory_size    = 0,
 			.module_indirect_table = NULL,
 		};
 		worker_thread_current_sandbox = NULL;
 	} else {
-		local_sandbox_member_cache = (struct sandbox_member_cache){
+		local_sandbox_context_cache = (struct sandbox_context_cache){
 			.linear_memory_start   = sandbox->linear_memory_start,
 			.linear_memory_size    = sandbox->linear_memory_size,
 			.module_indirect_table = sandbox->module->indirect_table,
