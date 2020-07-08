@@ -2,10 +2,12 @@
 #include <jsmn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <uv.h>
 
 #include "module.h"
 #include "module_database.h"
+#include "panic.h"
 #include "runtime.h"
 #include "types.h"
 
@@ -99,6 +101,7 @@ module_free(struct module *module)
  * @param request_size
  * @returns A new module or NULL in case of failure
  */
+
 struct module *
 module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 relative_deadline_us,
            int port, int request_size, int response_size)
@@ -192,34 +195,50 @@ dl_open_error:
 int
 module_new_from_json(char *file_name)
 {
+	assert(file_name != NULL);
+
 	/* Use stat to get file attributes and make sure file is there and OK */
 	struct stat stat_buffer;
 	memset(&stat_buffer, 0, sizeof(struct stat));
+	errno = 0;
 	if (stat(file_name, &stat_buffer) < 0) {
-		perror("stat");
+		fprintf(stderr, "Attempt to stat %s failed: %s\n", file_name, strerror(errno));
 		return -1;
 	}
 
 	/* Open the file */
+	errno             = 0;
 	FILE *module_file = fopen(file_name, "r");
 	if (!module_file) {
-		perror("fopen");
+		fprintf(stderr, "Attempt to open %s failed: %s\n", file_name, strerror(errno));
 		return -1;
 	}
 
 	/* Initialize a Buffer, Read the file into the buffer, and then check that the buffer size equals the file
 	size */
+	errno             = 0;
 	char *file_buffer = malloc(stat_buffer.st_size);
+	if (file_buffer == NULL) {
+		fprintf(stderr, "Attempt to allocate file buffer failed: %s\n", strerror(errno));
+		return -1;
+	}
+
 	memset(file_buffer, 0, stat_buffer.st_size);
+
+	errno                = 0;
 	int total_chars_read = fread(file_buffer, sizeof(char), stat_buffer.st_size, module_file);
 	debuglog("size read: %d content: %s\n", total_chars_read, file_buffer);
 	if (total_chars_read != stat_buffer.st_size) {
-		perror("fread");
+		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
+		if (fclose(module_file) != 0) panic("Failed to close file in error handler\n");
 		return -1;
 	}
 
 	/* Close the file */
-	fclose(module_file);
+	errno = 0;
+	if (fclose(module_file) == EOF) {
+		fprintf(stderr, "Attempt to close %s into buffer failed: %s\n", file_name, strerror(errno));
+	};
 
 	/* Initialize the Jasmine Parser and an array to hold the tokens */
 	jsmn_parser module_parser;
@@ -230,7 +249,18 @@ module_new_from_json(char *file_name)
 	int total_tokens = jsmn_parse(&module_parser, file_buffer, strlen(file_buffer), tokens,
 	                              sizeof(tokens) / sizeof(tokens[0]));
 	if (total_tokens < 0) {
-		debuglog("jsmn_parse: invalid JSON?\n");
+		if (total_tokens == JSMN_ERROR_INVAL) {
+			fprintf(stderr, "Error parsing %s: bad token, JSON string is corrupted\n", file_name);
+		} else if (total_tokens == JSMN_ERROR_PART) {
+			fprintf(stderr, "Error parsing %s: JSON string is too short, expecting more JSON data\n",
+			        file_name);
+		} else if (total_tokens == JSMN_ERROR_NOMEM) {
+			/*
+			 * According to the README at https://github.com/zserge/jsmn, this is a potentially recoverable
+			 * error. More tokens can be allocated and jsmn_parse can be re-invoked.
+			 */
+			fprintf(stderr, "Error parsing %s: Not enough tokens, JSON string is too large\n", file_name);
+		}
 		return -1;
 	}
 
@@ -238,12 +268,25 @@ module_new_from_json(char *file_name)
 	for (int i = 0; i < total_tokens; i++) {
 		assert(tokens[i].type == JSMN_OBJECT);
 
-		char  module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
-		char  module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
+		char module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
+		char module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
+
+		errno                 = 0;
 		char *request_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+		if (request_headers == NULL) {
+			fprintf(stderr, "Attempt to allocate request headers failed: %s\n", strerror(errno));
+			return -1;
+		}
 		memset(request_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+
+		errno                 = 0;
 		char *reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+		if (reponse_headers == NULL) {
+			fprintf(stderr, "Attempt to allocate response headers failed: %s\n", strerror(errno));
+			return -1;
+		}
 		memset(reponse_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+
 		i32  request_size                                        = 0;
 		i32  response_size                                       = 0;
 		i32  argument_count                                      = 0;
