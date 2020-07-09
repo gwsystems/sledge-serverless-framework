@@ -106,30 +106,52 @@ struct module *
 module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 relative_deadline_us,
            int port, int request_size, int response_size)
 {
+	errno                 = 0;
 	struct module *module = (struct module *)malloc(sizeof(struct module));
-	if (!module) return NULL;
+	if (!module) {
+		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));
+		goto err;
+	};
 
 	memset(module, 0, sizeof(struct module));
 
 	/* Load the dynamic library *.so file with lazy function call binding and deep binding */
 	module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
-	if (module->dynamic_library_handle == NULL) goto dl_open_error;
+	if (module->dynamic_library_handle == NULL) {
+		fprintf(stderr, "Failed to open dynamic library at %s: %s\n", path, dlerror());
+		goto dl_open_error;
+	};
 
 	/* Resolve the symbols in the dynamic library *.so file */
 	module->main = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MODULE_MAIN);
-	if (module->main == NULL) goto dl_error;
+	if (module->main == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_MAIN, dlerror());
+		goto dl_error;
+	}
 
 	module->initialize_globals = (mod_glb_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_GLOBALS);
-	if (module->initialize_globals == NULL) goto dl_error;
+	if (module->initialize_globals == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_GLOBALS, dlerror());
+		goto dl_error;
+	}
 
 	module->initialize_memory = (mod_mem_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_MEMORY);
-	if (module->initialize_memory == NULL) goto dl_error;
+	if (module->initialize_memory == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_MEMORY, dlerror());
+		goto dl_error;
+	};
 
 	module->initialize_tables = (mod_tbl_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_TABLE);
-	if (module->initialize_tables == NULL) goto dl_error;
+	if (module->initialize_tables == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_TABLE, dlerror());
+		goto dl_error;
+	};
 
 	module->initialize_libc = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_LIBC);
-	if (module->initialize_libc == NULL) goto dl_error;
+	if (module->initialize_libc == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_LIBC, dlerror());
+		goto dl_error;
+	}
 
 	/* Set fields in the module struct */
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
@@ -176,6 +198,7 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 	/* Start listening for requests */
 	module_listen(module);
 
+done:
 	return module;
 
 dl_error:
@@ -183,8 +206,9 @@ dl_error:
 
 dl_open_error:
 	free(module);
-	debuglog("%s\n", dlerror());
-	return NULL;
+err:
+	module = NULL;
+	goto done;
 }
 
 /**
@@ -196,6 +220,7 @@ int
 module_new_from_json(char *file_name)
 {
 	assert(file_name != NULL);
+	int return_code = -1;
 
 	/* Use stat to get file attributes and make sure file is there and OK */
 	struct stat stat_buffer;
@@ -203,7 +228,7 @@ module_new_from_json(char *file_name)
 	errno = 0;
 	if (stat(file_name, &stat_buffer) < 0) {
 		fprintf(stderr, "Attempt to stat %s failed: %s\n", file_name, strerror(errno));
-		return -1;
+		goto err;
 	}
 
 	/* Open the file */
@@ -211,34 +236,37 @@ module_new_from_json(char *file_name)
 	FILE *module_file = fopen(file_name, "r");
 	if (!module_file) {
 		fprintf(stderr, "Attempt to open %s failed: %s\n", file_name, strerror(errno));
-		return -1;
+		goto err;
 	}
 
-	/* Initialize a Buffer, Read the file into the buffer, and then check that the buffer size equals the file
-	size */
+	/* Initialize a Buffer,  */
+	assert(stat_buffer.st_size != 0);
 	errno             = 0;
 	char *file_buffer = malloc(stat_buffer.st_size);
 	if (file_buffer == NULL) {
 		fprintf(stderr, "Attempt to allocate file buffer failed: %s\n", strerror(errno));
-		return -1;
+		goto stat_buffer_alloc_err;
 	}
-
 	memset(file_buffer, 0, stat_buffer.st_size);
 
+	/* Read the file into the buffer and check that the buffer size equals the file size */
 	errno                = 0;
 	int total_chars_read = fread(file_buffer, sizeof(char), stat_buffer.st_size, module_file);
 	debuglog("size read: %d content: %s\n", total_chars_read, file_buffer);
 	if (total_chars_read != stat_buffer.st_size) {
 		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
-		if (fclose(module_file) != 0) panic("Failed to close file in error handler\n");
-		return -1;
+		goto fread_err;
 	}
+
+	assert(strlen(file_buffer) > 1);
 
 	/* Close the file */
 	errno = 0;
 	if (fclose(module_file) == EOF) {
-		fprintf(stderr, "Attempt to close %s into buffer failed: %s\n", file_name, strerror(errno));
+		fprintf(stderr, "Attempt to close buffer containing %s failed: %s\n", file_name, strerror(errno));
+		goto fclose_err;
 	};
+	module_file = NULL;
 
 	/* Initialize the Jasmine Parser and an array to hold the tokens */
 	jsmn_parser module_parser;
@@ -261,29 +289,31 @@ module_new_from_json(char *file_name)
 			 */
 			fprintf(stderr, "Error parsing %s: Not enough tokens, JSON string is too large\n", file_name);
 		}
-		return -1;
+		goto json_parse_err;
 	}
 
-	int module_count = 0;
+	int   module_count    = 0;
+	char *request_headers = NULL;
+	char *reponse_headers = NULL;
 	for (int i = 0; i < total_tokens; i++) {
 		assert(tokens[i].type == JSMN_OBJECT);
 
 		char module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
 		char module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
 
-		errno                 = 0;
-		char *request_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+		errno           = 0;
+		request_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 		if (request_headers == NULL) {
 			fprintf(stderr, "Attempt to allocate request headers failed: %s\n", strerror(errno));
-			return -1;
+			goto request_headers_alloc_err;
 		}
 		memset(request_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 
-		errno                 = 0;
-		char *reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+		errno           = 0;
+		reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 		if (reponse_headers == NULL) {
 			fprintf(stderr, "Attempt to allocate response headers failed: %s\n", strerror(errno));
-			return -1;
+			goto response_headers_alloc_err;
 		}
 		memset(reponse_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 
@@ -292,7 +322,7 @@ module_new_from_json(char *file_name)
 		i32  argument_count                                      = 0;
 		u32  port                                                = 0;
 		u32  relative_deadline_us                                = 0;
-		i32  is_active                                           = 0;
+		bool is_active                                           = false;
 		i32  request_count                                       = 0;
 		i32  response_count                                      = 0;
 		int  j                                                   = 1;
@@ -361,23 +391,47 @@ module_new_from_json(char *file_name)
 			j += ntks;
 		}
 		i += ntoks;
-		/* do not load if it is not active */
-		if (is_active == 0) continue;
 
-		/* Allocate a module based on the values from the JSON */
-		struct module *module = module_new(module_name, module_path, argument_count, 0, 0, relative_deadline_us,
-		                                   port, request_size, response_size);
-		assert(module);
-		module_set_http_info(module, request_count, request_headers, request_content_type, response_count,
-		                     reponse_headers, response_content_type);
-		module_count++;
+		if (is_active) {
+			/* Allocate a module based on the values from the JSON */
+			struct module *module = module_new(module_name, module_path, argument_count, 0, 0,
+			                                   relative_deadline_us, port, request_size, response_size);
+			if (module == NULL) goto module_new_err;
+
+			assert(module);
+			module_set_http_info(module, request_count, request_headers, request_content_type,
+			                     response_count, reponse_headers, response_content_type);
+			module_count++;
+		}
+
 		free(request_headers);
 		free(reponse_headers);
 	}
 
-	free(file_buffer);
-	assert(module_count);
+	if (module_count == 0) fprintf(stderr, "%s contained no active modules\n", file_name);
 	debuglog("Loaded %d module%s!\n", module_count, module_count > 1 ? "s" : "");
 
-	return 0;
+	free(file_buffer);
+
+	return_code = 0;
+
+done:
+	return return_code;
+module_new_err:
+response_headers_alloc_err:
+	free(request_headers);
+request_headers_alloc_err:
+json_parse_err:
+fclose_err:
+	/* We will retry fclose when we fall through into stat_buffer_alloc_err */
+fread_err:
+	free(file_buffer);
+stat_buffer_alloc_err:
+	// Check to ensure we haven't already close this
+	if (module_file != NULL) {
+		if (fclose(module_file) == EOF) panic("Failed to close file\n");
+	}
+err:
+	return_code = -1;
+	goto done;
 }
