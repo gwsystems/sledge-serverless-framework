@@ -16,7 +16,7 @@
  * @param number_read bytes read
  * @param buffer unused
  *
- * TODO: is there some weird edge case where a UNICODE character might be split between reads? Do we care?
+ * FIXME: is there some weird edge case where a UNICODE character might be split between reads? Do we care?
  * Called after libuv has read a chunk of data
  */
 static inline void
