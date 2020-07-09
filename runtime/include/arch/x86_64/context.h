@@ -12,8 +12,8 @@
 // Userspace Registers.
 enum UREGS
 {
-	UREG_RSP,
-	UREG_RIP,
+	UREG_RSP = 0,
+	UREG_RIP = 1,
 	UREG_COUNT
 };
 
