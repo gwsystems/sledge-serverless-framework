@@ -1,8 +1,30 @@
 #include "global_request_scheduler.h"
+#include "panic.h"
+
+/* Default uninitialized implementations of the polymorphic interface */
+__attribute__((noreturn)) static sandbox_request_t *
+uninitialized_add(void *arg)
+{
+	panic("Global Request Scheduler Add was called before initialization\n");
+};
+
+__attribute__((noreturn)) static int
+uninitialized_remove(sandbox_request_t **arg)
+{
+	panic("Global Request Scheduler Remove was called before initialization\n");
+};
+
+__attribute__((noreturn)) static uint64_t
+uninitialized_peek()
+{
+	panic("Global Request Scheduler Peek was called before initialization\n");
+};
 
 
 /* The global of our polymorphic interface */
-static struct global_request_scheduler_config global_request_scheduler;
+static struct global_request_scheduler_config global_request_scheduler = { .add_fn    = uninitialized_add,
+	                                                                   .remove_fn = uninitialized_remove,
+	                                                                   .peek_fn   = uninitialized_peek };
 
 /**
  * Initializes the polymorphic interface with a concrete implementation
@@ -22,7 +44,6 @@ global_request_scheduler_initialize(struct global_request_scheduler_config *conf
 sandbox_request_t *
 global_request_scheduler_add(sandbox_request_t *sandbox_request)
 {
-	assert(global_request_scheduler.add_fn != NULL);
 	return global_request_scheduler.add_fn(sandbox_request);
 }
 
@@ -34,7 +55,6 @@ global_request_scheduler_add(sandbox_request_t *sandbox_request)
 int
 global_request_scheduler_remove(sandbox_request_t **removed_sandbox)
 {
-	assert(global_request_scheduler.remove_fn != NULL);
 	return global_request_scheduler.remove_fn(removed_sandbox);
 }
 
@@ -45,6 +65,5 @@ global_request_scheduler_remove(sandbox_request_t **removed_sandbox)
 uint64_t
 global_request_scheduler_peek()
 {
-	assert(global_request_scheduler.peek_fn != NULL);
 	return global_request_scheduler.peek_fn();
 };
