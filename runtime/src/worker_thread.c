@@ -44,10 +44,11 @@ static __thread bool worker_thread_is_in_callback;
 static inline void
 worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 {
+	/* Assumption: The caller disables interrupts */
+	assert(software_interrupt_is_disabled);
+
 	arch_context_t *next_register_context = NULL;
 	if (next_sandbox != NULL) next_register_context = &next_sandbox->ctxt;
-
-	software_interrupt_disable();
 
 	/* Get the old sandbox we're switching from */
 	struct sandbox *previous_sandbox          = current_sandbox_get();
@@ -68,9 +69,9 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 	/* If the current sandbox we're switching from is in a SANDBOX_RETURNED state, add to completion queue */
 	if (previous_sandbox != NULL && previous_sandbox->state == SANDBOX_RETURNED) {
-		local_completion_queue_add(previous_sandbox);
+		panic("Unexpectedly returned to a sandbox in a RETURNED state\n");
 	} else if (previous_sandbox != NULL) {
-		debuglog("Switched away from sandbox is state %d\n", previous_sandbox->state);
+		debuglog("Resumed a sandbox in state %d\n", previous_sandbox->state);
 	}
 
 	software_interrupt_enable();
@@ -114,7 +115,6 @@ worker_thread_block_current_sandbox(void)
 	struct sandbox *next_sandbox = local_runqueue_get_next();
 	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", previous_sandbox, previous_sandbox->module->name,
 	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
-	software_interrupt_enable();
 	worker_thread_switch_to_sandbox(next_sandbox);
 }
 
@@ -200,9 +200,11 @@ worker_thread_main(void *return_code)
 
 		software_interrupt_disable();
 		next_sandbox = local_runqueue_get_next();
-		software_interrupt_enable();
-
-		if (next_sandbox != NULL) worker_thread_switch_to_sandbox(next_sandbox);
+		if (next_sandbox != NULL) {
+			worker_thread_switch_to_sandbox(next_sandbox);
+		} else {
+			software_interrupt_enable();
+		};
 
 		local_completion_queue_free();
 	}
@@ -221,18 +223,16 @@ worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)
 {
 	assert(exiting_sandbox);
 
-	/* TODO: I do not understand when software interrupts must be disabled? */
-	software_interrupt_disable();
-	local_runqueue_delete(exiting_sandbox);
-	exiting_sandbox->state = SANDBOX_RETURNED;
-	software_interrupt_enable();
-
 	/* Because the stack is still in use, only unmap linear memory and defer free resources until "main
 	function execution" */
 	errno  = 0;
 	int rc = munmap(exiting_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
 	if (rc == -1) panic("worker_thread_on_sandbox_exit - munmap failed with errno - %s\n", strerror(errno));
 
+	/* TODO: I do not understand when software interrupts must be disabled? */
+	software_interrupt_disable();
+	local_runqueue_delete(exiting_sandbox);
+	exiting_sandbox->state = SANDBOX_RETURNED;
 	local_completion_queue_add(exiting_sandbox);
 
 	/* This should force return to main event loop */
