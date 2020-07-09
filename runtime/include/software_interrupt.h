@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /************
  * Externs  *

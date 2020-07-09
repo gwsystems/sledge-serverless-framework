@@ -7,6 +7,8 @@
 #include <ucontext.h>
 #include <unistd.h>
 
+#include "software_interrupt.h"
+
 #define ARCH_SIG_JMP_OFF 8
 
 // Userspace Registers.
@@ -73,6 +75,7 @@ static int
 arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
 {
 	assert(ctx != &worker_thread_base_context);
+	assert(!software_interrupt_is_enabled());
 
 	/* if ctx->regs[0] is set, this was last in a user-level context switch state!
 	 * else restore mcontext..
