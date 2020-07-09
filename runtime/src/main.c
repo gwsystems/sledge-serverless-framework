@@ -84,14 +84,16 @@ runtime_allocate_available_cores()
 		runtime_total_worker_processors = max_possible_workers;
 		if (max_possible_workers >= WORKER_THREAD_CORE_COUNT)
 			runtime_total_worker_processors = WORKER_THREAD_CORE_COUNT;
+
+		assert(runtime_total_worker_processors == WORKER_THREAD_CORE_COUNT);
 	} else {
 		/* If single core, we'll do everything on CPUID 0 */
 		runtime_first_worker_processor  = 0;
 		runtime_total_worker_processors = 1;
 	}
-	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
-	         runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
-	         LISTENER_THREAD_CORE_ID);
+	printf("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
+	       runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
+	       LISTENER_THREAD_CORE_ID);
 }
 
 /**

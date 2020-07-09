@@ -4,6 +4,7 @@
 #include "types.h"
 
 extern int runtime_epoll_file_descriptor;
+extern u32 runtime_total_worker_processors;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);

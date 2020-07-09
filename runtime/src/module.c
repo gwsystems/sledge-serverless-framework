@@ -257,8 +257,7 @@ module_new_from_json(char *file_name)
 		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
 		goto fread_err;
 	}
-
-	assert(strlen(file_buffer) > 1);
+	assert(total_chars_read > 0);
 
 	/* Close the file */
 	errno = 0;
@@ -274,7 +273,7 @@ module_new_from_json(char *file_name)
 	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
 
 	/* Use Jasmine to parse the JSON */
-	int total_tokens = jsmn_parse(&module_parser, file_buffer, strlen(file_buffer), tokens,
+	int total_tokens = jsmn_parse(&module_parser, file_buffer, total_chars_read, tokens,
 	                              sizeof(tokens) / sizeof(tokens[0]));
 	if (total_tokens < 0) {
 		if (total_tokens == JSMN_ERROR_INVAL) {

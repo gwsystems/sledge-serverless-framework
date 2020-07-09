@@ -11,6 +11,7 @@
 #include "current_sandbox.h"
 #include "local_runqueue.h"
 #include "module.h"
+#include "runtime.h"
 #include "sandbox.h"
 #include "software_interrupt.h"
 #include "types.h"
@@ -66,9 +67,10 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		/* A POSIX signal is delivered to one of the threads in our process.If sent by the kernel, "broadcast"
 		 * by forwarding to all all threads */
 		if (signal_info->si_code == SI_KERNEL) {
-			for (int i = 0; i < WORKER_THREAD_CORE_COUNT; i++) {
-				if (pthread_self() == runtime_worker_threads[i]) continue;
-				pthread_kill(runtime_worker_threads[i], SIGALRM);
+			for (int i = 0; i < runtime_total_worker_processors; i++) {
+				if (pthread_self() != runtime_worker_threads[i]) {
+					pthread_kill(runtime_worker_threads[i], SIGALRM);
+				}
 			}
 		} else {
 			/* If not sent by the kernel, this should be a signal forwarded from another thread */
