@@ -441,7 +441,7 @@ sandbox_free(struct sandbox *sandbox)
 	errno = 0;
 	rc    = munmap(stkaddr, stksz);
 	if (rc == -1) {
-		error_message = "Failed to unmap stack";
+		fprintf(stderr, "Thread %lu | Failed to unmap stack %p\n", pthread_self(), sandbox);
 		goto err_free_stack_failed;
 	};
 
@@ -455,7 +455,7 @@ sandbox_free(struct sandbox *sandbox)
 	errno = 0;
 	rc    = munmap(sandbox, sandbox_address_space_size);
 	if (rc == -1) {
-		error_message = "Failed to unmap sandbox";
+		fprintf(stderr, "Thread %lu | Failed to unmap sanbox %p\n", pthread_self(), sandbox);
 		goto err_free_sandbox_failed;
 	};
 
@@ -465,5 +465,5 @@ err_free_sandbox_failed:
 err_free_stack_failed:
 err:
 	/* Errors freeing memory is a fatal error */
-	panic(error_message);
+	panic("Thread %lu | Failed to free sandbox %p\n", pthread_self(), sandbox);
 }
