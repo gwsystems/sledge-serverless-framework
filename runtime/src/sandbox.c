@@ -276,6 +276,11 @@ done:
 	/* Cleanup connection and exit sandbox */
 	sandbox_close_http(sandbox);
 	worker_thread_on_sandbox_exit(sandbox);
+
+	/* This assert prevents a segfault discussed in
+	 * https://github.com/phanikishoreg/awsm-Serverless-Framework/issues/66
+	 */
+	assert(0);
 }
 
 /**
