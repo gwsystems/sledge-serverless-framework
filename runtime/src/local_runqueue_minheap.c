@@ -135,7 +135,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		int                return_code = global_request_scheduler_remove(&sandbox_request);
 
 		// If we were unable to get a sandbox_request, exit
-		if (return_code == -1 || return_code == -2) goto done;
+		if (return_code != 0) goto done;
 
 		debuglog("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
 		         sandbox_request->absolute_deadline);
