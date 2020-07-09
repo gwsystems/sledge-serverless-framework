@@ -89,7 +89,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		return;
 	}
-	case SIGUSR1: { /* 		SIGUSR1 restores the preempted sandbox stored in worker_thread_next_context. */
+	case SIGUSR1: { /* SIGUSR1 restores the preempted sandbox stored in worker_thread_next_context. */
 		/* Make sure *sigalrm doesn't mess this up if nested.. */
 		assert(!software_interrupt_is_enabled());
 		/* we set current before calling pthread_kill! */

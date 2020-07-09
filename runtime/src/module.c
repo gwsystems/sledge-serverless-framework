@@ -239,7 +239,7 @@ module_new_from_json(char *file_name)
 		goto err;
 	}
 
-	/* Initialize a Buffer,  */
+	/* Initialize a Buffer */
 	assert(stat_buffer.st_size != 0);
 	errno             = 0;
 	char *file_buffer = malloc(stat_buffer.st_size);
