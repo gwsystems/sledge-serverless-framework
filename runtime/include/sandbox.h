@@ -35,18 +35,18 @@ struct sandbox {
 
 	u32 sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
 
-	void *linear_memory_start; /* after sandbox struct */
-	u32   linear_memory_size;  /* from after sandbox struct */
-	u64   linear_memory_max_size;
+	void *   linear_memory_start; /* after sandbox struct */
+	u32      linear_memory_size;  /* from after sandbox struct */
+	uint64_t linear_memory_max_size;
 
 	void *stack_start;
 	u32   stack_size;
 
 	arch_context_t ctxt; /* register context for context switch. */
 
-	u64 total_time;
-	u64 start_time;
-	u64 absolute_deadline;
+	uint64_t total_time;
+	uint64_t start_time;
+	uint64_t absolute_deadline;
 
 	struct module *module; /* the module this is an instance of */
 

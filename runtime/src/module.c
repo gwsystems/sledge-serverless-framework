@@ -159,7 +159,7 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 
 	module->argument_count       = argument_count;
 	module->stack_size           = round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size);
-	module->max_memory           = max_memory == 0 ? ((u64)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
+	module->max_memory           = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
 	module->relative_deadline_us = relative_deadline_us;
 	module->socket_descriptor    = -1;
 	module->port                 = port;
