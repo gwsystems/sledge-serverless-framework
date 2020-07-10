@@ -132,7 +132,19 @@ module_initialize_memory(struct module *module)
 static inline bool
 module_is_valid(struct module *module)
 {
-	return (module && module->dynamic_library_handle && module->main);
+	if (!module) {
+		fprintf(stderr, "%lu | module %p | module is unexpectedly NULL\n", pthread_self(), module);
+		return false;
+	} else if (!module->dynamic_library_handle) {
+		fprintf(stderr, "%lu | module %p | module->dynamic_library_handle is unexpectedly NULL\n",
+		        pthread_self(), module);
+		return false;
+	} else if (!module->main) {
+		fprintf(stderr, "%lu | module %p | module->main is unexpectedly NULL\n", pthread_self(), module);
+		return false;
+	}
+
+	return true;
 }
 
 /**
