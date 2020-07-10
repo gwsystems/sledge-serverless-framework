@@ -42,7 +42,7 @@ struct sandbox {
 	void *   stack_start;
 	uint32_t stack_size;
 
-	arch_context_t ctxt; /* register context for context switch. */
+	struct arch_context ctxt; /* register context for context switch. */
 
 	uint64_t total_time;
 	uint64_t start_time;
@@ -80,7 +80,7 @@ struct sandbox {
  **************************/
 
 
-extern __thread arch_context_t *worker_thread_next_context;
+extern __thread struct arch_context *worker_thread_next_context;
 
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(struct sandbox *sandbox);

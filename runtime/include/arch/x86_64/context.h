@@ -31,12 +31,10 @@ struct arch_context {
 	mcontext_t mctx;
 };
 
-typedef struct arch_context arch_context_t;
-
 extern void __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void);
-extern __thread arch_context_t worker_thread_base_context;
+extern __thread struct arch_context worker_thread_base_context;
 
-static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, reg_t ip, reg_t sp)
+static void __attribute__((noinline)) arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
 	memset(&actx->mctx, 0, sizeof(mcontext_t));
 	memset((void *)actx->regs, 0, sizeof(reg_t) * UREG_COUNT);
@@ -72,7 +70,7 @@ static void __attribute__((noinline)) arch_context_init(arch_context_t *actx, re
  * 1 = special processing because thread was last in a user-level context switch state
  */
 static int
-arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
+arch_mcontext_restore(mcontext_t *mc, struct arch_context *ctx)
 {
 	assert(ctx != &worker_thread_base_context);
 	assert(!software_interrupt_is_enabled());
@@ -102,7 +100,7 @@ arch_mcontext_restore(mcontext_t *mc, arch_context_t *ctx)
  * @param mc - source
  */
 static void
-arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
+arch_mcontext_save(struct arch_context *ctx, mcontext_t *mc)
 {
 	assert(ctx != &worker_thread_base_context);
 
@@ -119,7 +117,7 @@ arch_mcontext_save(arch_context_t *ctx, mcontext_t *mc)
  * which defaults to resuming execution of main
  */
 static inline int
-arch_context_switch(arch_context_t *current, arch_context_t *next)
+arch_context_switch(struct arch_context *current, struct arch_context *next)
 {
 	/* if both current and next are NULL, there is no state change */
 	assert(current != NULL || next != NULL);
