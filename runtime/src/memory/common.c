@@ -3,7 +3,7 @@
 
 /* Region initialization helper function */
 EXPORT void
-initialize_region(u32 offset, u32 data_count, char *data)
+initialize_region(uint32_t offset, uint32_t data_count, char *data)
 {
 	assert(local_sandbox_context_cache.linear_memory_size >= data_count);
 	assert(offset < local_sandbox_context_cache.linear_memory_size - data_count);
@@ -13,7 +13,7 @@ initialize_region(u32 offset, u32 data_count, char *data)
 }
 
 void
-add_function_to_table(u32 idx, u32 type_id, char *pointer)
+add_function_to_table(uint32_t idx, uint32_t type_id, char *pointer)
 {
 	assert(idx < INDIRECT_TABLE_SIZE);
 	assert(local_sandbox_context_cache.module_indirect_table != NULL);

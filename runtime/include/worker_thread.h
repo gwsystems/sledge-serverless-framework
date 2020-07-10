@@ -15,7 +15,7 @@ void *worker_thread_main(void *return_code);
  * @return void pointer to something in WebAssembly linear memory
  */
 static inline void *
-worker_thread_get_memory_ptr_void(u32 offset, u32 bounds_check)
+worker_thread_get_memory_ptr_void(uint32_t offset, uint32_t bounds_check)
 {
 	return (void *)get_memory_ptr_for_runtime(offset, bounds_check);
 }
@@ -26,7 +26,7 @@ worker_thread_get_memory_ptr_void(u32 offset, u32 bounds_check)
  * @return char at the offset
  */
 static inline char
-worker_thread_get_memory_character(u32 offset)
+worker_thread_get_memory_character(uint32_t offset)
 {
 	return get_memory_ptr_for_runtime(offset, 1)[0];
 }
@@ -38,7 +38,7 @@ worker_thread_get_memory_character(u32 offset)
  * @return pointer to the string or NULL if max_length is reached without finding null-terminator
  */
 static inline char *
-worker_thread_get_memory_string(u32 offset, u32 max_length)
+worker_thread_get_memory_string(uint32_t offset, uint32_t max_length)
 {
 	for (int i = 0; i < max_length; i++) {
 		if (worker_thread_get_memory_character(offset + i) == '\0') {

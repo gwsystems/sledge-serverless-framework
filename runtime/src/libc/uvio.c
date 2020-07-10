@@ -105,7 +105,7 @@ wasm_fs_callback(uv_fs_t *req)
 
 // We define our own syscall numbers, because WASM uses x86_64 values even on systems that are not x86_64
 #define SYS_READ 0
-u32
+uint32_t
 wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 {
 	if (filedes == 0) {
@@ -251,12 +251,12 @@ wasm_close(i32 file_descriptor)
 struct wasm_stat {
 	i64      st_dev;
 	uint64_t st_ino;
-	u32      st_nlink;
+	uint32_t st_nlink;
 
-	u32      st_mode;
-	u32      st_uid;
-	u32      st_gid;
-	u32      __pad0;
+	uint32_t st_mode;
+	uint32_t st_uid;
+	uint32_t st_gid;
+	uint32_t __pad0;
 	uint64_t st_rdev;
 	uint64_t st_size;
 	i32      st_blksize;
@@ -298,7 +298,7 @@ struct wasm_stat {
 //     };
 
 i32
-wasm_stat(u32 path_str_offset, i32 stat_offset)
+wasm_stat(uint32_t path_str_offset, i32 stat_offset)
 {
 	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
 	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
@@ -448,7 +448,7 @@ wasm_lseek(i32 filedes, i32 file_offset, i32 whence)
 }
 
 #define SYS_MMAP 9
-u32
+uint32_t
 wasm_mmap(i32 addr, i32 len, i32 prot, i32 flags, i32 file_descriptor, i32 offset)
 {
 	int d = current_sandbox_get_file_descriptor(file_descriptor);
@@ -593,10 +593,10 @@ wasm_writev(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 #define SYS_MADVISE 28
 
 #define SYS_GETPID 39
-u32
+uint32_t
 wasm_getpid()
 {
-	return (u32)getpid();
+	return (uint32_t)getpid();
 }
 
 
@@ -616,8 +616,8 @@ wasm_getpid()
 #define WF_SETLKW 7
 
 #define SYS_FCNTL 72
-u32
-wasm_fcntl(u32 file_descriptor, u32 cmd, u32 arg_or_lock_ptr)
+uint32_t
+wasm_fcntl(uint32_t file_descriptor, uint32_t cmd, uint32_t arg_or_lock_ptr)
 {
 	int d = current_sandbox_get_file_descriptor(file_descriptor);
 	switch (cmd) {
@@ -632,8 +632,8 @@ wasm_fcntl(u32 file_descriptor, u32 cmd, u32 arg_or_lock_ptr)
 }
 
 #define SYS_FSYNC 74
-u32
-wasm_fsync(u32 file_descriptor)
+uint32_t
+wasm_fsync(uint32_t file_descriptor)
 {
 	int     d   = current_sandbox_get_file_descriptor(file_descriptor);
 	uv_fs_t req = UV_FS_REQ_INIT();
@@ -649,8 +649,8 @@ wasm_fsync(u32 file_descriptor)
 }
 
 #define SYS_GETCWD 79
-u32
-wasm_getcwd(u32 buf_offset, u32 buf_size)
+uint32_t
+wasm_getcwd(uint32_t buf_offset, uint32_t buf_size)
 {
 	char *buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
 	char *res    = getcwd(buffer, buf_size);
@@ -660,8 +660,8 @@ wasm_getcwd(u32 buf_offset, u32 buf_size)
 }
 
 #define SYS_UNLINK 87
-u32
-wasm_unlink(u32 path_str_offset)
+uint32_t
+wasm_unlink(uint32_t path_str_offset)
 {
 	char *  path = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
 	uv_fs_t req  = UV_FS_REQ_INIT();
@@ -677,10 +677,10 @@ wasm_unlink(u32 path_str_offset)
 }
 
 #define SYS_GETEUID 107
-u32
+uint32_t
 wasm_geteuid()
 {
-	return (u32)geteuid();
+	return (uint32_t)geteuid();
 }
 
 #define SYS_SET_THREAD_AREA 205
@@ -690,7 +690,7 @@ wasm_geteuid()
 #define SYS_GET_TIME 228
 struct wasm_time_spec {
 	uint64_t sec;
-	u32      nanosec;
+	uint32_t nanosec;
 };
 
 i32
@@ -734,7 +734,7 @@ wasm_exit_group(i32 status)
 
 #define SYS_FCHOWN 93
 i32
-wasm_fchown(i32 file_descriptor, u32 owner, u32 group)
+wasm_fchown(i32 file_descriptor, uint32_t owner, uint32_t group)
 {
 	int     d   = current_sandbox_get_file_descriptor(file_descriptor);
 	uv_fs_t req = UV_FS_REQ_INIT();

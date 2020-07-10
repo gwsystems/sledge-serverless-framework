@@ -7,8 +7,8 @@
 // The below functions are for implementing WASM instructions
 
 // ROTL and ROTR helper functions
-INLINE u32
-rotl_u32(u32 n, u32 c_u32)
+INLINE uint32_t
+rotl_u32(uint32_t n, uint32_t c_u32)
 {
 	// WASM requires a modulus here (usually a single bitwise op, but it means we need no assert)
 	unsigned int       c    = c_u32 % (CHAR_BIT * sizeof(n));
@@ -18,8 +18,8 @@ rotl_u32(u32 n, u32 c_u32)
 	return (n << c) | (n >> ((-c) & mask));
 }
 
-INLINE u32
-rotr_u32(u32 n, u32 c_u32)
+INLINE uint32_t
+rotr_u32(uint32_t n, uint32_t c_u32)
 {
 	// WASM requires a modulus here (usually a single bitwise op, but it means we need no assert)
 	unsigned int       c    = c_u32 % (CHAR_BIT * sizeof(n));
@@ -52,15 +52,15 @@ rotr_u64(uint64_t n, uint64_t c_u64)
 }
 
 // Now safe division and remainder
-INLINE u32
-u32_div(u32 a, u32 b)
+INLINE uint32_t
+u32_div(uint32_t a, uint32_t b)
 {
 	assert(b);
 	return a / b;
 }
 
-INLINE u32
-u32_rem(u32 a, u32 b)
+INLINE uint32_t
+u32_rem(uint32_t a, uint32_t b)
 {
 	assert(b);
 	return a % b;
@@ -111,11 +111,11 @@ i64_rem(i64 a, i64 b)
 // float to integer conversion methods
 // In C, float => int conversions always truncate
 // If a int2float(int::min_value) <= float <= int2float(int::max_value), it must always be safe to truncate it
-u32
+uint32_t
 u32_trunc_f32(float f)
 {
 	assert(0 <= f && f <= UINT32_MAX);
-	return (u32)f;
+	return (uint32_t)f;
 }
 
 i32
@@ -125,11 +125,11 @@ i32_trunc_f32(float f)
 	return (i32)f;
 }
 
-u32
+uint32_t
 u32_trunc_f64(double f)
 {
 	assert(0 <= f && f <= UINT32_MAX);
-	return (u32)f;
+	return (uint32_t)f;
 }
 
 i32
