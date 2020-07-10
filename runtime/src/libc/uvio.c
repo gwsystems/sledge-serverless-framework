@@ -35,18 +35,18 @@
 
 // offset = a WASM ptr to memory the runtime can use
 void
-stub_init(i32 offset)
+stub_init(int32_t offset)
 {
 	// What program name will we put in the auxiliary vectors
 	char *program_name = current_sandbox_get()->module->name;
 	// Copy the program name into WASM accessible memory
-	i32 program_name_offset = offset;
+	int32_t program_name_offset = offset;
 	strcpy(get_memory_ptr_for_runtime(offset, sizeof(program_name)), program_name);
 	offset += sizeof(program_name);
 
 	// The construction of this is:
 	// evn1, env2, ..., NULL, auxv_n1, auxv_1, auxv_n2, auxv_2 ..., NULL
-	i32 env_vec[] = {
+	int32_t env_vec[] = {
 		// Env variables would live here, but we don't supply any
 		0,
 		// We supply only the bare minimum AUX vectors
@@ -63,10 +63,10 @@ stub_init(i32 offset)
 		AT_SECURE,
 		0,
 		AT_RANDOM,
-		(i32)rand(), // It's pretty stupid to use rand here, but w/e
+		(int32_t)rand(), // It's pretty stupid to use rand here, but w/e
 		0,
 	};
-	i32 env_vec_offset = offset;
+	int32_t env_vec_offset = offset;
 	memcpy(get_memory_ptr_for_runtime(env_vec_offset, sizeof(env_vec)), env_vec, sizeof(env_vec));
 
 	module_initialize_libc(current_sandbox_get()->module, env_vec_offset, program_name_offset);
@@ -106,7 +106,7 @@ wasm_fs_callback(uv_fs_t *req)
 // We define our own syscall numbers, because WASM uses x86_64 values even on systems that are not x86_64
 #define SYS_READ 0
 uint32_t
-wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
+wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 {
 	if (filedes == 0) {
 		char *               buffer = worker_thread_get_memory_ptr_void(buf_offset, nbyte);
@@ -137,8 +137,8 @@ wasm_read(i32 filedes, i32 buf_offset, i32 nbyte)
 }
 
 #define SYS_WRITE 1
-i32
-wasm_write(i32 file_descriptor, i32 buf_offset, i32 buf_size)
+int32_t
+wasm_write(int32_t file_descriptor, int32_t buf_offset, int32_t buf_size)
 {
 	if (file_descriptor == 1 || file_descriptor == 2) {
 		char *          buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
@@ -183,15 +183,15 @@ wasm_write(i32 file_descriptor, i32 buf_offset, i32 buf_size)
 #define WO_CLOEXEC   02000000
 
 #define SYS_OPEN 2
-i32
-wasm_open(i32 path_off, i32 flags, i32 mode)
+int32_t
+wasm_open(int32_t path_off, int32_t flags, int32_t mode)
 {
 	uv_fs_t req  = UV_FS_REQ_INIT();
 	char *  path = worker_thread_get_memory_string(path_off, MODULE_MAX_PATH_LENGTH);
 
 	int iofd = current_sandbox_initialize_io_handle();
 	if (iofd < 0) return -1;
-	i32 modified_flags = 0;
+	int32_t modified_flags = 0;
 	if (flags & WO_RDONLY) modified_flags |= O_RDONLY;
 	if (flags & WO_WRONLY) modified_flags |= O_WRONLY;
 	if (flags & WO_RDWR) modified_flags |= O_RDWR;
@@ -215,8 +215,8 @@ wasm_open(i32 path_off, i32 flags, i32 mode)
 }
 
 #define SYS_CLOSE 3
-i32
-wasm_close(i32 file_descriptor)
+int32_t
+wasm_close(int32_t file_descriptor)
 {
 	if (file_descriptor >= 0 && file_descriptor <= 2) { return 0; }
 	struct sandbox *     c    = current_sandbox_get();
@@ -259,22 +259,22 @@ struct wasm_stat {
 	uint32_t __pad0;
 	uint64_t st_rdev;
 	uint64_t st_size;
-	i32      st_blksize;
+	int32_t  st_blksize;
 	int64_t  st_blocks;
 
 	struct {
-		i32 tv_sec;
-		i32 tv_nsec;
+		int32_t tv_sec;
+		int32_t tv_nsec;
 	} st_atim;
 	struct {
-		i32 tv_sec;
-		i32 tv_nsec;
+		int32_t tv_sec;
+		int32_t tv_nsec;
 	} st_mtim;
 	struct {
-		i32 tv_sec;
-		i32 tv_nsec;
+		int32_t tv_sec;
+		int32_t tv_nsec;
 	} st_ctim;
-	i32 __pad1[3];
+	int32_t __pad1[3];
 };
 
 #define SYS_STAT 4
@@ -297,14 +297,14 @@ struct wasm_stat {
 //         u_long   st_gen;    /* file generation number */
 //     };
 
-i32
-wasm_stat(uint32_t path_str_offset, i32 stat_offset)
+int32_t
+wasm_stat(uint32_t path_str_offset, int32_t stat_offset)
 {
 	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
 	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
-	i32         res = lstat(path, &stat);
+	int32_t     res = lstat(path, &stat);
 	if (res == -1) return -errno;
 
 	*stat_ptr = (struct wasm_stat){
@@ -343,14 +343,14 @@ wasm_stat(uint32_t path_str_offset, i32 stat_offset)
 }
 
 #define SYS_FSTAT 5
-i32
-wasm_fstat(i32 filedes, i32 stat_offset)
+int32_t
+wasm_fstat(int32_t filedes, int32_t stat_offset)
 {
 	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
 	int         d   = current_sandbox_get_file_descriptor(filedes);
-	i32         res = fstat(d, &stat);
+	int32_t     res = fstat(d, &stat);
 	if (res == -1) return -errno;
 
 	*stat_ptr = (struct wasm_stat){
@@ -389,14 +389,14 @@ wasm_fstat(i32 filedes, i32 stat_offset)
 }
 
 #define SYS_LSTAT 6
-i32
-wasm_lstat(i32 path_str_offset, i32 stat_offset)
+int32_t
+wasm_lstat(int32_t path_str_offset, int32_t stat_offset)
 {
 	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
 	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
 	struct stat stat;
-	i32         res = lstat(path, &stat);
+	int32_t     res = lstat(path, &stat);
 	if (res == -1) return -errno;
 
 	*stat_ptr = (struct wasm_stat){
@@ -436,11 +436,11 @@ wasm_lstat(i32 path_str_offset, i32 stat_offset)
 
 
 #define SYS_LSEEK 8
-i32
-wasm_lseek(i32 filedes, i32 file_offset, i32 whence)
+int32_t
+wasm_lseek(int32_t filedes, int32_t file_offset, int32_t whence)
 {
-	int d   = current_sandbox_get_file_descriptor(filedes);
-	i32 res = (i32)lseek(d, file_offset, whence);
+	int     d   = current_sandbox_get_file_descriptor(filedes);
+	int32_t res = (int32_t)lseek(d, file_offset, whence);
 
 	if (res == -1) return -errno;
 
@@ -449,7 +449,7 @@ wasm_lseek(i32 filedes, i32 file_offset, i32 whence)
 
 #define SYS_MMAP 9
 uint32_t
-wasm_mmap(i32 addr, i32 len, i32 prot, i32 flags, i32 file_descriptor, i32 offset)
+wasm_mmap(int32_t addr, int32_t len, int32_t prot, int32_t flags, int32_t file_descriptor, int32_t offset)
 {
 	int d = current_sandbox_get_file_descriptor(file_descriptor);
 	if (file_descriptor >= 0) assert(d >= 0);
@@ -458,7 +458,7 @@ wasm_mmap(i32 addr, i32 len, i32 prot, i32 flags, i32 file_descriptor, i32 offse
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
-	i32 result = local_sandbox_context_cache.linear_memory_size;
+	int32_t result = local_sandbox_context_cache.linear_memory_size;
 	for (int i = 0; i < len / WASM_PAGE_SIZE; i++) { expand_memory(); }
 
 	return result;
@@ -473,8 +473,8 @@ wasm_mmap(i32 addr, i32 len, i32 prot, i32 flags, i32 file_descriptor, i32 offse
 #define SYS_RT_SIGPROGMASK 14
 
 #define SYS_IOCTL 16
-i32
-wasm_ioctl(i32 file_descriptor, i32 request, i32 data_offet)
+int32_t
+wasm_ioctl(int32_t file_descriptor, int32_t request, int32_t data_offet)
 {
 	// int d = current_sandbox_get_file_descriptor(file_descriptor);
 	// musl libc does some ioctls to stdout, so just allow these to silently go through
@@ -485,12 +485,12 @@ wasm_ioctl(i32 file_descriptor, i32 request, i32 data_offet)
 
 #define SYS_READV 19
 struct wasm_iovec {
-	i32 base_offset;
-	i32 len;
+	int32_t base_offset;
+	int32_t len;
 };
 
-i32
-wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
+int32_t
+wasm_readv(int32_t file_descriptor, int32_t iov_offset, int32_t iovcnt)
 {
 	if (file_descriptor == 0) {
 		// both 1 and 2 go to client.
@@ -543,8 +543,8 @@ wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 }
 
 #define SYS_WRITEV 20
-i32
-wasm_writev(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
+int32_t
+wasm_writev(int32_t file_descriptor, int32_t iov_offset, int32_t iovcnt)
 {
 	struct sandbox *c = current_sandbox_get();
 	if (file_descriptor == 1 || file_descriptor == 2) {
@@ -693,8 +693,8 @@ struct wasm_time_spec {
 	uint32_t nanosec;
 };
 
-i32
-wasm_get_time(i32 clock_id, i32 timespec_off)
+int32_t
+wasm_get_time(int32_t clock_id, int32_t timespec_off)
 {
 	clockid_t real_clock;
 	switch (clock_id) {
@@ -725,16 +725,16 @@ wasm_get_time(i32 clock_id, i32 timespec_off)
 }
 
 #define SYS_EXIT_GROUP 231
-i32
-wasm_exit_group(i32 status)
+int32_t
+wasm_exit_group(int32_t status)
 {
 	exit(status);
 	return 0;
 }
 
 #define SYS_FCHOWN 93
-i32
-wasm_fchown(i32 file_descriptor, uint32_t owner, uint32_t group)
+int32_t
+wasm_fchown(int32_t file_descriptor, uint32_t owner, uint32_t group)
 {
 	int     d   = current_sandbox_get_file_descriptor(file_descriptor);
 	uv_fs_t req = UV_FS_REQ_INIT();
@@ -775,8 +775,8 @@ wasm_connect_callback(uv_connect_t *req, int status)
 	worker_thread_wakeup_sandbox(s);
 }
 
-i32
-wasm_socket(i32 domain, i32 type, i32 protocol)
+int32_t
+wasm_socket(int32_t domain, int32_t type, int32_t protocol)
 {
 	struct sandbox *c   = current_sandbox_get();
 	int             pfd = current_sandbox_initialize_io_handle(), file_descriptor = -1;
@@ -802,8 +802,8 @@ wasm_socket(i32 domain, i32 type, i32 protocol)
 	return pfd;
 }
 
-i32
-wasm_connect(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
+int32_t
+wasm_connect(int32_t sockfd, int32_t sockaddr_offset, int32_t addrlen)
 {
 	struct sandbox *c               = current_sandbox_get();
 	int             file_descriptor = current_sandbox_get_file_descriptor(sockfd);
@@ -830,8 +830,8 @@ wasm_connect(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 	return -1;
 }
 
-i32
-wasm_accept(i32 sockfd, i32 sockaddr_offset, i32 addrlen_offset)
+int32_t
+wasm_accept(int32_t sockfd, int32_t sockaddr_offset, int32_t addrlen_offset)
 {
 	// what do we do with the sockaddr TODO: ????
 	socklen_t *          addrlen        = worker_thread_get_memory_ptr_void(addrlen_offset, sizeof(socklen_t));
@@ -862,8 +862,8 @@ wasm_accept(i32 sockfd, i32 sockaddr_offset, i32 addrlen_offset)
 	return cfd;
 }
 
-i32
-wasm_bind(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
+int32_t
+wasm_bind(int32_t sockfd, int32_t sockaddr_offset, int32_t addrlen)
 {
 	struct sandbox *c               = current_sandbox_get();
 	int             file_descriptor = current_sandbox_get_file_descriptor(sockfd);
@@ -899,8 +899,8 @@ wasm_bind(i32 sockfd, i32 sockaddr_offset, i32 addrlen)
 	return -1;
 }
 
-i32
-wasm_listen(i32 sockfd, i32 backlog)
+int32_t
+wasm_listen(int32_t sockfd, int32_t backlog)
 {
 	struct sandbox *     c = current_sandbox_get();
 	union uv_any_handle *h = current_sandbox_get_libuv_handle(sockfd);
@@ -968,8 +968,9 @@ wasm_udp_send_callback(uv_udp_send_t *req, int status)
 	worker_thread_wakeup_sandbox(c);
 }
 
-i32
-wasm_sendto(i32 file_descriptor, i32 buff_offset, i32 len, i32 flags, i32 sockaddr_offset, i32 sockaddr_len)
+int32_t
+wasm_sendto(int32_t file_descriptor, int32_t buff_offset, int32_t len, int32_t flags, int32_t sockaddr_offset,
+            int32_t sockaddr_len)
 {
 	char *buffer = worker_thread_get_memory_ptr_void(buff_offset, len);
 	// TODO: only support "send" api for now
@@ -1018,8 +1019,9 @@ wasm_alloc_callback(uv_handle_t *h, size_t suggested, uv_buf_t *buffer)
 	buffer->len  = s->read_size;
 }
 
-i32
-wasm_recvfrom(i32 file_descriptor, i32 buff_offset, i32 size, i32 flags, i32 sockaddr_offset, i32 socklen_offset)
+int32_t
+wasm_recvfrom(int32_t file_descriptor, int32_t buff_offset, int32_t size, int32_t flags, int32_t sockaddr_offset,
+              int32_t socklen_offset)
 {
 	char *     buffer = worker_thread_get_memory_ptr_void(buff_offset, size);
 	socklen_t *len    = worker_thread_get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
@@ -1068,10 +1070,10 @@ wasm_recvfrom(i32 file_descriptor, i32 buff_offset, i32 size, i32 flags, i32 soc
 	return 0;
 }
 
-i32
-inner_syscall_handler(i32 n, i32 a, i32 b, i32 c, i32 d, i32 e, i32 f)
+int32_t
+inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f)
 {
-	i32 res;
+	int32_t res;
 	switch (n) {
 	case SYS_READ:
 		return wasm_read(a, b, c);

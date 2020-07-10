@@ -50,9 +50,9 @@ struct sandbox {
 
 	struct module *module; /* the module this is an instance of */
 
-	i32   arguments_offset; /* actual placement of arguments in the sandbox. */
-	void *arguments;        /* arguments from request, must be of module->argument_count size. */
-	i32   return_value;
+	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */
+	void *  arguments;        /* arguments from request, must be of module->argument_count size. */
+	int32_t return_value;
 
 	struct sandbox_io_handle io_handles[SANDBOX_MAX_IO_HANDLE_COUNT];
 	struct sockaddr          client_address; /* client requesting connection! */

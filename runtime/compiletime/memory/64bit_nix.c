@@ -5,7 +5,7 @@
 
 // All of these are pretty generic
 INLINE float
-get_f32(i32 offset)
+get_f32(int32_t offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -14,7 +14,7 @@ get_f32(i32 offset)
 }
 
 INLINE double
-get_f64(i32 offset)
+get_f64(int32_t offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -23,7 +23,7 @@ get_f64(i32 offset)
 }
 
 INLINE i8
-get_i8(i32 offset)
+get_i8(int32_t offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -32,7 +32,7 @@ get_i8(i32 offset)
 }
 
 INLINE i16
-get_i16(i32 offset)
+get_i16(int32_t offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -40,17 +40,17 @@ get_i16(i32 offset)
 	return *(i16 *)address;
 }
 
-INLINE i32
-get_i32(i32 offset)
+INLINE int32_t
+get_i32(int32_t offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	return *(i32 *)address;
+	return *(int32_t *)address;
 }
 
 INLINE int64_t
-get_i64(i32 offset)
+get_i64(int32_t offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -58,17 +58,17 @@ get_i64(i32 offset)
 	return *(int64_t *)address;
 }
 
-INLINE i32
-get_global_i32(i32 offset)
+INLINE int32_t
+get_global_i32(int32_t offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	return *(i32 *)address;
+	return *(int32_t *)address;
 }
 
 INLINE int64_t
-get_global_i64(i32 offset)
+get_global_i64(int32_t offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -78,7 +78,7 @@ get_global_i64(i32 offset)
 
 // Now setting routines
 INLINE void
-set_f32(i32 offset, float v)
+set_f32(int32_t offset, float v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -87,7 +87,7 @@ set_f32(i32 offset, float v)
 }
 
 INLINE void
-set_f64(i32 offset, double v)
+set_f64(int32_t offset, double v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -96,7 +96,7 @@ set_f64(i32 offset, double v)
 }
 
 INLINE void
-set_i8(i32 offset, i8 v)
+set_i8(int32_t offset, i8 v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -105,7 +105,7 @@ set_i8(i32 offset, i8 v)
 }
 
 INLINE void
-set_i16(i32 offset, i16 v)
+set_i16(int32_t offset, i16 v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -114,16 +114,16 @@ set_i16(i32 offset, i16 v)
 }
 
 INLINE void
-set_i32(i32 offset, i32 v)
+set_i32(int32_t offset, int32_t v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	*(i32 *)address = v;
+	*(int32_t *)address = v;
 }
 
 INLINE void
-set_i64(i32 offset, int64_t v)
+set_i64(int32_t offset, int64_t v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
@@ -132,16 +132,16 @@ set_i64(i32 offset, int64_t v)
 }
 
 INLINE void
-set_global_i32(i32 offset, i32 v)
+set_global_i32(int32_t offset, int32_t v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	*(i32 *)address = v;
+	*(int32_t *)address = v;
 }
 
 INLINE void
-set_global_i64(i32 offset, int64_t v)
+set_global_i64(int32_t offset, int64_t v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];

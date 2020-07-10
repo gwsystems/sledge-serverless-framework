@@ -20,16 +20,17 @@ static inline void
 sandbox_setup_arguments(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-	char *arguments      = sandbox_get_arguments(sandbox);
-	i32   argument_count = module_get_argument_count(sandbox->module);
+	char *  arguments      = sandbox_get_arguments(sandbox);
+	int32_t argument_count = module_get_argument_count(sandbox->module);
 
 	/* whatever gregor has, to be able to pass arguments to a module! */
 	sandbox->arguments_offset = local_sandbox_context_cache.linear_memory_size;
 	assert(local_sandbox_context_cache.linear_memory_start == sandbox->linear_memory_start);
 	expand_memory();
 
-	i32 *array_ptr  = worker_thread_get_memory_ptr_void(sandbox->arguments_offset, argument_count * sizeof(i32));
-	i32  string_off = sandbox->arguments_offset + (argument_count * sizeof(i32));
+	int32_t *array_ptr  = worker_thread_get_memory_ptr_void(sandbox->arguments_offset,
+                                                               argument_count * sizeof(int32_t));
+	int32_t  string_off = sandbox->arguments_offset + (argument_count * sizeof(int32_t));
 
 	for (int i = 0; i < argument_count; i++) {
 		char * arg    = arguments + (i * MODULE_MAX_ARGUMENT_SIZE);

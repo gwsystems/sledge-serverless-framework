@@ -66,15 +66,15 @@ u32_rem(uint32_t a, uint32_t b)
 	return a % b;
 }
 
-INLINE i32
-i32_div(i32 a, i32 b)
+INLINE int32_t
+i32_div(int32_t a, int32_t b)
 {
 	assert(b && (a != INT32_MIN || b != -1));
 	return a / b;
 }
 
-INLINE i32
-i32_rem(i32 a, i32 b)
+INLINE int32_t
+i32_rem(int32_t a, int32_t b)
 {
 	assert(b && (a != INT32_MIN || b != -1));
 	return a % b;
@@ -118,11 +118,11 @@ u32_trunc_f32(float f)
 	return (uint32_t)f;
 }
 
-i32
+int32_t
 i32_trunc_f32(float f)
 {
 	assert(INT32_MIN <= f && f <= INT32_MAX);
-	return (i32)f;
+	return (int32_t)f;
 }
 
 uint32_t
@@ -132,11 +132,11 @@ u32_trunc_f64(double f)
 	return (uint32_t)f;
 }
 
-i32
+int32_t
 i32_trunc_f64(double f)
 {
 	assert(INT32_MIN <= f && f <= INT32_MAX);
-	return (i32)f;
+	return (int32_t)f;
 }
 
 uint64_t

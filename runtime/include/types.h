@@ -40,7 +40,6 @@ typedef signed char   i8;
 typedef unsigned char u8;
 typedef int16_t       i16;
 typedef uint16_t      u16;
-typedef int32_t       i32;
 
 /* FIXME: per-module configuration? */
 #define WASM_PAGE_SIZE   (1024 * 64) /* 64KB */
@@ -79,14 +78,14 @@ struct sandbox_context_cache {
 extern __thread struct sandbox_context_cache local_sandbox_context_cache;
 
 /* TODO: LOG_TO_FILE logic is untested */
-extern i32 runtime_log_file_descriptor;
+extern int32_t runtime_log_file_descriptor;
 
 /* functions in the module to lookup and call per sandbox. */
-typedef i32 (*mod_main_fn_t)(i32 a, i32 b);
+typedef int32_t (*mod_main_fn_t)(int32_t a, int32_t b);
 typedef void (*mod_glb_fn_t)(void);
 typedef void (*mod_mem_fn_t)(void);
 typedef void (*mod_tbl_fn_t)(void);
-typedef void (*mod_libc_fn_t)(i32, i32);
+typedef void (*mod_libc_fn_t)(int32_t, int32_t);
 
 /**
  * debuglog is a macro that behaves based on the macros DEBUG and LOG_TO_FILE
