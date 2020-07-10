@@ -100,7 +100,7 @@ static void
 wasm_fs_callback(uv_fs_t *req)
 {
 	debuglog("[%p]\n", req->data);
-	worker_thread_wakeup_sandbox((sandbox_t *)req->data);
+	worker_thread_wakeup_sandbox((struct sandbox *)req->data);
 }
 
 // We define our own syscall numbers, because WASM uses x86_64 values even on systems that are not x86_64
@@ -759,7 +759,7 @@ wasm_fchown(int32_t file_descriptor, uint32_t owner, uint32_t group)
 static void
 wasm_connection_callback(uv_stream_t *srv, int status)
 {
-	sandbox_t *s = srv->data;
+	struct sandbox *s = srv->data;
 	debuglog(" [%p]\n", s);
 	s->return_value = status;
 	worker_thread_wakeup_sandbox(s);
@@ -769,7 +769,7 @@ static void
 wasm_connect_callback(uv_connect_t *req, int status)
 {
 	// TODO: how do we use the handle in uv_connect_t ??
-	sandbox_t *s = req->data;
+	struct sandbox *s = req->data;
 	debuglog(" [%p]\n", s);
 	s->return_value = status;
 	worker_thread_wakeup_sandbox(s);

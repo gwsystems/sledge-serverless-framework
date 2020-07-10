@@ -346,7 +346,7 @@ err:
 }
 
 int
-sandbox_allocate_stack(sandbox_t *sandbox)
+sandbox_allocate_stack(struct sandbox *sandbox)
 {
 	assert(sandbox);
 	assert(sandbox->module);
@@ -365,7 +365,7 @@ err_stack_allocation_failed:
 }
 
 struct sandbox *
-sandbox_allocate(sandbox_request_t *sandbox_request)
+sandbox_allocate(struct sandbox_request *sandbox_request)
 {
 	assert(sandbox_request != NULL);
 	assert(sandbox_request->module != NULL);

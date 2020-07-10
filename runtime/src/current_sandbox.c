@@ -2,7 +2,7 @@
 #include "types.h"
 
 /* current sandbox that is active.. */
-static __thread sandbox_t *worker_thread_current_sandbox = NULL;
+static __thread struct sandbox *worker_thread_current_sandbox = NULL;
 
 __thread struct sandbox_context_cache local_sandbox_context_cache = {
 	.linear_memory_start   = NULL,

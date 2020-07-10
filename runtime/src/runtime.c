@@ -95,7 +95,7 @@ listener_thread_main(void *dummy)
 			total_requests++;
 
 			/* Allocate a Sandbox Request */
-			sandbox_request_t *sandbox_request =
+			struct sandbox_request *sandbox_request =
 			  sandbox_request_allocate(module, module->name, socket_descriptor,
 			                           (const struct sockaddr *)&client_address, start_time);
 			assert(sandbox_request);

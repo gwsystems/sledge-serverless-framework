@@ -18,9 +18,7 @@ struct sandbox_request {
 	uint64_t         absolute_deadline; /* cycles */
 };
 
-typedef struct sandbox_request sandbox_request_t;
-
-DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
+DEQUE_PROTOTYPE(sandbox, struct sandbox_request *);
 
 /**
  * Allocates a new Sandbox Request and places it on the Global Deque
@@ -31,11 +29,11 @@ DEQUE_PROTOTYPE(sandbox, sandbox_request_t *);
  * @param start_time the timestamp of when we receives the request from the network (in cycles)
  * @return the new sandbox request
  */
-static inline sandbox_request_t *
+static inline struct sandbox_request *
 sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
                          const struct sockaddr *socket_address, uint64_t start_time)
 {
-	sandbox_request_t *sandbox_request = (sandbox_request_t *)malloc(sizeof(sandbox_request_t));
+	struct sandbox_request *sandbox_request = (struct sandbox_request *)malloc(sizeof(struct sandbox_request));
 	assert(sandbox_request);
 	sandbox_request->module            = module;
 	sandbox_request->arguments         = arguments;

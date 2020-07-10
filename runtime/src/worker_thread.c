@@ -82,7 +82,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
  * @param sandbox the sandbox to check and update if blocked
  */
 void
-worker_thread_wakeup_sandbox(sandbox_t *sandbox)
+worker_thread_wakeup_sandbox(struct sandbox *sandbox)
 {
 	software_interrupt_disable();
 	if (sandbox->state != SANDBOX_BLOCKED) goto done;
@@ -219,7 +219,7 @@ worker_thread_main(void *return_code)
  * TODO: Consider moving this to a future current_sandbox file. This has thus far proven difficult to move
  */
 void
-worker_thread_on_sandbox_exit(sandbox_t *exiting_sandbox)
+worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 {
 	assert(exiting_sandbox);
 

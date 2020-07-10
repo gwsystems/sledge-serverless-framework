@@ -2,14 +2,14 @@
 #include "panic.h"
 
 /* Default uninitialized implementations of the polymorphic interface */
-__attribute__((noreturn)) static sandbox_request_t *
+__attribute__((noreturn)) static struct sandbox_request *
 uninitialized_add(void *arg)
 {
 	panic("Global Request Scheduler Add was called before initialization\n");
 };
 
 __attribute__((noreturn)) static int
-uninitialized_remove(sandbox_request_t **arg)
+uninitialized_remove(struct sandbox_request **arg)
 {
 	panic("Global Request Scheduler Remove was called before initialization\n");
 };
@@ -41,8 +41,8 @@ global_request_scheduler_initialize(struct global_request_scheduler_config *conf
  * Adds a sandbox request to the request scheduler
  * @param sandbox_request
  */
-sandbox_request_t *
-global_request_scheduler_add(sandbox_request_t *sandbox_request)
+struct sandbox_request *
+global_request_scheduler_add(struct sandbox_request *sandbox_request)
 {
 	return global_request_scheduler.add_fn(sandbox_request);
 }
@@ -53,7 +53,7 @@ global_request_scheduler_add(sandbox_request_t *sandbox_request)
  * @returns 0 if successful, -1 if empty, -2 if unable to take lock or perform atomic operation
  */
 int
-global_request_scheduler_remove(sandbox_request_t **removed_sandbox)
+global_request_scheduler_remove(struct sandbox_request **removed_sandbox)
 {
 	return global_request_scheduler.remove_fn(removed_sandbox);
 }
