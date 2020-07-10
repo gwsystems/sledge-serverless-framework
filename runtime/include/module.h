@@ -8,7 +8,7 @@ struct module {
 	char                        name[MODULE_MAX_NAME_LENGTH];
 	char                        path[MODULE_MAX_PATH_LENGTH];
 	void *                      dynamic_library_handle; /* Handle to the *.so of the serverless function */
-	i32                         argument_count;
+	int32_t                     argument_count;
 	uint32_t                    stack_size; /* a specification? */
 	uint64_t                    max_memory; /* perhaps a specification of the module. (max 4GB) */
 	uint32_t                    relative_deadline_us;
@@ -72,7 +72,7 @@ module_acquire(struct module *module)
  * @param module
  * @returns the number of arguments
  */
-static inline i32
+static inline int32_t
 module_get_argument_count(struct module *module)
 {
 	return module->argument_count;
@@ -107,7 +107,7 @@ module_initialize_table(struct module *module)
  * @param arguments - address?
  */
 static inline void
-module_initialize_libc(struct module *module, i32 env, i32 arguments)
+module_initialize_libc(struct module *module, int32_t env, int32_t arguments)
 {
 	/* called in a sandbox. */
 	module->initialize_libc(env, arguments);
@@ -142,8 +142,8 @@ module_is_valid(struct module *module)
  * @param argv standard UNIX vector of arguments
  * @return return code of module's main function
  */
-static inline i32
-module_main(struct module *module, i32 argc, i32 argv)
+static inline int32_t
+module_main(struct module *module, int32_t argc, int32_t argv)
 {
 	return module->main(argc, argv);
 }
@@ -186,6 +186,6 @@ module_set_http_info(struct module *module, int request_count, char *request_hea
  *******************************/
 
 void           module_free(struct module *module);
-struct module *module_new(char *mod_name, char *mod_path, i32 argument_count, uint32_t stack_sz, uint32_t max_heap,
+struct module *module_new(char *mod_name, char *mod_path, int32_t argument_count, uint32_t stack_sz, uint32_t max_heap,
                           uint32_t relative_deadline_us, int port, int req_sz, int resp_sz);
 int            module_new_from_json(char *filename);

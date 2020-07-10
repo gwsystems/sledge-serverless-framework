@@ -17,7 +17,7 @@
 
 /* Conditionally used by debuglog when DEBUG is set */
 #ifdef DEBUG
-i32 runtime_log_file_descriptor = -1;
+int32_t runtime_log_file_descriptor = -1;
 #endif
 
 float    runtime_processor_speed_MHz                          = 0;
