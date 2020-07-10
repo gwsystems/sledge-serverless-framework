@@ -94,15 +94,15 @@ u64_rem(uint64_t a, uint64_t b)
 	return a % b;
 }
 
-INLINE i64
-i64_div(i64 a, i64 b)
+INLINE int64_t
+i64_div(int64_t a, int64_t b)
 {
 	assert(b && (a != INT64_MIN || b != -1));
 	return a / b;
 }
 
-INLINE i64
-i64_rem(i64 a, i64 b)
+INLINE int64_t
+i64_rem(int64_t a, int64_t b)
 {
 	assert(b && (a != INT64_MIN || b != -1));
 	return a % b;
@@ -146,11 +146,11 @@ u64_trunc_f32(float f)
 	return (uint64_t)f;
 }
 
-i64
+int64_t
 i64_trunc_f32(float f)
 {
 	assert(INT64_MIN <= f && f <= INT64_MAX);
-	return (i64)f;
+	return (int64_t)f;
 }
 
 uint64_t
@@ -160,11 +160,11 @@ u64_trunc_f64(double f)
 	return (uint64_t)f;
 }
 
-i64
+int64_t
 i64_trunc_f64(double f)
 {
 	assert(INT64_MIN <= f && f <= INT64_MAX);
-	return (i64)f;
+	return (int64_t)f;
 }
 
 // Float => Float truncation functions

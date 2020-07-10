@@ -249,7 +249,7 @@ wasm_close(i32 file_descriptor)
 
 // What the wasm stat structure looks like
 struct wasm_stat {
-	i64      st_dev;
+	int64_t  st_dev;
 	uint64_t st_ino;
 	uint32_t st_nlink;
 
@@ -260,7 +260,7 @@ struct wasm_stat {
 	uint64_t st_rdev;
 	uint64_t st_size;
 	i32      st_blksize;
-	i64      st_blocks;
+	int64_t  st_blocks;
 
 	struct {
 		i32 tv_sec;

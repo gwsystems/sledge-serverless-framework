@@ -49,13 +49,13 @@ get_i32(i32 offset)
 	return *(i32 *)address;
 }
 
-INLINE i64
+INLINE int64_t
 get_i64(i32 offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	return *(i64 *)address;
+	return *(int64_t *)address;
 }
 
 INLINE i32
@@ -67,13 +67,13 @@ get_global_i32(i32 offset)
 	return *(i32 *)address;
 }
 
-INLINE i64
+INLINE int64_t
 get_global_i64(i32 offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	return *(i64 *)address;
+	return *(int64_t *)address;
 }
 
 // Now setting routines
@@ -123,12 +123,12 @@ set_i32(i32 offset, i32 v)
 }
 
 INLINE void
-set_i64(i32 offset, i64 v)
+set_i64(i32 offset, int64_t v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	*(i64 *)address = v;
+	*(int64_t *)address = v;
 }
 
 INLINE void
@@ -141,12 +141,12 @@ set_global_i32(i32 offset, i32 v)
 }
 
 INLINE void
-set_global_i64(i32 offset, i64 v)
+set_global_i64(i32 offset, int64_t v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	*(i64 *)address = v;
+	*(int64_t *)address = v;
 }
 
 // Table handling functionality
