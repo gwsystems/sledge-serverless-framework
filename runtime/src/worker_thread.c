@@ -21,10 +21,10 @@
  **************************/
 
 /*  context pointer used to store and restore a preempted sandbox. SIGUSR1 */
-__thread arch_context_t *worker_thread_next_context = NULL;
+__thread struct arch_context *worker_thread_next_context = NULL;
 
 /* context of the runtime thread before running sandboxes or to resume its "main". */
-__thread arch_context_t worker_thread_base_context;
+__thread struct arch_context worker_thread_base_context;
 
 /* libuv i/o loop handle per sandboxing thread! */
 __thread uv_loop_t worker_thread_uvio_handle;
@@ -47,12 +47,12 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	/* Assumption: The caller disables interrupts */
 	assert(software_interrupt_is_disabled);
 
-	arch_context_t *next_register_context = NULL;
+	struct arch_context *next_register_context = NULL;
 	if (next_sandbox != NULL) next_register_context = &next_sandbox->ctxt;
 
 	/* Get the old sandbox we're switching from */
-	struct sandbox *previous_sandbox          = current_sandbox_get();
-	arch_context_t *previous_register_context = NULL;
+	struct sandbox *     previous_sandbox          = current_sandbox_get();
+	struct arch_context *previous_register_context = NULL;
 	if (previous_sandbox != NULL) previous_register_context = &previous_sandbox->ctxt;
 
 	/* Set the current sandbox to the next */
