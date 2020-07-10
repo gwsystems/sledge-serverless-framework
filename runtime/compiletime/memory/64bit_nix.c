@@ -22,13 +22,13 @@ get_f64(int32_t offset)
 	return *(double *)address;
 }
 
-INLINE i8
+INLINE int8_t
 get_i8(int32_t offset)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	return *(i8 *)address;
+	return *(int8_t *)address;
 }
 
 INLINE int16_t
@@ -96,12 +96,12 @@ set_f64(int32_t offset, double v)
 }
 
 INLINE void
-set_i8(int32_t offset, i8 v)
+set_i8(int32_t offset, int8_t v)
 {
 	char *mem_as_chars = (char *)local_sandbox_context_cache.linear_memory_start;
 	void *address      = &mem_as_chars[offset];
 
-	*(i8 *)address = v;
+	*(int8_t *)address = v;
 }
 
 INLINE void
