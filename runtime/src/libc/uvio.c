@@ -249,18 +249,18 @@ wasm_close(i32 file_descriptor)
 
 // What the wasm stat structure looks like
 struct wasm_stat {
-	i64 st_dev;
-	u64 st_ino;
-	u32 st_nlink;
+	i64      st_dev;
+	uint64_t st_ino;
+	u32      st_nlink;
 
-	u32 st_mode;
-	u32 st_uid;
-	u32 st_gid;
-	u32 __pad0;
-	u64 st_rdev;
-	u64 st_size;
-	i32 st_blksize;
-	i64 st_blocks;
+	u32      st_mode;
+	u32      st_uid;
+	u32      st_gid;
+	u32      __pad0;
+	uint64_t st_rdev;
+	uint64_t st_size;
+	i32      st_blksize;
+	i64      st_blocks;
 
 	struct {
 		i32 tv_sec;
@@ -689,8 +689,8 @@ wasm_geteuid()
 
 #define SYS_GET_TIME 228
 struct wasm_time_spec {
-	u64 sec;
-	u32 nanosec;
+	uint64_t sec;
+	u32      nanosec;
 };
 
 i32

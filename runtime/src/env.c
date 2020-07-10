@@ -27,13 +27,13 @@ env___unmapself(u32 base, u32 size)
 }
 
 i32
-env_a_ctz_64(u64 x)
+env_a_ctz_64(uint64_t x)
 {
 	return __builtin_ctzll(x);
 }
 
 INLINE void
-env_a_and_64(i32 p_off, u64 v)
+env_a_and_64(i32 p_off, uint64_t v)
 {
 	uint64_t *p = worker_thread_get_memory_ptr_void(p_off, sizeof(uint64_t));
 	ck_pr_and_64(p, v);

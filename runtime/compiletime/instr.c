@@ -29,8 +29,8 @@ rotr_u32(u32 n, u32 c_u32)
 	return (n >> c) | (n << ((-c) & mask));
 }
 
-INLINE u64
-rotl_u64(u64 n, u64 c_u64)
+INLINE uint64_t
+rotl_u64(uint64_t n, uint64_t c_u64)
 {
 	// WASM requires a modulus here (usually a single bitwise op, but it means we need no assert)
 	unsigned int       c    = c_u64 % (CHAR_BIT * sizeof(n));
@@ -40,8 +40,8 @@ rotl_u64(u64 n, u64 c_u64)
 	return (n << c) | (n >> ((-c) & mask));
 }
 
-INLINE u64
-rotr_u64(u64 n, u64 c_u64)
+INLINE uint64_t
+rotr_u64(uint64_t n, uint64_t c_u64)
 {
 	// WASM requires a modulus here (usually a single bitwise op, but it means we need no assert)
 	unsigned int       c    = c_u64 % (CHAR_BIT * sizeof(n));
@@ -80,15 +80,15 @@ i32_rem(i32 a, i32 b)
 	return a % b;
 }
 
-INLINE u64
-u64_div(u64 a, u64 b)
+INLINE uint64_t
+u64_div(uint64_t a, uint64_t b)
 {
 	assert(b);
 	return a / b;
 }
 
-INLINE u64
-u64_rem(u64 a, u64 b)
+INLINE uint64_t
+u64_rem(uint64_t a, uint64_t b)
 {
 	assert(b);
 	return a % b;
@@ -139,11 +139,11 @@ i32_trunc_f64(double f)
 	return (i32)f;
 }
 
-u64
+uint64_t
 u64_trunc_f32(float f)
 {
 	assert(0 <= f && f <= UINT64_MAX);
-	return (u64)f;
+	return (uint64_t)f;
 }
 
 i64
@@ -153,11 +153,11 @@ i64_trunc_f32(float f)
 	return (i64)f;
 }
 
-u64
+uint64_t
 u64_trunc_f64(double f)
 {
 	assert(0 <= f && f <= UINT64_MAX);
-	return (u64)f;
+	return (uint64_t)f;
 }
 
 i64

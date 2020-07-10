@@ -10,7 +10,7 @@ struct module {
 	void *                      dynamic_library_handle; /* Handle to the *.so of the serverless function */
 	i32                         argument_count;
 	u32                         stack_size; /* a specification? */
-	u64                         max_memory; /* perhaps a specification of the module. (max 4GB) */
+	uint64_t                    max_memory; /* perhaps a specification of the module. (max 4GB) */
 	u32                         relative_deadline_us;
 	u32                         reference_count; /* ref count how many instances exist here. */
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
