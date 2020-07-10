@@ -9,7 +9,7 @@ static struct priority_queue global_request_scheduler_minheap;
  * @param sandbox_request
  * @returns pointer to request if added. NULL otherwise
  */
-static sandbox_request_t *
+static struct sandbox_request *
 global_request_scheduler_minheap_add(void *sandbox_request)
 {
 	int return_code = priority_queue_enqueue(&global_request_scheduler_minheap, sandbox_request);
@@ -23,7 +23,7 @@ global_request_scheduler_minheap_add(void *sandbox_request)
  * @returns 0 if successful, -1 if empty, -2 if unable to take lock or perform atomic operation
  */
 int
-global_request_scheduler_minheap_remove(sandbox_request_t **removed_sandbox_request)
+global_request_scheduler_minheap_remove(struct sandbox_request **removed_sandbox_request)
 {
 	return priority_queue_dequeue(&global_request_scheduler_minheap, (void **)removed_sandbox_request);
 }
@@ -43,7 +43,7 @@ global_request_scheduler_minheap_peek(void)
 uint64_t
 sandbox_request_get_priority_fn(void *element)
 {
-	sandbox_request_t *sandbox_request = (sandbox_request_t *)element;
+	struct sandbox_request *sandbox_request = (struct sandbox_request *)element;
 	return sandbox_request->absolute_deadline;
 };
 

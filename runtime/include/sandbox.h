@@ -75,8 +75,6 @@ struct sandbox {
 	char    request_response_data[1];     /* of request_response_data_length, following sandbox mem.. */
 } PAGE_ALIGNED;
 
-typedef struct sandbox sandbox_t;
-
 /***************************
  * Externs                 *
  **************************/
@@ -85,16 +83,16 @@ typedef struct sandbox sandbox_t;
 extern __thread arch_context_t *worker_thread_next_context;
 
 extern void worker_thread_block_current_sandbox(void);
-extern void worker_thread_on_sandbox_exit(sandbox_t *sandbox);
+extern void worker_thread_on_sandbox_exit(struct sandbox *sandbox);
 extern void worker_thread_process_io(void);
 extern void __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void);
-extern void worker_thread_wakeup_sandbox(sandbox_t *sandbox);
+extern void worker_thread_wakeup_sandbox(struct sandbox *sandbox);
 
 /***************************
  * Public API              *
  **************************/
 
-struct sandbox *sandbox_allocate(sandbox_request_t *sandbox_request);
+struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);

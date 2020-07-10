@@ -82,8 +82,8 @@ local_runqueue_minheap_get_next()
 		local_runqueue_minheap_add(sandbox);
 	} else if (sandbox_rc == -1) {
 		/* local runqueue was empty, try to pull a sandbox request and return NULL if we're unable to get one */
-		sandbox_request_t *sandbox_request;
-		int                sandbox_request_rc = global_request_scheduler_remove(&sandbox_request);
+		struct sandbox_request *sandbox_request;
+		int                     sandbox_request_rc = global_request_scheduler_remove(&sandbox_request);
 		if (sandbox_request_rc != 0) return NULL;
 
 		sandbox = sandbox_allocate(sandbox_request);
@@ -129,10 +129,10 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 	if (local_deadline == ULONG_MAX) { assert(local_runqueue_minheap.first_free == 1); };
 
 	/* If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it */
-	sandbox_request_t *sandbox_request;
+	struct sandbox_request *sandbox_request;
 	if (global_deadline < local_deadline) {
-		sandbox_request_t *sandbox_request;
-		int                return_code = global_request_scheduler_remove(&sandbox_request);
+		struct sandbox_request *sandbox_request;
+		int                     return_code = global_request_scheduler_remove(&sandbox_request);
 
 		// If we were unable to get a sandbox_request, exit
 		if (return_code != 0) goto done;

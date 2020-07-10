@@ -8,11 +8,11 @@ static pthread_mutex_t       global_request_scheduler_deque_mutex = PTHREAD_MUTE
  * @param sandbox_request
  * @returns pointer to request if added. NULL otherwise
  */
-static sandbox_request_t *
+static struct sandbox_request *
 global_request_scheduler_deque_add(void *sandbox_request_raw)
 {
-	sandbox_request_t *sandbox_request = (sandbox_request_t *)sandbox_request_raw;
-	int                return_code     = 1;
+	struct sandbox_request *sandbox_request = (struct sandbox_request *)sandbox_request_raw;
+	int                     return_code     = 1;
 
 /* TODO: Running the runtime and listener cores on a single shared core is untested
 We are unsure if the locking behavior is correct, so there may be deadlocks */
@@ -42,7 +42,7 @@ We are unsure if the locking behavior is correct, so there may be deadlocks */
  * @returns 0 if successfully returned a sandbox request, -1 if empty, -2 if atomic instruction unsuccessful
  */
 static int
-global_request_scheduler_deque_remove(sandbox_request_t **removed_sandbox_request)
+global_request_scheduler_deque_remove(struct sandbox_request **removed_sandbox_request)
 {
 	int return_code;
 #if NCORES == 1
