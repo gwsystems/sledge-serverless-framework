@@ -2,49 +2,53 @@
 #include <jsmn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <uv.h>
 
-#include <module.h>
-#include <module_database.h>
-#include <runtime.h>
+#include "module.h"
+#include "module_database.h"
+#include "panic.h"
+#include "runtime.h"
+#include "types.h"
 
-/***************************************
- * Private Static Inline
- ***************************************/
+/*************************
+ * Private Static Inline *
+ ************************/
 
 /**
  * Start the module as a server listening at module->port
  * @param module
- **/
+ */
 static inline void
-module_initialize_as_server(struct module *module)
+module_listen(struct module *module)
 {
-	// Allocate a new socket
+	/* Allocate a new socket */
 	int socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
 	assert(socket_descriptor > 0);
 
-	// Configure socket address as [all addresses]:[module->port]
+	/* Configure socket address as [all addresses]:[module->port] */
 	module->socket_address.sin_family      = AF_INET;
 	module->socket_address.sin_addr.s_addr = htonl(INADDR_ANY);
 	module->socket_address.sin_port        = htons((unsigned short)module->port);
 
-	// Configure the socket to allow multiple sockets to bind to the same host and port
+	/* Configure the socket to allow multiple sockets to bind to the same host and port */
 	int optval = 1;
 	setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
 	optval = 1;
 	setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
-	// Bind to the interface
+	/* Bind to the interface */
 	if (bind(socket_descriptor, (struct sockaddr *)&module->socket_address, sizeof(module->socket_address)) < 0) {
 		perror("bind");
 		assert(0);
 	}
 
-	// Listen to the interface? Check that it is live?
+	/* Listen to the interface? Check that it is live? */
 	if (listen(socket_descriptor, MODULE_MAX_PENDING_CLIENT_REQUESTS) < 0) assert(0);
 
 
-	// Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP requests
+	/* Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP
+	requests */
 	module->socket_descriptor = socket_descriptor;
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)module;
@@ -64,17 +68,17 @@ module_initialize_as_server(struct module *module)
  *
  * TODO: Untested Functionality. Unsure if this will work
  * @param module - the module to teardown
- **/
+ */
 void
 module_free(struct module *module)
 {
 	if (module == NULL) return;
 	if (module->dynamic_library_handle == NULL) return;
 
-	// Do not free if we still have oustanding references
+	/* Do not free if we still have oustanding references */
 	if (module->reference_count) return;
 
-	// TODO: What about the module database? Do we need to do any cleanup there?
+	/* TODO: What about the module database? Do we need to do any cleanup there? */
 
 	close(module->socket_descriptor);
 	dlclose(module->dynamic_library_handle);
@@ -96,37 +100,60 @@ module_free(struct module *module)
  * @param port
  * @param request_size
  * @returns A new module or NULL in case of failure
- **/
+ */
+
 struct module *
 module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_memory, u32 relative_deadline_us,
            int port, int request_size, int response_size)
 {
+	errno                 = 0;
 	struct module *module = (struct module *)malloc(sizeof(struct module));
-	if (!module) return NULL;
+	if (!module) {
+		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));
+		goto err;
+	};
 
 	memset(module, 0, sizeof(struct module));
 
-	// Load the dynamic library *.so file with lazy function call binding and deep binding
+	/* Load the dynamic library *.so file with lazy function call binding and deep binding */
 	module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
-	if (module->dynamic_library_handle == NULL) goto dl_open_error;
+	if (module->dynamic_library_handle == NULL) {
+		fprintf(stderr, "Failed to open dynamic library at %s: %s\n", path, dlerror());
+		goto dl_open_error;
+	};
 
-	// Resolve the symbols in the dynamic library *.so file
+	/* Resolve the symbols in the dynamic library *.so file */
 	module->main = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MODULE_MAIN);
-	if (module->main == NULL) goto dl_error;
+	if (module->main == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_MAIN, dlerror());
+		goto dl_error;
+	}
 
 	module->initialize_globals = (mod_glb_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_GLOBALS);
-	if (module->initialize_globals == NULL) goto dl_error;
+	if (module->initialize_globals == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_GLOBALS, dlerror());
+		goto dl_error;
+	}
 
 	module->initialize_memory = (mod_mem_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_MEMORY);
-	if (module->initialize_memory == NULL) goto dl_error;
+	if (module->initialize_memory == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_MEMORY, dlerror());
+		goto dl_error;
+	};
 
 	module->initialize_tables = (mod_tbl_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_TABLE);
-	if (module->initialize_tables == NULL) goto dl_error;
+	if (module->initialize_tables == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_TABLE, dlerror());
+		goto dl_error;
+	};
 
 	module->initialize_libc = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_LIBC);
-	if (module->initialize_libc == NULL) goto dl_error;
+	if (module->initialize_libc == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_LIBC, dlerror());
+		goto dl_error;
+	}
 
-	// Set fields in the module struct
+	/* Set fields in the module struct */
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
 	strncpy(module->path, path, MODULE_MAX_PATH_LENGTH);
 
@@ -136,34 +163,42 @@ module_new(char *name, char *path, i32 argument_count, u32 stack_size, u32 max_m
 	module->relative_deadline_us = relative_deadline_us;
 	module->socket_descriptor    = -1;
 	module->port                 = port;
+
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
 	if (response_size == 0) response_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
-	module->max_request_size             = request_size;
-	module->max_response_size            = response_size;
-	module->max_request_or_response_size = round_up_to_page(request_size > response_size ? request_size
-	                                                                                     : response_size);
+	module->max_request_size  = request_size;
+	module->max_response_size = response_size;
+	if (request_size > response_size) {
+		module->max_request_or_response_size = round_up_to_page(request_size);
+	} else {
+		module->max_request_or_response_size = round_up_to_page(response_size);
+	}
 
-	// module_indirect_table is a thread-local struct
-	struct indirect_table_entry *cache_tbl = module_indirect_table;
+	/* Table initialization calls a function that runs within the sandbox. Rather than setting the current sandbox,
+	 * we partially fake this out by only setting the module_indirect_table and then clearing after table
+	 * initialization is complete.
+	 *
+	 * assumption: This approach depends on module_new only being invoked at program start before preemption is
+	 * enabled. We are check that local_sandbox_context_cache.module_indirect_table is NULL to gain confidence that
+	 * we are not invoking this in a way that clobbers a current module.
+	 *
+	 * If we want to be able to do this later, we can possibly defer module_initialize_table until the first
+	 * invocation. Alternatively, we can maintain the module_indirect_table per sandbox and call initialize
+	 * on each sandbox if this "assumption" is too restrictive and we're ready to pay a per-sandbox performance hit.
+	 */
 
-	// assumption: All modules are created at program start before we enable preemption or enable the execution of
-	// any worker threads We are checking that thread-local module_indirect_table is NULL to prove that we aren't
-	// yet preempting If we want to be able to do this later, we can possibly defer module_initialize_table until
-	// the first invocation
-	assert(cache_tbl == NULL);
-
-	// TODO: determine why we have to set the module_indirect_table state before calling table init and then restore
-	// the existing value What is the relationship between these things?
-	module_indirect_table = module->indirect_table;
+	assert(local_sandbox_context_cache.module_indirect_table == NULL);
+	local_sandbox_context_cache.module_indirect_table = module->indirect_table;
 	module_initialize_table(module);
-	module_indirect_table = cache_tbl;
+	local_sandbox_context_cache.module_indirect_table = NULL;
 
-	// Add the module to the in-memory module DB
+	/* Add the module to the in-memory module DB */
 	module_database_add(module);
 
-	// Start listening for requests
-	module_initialize_as_server(module);
+	/* Start listening for requests */
+	module_listen(module);
 
+done:
 	return module;
 
 dl_error:
@@ -171,8 +206,9 @@ dl_error:
 
 dl_open_error:
 	free(module);
-	debuglog("%s\n", dlerror());
-	return NULL;
+err:
+	module = NULL;
+	goto done;
 }
 
 /**
@@ -183,67 +219,113 @@ dl_open_error:
 int
 module_new_from_json(char *file_name)
 {
-	// Use stat to get file attributes and make sure file is there and OK
+	assert(file_name != NULL);
+	int return_code = -1;
+
+	/* Use stat to get file attributes and make sure file is there and OK */
 	struct stat stat_buffer;
 	memset(&stat_buffer, 0, sizeof(struct stat));
+	errno = 0;
 	if (stat(file_name, &stat_buffer) < 0) {
-		perror("stat");
-		return -1;
+		fprintf(stderr, "Attempt to stat %s failed: %s\n", file_name, strerror(errno));
+		goto err;
 	}
 
-	// Open the file
+	/* Open the file */
+	errno             = 0;
 	FILE *module_file = fopen(file_name, "r");
 	if (!module_file) {
-		perror("fopen");
-		return -1;
+		fprintf(stderr, "Attempt to open %s failed: %s\n", file_name, strerror(errno));
+		goto err;
 	}
 
-	// Initialize a Buffer, Read the file into the buffer, and then check that the buffer size equals the file size
+	/* Initialize a Buffer */
+	assert(stat_buffer.st_size != 0);
+	errno             = 0;
 	char *file_buffer = malloc(stat_buffer.st_size);
+	if (file_buffer == NULL) {
+		fprintf(stderr, "Attempt to allocate file buffer failed: %s\n", strerror(errno));
+		goto stat_buffer_alloc_err;
+	}
 	memset(file_buffer, 0, stat_buffer.st_size);
+
+	/* Read the file into the buffer and check that the buffer size equals the file size */
+	errno                = 0;
 	int total_chars_read = fread(file_buffer, sizeof(char), stat_buffer.st_size, module_file);
 	debuglog("size read: %d content: %s\n", total_chars_read, file_buffer);
 	if (total_chars_read != stat_buffer.st_size) {
-		perror("fread");
-		return -1;
+		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
+		goto fread_err;
 	}
+	assert(total_chars_read > 0);
 
-	// Close the file
-	fclose(module_file);
+	/* Close the file */
+	errno = 0;
+	if (fclose(module_file) == EOF) {
+		fprintf(stderr, "Attempt to close buffer containing %s failed: %s\n", file_name, strerror(errno));
+		goto fclose_err;
+	};
+	module_file = NULL;
 
-	// Initialize the Jasmine Parser and an array to hold the tokens
+	/* Initialize the Jasmine Parser and an array to hold the tokens */
 	jsmn_parser module_parser;
 	jsmn_init(&module_parser);
 	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
 
-	// Use Jasmine to parse the JSON
-	int total_tokens = jsmn_parse(&module_parser, file_buffer, strlen(file_buffer), tokens,
+	/* Use Jasmine to parse the JSON */
+	int total_tokens = jsmn_parse(&module_parser, file_buffer, total_chars_read, tokens,
 	                              sizeof(tokens) / sizeof(tokens[0]));
 	if (total_tokens < 0) {
-		debuglog("jsmn_parse: invalid JSON?\n");
-		return -1;
+		if (total_tokens == JSMN_ERROR_INVAL) {
+			fprintf(stderr, "Error parsing %s: bad token, JSON string is corrupted\n", file_name);
+		} else if (total_tokens == JSMN_ERROR_PART) {
+			fprintf(stderr, "Error parsing %s: JSON string is too short, expecting more JSON data\n",
+			        file_name);
+		} else if (total_tokens == JSMN_ERROR_NOMEM) {
+			/*
+			 * According to the README at https://github.com/zserge/jsmn, this is a potentially recoverable
+			 * error. More tokens can be allocated and jsmn_parse can be re-invoked.
+			 */
+			fprintf(stderr, "Error parsing %s: Not enough tokens, JSON string is too large\n", file_name);
+		}
+		goto json_parse_err;
 	}
 
-	int module_count = 0;
+	int   module_count    = 0;
+	char *request_headers = NULL;
+	char *reponse_headers = NULL;
 	for (int i = 0; i < total_tokens; i++) {
 		assert(tokens[i].type == JSMN_OBJECT);
 
-		char  module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
-		char  module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
-		char *request_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+		char module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
+		char module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
+
+		errno           = 0;
+		request_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+		if (request_headers == NULL) {
+			fprintf(stderr, "Attempt to allocate request headers failed: %s\n", strerror(errno));
+			goto request_headers_alloc_err;
+		}
 		memset(request_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-		char *reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+
+		errno           = 0;
+		reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+		if (reponse_headers == NULL) {
+			fprintf(stderr, "Attempt to allocate response headers failed: %s\n", strerror(errno));
+			goto response_headers_alloc_err;
+		}
 		memset(reponse_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-		i32  request_size                                         = 0;
-		i32  response_size                                        = 0;
-		i32  argument_count                                       = 0;
-		u32  port                                                 = 0;
-		u32  relative_deadline_us                                 = 0;
-		i32  is_active                                            = 0;
-		i32  request_count                                        = 0;
-		i32  response_count                                       = 0;
-		int  j                                                    = 1;
-		int  ntoks                                                = 2 * tokens[i].size;
+
+		i32  request_size                                        = 0;
+		i32  response_size                                       = 0;
+		i32  argument_count                                      = 0;
+		u32  port                                                = 0;
+		u32  relative_deadline_us                                = 0;
+		bool is_active                                           = false;
+		i32  request_count                                       = 0;
+		i32  response_count                                      = 0;
+		int  j                                                   = 1;
+		int  ntoks                                               = 2 * tokens[i].size;
 		char request_content_type[HTTP_MAX_HEADER_VALUE_LENGTH]  = { 0 };
 		char response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH] = { 0 };
 
@@ -308,23 +390,47 @@ module_new_from_json(char *file_name)
 			j += ntks;
 		}
 		i += ntoks;
-		// do not load if it is not active
-		if (is_active == 0) continue;
 
-		// Allocate a module based on the values from the JSON
-		struct module *module = module_new(module_name, module_path, argument_count, 0, 0, relative_deadline_us,
-		                                   port, request_size, response_size);
-		assert(module);
-		module_set_http_info(module, request_count, request_headers, request_content_type, response_count,
-		                     reponse_headers, response_content_type);
-		module_count++;
+		if (is_active) {
+			/* Allocate a module based on the values from the JSON */
+			struct module *module = module_new(module_name, module_path, argument_count, 0, 0,
+			                                   relative_deadline_us, port, request_size, response_size);
+			if (module == NULL) goto module_new_err;
+
+			assert(module);
+			module_set_http_info(module, request_count, request_headers, request_content_type,
+			                     response_count, reponse_headers, response_content_type);
+			module_count++;
+		}
+
 		free(request_headers);
 		free(reponse_headers);
 	}
 
-	free(file_buffer);
-	assert(module_count);
+	if (module_count == 0) fprintf(stderr, "%s contained no active modules\n", file_name);
 	debuglog("Loaded %d module%s!\n", module_count, module_count > 1 ? "s" : "");
 
-	return 0;
+	free(file_buffer);
+
+	return_code = 0;
+
+done:
+	return return_code;
+module_new_err:
+response_headers_alloc_err:
+	free(request_headers);
+request_headers_alloc_err:
+json_parse_err:
+fclose_err:
+	/* We will retry fclose when we fall through into stat_buffer_alloc_err */
+fread_err:
+	free(file_buffer);
+stat_buffer_alloc_err:
+	// Check to ensure we haven't already close this
+	if (module_file != NULL) {
+		if (fclose(module_file) == EOF) panic("Failed to close file\n");
+	}
+err:
+	return_code = -1;
+	goto done;
 }

@@ -1,8 +1,12 @@
-#include <runtime.h>
-#include <sandbox.h>
 #include <uv.h>
-#include <http_request.h>
-#include <current_sandbox.h>
+
+#include "current_sandbox.h"
+#include "http_request.h"
+#include "panic.h"
+#include "runtime.h"
+#include "sandbox.h"
+#include "types.h"
+#include "worker_thread.h"
 
 // What should we tell the child program its UID and GID are?
 #define UID 0xFF
@@ -140,7 +144,7 @@ wasm_write(i32 file_descriptor, i32 buf_offset, i32 buf_size)
 		char *          buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
 		struct sandbox *s      = current_sandbox_get();
 		int             l      = s->module->max_response_size - s->request_response_data_length;
-		l                      = l > buf_size ? buf_size : l;
+		if (l > buf_size) l = buf_size;
 		if (l == 0) return 0;
 		memcpy(s->request_response_data + s->request_response_data_length, buffer, l);
 		s->request_response_data_length += l;
@@ -449,19 +453,12 @@ wasm_mmap(i32 addr, i32 len, i32 prot, i32 flags, i32 file_descriptor, i32 offse
 {
 	int d = current_sandbox_get_file_descriptor(file_descriptor);
 	if (file_descriptor >= 0) assert(d >= 0);
-	if (addr != 0) {
-		printf("parameter void *addr is not supported!\n");
-		assert(0);
-	}
-
-	if (d != -1) {
-		printf("file mapping is not supported!\n");
-		assert(0);
-	}
+	if (addr != 0) panic("parameter void *addr is not supported!\n");
+	if (d != -1) panic("file mapping is not supported!\n");
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
-	i32 result = sandbox_lmbound;
+	i32 result = local_sandbox_context_cache.linear_memory_size;
 	for (int i = 0; i < len / WASM_PAGE_SIZE; i++) { expand_memory(); }
 
 	return result;
@@ -522,9 +519,9 @@ wasm_readv(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	struct wasm_iovec *iov  = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
 	for (int i = 0; i < iovcnt; i += RUNTIME_READ_WRITE_VECTOR_LENGTH) {
-		uv_fs_t  req                                     = UV_FS_REQ_INIT();
+		uv_fs_t  req                                    = UV_FS_REQ_INIT();
 		uv_buf_t bufs[RUNTIME_READ_WRITE_VECTOR_LENGTH] = { 0 }; // avoid mallocs here!
-		int      j                                       = 0;
+		int      j                                      = 0;
 
 		for (j = 0; j < RUNTIME_READ_WRITE_VECTOR_LENGTH && i + j < iovcnt; j++) {
 			bufs[j] = uv_buf_init(worker_thread_get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len),
@@ -570,9 +567,9 @@ wasm_writev(i32 file_descriptor, i32 iov_offset, i32 iovcnt)
 	struct wasm_iovec *iov  = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
 	for (int i = 0; i < iovcnt; i += RUNTIME_READ_WRITE_VECTOR_LENGTH) {
-		uv_fs_t  req                                     = UV_FS_REQ_INIT();
+		uv_fs_t  req                                    = UV_FS_REQ_INIT();
 		uv_buf_t bufs[RUNTIME_READ_WRITE_VECTOR_LENGTH] = { 0 }; // avoid mallocs here!
-		int      j                                       = 0;
+		int      j                                      = 0;
 
 		for (j = 0; j < RUNTIME_READ_WRITE_VECTOR_LENGTH && i + j < iovcnt; j++) {
 			bufs[j] = uv_buf_init(worker_thread_get_memory_ptr_void(iov[i + j].base_offset, iov[i + j].len),
@@ -1148,8 +1145,7 @@ inner_syscall_handler(i32 n, i32 a, i32 b, i32 c, i32 d, i32 e, i32 f)
 	case SYS_RECVFROM:
 		return wasm_recvfrom(a, b, c, d, e, f);
 	}
-	printf("syscall %d (%d, %d, %d, %d, %d, %d)\n", n, a, b, c, d, e, f);
-	assert(0);
 
+	panic("syscall %d (%d, %d, %d, %d, %d, %d)\n", n, a, b, c, d, e, f);
 	return 0;
 }

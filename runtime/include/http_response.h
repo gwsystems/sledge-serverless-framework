@@ -1,11 +1,11 @@
-#ifndef SFRT_HTTP_RESPONSE_H
-#define SFRT_HTTP_RESPONSE_H
+#pragma once
 
 #include <http_parser.h>
-#include <types.h>
 #include <sys/uio.h>
 
-// Conditionally load libuv
+#include "types.h"
+
+/* Conditionally load libuv */
 #ifdef USE_HTTP_UVIO
 #include <uv.h>
 #endif
@@ -23,7 +23,7 @@ struct http_response {
 	char *                      status;
 	int                         status_length;
 #ifdef USE_HTTP_UVIO
-	uv_buf_t bufs[HTTP_MAX_HEADER_COUNT * 2 + 3]; // max headers, one line for status code, remaining for body!
+	uv_buf_t bufs[HTTP_MAX_HEADER_COUNT * 2 + 3]; /* max headers, one line for status code, remaining for body! */
 #else
 	struct iovec bufs[HTTP_MAX_HEADER_COUNT * 2 + 3];
 #endif
@@ -36,5 +36,3 @@ int http_response_encode_as_vector(struct http_response *http_response);
 int http_response_set_body(struct http_response *http_response, char *body, int length);
 int http_response_set_header(struct http_response *http_response, char *h, int length);
 int http_response_set_status(struct http_response *http_response, char *status, int length);
-
-#endif /* SFRT_HTTP_RESPONSE_H */

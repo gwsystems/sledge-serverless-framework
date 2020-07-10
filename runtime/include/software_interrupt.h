@@ -1,19 +1,21 @@
-#ifndef SFRT_SOFTWARE_INTERRUPT_H
-#define SFRT_SOFTWARE_INTERRUPT_H
+#pragma once
 
-#include <stdbool.h>
 #include <assert.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-/***************************************
- * Externs
- ***************************************/
+/************
+ * Externs  *
+ ***********/
 
 extern __thread volatile sig_atomic_t software_interrupt_is_disabled;
+extern uint64_t                       software_interrupt_interval_duration_in_cycles;
 
-/***************************************
- * Public Static Inlines
- ***************************************/
+/*************************
+ * Public Static Inlines *
+ ************************/
 
 static inline void
 software_interrupt_disable(void)
@@ -45,7 +47,7 @@ software_interrupt_is_enabled(void)
  * Masks a signal on the current thread
  * @param signal - the signal you want to mask
  * @return 0 on success. Exits program otherwise
- **/
+ */
 static inline int
 software_interrupt_mask_signal(int signal)
 {
@@ -70,7 +72,7 @@ software_interrupt_mask_signal(int signal)
  * Unmasks a signal on the current thread
  * @param signal - the signal you want to unmask
  * @return 0 on success. Exits program otherwise
- **/
+ */
 static inline int
 software_interrupt_unmask_signal(int signal)
 {
@@ -91,12 +93,10 @@ software_interrupt_unmask_signal(int signal)
 	return 0;
 }
 
-/***************************************
- * Exports from module.c
- ***************************************/
+/*************************
+ * Exports from module.c *
+ ************************/
 
 void software_interrupt_initialize(void);
 void software_interrupt_arm_timer(void);
 void software_interrupt_disarm_timer(void);
-
-#endif /* SFRT_SOFTWARE_INTERRUPT_H */

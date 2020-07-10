@@ -1,5 +1,4 @@
-#ifndef ARCH_CONTEXT_H
-#define ARCH_CONTEXT_H
+#pragma once
 
 #if defined(AARCH64) || defined(aarch64)
 #include "aarch64/context.h"
@@ -10,5 +9,3 @@
 #define X86_64
 #include "x86_64/context.h"
 #endif
-
-#endif /* ARCH_CONTEXT_H */
