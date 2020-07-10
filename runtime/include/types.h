@@ -39,7 +39,6 @@
 typedef signed char   i8;
 typedef unsigned char u8;
 typedef int16_t       i16;
-typedef uint16_t      u16;
 
 /* FIXME: per-module configuration? */
 #define WASM_PAGE_SIZE   (1024 * 64) /* 64KB */
