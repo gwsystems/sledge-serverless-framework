@@ -35,9 +35,6 @@
 #define round_to_page(x)    round_to_pow2(x, PAGE_SIZE)
 #define round_up_to_page(x) round_up_to_pow2(x, PAGE_SIZE)
 
-/* Type alias's so I don't have to write uint32_t a million times */
-typedef signed char i8;
-
 /* FIXME: per-module configuration? */
 #define WASM_PAGE_SIZE   (1024 * 64) /* 64KB */
 #define WASM_START_PAGES (1 << 8)    /* 16MB */
