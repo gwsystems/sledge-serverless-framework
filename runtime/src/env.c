@@ -40,10 +40,10 @@ env_a_and_64(i32 p_off, uint64_t v)
 }
 
 INLINE void
-env_a_or_64(i32 p_off, i64 v)
+env_a_or_64(i32 p_off, int64_t v)
 {
-	assert(sizeof(i64) == sizeof(uint64_t));
-	uint64_t *p = worker_thread_get_memory_ptr_void(p_off, sizeof(i64));
+	assert(sizeof(int64_t) == sizeof(uint64_t));
+	uint64_t *p = worker_thread_get_memory_ptr_void(p_off, sizeof(int64_t));
 	ck_pr_or_64(p, v);
 }
 
