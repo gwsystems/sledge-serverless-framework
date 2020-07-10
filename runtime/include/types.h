@@ -41,7 +41,6 @@ typedef unsigned char u8;
 typedef int16_t       i16;
 typedef uint16_t      u16;
 typedef int32_t       i32;
-typedef uint32_t      u32;
 typedef int64_t       i64;
 
 /* FIXME: per-module configuration? */
@@ -56,8 +55,8 @@ macros. The code generator compiles in the starting number of wasm pages, and th
 and allocate more than max_pages, we should fault */
 
 // TODO: Should this be deleted?
-// extern u32 starting_pages;
-// extern u32 max_pages;
+// extern uint32_t starting_pages;
+// extern uint32_t max_pages;
 
 /* The code generator also compiles in stubs that populate the linear memory and function table */
 void populate_memory(void);
@@ -67,15 +66,15 @@ void populate_table(void);
 #define INDIRECT_TABLE_SIZE (1 << 10)
 
 struct indirect_table_entry {
-	u32   type_id;
-	void *func_pointer;
+	uint32_t type_id;
+	void *   func_pointer;
 };
 
 /* Cache of Frequently Accessed Members used to avoid pointer chasing */
 struct sandbox_context_cache {
 	struct indirect_table_entry *module_indirect_table;
 	void *                       linear_memory_start;
-	u32                          linear_memory_size;
+	uint32_t                     linear_memory_size;
 };
 
 extern __thread struct sandbox_context_cache local_sandbox_context_cache;

@@ -33,14 +33,14 @@ typedef enum
 struct sandbox {
 	sandbox_state_t state;
 
-	u32 sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
+	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
 
 	void *   linear_memory_start; /* after sandbox struct */
-	u32      linear_memory_size;  /* from after sandbox struct */
+	uint32_t linear_memory_size;  /* from after sandbox struct */
 	uint64_t linear_memory_max_size;
 
-	void *stack_start;
-	u32   stack_size;
+	void *   stack_start;
+	uint32_t stack_size;
 
 	arch_context_t ctxt; /* register context for context switch. */
 

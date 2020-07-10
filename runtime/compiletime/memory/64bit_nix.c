@@ -151,7 +151,7 @@ set_global_i64(i32 offset, i64 v)
 
 // Table handling functionality
 INLINE char *
-get_function_from_table(u32 idx, u32 type_id)
+get_function_from_table(uint32_t idx, uint32_t type_id)
 {
 	assert(idx < INDIRECT_TABLE_SIZE);
 
