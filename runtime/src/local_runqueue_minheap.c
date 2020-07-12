@@ -55,13 +55,13 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 	int rc = priority_queue_delete(&local_runqueue_minheap, sandbox);
 	if (rc == -1) {
 		panic("Err: Thread Local %lu tried to delete sandbox %lu from runqueue, but was not present\n",
-		      pthread_self(), sandbox->start_time);
+		      pthread_self(), sandbox->allocation_timestamp);
 	}
 }
 
 /**
- * This function determines the next sandbox to run. This is either the head of the runqueue or the head of the request
- *queue
+ * This function determines the next sandbox to run.
+ * This is either the head of the runqueue or the head of the request queue
  *
  * Execute the sandbox at the head of the thread local runqueue
  * If the runqueue is empty, pull a fresh batch of sandbox requests, instantiate them, and then execute the new head
@@ -89,8 +89,7 @@ local_runqueue_minheap_get_next()
 		sandbox = sandbox_allocate(sandbox_request);
 		assert(sandbox);
 		free(sandbox_request);
-		sandbox->state = SANDBOX_RUNNABLE;
-		local_runqueue_minheap_add(sandbox);
+		sandbox_set_as_runnable(sandbox);
 	} else if (sandbox_rc == -2) {
 		/* Unable to take lock, so just return NULL and try later */
 		assert(sandbox == NULL);
@@ -100,26 +99,22 @@ local_runqueue_minheap_get_next()
 
 
 /**
- * Conditionally checks to see if current sandbox should be preempted
- */
+ * Called by the SIGALRM handler after a quantum
+ * Assumes the caller validates that there is something to preempt
+ * @param user_context - The context of our user-level Worker thread
+ **/
 void
 local_runqueue_minheap_preempt(ucontext_t *user_context)
 {
+	assert(user_context != NULL);
+
 	software_interrupt_disable(); /* no nesting! */
 
 	struct sandbox *current_sandbox = current_sandbox_get();
-	/* If current_sandbox is null, there's nothing to preempt, so let the "main" scheduler run its course. */
-	if (current_sandbox == NULL) {
-		software_interrupt_enable();
-		return;
-	};
+	assert(current_sandbox != NULL);
 
 	/* The current sandbox should be the head of the runqueue */
 	assert(local_runqueue_minheap_is_empty() == false);
-
-	// TODO: Factor quantum and/or sandbox allocation time into decision
-	// uint64_t global_deadline = global_request_scheduler_peek() -
-	// software_interrupt_interval_duration_in_cycles;
 
 	bool     should_enable_software_interrupt = true;
 	uint64_t local_deadline                   = priority_queue_peek(&local_runqueue_minheap);
@@ -128,41 +123,50 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 	/* Our local deadline should only be ULONG_MAX if our local runqueue is empty */
 	if (local_deadline == ULONG_MAX) { assert(local_runqueue_minheap.first_free == 1); };
 
-	/* If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it */
+	/*
+	 * If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it
+	 *
+	 * TODO: Factor quantum and/or sandbox allocation time into decision
+	 * Something like global_request_scheduler_peek() - software_interrupt_interval_duration_in_cycles;
+	 */
+	if (global_deadline >= local_deadline) goto local_is_priority;
+
+	/* Try to pull higher priority sandbox and  */
+	debuglog("Thread %lu | Sandbox %lu | Had deadline of %lu. Trying to preempt for request with %lu\n",
+	         pthread_self(), current_sandbox->allocation_timestamp, local_deadline, global_deadline);
+
 	struct sandbox_request *sandbox_request;
-	if (global_deadline < local_deadline) {
-		struct sandbox_request *sandbox_request;
-		int                     return_code = global_request_scheduler_remove(&sandbox_request);
+	int                     return_code = global_request_scheduler_remove(&sandbox_request);
 
-		// If we were unable to get a sandbox_request, exit
-		if (return_code != 0) goto done;
+	/* If we were unable to get a sandbox_request, exit */
+	if (return_code != 0) goto err_unable_to_get_request;
 
-		debuglog("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
-		         sandbox_request->absolute_deadline);
-		/* Allocate the request */
-		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
-		assert(next_sandbox);
-		free(sandbox_request);
-		next_sandbox->state = SANDBOX_RUNNABLE;
+	/* Allocate the request */
+	struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
+	assert(next_sandbox);
+	sandbox_set_as_runnable(next_sandbox);
+	free(sandbox_request);
 
-		/* Add it to the runqueue */
-		local_runqueue_add(next_sandbox);
-		debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 
-		/* Save the context of the currently executing sandbox before switching from it */
-		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
+	worker_thread_is_switching_context = true;
 
-		/* Update current_sandbox to the next sandbox */
-		current_sandbox_set(next_sandbox);
+	/* Save the context of the currently executing sandbox before switching from it */
+	sandbox_set_as_preempted(current_sandbox);
 
-		/* And load the context of this new sandbox
-		RC of 1 indicates that sandbox was last in a user-level context switch state,
-		so do not enable software interrupts. */
-		if (arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt) == 1)
-			should_enable_software_interrupt = false;
-	}
+	arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
+
+	/* Set as Running conditionally enables interrupts */
+	sandbox_set_as_running(next_sandbox);
+	debuglog("Thread %lu | Switching from sandbox %lu to sandbox %lu\n", pthread_self(),
+	         current_sandbox->allocation_timestamp, next_sandbox->allocation_timestamp);
+	arch_context_switch(NULL, &next_sandbox->ctxt);
+
 done:
-	if (should_enable_software_interrupt) software_interrupt_enable();
+	return;
+err_unable_to_get_request:
+local_is_priority:
+	software_interrupt_enable();
+	return;
 }
 
 
