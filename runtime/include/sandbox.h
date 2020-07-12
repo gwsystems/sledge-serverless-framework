@@ -1,9 +1,8 @@
 #pragma once
 
+#include <stdbool.h>
 #include <ucontext.h>
 #include <uv.h>
-#include <stdbool.h>
-#include "sandbox_request.h"
 
 #include "arch/context.h"
 #include "deque.h"
@@ -11,6 +10,7 @@
 #include "http_response.h"
 #include "module.h"
 #include "ps_list.h"
+#include "sandbox_request.h"
 #include "software_interrupt.h"
 
 /*********************
@@ -22,12 +22,27 @@ struct sandbox_io_handle {
 	union uv_any_handle libuv_handle;
 };
 
-typedef enum
+typedef enum sandbox_state
 {
-	SANDBOX_INITIALIZING,
+	SANDBOX_UNINITIALIZED = 0, /* Assumption: mmap zeros out structure */
+	SANDBOX_ALLOCATED,
+	SANDBOX_SET_AS_INITIALIZED,
+	SANDBOX_INITIALIZED,
+	SANDBOX_SET_AS_RUNNABLE,
 	SANDBOX_RUNNABLE,
+	SANDBOX_SET_AS_RUNNING,
+	SANDBOX_RUNNING,
+	SANDBOX_SET_AS_PREEMPTED,
+	SANDBOX_PREEMPTED,
+	SANDBOX_SET_AS_BLOCKED,
 	SANDBOX_BLOCKED,
-	SANDBOX_RETURNED
+	SANDBOX_SET_AS_RETURNED,
+	SANDBOX_RETURNED,
+	SANDBOX_SET_AS_COMPLETE,
+	SANDBOX_COMPLETE,
+	SANDBOX_SET_AS_ERROR,
+	SANDBOX_ERROR,
+	SANDBOX_STATE_COUNT
 } sandbox_state_t;
 
 struct sandbox {
@@ -44,10 +59,22 @@ struct sandbox {
 
 	struct arch_context ctxt; /* register context for context switch. */
 
-	uint64_t request_arrival_timestamp;
+	uint64_t request_arrival_timestamp;   /* Timestamp when request is received */
+	uint64_t allocation_timestamp;        /* Timestamp when sandbox is allocated */
+	uint64_t response_timestamp;          /* Timestamp when response is sent */
+	uint64_t completion_timestamp;        /* Timestamp when sandbox runs to completion */
+	uint64_t last_state_change_timestamp; /* Used for bookkeeping of actual execution time */
+
+	/* Duration of time (in cycles) that the sandbox is in each state */
+	uint64_t initializing_duration;
+	uint64_t runnable_duration;
+	uint64_t preempted_duration;
+	uint64_t running_duration;
+	uint64_t blocked_duration;
+	uint64_t returned_duration;
 
 	uint64_t absolute_deadline;
-	uint64_t total_time;
+	uint64_t total_time; /* From Request to Response */
 
 	struct module *module; /* the module this is an instance of */
 
@@ -81,7 +108,7 @@ struct sandbox {
  **************************/
 
 
-extern __thread struct arch_context *worker_thread_next_context;
+extern __thread volatile bool worker_thread_is_switching_context;
 
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(struct sandbox *sandbox);
@@ -94,6 +121,8 @@ extern void worker_thread_wakeup_sandbox(struct sandbox *sandbox);
 
 struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
+void            sandbox_free_linear_memory(struct sandbox *sandbox);
+char *          sandbox_state_stringify(sandbox_state_t sandbox_state);
 void            sandbox_main(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
@@ -220,3 +249,13 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return NULL;
 	return &sandbox->io_handles[io_handle_index].libuv_handle;
 }
+
+void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
+                                uint64_t allocation_timestamp);
+void sandbox_set_as_runnable(struct sandbox *sandbox);
+void sandbox_set_as_running(struct sandbox *sandbox);
+void sandbox_set_as_blocked(struct sandbox *sandbox);
+void sandbox_set_as_preempted(struct sandbox *sandbox);
+void sandbox_set_as_returned(struct sandbox *sandbox);
+void sandbox_set_as_complete(struct sandbox *sandbox);
+void sandbox_set_as_error(struct sandbox *sandbox);

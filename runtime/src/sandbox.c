@@ -10,6 +10,8 @@
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
+#include "local_completion_queue.h"
+#include "local_runqueue.h"
 #include "types.h"
 #include "worker_thread.h"
 
@@ -236,6 +238,52 @@ sandbox_initialize_io_handles_and_file_descriptors(struct sandbox *sandbox)
 	assert(f == 2);
 }
 
+char *
+sandbox_state_stringify(sandbox_state_t state)
+{
+	switch (state) {
+	case SANDBOX_UNINITIALIZED:
+		return "Uninitialized";
+	case SANDBOX_ALLOCATED:
+		return "Allocated";
+	case SANDBOX_SET_AS_INITIALIZED:
+		return "Set As Initialized";
+	case SANDBOX_INITIALIZED:
+		return "Initialized";
+	case SANDBOX_SET_AS_RUNNABLE:
+		return "Set As Runnable";
+	case SANDBOX_RUNNABLE:
+		return "Runnable";
+	case SANDBOX_SET_AS_RUNNING:
+		return "Set As Running";
+	case SANDBOX_RUNNING:
+		return "Running";
+	case SANDBOX_SET_AS_PREEMPTED:
+		return "Set As Preempted";
+	case SANDBOX_PREEMPTED:
+		return "Preempted";
+	case SANDBOX_SET_AS_BLOCKED:
+		return "Set As Blocked";
+	case SANDBOX_BLOCKED:
+		return "Blocked";
+	case SANDBOX_SET_AS_RETURNED:
+		return "Set As Returned";
+	case SANDBOX_RETURNED:
+		return "Returned";
+	case SANDBOX_SET_AS_COMPLETE:
+		return "Set As Complete";
+	case SANDBOX_COMPLETE:
+		return "Complete";
+	case SANDBOX_SET_AS_ERROR:
+		return "Set As Error";
+	case SANDBOX_ERROR:
+		return "Error";
+	default:
+		/* Crash, as this should be exclusive */
+		assert(0);
+	}
+}
+
 /**
  * Sandbox execution logic
  * Handles setup, request parsing, WebAssembly initialization, function execution, response building and sending, and
@@ -246,13 +294,16 @@ current_sandbox_main(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
-	assert(sandbox->state == SANDBOX_RUNNABLE);
+	if (sandbox->state != SANDBOX_RUNNING) {
+		panic("Expected Sandbox to be in Running state, but found %s\n",
+		      sandbox_state_stringify(sandbox->state));
+	};
 
 	char *error_message = "";
 
 	assert(!software_interrupt_is_enabled());
 	arch_context_init(&sandbox->ctxt, 0, 0);
-	worker_thread_next_context = NULL;
+	worker_thread_is_switching_context = false;
 	software_interrupt_enable();
 
 	sandbox_initialize_io_handles_and_file_descriptors(sandbox);
@@ -277,7 +328,8 @@ current_sandbox_main(void)
 	sandbox_setup_arguments(sandbox);
 
 	/* Executing the function */
-	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->return_value         = module_main(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->completion_timestamp = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
 	rc = sandbox_build_and_send_client_response(sandbox);
@@ -285,6 +337,12 @@ current_sandbox_main(void)
 		error_message = "Unable to build and send client response\n";
 		goto err;
 	};
+
+	sandbox->response_timestamp = __getcycles();
+
+	software_interrupt_disable();
+	sandbox_set_as_returned(sandbox);
+	software_interrupt_enable();
 
 done:
 	/* Cleanup connection and exit sandbox */
@@ -297,6 +355,7 @@ done:
 	assert(0);
 err:
 	fprintf(stderr, "%s", error_message);
+	sandbox_set_as_error(sandbox);
 	goto done;
 }
 
@@ -381,10 +440,379 @@ err_stack_allocation_failed:
 }
 
 /**
+ * Prints key performance metrics for a sandbox to STDOUT
+ * @param sandbox
+ **/
+static inline void
+sandbox_print_perf(struct sandbox *sandbox)
+{
+	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
+	uint64_t queued_us     = (sandbox->allocation_timestamp - sandbox->request_arrival_timestamp)
+	                     / runtime_processor_speed_MHz;
+	uint64_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
+	uint64_t runnable_us     = sandbox->runnable_duration / runtime_processor_speed_MHz;
+	uint64_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
+	uint64_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
+	uint64_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
+	printf("%s():%d, state: %s, deadline: %u, actual: %lu, queued: %lu, initializing: %lu, runnable: %lu, "
+	       "running: "
+	       "%lu, blocked: "
+	       "%lu, returned %lu\n",
+	       sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
+	       sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
+	       running_us, blocked_us, returned_us);
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_INITIALIZED state. Because this is the initial state of a new sandbox, we have
+ * to assume that sandbox->state is garbage.
+ * @param sandbox an uninitialized sandbox
+ * @param sandbox_request the request we are initializing the sandbox from
+ * @param allocation_timestamp timestamp of when the allocation
+ *
+ * TODO: Consider zeroing out allocation of the sandbox struct to be able to assert that we are only calling this on a
+ * clean allocation. Additionally, we might want to shift the sandbox states up, so zero is distinct from
+ * SANDBOX_INITIALIZED
+ **/
+void
+sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
+                           uint64_t allocation_timestamp)
+{
+	assert(sandbox != NULL);
+	assert(sandbox->state == SANDBOX_ALLOCATED);
+
+	assert(sandbox_request != NULL);
+	assert(sandbox_request->arguments != NULL);
+	assert(sandbox_request->request_arrival_timestamp > 0);
+	assert(sandbox_request->socket_address != NULL);
+	assert(sandbox_request->socket_descriptor > 0);
+
+	assert(allocation_timestamp > 0);
+
+	debuglog("Thread %lu | Sandbox %lu | Uninitialized => Initialized\n", pthread_self(), allocation_timestamp);
+
+	sandbox->request_arrival_timestamp   = sandbox_request->request_arrival_timestamp;
+	sandbox->allocation_timestamp        = allocation_timestamp;
+	sandbox->response_timestamp          = 0;
+	sandbox->completion_timestamp        = 0;
+	sandbox->last_state_change_timestamp = allocation_timestamp;
+	sandbox_state_t last_state           = sandbox->state;
+	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
+
+	/* Initialize the sandbox's context, stack, and instruction pointer */
+	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
+	                  (reg_t)(sandbox->stack_start + sandbox->stack_size));
+
+	/* Initialize file descriptors to -1 */
+	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
+
+	/* Initialize Parsec control structures (used by Completion Queue) */
+	ps_list_init_d(sandbox);
+
+	/* Copy the socket descriptor, address, and arguments of the client invocation */
+	sandbox->absolute_deadline        = sandbox_request->absolute_deadline;
+	sandbox->arguments                = (void *)sandbox_request->arguments;
+	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
+	memcpy(&sandbox->client_address, sandbox_request->socket_address, sizeof(struct sockaddr));
+
+	sandbox->total_time            = 0;
+	sandbox->initializing_duration = 0;
+	sandbox->runnable_duration     = 0;
+	sandbox->preempted_duration    = 0;
+	sandbox->running_duration      = 0;
+	sandbox->blocked_duration      = 0;
+	sandbox->returned_duration     = 0;
+
+	sandbox->state = SANDBOX_INITIALIZED;
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_RUNNABLE state.
+ *
+ * This occurs in the following scenarios:
+ * - A sandbox in the SANDBOX_INITIALIZED state completes initialization and is ready to be run
+ * - A sandbox in the SANDBOX_BLOCKED state completes what was blocking it and is ready to be run
+ * - A sandbox in the SANDBOX_RUNNING state is preempted before competion and is ready to be run
+ *
+ * @param sandbox
+ **/
+void
+sandbox_set_as_runnable(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	assert(sandbox->last_state_change_timestamp > 0);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_RUNNABLE;
+	debuglog("Thread %lu | Sandbox %lu | %s => Runnable\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_INITIALIZED: {
+		sandbox->initializing_duration += duration_of_last_state;
+		local_runqueue_add(sandbox);
+		break;
+	}
+	case SANDBOX_BLOCKED: {
+		sandbox->blocked_duration += duration_of_last_state;
+		local_runqueue_add(sandbox);
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Runnable\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RUNNABLE;
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_RUNNING state.
+ *
+ * This occurs in the following scenarios:
+ * - A sandbox is in a RUNNABLE state
+ * 		- after initialization. This sandbox has thus not yet been executed
+ * 		- after previously executing, blocking, waking up.
+ * - A sandbox in the PREEMPTED state is now the highest priority work to execute
+ *
+ * @param sandbox
+ * @param active_context - the worker thread context that is going to execute this sandbox. Only provided
+ * when performing a full mcontext restore
+ **/
+void
+sandbox_set_as_running(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                      = __getcycles();
+	uint64_t        duration_of_last_state   = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state               = sandbox->state;
+	bool            should_enable_interrupts = false;
+
+	sandbox->state = SANDBOX_SET_AS_RUNNING;
+	debuglog("Thread %lu | Sandbox %lu | %s => Running\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_RUNNABLE: {
+		sandbox->runnable_duration += duration_of_last_state;
+		current_sandbox_set(sandbox);
+		break;
+	}
+	case SANDBOX_PREEMPTED: {
+		sandbox->preempted_duration += duration_of_last_state;
+		current_sandbox_set(sandbox);
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Running\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RUNNING;
+
+	if (should_enable_interrupts) software_interrupt_enable();
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_PREEMPTED state.
+ *
+ * This occurs when a sandbox is executing and in a RUNNING state and a SIGALRM software interrupt fires
+ * and pulls a sandbox with an earlier absolute deadline from the global request scheduler.
+ *
+ * @param sandbox the sandbox being preempted
+ */
+void
+sandbox_set_as_preempted(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_PREEMPTED;
+	debuglog("Thread %lu | Sandbox %lu | %s => Preempted\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_RUNNING: {
+		sandbox->running_duration += duration_of_last_state;
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Preempted\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_PREEMPTED;
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_BLOCKED state.
+ * This occurs when a sandbox is executing and it makes a blocking API call of some kind.
+ * Automatically removes the sandbox from the runqueue
+ * @param sandbox the blocking sandbox
+ */
+void
+sandbox_set_as_blocked(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_BLOCKED;
+	debuglog("Thread %lu | Sandbox %lu | %s => Blocked\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_RUNNING: {
+		sandbox->running_duration += duration_of_last_state;
+		local_runqueue_delete(sandbox);
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Blocked\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_BLOCKED;
+}
+
+
+/**
+ * Transitions a sandbox to the SANDBOX_RETURNED state.
+ * This occurs when a sandbox is executing and runs to completion.
+ * Automatically removes the sandbox from the runqueue and unmaps linear memory.
+ * Because the stack is still in use, freeing the stack is deferred until later
+ * @param sandbox the blocking sandbox
+ */
+void
+sandbox_set_as_returned(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_RETURNED;
+	debuglog("Thread %lu | Sandbox %lu | %s => Returned\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_RUNNING: {
+		sandbox->response_timestamp = now;
+		sandbox->total_time         = now - sandbox->request_arrival_timestamp;
+		sandbox->running_duration += duration_of_last_state;
+		local_runqueue_delete(sandbox);
+		sandbox_free_linear_memory(sandbox);
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Returned\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RETURNED;
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_ERROR state.
+ * This can occur during initialization or execution
+ * Unmaps linear memory, removes from the runqueue (if on it), and adds to the completion queue
+ * Because the stack is still in use, freeing the stack is deferred until later
+ *
+ * TODO: Is the sandbox adding itself to the completion queue here? Is this a problem?
+ *
+ * @param sandbox the sandbox erroring out
+ */
+void
+sandbox_set_as_error(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_ERROR;
+	debuglog("Thread %lu | Sandbox %lu | %s => Error\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_SET_AS_INITIALIZED:
+		/* Technically, this is a degenerate sandbox that we generate by hand */
+		sandbox->initializing_duration += duration_of_last_state;
+		sandbox_free_linear_memory(sandbox);
+		break;
+	case SANDBOX_RUNNING: {
+		sandbox->running_duration += duration_of_last_state;
+		local_runqueue_delete(sandbox);
+		sandbox_free_linear_memory(sandbox);
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Error\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_ERROR;
+
+	sandbox_print_perf(sandbox);
+
+	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
+	local_completion_queue_add(sandbox);
+}
+
+/**
+ * Transitions a sandbox from the SANDBOX_RETURNED state to the SANDBOX_COMPLETE state.
+ * Adds the sandbox to the completion queue
+ * @param sandbox the sandbox erroring out
+ */
+void
+sandbox_set_as_complete(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_COMPLETE;
+	debuglog("Thread %lu | Sandbox %lu | %s => Complete\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_RETURNED: {
+		sandbox->completion_timestamp = now;
+		sandbox->returned_duration += duration_of_last_state;
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Error\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_COMPLETE;
+
+	sandbox_print_perf(sandbox);
+
+	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
+	local_completion_queue_add(sandbox);
+}
+
+/*
  * Allocates a new sandbox from a sandbox request
  * Frees the sandbox request on success
  * @param sandbox_request request being allocated
- * @returns sandbox * on success, NULL on error
+ * @returns sandbox *on success, NULL on error
  */
 struct sandbox *
 sandbox_allocate(struct sandbox_request *sandbox_request)
@@ -396,8 +824,10 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	assert(sandbox_request != NULL);
 	module_validate(sandbox_request->module);
 
-	struct sandbox *sandbox;
+
 	char *          error_message = "";
+	uint64_t        now           = __getcycles();
+	struct sandbox *sandbox;
 
 	/* Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space */
 	sandbox = sandbox_allocate_memory(sandbox_request->module);
@@ -406,41 +836,30 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 		goto err_memory_allocation_failed;
 	}
 
-	/* Set state to initializing */
-	sandbox->state = SANDBOX_INITIALIZING;
 
 	/* Allocate the Stack */
-	if (sandbox_allocate_stack(sandbox) == -1) {
+	if (sandbox_allocate_stack(sandbox) < 0) {
 		error_message = "failed to allocate sandbox heap and linear memory";
 		goto err_stack_allocation_failed;
 	}
 
-	/* Copy the socket descriptor, address, and arguments of the client invocation */
-	sandbox->absolute_deadline         = sandbox_request->absolute_deadline;
-	sandbox->arguments                 = (void *)sandbox_request->arguments;
-	sandbox->client_socket_descriptor  = sandbox_request->socket_descriptor;
-	sandbox->request_arrival_timestamp = sandbox_request->request_arrival_timestamp;
+	/* Set state to initializing */
+	sandbox->state = SANDBOX_ALLOCATED;
 
-	/* Initialize the sandbox's context, stack, and instruction pointer */
-	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
-	                  (reg_t)(sandbox->stack_start + sandbox->stack_size));
-
-	/* TODO: What does it mean if there isn't a socket_address? Shouldn't this be a hard requirement?
-	        It seems that only the socket descriptor is used to send response */
-	const struct sockaddr *socket_address = sandbox_request->socket_address;
-	if (socket_address) memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
-
-	/* Initialize file descriptors to -1 */
-	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
-
-	/* Initialize Parsec control structures (used by Completion Queue) */
-	ps_list_init_d(sandbox);
+	sandbox_set_as_initialized(sandbox, sandbox_request, now);
 
 	free(sandbox_request);
 done:
 	return sandbox;
 err_stack_allocation_failed:
-	sandbox_free(sandbox);
+	/*
+	 * This is a degenerate sandbox that never successfully completed initialization, so we need to
+	 * hand jam some things to be able to cleanly transition to ERROR state
+	 */
+	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
+	sandbox->last_state_change_timestamp = now;
+	ps_list_init_d(sandbox);
+	sandbox_set_as_error(sandbox);
 err_memory_allocation_failed:
 err:
 	perror(error_message);
@@ -449,15 +868,30 @@ err:
 }
 
 /**
+ * Free Linear Memory, leaving stack in place
+ * @param sandbox
+ **/
+void
+sandbox_free_linear_memory(struct sandbox *sandbox)
+{
+	int rc = munmap(sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
+	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
+}
+
+/**
  * Free stack and heap resources.. also any I/O handles.
+ *
+ * FIXME: Is this double freeing the linear memory?
  * @param sandbox
  */
 void
 sandbox_free(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-	assert(sandbox != current_sandbox_get());
-	assert(sandbox->state == SANDBOX_INITIALIZING || sandbox->state == SANDBOX_RETURNED);
+
+	if (sandbox->state != SANDBOX_ERROR && sandbox->state != SANDBOX_COMPLETE)
+		panic("Unexpectedly attempted to free a sandbox in a %s state\n",
+		      sandbox_state_stringify(sandbox->state));
 
 	char *error_message = NULL;
 	int   rc;

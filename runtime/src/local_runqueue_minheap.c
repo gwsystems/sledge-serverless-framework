@@ -93,8 +93,7 @@ local_runqueue_minheap_get_next()
 		sandbox = sandbox_allocate(sandbox_request);
 		if (!sandbox) goto sandbox_allocate_err;
 
-		sandbox->state = SANDBOX_RUNNABLE;
-		local_runqueue_minheap_add(sandbox);
+		sandbox_set_as_runnable(sandbox);
 	} else if (sandbox_rc == -2) {
 		/* Unable to take lock, so just return NULL and try later */
 		assert(sandbox == NULL);
@@ -139,42 +138,53 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 	uint64_t local_deadline                   = priority_queue_peek(&local_runqueue_minheap);
 	uint64_t global_deadline                  = global_request_scheduler_peek();
 
-	/* If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it */
-	struct sandbox_request *sandbox_request;
-	if (global_deadline < local_deadline) {
-		debuglog("Thread %lu | Sandbox %lu | Had deadline of %lu. Trying to preempt for request with %lu\n",
-		         pthread_self(), current_sandbox->allocation_timestamp, local_deadline, global_deadline);
-
-		int return_code = global_request_scheduler_remove(&sandbox_request);
-
-		/* If we were unable to get a sandbox_request, exit */
-		if (return_code != 0) goto done;
-
-		debuglog("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
-		         sandbox_request->absolute_deadline);
-
-		/* Allocate the request */
-		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
-		if (!next_sandbox) goto err_sandbox_allocate;
-
-		/* Set as runnable and add it to the runqueue */
-		next_sandbox->state = SANDBOX_RUNNABLE;
-		local_runqueue_add(next_sandbox);
-
-		/* Save the context of the currently executing sandbox before switching from it */
-		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
-
-		/* Update current_sandbox to the next sandbox */
-		current_sandbox_set(next_sandbox);
-
-		/*
-		 * And load the context of this new sandbox
-		 * RC of 1 indicates that sandbox was last in a user-level context switch state,
-		 * so do not enable software interrupts.
-		 */
-		if (arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt) == 1)
-			should_enable_software_interrupt = false;
+	/*
+	 * If we're already running the earliest deadline, return
+	 *
+	 * TODO: Factor quantum and/or sandbox allocation time into decision
+	 * Something like global_request_scheduler_peek() - software_interrupt_interval_duration_in_cycles;
+	 */
+	if (local_deadline <= global_deadline) {
+		should_enable_software_interrupt = true;
+		goto done;
 	}
+
+	/* Try preempt the current context to run the sandbox request with a tighter deadline */
+	struct sandbox_request *sandbox_request;
+	debuglog("Thread %lu | Sandbox %lu | Had deadline of %lu. Trying to preempt for request with %lu\n",
+	         pthread_self(), current_sandbox->allocation_timestamp, local_deadline, global_deadline);
+
+	int return_code = global_request_scheduler_remove(&sandbox_request);
+
+	/* If we were unable to get a sandbox_request, return */
+	if (return_code < 0) {
+		should_enable_software_interrupt = true;
+		goto done;
+	};
+
+	debuglog("Thread %lu | Preempted %lu for %lu\n", pthread_self(), local_deadline,
+	         sandbox_request->absolute_deadline);
+
+	/* Allocate the request */
+	struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
+	if (!next_sandbox) goto err_sandbox_allocate;
+
+	sandbox_set_as_runnable(next_sandbox);
+
+
+	worker_thread_is_switching_context = true;
+
+	/* Save the context of the currently executing sandbox before switching from it */
+	sandbox_set_as_preempted(current_sandbox);
+
+	arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
+
+	/* Set as Running conditionally enables interrupts */
+	sandbox_set_as_running(next_sandbox);
+	debuglog("Thread %lu | Switching from sandbox %lu to sandbox %lu\n", pthread_self(),
+	         current_sandbox->allocation_timestamp, next_sandbox->allocation_timestamp);
+	arch_context_switch(NULL, &next_sandbox->ctxt);
+
 done:
 	if (should_enable_software_interrupt) software_interrupt_enable();
 	return;
@@ -183,8 +193,6 @@ err_sandbox_allocate:
 	debuglog("local_runqueue_minheap_preempt failed to allocate sandbox, returning request to global request "
 	         "scheduler\n");
 	global_request_scheduler_add(sandbox_request);
-err:
-	goto done;
 }
 
 
