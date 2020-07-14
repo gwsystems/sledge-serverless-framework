@@ -80,7 +80,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	         0);
 	if (r <= 0) {
 		if (r < 0) perror("Error reading request data from client socket");
-		if (r == 0) perror("No data to reach from client socket");
+		if (r == 0) perror("Client unexpectedly returned zero bytes");
 		return r;
 	}
 	while (r > 0) {
