@@ -102,8 +102,8 @@ local_runqueue_minheap_get_next()
 done:
 	return sandbox;
 sandbox_allocate_err:
-	fprintf(stderr, "local_runqueue_minheap_get_next failed to allocating sandbox. Readding request to global "
-	                "request scheduler\n");
+	debuglog("local_runqueue_minheap_get_next failed to allocating sandbox. Readding request to global "
+	         "request scheduler\n");
 	global_request_scheduler_add(sandbox_request);
 err:
 	sandbox = NULL;
@@ -178,9 +178,8 @@ done:
 	return;
 err_sandbox_allocate:
 	assert(sandbox_request);
-	fprintf(stderr,
-	        "local_runqueue_minheap_preempt failed to allocate sandbox, returning request to global request "
-	        "scheduler\n");
+	debuglog("local_runqueue_minheap_preempt failed to allocate sandbox, returning request to global request "
+	         "scheduler\n");
 	global_request_scheduler_add(sandbox_request);
 err:
 	goto done;

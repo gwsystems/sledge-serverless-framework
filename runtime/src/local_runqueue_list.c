@@ -58,9 +58,8 @@ local_runqueue_list_get_next()
 	done:
 		return sandbox;
 	sandbox_allocate_err:
-		fprintf(stderr,
-		        "local_runqueue_list_get_next failed to allocate sandbox, returning request to global request "
-		        "scheduler\n");
+		debuglog("local_runqueue_list_get_next failed to allocate sandbox, returning request to global request "
+		         "scheduler\n");
 		global_request_scheduler_add(sandbox_request);
 	err:
 		sandbox = NULL;
@@ -90,7 +89,8 @@ local_runqueue_list_append(struct sandbox *sandbox_to_append)
 }
 
 /**
- * Conditionally checks to see if current sandbox should be preempted FIFO doesn't preempt, so just return.
+ * Conditionally checks to see if current sandbox should be preempted.
+ * FIFO doesn't preempt, so just return.
  */
 void
 local_runqueue_list_preempt(ucontext_t *user_context)
