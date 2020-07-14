@@ -262,7 +262,7 @@ current_sandbox_main(void)
 	/* Parse the request. 1 = Success */
 	int rc = sandbox_receive_and_parse_client_request(sandbox);
 	if (rc != 1) {
-		error_message = "Unable to receive and parse client request";
+		error_message = "Unable to receive and parse client request\n";
 		goto err;
 	};
 
@@ -282,7 +282,7 @@ current_sandbox_main(void)
 	/* Retrieve the result, construct the HTTP response, and send to client */
 	rc = sandbox_build_and_send_client_response(sandbox);
 	if (rc == -1) {
-		error_message = "Unable to build and send client response";
+		error_message = "Unable to build and send client response\n";
 		goto err;
 	};
 
@@ -296,7 +296,7 @@ done:
 	 */
 	assert(0);
 err:
-	perror(error_message);
+	fprintf(stderr, "%s", error_message);
 	goto done;
 }
 
