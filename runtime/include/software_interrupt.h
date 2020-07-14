@@ -1,6 +1,7 @@
 #pragma once
 
 #include <assert.h>
+#include <panic.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -31,7 +32,8 @@ software_interrupt_disable(void)
 static inline void
 software_interrupt_enable(void)
 {
-	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 1, 0) == false) assert(0);
+	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 1, 0) == false)
+		panic("Recursive call to software_interrupt_enable\n");
 }
 
 /**

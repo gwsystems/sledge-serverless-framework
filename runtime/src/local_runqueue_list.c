@@ -57,6 +57,9 @@ local_runqueue_list_get_next()
 	done:
 		return sandbox;
 	sandbox_allocate_err:
+		fprintf(stderr,
+		        "local_runqueue_list_get_next failed to allocate sandbox, returning request to global request "
+		        "scheduler\n");
 		global_request_scheduler_add(sandbox_request);
 	err:
 		sandbox = NULL;

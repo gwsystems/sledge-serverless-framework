@@ -2,6 +2,8 @@
 
 #include <uv.h>
 
+#include "panic.h"
+#include "software_interrupt.h"
 #include "types.h"
 
 struct module {
@@ -127,24 +129,21 @@ module_initialize_memory(struct module *module)
 /**
  * Validate module, defined as having a non-NULL dynamical library handle and entry function pointer
  * @param module - module to validate
- * @return true if valid. false if invalid
  */
-static inline bool
-module_is_valid(struct module *module)
+static inline void
+module_validate(struct module *module)
 {
-	if (!module) {
-		fprintf(stderr, "%lu | module %p | module is unexpectedly NULL\n", pthread_self(), module);
-		return false;
-	} else if (!module->dynamic_library_handle) {
-		fprintf(stderr, "%lu | module %p | module->dynamic_library_handle is unexpectedly NULL\n",
-		        pthread_self(), module);
-		return false;
-	} else if (!module->main) {
-		fprintf(stderr, "%lu | module %p | module->main is unexpectedly NULL\n", pthread_self(), module);
-		return false;
-	}
+	/* Assumption: Software Interrupts are disabled by caller */
+	assert(!software_interrupt_is_enabled());
 
-	return true;
+	if (!module) {
+		panic("%lu | module %p | module is unexpectedly NULL\n", pthread_self(), module);
+	} else if (!module->dynamic_library_handle) {
+		panic("%lu | module %p | module->dynamic_library_handle is unexpectedly NULL\n", pthread_self(),
+		      module);
+	} else if (!module->main) {
+		panic("%lu | module %p | module->main is unexpectedly NULL\n", pthread_self(), module);
+	}
 }
 
 /**

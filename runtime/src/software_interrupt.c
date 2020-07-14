@@ -111,6 +111,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (current_sandbox->state == SANDBOX_RETURNED) return;
 
 		/* Preempt */
+		software_interrupt_disable();
 		local_runqueue_preempt(user_context);
 
 		return;

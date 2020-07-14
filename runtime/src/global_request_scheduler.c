@@ -33,6 +33,7 @@ static struct global_request_scheduler_config global_request_scheduler = { .add_
 void
 global_request_scheduler_initialize(struct global_request_scheduler_config *config)
 {
+	assert(config != NULL);
 	memcpy(&global_request_scheduler, config, sizeof(struct global_request_scheduler_config));
 }
 
@@ -44,6 +45,7 @@ global_request_scheduler_initialize(struct global_request_scheduler_config *conf
 struct sandbox_request *
 global_request_scheduler_add(struct sandbox_request *sandbox_request)
 {
+	assert(sandbox_request != NULL);
 	return global_request_scheduler.add_fn(sandbox_request);
 }
 
@@ -55,6 +57,7 @@ global_request_scheduler_add(struct sandbox_request *sandbox_request)
 int
 global_request_scheduler_remove(struct sandbox_request **removed_sandbox)
 {
+	assert(removed_sandbox != NULL);
 	return global_request_scheduler.remove_fn(removed_sandbox);
 }
 

@@ -389,10 +389,13 @@ err_stack_allocation_failed:
 int
 sandbox_allocate(struct sandbox **sandbox, struct sandbox_request *sandbox_request)
 {
+	/* Assumption: Caller has disabled software interrupts */
+	assert(!software_interrupt_is_enabled());
+
+	/* Validate Arguments */
 	assert(sandbox != NULL);
 	assert(sandbox_request != NULL);
-	assert(sandbox_request->module != NULL);
-	assert(module_is_valid(sandbox_request->module));
+	module_validate(sandbox_request->module);
 
 	char *error_message = "";
 	int   rc;
