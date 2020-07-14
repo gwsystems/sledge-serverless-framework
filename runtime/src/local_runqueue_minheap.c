@@ -119,8 +119,10 @@ err:
 void
 local_runqueue_minheap_preempt(ucontext_t *user_context)
 {
-	/* Assumption: Software Interrupts are disabed by caller */
-	assert(!software_interrupt_is_enabled());
+	assert(user_context != NULL);
+
+	/* Prevent nested preemption */
+	software_interrupt_disable();
 
 	struct sandbox *current_sandbox = current_sandbox_get();
 
