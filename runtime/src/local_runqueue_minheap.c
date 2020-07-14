@@ -55,7 +55,7 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 	int rc = priority_queue_delete(&local_runqueue_minheap, sandbox);
 	if (rc == -1) {
 		panic("Err: Thread Local %lu tried to delete sandbox %lu from runqueue, but was not present\n",
-		      pthread_self(), sandbox->request_timestamp);
+		      pthread_self(), sandbox->request_arrival_timestamp);
 	}
 }
 

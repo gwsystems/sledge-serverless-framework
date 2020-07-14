@@ -151,7 +151,7 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 done:
 	assert(sndsz == sandbox->request_response_data_length);
 	uint64_t end_time      = __getcycles();
-	sandbox->total_time    = end_time - sandbox->request_timestamp;
+	sandbox->total_time    = end_time - sandbox->request_arrival_timestamp;
 	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 
 	debuglog("%s():%d, %u, %lu\n", sandbox->module->name, sandbox->module->port,
@@ -409,10 +409,10 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	}
 
 	/* Copy the socket descriptor, address, and arguments of the client invocation */
-	sandbox->absolute_deadline        = sandbox_request->absolute_deadline;
-	sandbox->arguments                = (void *)sandbox_request->arguments;
-	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
-	sandbox->request_timestamp        = sandbox_request->request_timestamp;
+	sandbox->absolute_deadline         = sandbox_request->absolute_deadline;
+	sandbox->arguments                 = (void *)sandbox_request->arguments;
+	sandbox->client_socket_descriptor  = sandbox_request->socket_descriptor;
+	sandbox->request_arrival_timestamp = sandbox_request->request_arrival_timestamp;
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,

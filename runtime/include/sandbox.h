@@ -44,7 +44,7 @@ struct sandbox {
 
 	struct arch_context ctxt; /* register context for context switch. */
 
-	uint64_t request_timestamp;
+	uint64_t request_arrival_timestamp;
 
 	uint64_t absolute_deadline;
 	uint64_t total_time;

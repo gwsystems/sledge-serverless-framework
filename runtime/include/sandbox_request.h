@@ -14,8 +14,8 @@ struct sandbox_request {
 	char *           arguments;
 	int              socket_descriptor;
 	struct sockaddr *socket_address;
-	uint64_t         request_timestamp; /* cycles */
-	uint64_t         absolute_deadline; /* cycles */
+	uint64_t         request_arrival_timestamp; /* cycles */
+	uint64_t         absolute_deadline;         /* cycles */
 };
 
 DEQUE_PROTOTYPE(sandbox, struct sandbox_request *);
@@ -26,21 +26,21 @@ DEQUE_PROTOTYPE(sandbox, struct sandbox_request *);
  * @param arguments the arguments that we'll pass to the serverless function
  * @param socket_descriptor
  * @param socket_address
- * @param request_timestamp the timestamp of when we receives the request from the network (in cycles)
+ * @param request_arrival_timestamp the timestamp of when we receives the request from the network (in cycles)
  * @return the new sandbox request
  */
 static inline struct sandbox_request *
 sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
-                         const struct sockaddr *socket_address, uint64_t request_timestamp)
+                         const struct sockaddr *socket_address, uint64_t request_arrival_timestamp)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)malloc(sizeof(struct sandbox_request));
 	assert(sandbox_request);
-	sandbox_request->module            = module;
-	sandbox_request->arguments         = arguments;
-	sandbox_request->socket_descriptor = socket_descriptor;
-	sandbox_request->socket_address    = (struct sockaddr *)socket_address;
-	sandbox_request->request_timestamp = request_timestamp;
-	sandbox_request->absolute_deadline = request_timestamp
+	sandbox_request->module                    = module;
+	sandbox_request->arguments                 = arguments;
+	sandbox_request->socket_descriptor         = socket_descriptor;
+	sandbox_request->socket_address            = (struct sockaddr *)socket_address;
+	sandbox_request->request_arrival_timestamp = request_arrival_timestamp;
+	sandbox_request->absolute_deadline         = request_arrival_timestamp
 	                                     + module->relative_deadline_us * runtime_processor_speed_MHz;
 
 	debuglog("[%p: %s]\n", sandbox_request, sandbox_request->module->name);
