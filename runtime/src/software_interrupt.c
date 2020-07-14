@@ -102,9 +102,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	case SIGUSR1: {
 		/* SIGUSR1 restores a preempted sandbox using mcontext. */
 
-		/* Assumption: Always sent by a thread, never by the kernel */
-		assert(signal_info->si_code == SI_TKILL);
-
 		/* Assumption: Caller disables interrupt before triggering SIGUSR1 */
 		assert(!software_interrupt_is_enabled());
 
@@ -121,7 +118,12 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		return;
 	}
 	default:
-		panic("Handler unexpectedly called for signal other than SIGALRM or SIGUSR1\n");
+		if (signal_info->si_code == SI_TKILL) {
+			panic("Unexpectedly received signal %d from a thread kill, but we have no handler\n",
+			      signal_type);
+		} else if (signal_info->si_code == SI_KERNEL) {
+			panic("Unexpectedly received signal %d from the kernel, but we have no handler\n", signal_type);
+		}
 	}
 #endif
 }
