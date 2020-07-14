@@ -11,6 +11,7 @@
 #include "current_sandbox.h"
 #include "local_runqueue.h"
 #include "module.h"
+#include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
 #include "software_interrupt.h"
@@ -64,53 +65,63 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	case SIGALRM: {
 		/* SIGALRM is the preemption signal that occurs every quantum of execution */
 
-		/* A POSIX signal is delivered to one of the threads in our process.If sent by the kernel, "broadcast"
-		 * by forwarding to all all threads */
+		/*
+		 * A POSIX signal is delivered to only one thread.
+		 * We need to ensure this thread broadcasts to all other threads
+		 */
 		if (signal_info->si_code == SI_KERNEL) {
+			/* Signal was sent directly by the kernel, so forward to other threads */
 			for (int i = 0; i < runtime_total_worker_processors; i++) {
 				if (pthread_self() != runtime_worker_threads[i]) {
 					pthread_kill(runtime_worker_threads[i], SIGALRM);
 				}
 			}
 		} else {
-			/* If not sent by the kernel, this should be a signal forwarded from another thread */
+			/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 			assert(signal_info->si_code == SI_TKILL);
 		}
-		// debuglog("alrm:%d\n", software_interrupt_SIGALRM_count);
 
+		debuglog("alrm:%d\n", software_interrupt_SIGALRM_count);
 		software_interrupt_SIGALRM_count++;
 
-		/* if the current sandbox is NULL or not in a returned state */
-		if (current_sandbox && current_sandbox->state == SANDBOX_RETURNED) return;
-		/* and the next context is NULL */
-		if (worker_thread_next_context) return;
-		/* and software interrupts are not disabled */
+		/* NOOP if software interrupts not enabled */
 		if (!software_interrupt_is_enabled()) return;
+
+		/* Do not allow more than one layer of preemption */
+		if (worker_thread_next_context) return;
+
+		/* if the current sandbox is NULL or in a RETURNED state, nothing to preempt, so just return */
+		if (!current_sandbox) return;
+		if (current_sandbox->state == SANDBOX_RETURNED) return;
+
 		/* Preempt */
 		local_runqueue_preempt(user_context);
 
 		return;
 	}
-	case SIGUSR1: { /* SIGUSR1 restores the preempted sandbox stored in worker_thread_next_context. */
-		/* Make sure *sigalrm doesn't mess this up if nested.. */
-		assert(!software_interrupt_is_enabled());
-		/* we set current before calling pthread_kill! */
-		assert(worker_thread_next_context && (&current_sandbox->ctxt == worker_thread_next_context));
+	case SIGUSR1: {
+		/* SIGUSR1 restores a preempted sandbox using mcontext. */
+
+		/* Assumption: Always sent by a thread, never by the kernel */
 		assert(signal_info->si_code == SI_TKILL);
-		// debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
+
+		/* Assumption: Caller disables interrupt before triggering SIGUSR1 */
+		assert(!software_interrupt_is_enabled());
+
+		/* Assumption: Caller sets current_sandbox to the preempted sandbox */
+		assert(worker_thread_next_context && (&current_sandbox->ctxt == worker_thread_next_context));
 
 		software_interrupt_SIGUSR_count++;
-		/* do not save current sandbox.. it is in co-operative switch..
-		pick the next from "worker_thread_next_context"..
-		assert its "sp" to be zero in regs..
-		memcpy from next context.. */
+		debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
+
 		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
 		worker_thread_next_context = NULL;
 		software_interrupt_enable();
-		break;
+
+		return;
 	}
 	default:
-		break;
+		panic("Handler unexpectedly called for signal other than SIGALRM or SIGUSR1\n");
 	}
 #endif
 }

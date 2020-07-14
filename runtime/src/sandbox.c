@@ -79,7 +79,8 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	r = recv(sandbox->client_socket_descriptor, (sandbox->request_response_data), sandbox->module->max_request_size,
 	         0);
 	if (r <= 0) {
-		if (r < 0) perror("recv1");
+		if (r < 0) perror("Error reading request data from client socket");
+		if (r == 0) perror("No data to reach from client socket");
 		return r;
 	}
 	while (r > 0) {
@@ -101,7 +102,10 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	                      libuv_callbacks_on_allocate_setup_request_response_data,
 	                      libuv_callbacks_on_read_parse_http_request);
 	worker_thread_process_io();
-	if (sandbox->request_response_data_length == 0) return 0;
+	if (sandbox->request_response_data_length == 0) {
+		perror("request_response_data_length was unexpectedly 0");
+		return 0
+	};
 #endif
 	return 1;
 }
@@ -147,7 +151,7 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 done:
 	assert(sndsz == sandbox->request_response_data_length);
 	uint64_t end_time      = __getcycles();
-	sandbox->total_time    = end_time - sandbox->start_time;
+	sandbox->total_time    = end_time - sandbox->request_timestamp;
 	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 
 	debuglog("%s():%d, %u, %lu\n", sandbox->module->name, sandbox->module->port,
@@ -244,6 +248,8 @@ current_sandbox_main(void)
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNABLE);
 
+	char *error_message = "";
+
 	assert(!software_interrupt_is_enabled());
 	arch_context_init(&sandbox->ctxt, 0, 0);
 	worker_thread_next_context = NULL;
@@ -255,7 +261,10 @@ current_sandbox_main(void)
 
 	/* Parse the request. 1 = Success */
 	int rc = sandbox_receive_and_parse_client_request(sandbox);
-	if (rc != 1) goto done;
+	if (rc != 1) {
+		error_message = "Unable to receive and parse client request";
+		goto err;
+	};
 
 	/* Initialize the module */
 	struct module *current_module = sandbox_get_module(sandbox);
@@ -271,7 +280,11 @@ current_sandbox_main(void)
 	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
-	sandbox_build_and_send_client_response(sandbox);
+	rc = sandbox_build_and_send_client_response(sandbox);
+	if (rc == -1) {
+		error_message = "Unable to build and send client response";
+		goto err;
+	};
 
 done:
 	/* Cleanup connection and exit sandbox */
@@ -282,6 +295,9 @@ done:
 	 * https://github.com/phanikishoreg/awsm-Serverless-Framework/issues/66
 	 */
 	assert(0);
+err:
+	perror(error_message);
+	goto done;
 }
 
 /**
@@ -371,27 +387,32 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	assert(sandbox_request->module != NULL);
 	assert(module_is_valid(sandbox_request->module));
 
-	char *          error_message = NULL;
+	char *          error_message = "";
 	int             rc;
 	struct sandbox *sandbox = NULL;
 
 	/* Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space */
-	errno   = 0;
 	sandbox = (struct sandbox *)sandbox_allocate_memory(sandbox_request->module);
-	if (!sandbox) goto err_memory_allocation_failed;
+	if (!sandbox) {
+		error_message = "failed to allocate sandbox heap and linear memory";
+		goto err_memory_allocation_failed;
+	}
 
 	/* Set state to initializing */
 	sandbox->state = SANDBOX_INITIALIZING;
 
 	/* Allocate the Stack */
 	rc = sandbox_allocate_stack(sandbox);
-	if (rc != 0) goto err_stack_allocation_failed;
+	if (rc != 0) {
+		error_message = "failed to allocate sandbox heap and linear memory";
+		goto err_stack_allocation_failed;
+	}
 
 	/* Copy the socket descriptor, address, and arguments of the client invocation */
 	sandbox->absolute_deadline        = sandbox_request->absolute_deadline;
 	sandbox->arguments                = (void *)sandbox_request->arguments;
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
-	sandbox->start_time               = sandbox_request->start_time;
+	sandbox->request_timestamp        = sandbox_request->request_timestamp;
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
@@ -415,6 +436,7 @@ err_stack_allocation_failed:
 err_memory_allocation_failed:
 err:
 	perror(error_message);
+	sandbox = NULL;
 	goto done;
 }
 
