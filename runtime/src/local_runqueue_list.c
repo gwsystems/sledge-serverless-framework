@@ -49,8 +49,9 @@ local_runqueue_list_get_next()
 	if (local_runqueue_is_empty()) {
 		if (global_request_scheduler_remove(&sandbox_request) != GLOBAL_REQUEST_SCHEDULER_REMOVE_OK) goto err;
 
-		struct sandbox *sandbox;
-		if (sandbox_allocate(&sandbox, sandbox_request) == SANDBOX_ALLOCATE_ERR) goto sandbox_allocate_err;
+		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
+		if (!sandbox) goto sandbox_allocate_err;
+
 		sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_add(sandbox);
 

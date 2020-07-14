@@ -90,7 +90,8 @@ local_runqueue_minheap_get_next()
 		if (global_request_scheduler_remove(&sandbox_request) != GLOBAL_REQUEST_SCHEDULER_REMOVE_OK) goto err;
 
 		/* Try to allocate a sandbox, returning the request on failure */
-		if (sandbox_allocate(&sandbox, sandbox_request) == SANDBOX_ALLOCATE_ERR) goto sandbox_allocate_err;
+		sandbox = sandbox_allocate(sandbox_request);
+		if (!sandbox) goto sandbox_allocate_err;
 
 		sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_minheap_add(sandbox);
@@ -149,10 +150,10 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 
 		debuglog("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
 		         sandbox_request->absolute_deadline);
+
 		/* Allocate the request */
-		struct sandbox *next_sandbox;
-		/* If sandbox allocation fails, add the request back and exit*/
-		if (sandbox_allocate(&next_sandbox, sandbox_request) == -1) goto err_sandbox_allocate;
+		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
+		if (!next_sandbox) goto err_sandbox_allocate;
 
 		/* Set as runnable and add it to the runqueue */
 		next_sandbox->state = SANDBOX_RUNNABLE;
