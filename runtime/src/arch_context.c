@@ -11,8 +11,6 @@
  */
 void __attribute__((noinline)) __attribute__((noreturn)) arch_context_mcontext_restore(void)
 {
-	debuglog("Thread %lu | Signaling SIGUSR1 on self to initiate mcontext restore...\n", pthread_self());
 	pthread_kill(pthread_self(), SIGUSR1);
-
-	assert(false); /* should not get here.. */
+	assert(false);
 }
