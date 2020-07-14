@@ -32,8 +32,9 @@ software_interrupt_disable(void)
 static inline void
 software_interrupt_enable(void)
 {
-	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 1, 0) == false)
+	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 1, 0) == false) {
 		panic("Recursive call to software_interrupt_enable\n");
+	}
 }
 
 /**
