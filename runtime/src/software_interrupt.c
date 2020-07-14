@@ -72,9 +72,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (signal_info->si_code == SI_KERNEL) {
 			/* Signal was sent directly by the kernel, so forward to other threads */
 			for (int i = 0; i < runtime_total_worker_processors; i++) {
-				if (pthread_self() != runtime_worker_threads[i]) {
-					pthread_kill(runtime_worker_threads[i], SIGALRM);
-				}
+				if (pthread_self() == runtime_worker_threads[i]) continue;
+
+				pthread_kill(runtime_worker_threads[i], SIGALRM);
 			}
 		} else {
 			/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
@@ -90,8 +90,24 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		/* Do not allow more than one layer of preemption */
 		if (worker_thread_next_context) return;
 
-		/* if the current sandbox is NULL or in a RETURNED state, nothing to preempt, so just return */
+		/*
+		 * if a SIGALRM fires while the worker thread is between sandboxes, executing libuv, completion queue
+		 * cleanup, etc. current_sandbox might be NULL. In this case, we should just allow return to allow the
+		 * worker thread to run the main loop until it loads a new sandbox.
+		 *
+		 * TODO: Consider if this should be an invarient and the worker thread should disable software
+		 * interrupts when doing this work.
+		 */
 		if (!current_sandbox) return;
+
+		/*
+		 * if a SIGALRM fires while the worker thread executing cleanup of a sandbox, it might be in a RETURNED
+		 * state. In this case, we should just allow return to allow the sandbox to complete cleanup, as it is
+		 * about to switch to a new sandbox.
+		 *
+		 * TODO: Consider if this should be an invarient and the worker thread should disable software
+		 * interrupts when doing this work.
+		 */
 		if (current_sandbox->state == SANDBOX_RETURNED) return;
 
 		/* Preempt */
