@@ -30,7 +30,7 @@ __thread struct arch_context worker_thread_base_context;
 __thread uv_loop_t worker_thread_uvio_handle;
 
 /* Flag to signify if the thread is currently running callbacks in the libuv event loop */
-static __thread bool worker_thread_is_in_callback;
+static __thread bool worker_thread_is_in_libuv_event_loop = false;
 
 /***********************
  * Worker Thread Logic *
@@ -84,8 +84,10 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 void
 worker_thread_wakeup_sandbox(struct sandbox *sandbox)
 {
+	assert(sandbox != NULL);
+	assert(sandbox->state == SANDBOX_BLOCKED);
+
 	software_interrupt_disable();
-	if (sandbox->state != SANDBOX_BLOCKED) goto done;
 
 	sandbox->state = SANDBOX_RUNNABLE;
 	debuglog("Marking blocked sandbox as runnable\n");
@@ -103,7 +105,7 @@ done:
 void
 worker_thread_block_current_sandbox(void)
 {
-	assert(worker_thread_is_in_callback == false);
+	assert(worker_thread_is_in_libuv_event_loop == false);
 	software_interrupt_disable();
 
 	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
@@ -141,32 +143,18 @@ worker_thread_process_io(void)
 }
 
 /**
- * We need to switch back to a previously preempted thread. The only way to restore all of its registers is to use
- * sigreturn. To get to sigreturn, we need to send ourselves a signal, then update the registers we should return to,
- * then sigreturn (by returning from the handler).
- */
-void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void)
-{
-	pthread_kill(pthread_self(), SIGUSR1);
-
-	assert(false); /* should not get here.. */
-	while (true)
-		;
-}
-
-/**
  * Run all outstanding events in the local thread's libuv event loop
  */
 void
 worker_thread_execute_libuv_event_loop(void)
 {
-	worker_thread_is_in_callback = true;
+	worker_thread_is_in_libuv_event_loop = true;
 	int n = uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT), i = 0;
 	while (n > 0) {
 		n--;
 		uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT);
 	}
-	worker_thread_is_in_callback = false;
+	worker_thread_is_in_libuv_event_loop = false;
 }
 
 /**
@@ -177,27 +165,40 @@ worker_thread_execute_libuv_event_loop(void)
 void *
 worker_thread_main(void *return_code)
 {
-	/* Initialize Worker Infrastructure */
+	/* Initialize Base Context */
 	arch_context_init(&worker_thread_base_context, 0, 0);
+
+	/* Initialize Runqueue Variant */
 	// local_runqueue_list_initialize();
 	local_runqueue_minheap_initialize();
+
+	/* Initialize Completion Queue */
 	local_completion_queue_initialize();
-	software_interrupt_is_disabled = false;
-	worker_thread_next_context     = NULL;
+
+	/* Initialize Flags */
+	software_interrupt_is_disabled       = false;
+	worker_thread_is_in_libuv_event_loop = false;
+	worker_thread_next_context           = NULL;
+
+	/* Unmask signals */
 #ifndef PREEMPT_DISABLE
 	software_interrupt_unmask_signal(SIGALRM);
 	software_interrupt_unmask_signal(SIGUSR1);
 #endif
+
+	/* Initialize libuv event loop handle */
 	uv_loop_init(&worker_thread_uvio_handle);
-	worker_thread_is_in_callback = false;
 
 	/* Begin Worker Execution Loop */
 	struct sandbox *next_sandbox;
 	while (true) {
+		/* Assumption: current_sandbox should be unset at start of loop */
 		assert(current_sandbox_get() == NULL);
-		/* If "in a callback", the libuv event loop is triggering this, so we don't need to start it */
-		if (!worker_thread_is_in_callback) worker_thread_execute_libuv_event_loop();
 
+		/* Execute libuv event loop */
+		if (!worker_thread_is_in_libuv_event_loop) worker_thread_execute_libuv_event_loop();
+
+		/* Switch to a sandbox if one is ready to run */
 		software_interrupt_disable();
 		next_sandbox = local_runqueue_get_next();
 		if (next_sandbox != NULL) {
@@ -206,6 +207,7 @@ worker_thread_main(void *return_code)
 			software_interrupt_enable();
 		};
 
+		/* Clear the completion queue */
 		local_completion_queue_free();
 	}
 
@@ -215,10 +217,10 @@ worker_thread_main(void *return_code)
 /**
  * Called when the function in the sandbox exits
  * Removes the standbox from the thread-local runqueue, sets its state to SANDBOX_RETURNED,
- * releases the linear memory, and then switches to the sandbox at the head of the runqueue
+ * releases the linear memory, and then returns to the base context
  * TODO: Consider moving this to a future current_sandbox file. This has thus far proven difficult to move
  */
-void
+__attribute__((noreturn)) void
 worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 {
 	assert(exiting_sandbox);
@@ -237,4 +239,6 @@ worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 
 	/* This should force return to main event loop */
 	worker_thread_switch_to_sandbox(NULL);
+
+	assert(0);
 }

@@ -44,9 +44,10 @@ struct sandbox {
 
 	struct arch_context ctxt; /* register context for context switch. */
 
-	uint64_t total_time;
-	uint64_t start_time;
+	uint64_t request_arrival_timestamp;
+
 	uint64_t absolute_deadline;
+	uint64_t total_time;
 
 	struct module *module; /* the module this is an instance of */
 
@@ -85,7 +86,6 @@ extern __thread struct arch_context *worker_thread_next_context;
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(struct sandbox *sandbox);
 extern void worker_thread_process_io(void);
-extern void __attribute__((noreturn)) worker_thread_sandbox_switch_preempt(void);
 extern void worker_thread_wakeup_sandbox(struct sandbox *sandbox);
 
 /***************************
