@@ -86,7 +86,6 @@ extern __thread struct arch_context *worker_thread_next_context;
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(struct sandbox *sandbox);
 extern void worker_thread_process_io(void);
-extern void __attribute__((noreturn)) worker_thread_mcontext_restore(void);
 extern void worker_thread_wakeup_sandbox(struct sandbox *sandbox);
 
 /***************************

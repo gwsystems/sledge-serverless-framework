@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <ucontext.h>
 
+#include "arch_context.h"
+
 #define ARCH_NREGS       (2)   /* SP + PC only */
 #define ARCH_SIG_JMP_OFF 0x100 /* Based on code generated! */
 
@@ -18,7 +20,6 @@ struct arch_context {
 	mcontext_t mctx;
 };
 
-extern void __attribute__((noreturn)) worker_thread_mcontext_restore(void);
 extern __thread struct arch_context worker_thread_base_context;
 
 /* Initialized a context, zeroing out registers and setting the Instruction and Stack pointers */
@@ -104,7 +105,7 @@ arch_context_switch(struct arch_context *ca, struct arch_context *na)
 	             ".align 8\n\t"
 	             "exit%=:\n\t"
 	             :
-	             : [ curr ] "r"(cr), [ next ] "r"(nr), [ slowpath ] "r"(&worker_thread_mcontext_restore)
+	             : [ curr ] "r"(cr), [ next ] "r"(nr), [ slowpath ] "r"(&arch_context_mcontext_restore)
 	             : "memory", "cc", "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
 	               "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
 	               "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15");

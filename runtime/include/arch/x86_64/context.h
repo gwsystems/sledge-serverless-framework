@@ -7,6 +7,7 @@
 #include <ucontext.h>
 #include <unistd.h>
 
+#include "arch_context.h"
 #include "software_interrupt.h"
 
 #define ARCH_SIG_JMP_OFF 8
@@ -31,7 +32,6 @@ struct arch_context {
 	mcontext_t mctx;
 };
 
-extern void __attribute__((noreturn)) worker_thread_mcontext_restore(void);
 extern __thread struct arch_context worker_thread_base_context;
 
 static void __attribute__((noinline)) arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
@@ -162,11 +162,11 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	   * Slow Path
 	   * If the stack pointer equaled 0, that means the sandbox was preempted and we need to
 	   * fallback to a full mcontext-based context switch. We do this by invoking
-	   * worker_thread_mcontext_restore,  which fires a SIGUSR1 signal. The SIGUSR1 signal handler
+	   * arch_context_mcontext_restore,  which fires a SIGUSR1 signal. The SIGUSR1 signal handler
 	   * executes the mcontext-based context switch.
 	   */
 	  "1:\n\t"
-	  "call worker_thread_mcontext_restore\n\t"
+	  "call arch_context_mcontext_restore\n\t"
 	  ".align 8\n\t"
 
 	  /*

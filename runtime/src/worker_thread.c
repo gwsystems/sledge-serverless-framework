@@ -143,19 +143,6 @@ worker_thread_process_io(void)
 }
 
 /**
- * We need to switch back to a previously preempted thread. The only way to restore all of its registers is to use
- * sigreturn. To get to sigreturn, we need to send ourselves a signal, then update the registers we should return to,
- * then sigreturn (by returning from the handler).
- */
-void __attribute__((noinline)) __attribute__((noreturn)) worker_thread_mcontext_restore(void)
-{
-	debuglog("Thread %lu | Signaling SIGUSR1 on self to initiate mcontext restore...\n", pthread_self());
-	pthread_kill(pthread_self(), SIGUSR1);
-
-	assert(false); /* should not get here.. */
-}
-
-/**
  * Run all outstanding events in the local thread's libuv event loop
  */
 void
