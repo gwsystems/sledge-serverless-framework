@@ -47,7 +47,7 @@ local_runqueue_list_get_next()
 
 	// If our local runqueue is empty, try to pull and allocate a sandbox request from the global request scheduler
 	if (local_runqueue_is_empty()) {
-		if (global_request_scheduler_remove(&sandbox_request) != GLOBAL_REQUEST_SCHEDULER_REMOVE_OK) goto err;
+		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
 
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
 		if (!sandbox) goto sandbox_allocate_err;

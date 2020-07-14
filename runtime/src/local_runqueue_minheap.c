@@ -87,7 +87,7 @@ local_runqueue_minheap_get_next()
 		local_runqueue_minheap_add(sandbox);
 	} else if (sandbox_rc == -1) {
 		/* local runqueue was empty, try to pull a sandbox request and return NULL if we're unable to get one */
-		if (global_request_scheduler_remove(&sandbox_request) != GLOBAL_REQUEST_SCHEDULER_REMOVE_OK) goto err;
+		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
 
 		/* Try to allocate a sandbox, returning the request on failure */
 		sandbox = sandbox_allocate(sandbox_request);
