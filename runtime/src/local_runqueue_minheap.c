@@ -161,6 +161,8 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		next_sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_add(next_sandbox);
 
+		worker_thread_is_switching_context = true;
+
 		/* Save the context of the currently executing sandbox before switching from it */
 		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
 
@@ -168,12 +170,16 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		current_sandbox_set(next_sandbox);
 
 		/*
-		 * And load the context of this new sandbox
-		 * RC of 1 indicates that sandbox was last in a user-level context switch state,
-		 * so do not enable software interrupts.
+		 * Restore the context of this new sandbox
+		 * If last in a user-level context switch state,
+		 * do not enable software interrupts.
 		 */
-		if (arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt) == 1)
+		if (next_sandbox->ctxt.variant == ARCH_CONTEXT_SLOW) {
+			arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt);
+		} else {
+			arch_context_restore(&user_context->uc_mcontext, &next_sandbox->ctxt);
 			should_enable_software_interrupt = false;
+		}
 	}
 done:
 	if (should_enable_software_interrupt) software_interrupt_enable();

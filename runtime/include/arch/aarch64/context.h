@@ -20,6 +20,7 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 
 	actx->regs[UREG_RSP] = sp;
 	actx->regs[UREG_RIP] = ip;
+	actx->variant        = ARCH_CONTEXT_QUICK;
 }
 
 /**

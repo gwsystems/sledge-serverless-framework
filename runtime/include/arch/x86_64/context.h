@@ -37,6 +37,7 @@ static void __attribute__((noinline)) arch_context_init(struct arch_context *act
 
 	actx->regs[UREG_RSP] = sp;
 	actx->regs[UREG_RIP] = ip;
+	actx->variant        = ARCH_CONTEXT_QUICK;
 }
 
 
@@ -64,6 +65,9 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	if (current == NULL) current = &worker_thread_base_context;
 	if (next == NULL) next = &worker_thread_base_context;
 
+	/* Assumption: The context we are switching to should have saved a context in some form */
+	assert(next->variant == ARCH_CONTEXT_QUICK || next->variant != ARCH_CONTEXT_UNUSED);
+
 	reg_t *current_registers = current->regs, *next_registers = next->regs;
 	assert(current_registers && next_registers);
 
@@ -77,12 +81,13 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	   */
 	  "movq $2f, 8(%%rax)\n\t"  /* Write the address of label 2 to current_registers[1] (instruction_pointer). */
 	  "movq %%rsp, (%%rax)\n\t" /* current_registers[0] (stack_pointer) = stack_pointer */
+	  "movq $1, (%%rcx)\n\t"    /* current->variant = ARCH_CONTEXT_QUICK; */
 
 	  /*
 	   * Check if the variant of the context we're trying to switch to is SLOW (mcontext-based)
 	   * If it is, jump to label 1 to restore the preempted sandbox
 	   */
-	  "cmpq $0, (%%rbx)\n\t" /* if (stack pointer == 0) */
+	  "cmpq $2, (%%rcx)\n\t" /* if (next->variant == ARCH_CONTEXT_SLOW); */
 	  "je 1f\n\t"            /* 	goto 1; restore the existing sandbox using mcontext */
 
 	  /*
@@ -94,7 +99,7 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 
 	  /*
 	   * Slow Path
-	   * If the stack pointer equaled 0, that means the sandbox was preempted and we need to
+	   * If the variant is ARCH_CONTEXT_SLOW, that means the sandbox was preempted and we need to
 	   * fallback to a full mcontext-based context switch. We do this by invoking
 	   * arch_context_mcontext_restore,  which fires a SIGUSR1 signal. The SIGUSR1 signal handler
 	   * executes the mcontext-based context switch.
@@ -104,21 +109,23 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	  ".align 8\n\t"
 
 	  /*
-	   * Where preempted sandbox resumes
-	   * rbx contains the preempted sandbox's IP and SP in this context
+	   * This label was written to the instruction pointer of the sandbox that was switched away from
+	   * The sandbox either resumes at label 2 or 3 depending on if an offset of 8 is used.
 	   */
 	  "2:\n\t"
-	  "movq $0, (%%rbx)\n\t" /* stack pointer = 0 */
+	  "movq $3, (%%rdx)\n\t" /* next->variant = ARCH_CONTEXT_QUICK; */
 	  ".align 8\n\t"
 
 	  /* This label is used in conjunction with a static offset */
 	  "3:\n\t"
+	  /* TODO: Should we set  next->variant = ARCH_CONTEXT_SLOW here?;*/
 	  "popq %%rbp\n\t" /* base_pointer = stack[--stack_len]; Base Pointer is restored */
 	  :
-	  : "a"(current_registers), "b"(next_registers)
-	  : "memory", "cc", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "xmm0",
-	    "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13",
-	    "xmm14", "xmm15");
+	  : "a"(current_registers), "b"(next_registers), "c"(&current->variant), "d"(&next->variant)
+	  : "memory", "cc", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "xmm0", "xmm1", "xmm2",
+	    "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14",
+	    "xmm15");
 
+	worker_thread_is_switching_context = false;
 	return 0;
 }

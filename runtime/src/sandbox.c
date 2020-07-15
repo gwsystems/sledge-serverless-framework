@@ -252,7 +252,7 @@ current_sandbox_main(void)
 
 	assert(!software_interrupt_is_enabled());
 	arch_context_init(&sandbox->ctxt, 0, 0);
-	worker_thread_next_context = NULL;
+	worker_thread_is_switching_context = false;
 	software_interrupt_enable();
 
 	sandbox_initialize_io_handles_and_file_descriptors(sandbox);
@@ -410,7 +410,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	sandbox->state = SANDBOX_INITIALIZING;
 
 	/* Allocate the Stack */
-	if (sandbox_allocate_stack(sandbox) == -1) {
+	if (sandbox_allocate_stack(sandbox) < 0) {
 		error_message = "failed to allocate sandbox heap and linear memory";
 		goto err_stack_allocation_failed;
 	}
