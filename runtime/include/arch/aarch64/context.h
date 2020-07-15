@@ -1,96 +1,58 @@
 #pragma once
 
-#include <stdint.h>
-#include <unistd.h>
-#include <ucontext.h>
+#include "arch/common.h"
 
-#include "arch_context.h"
-
-#define ARCH_NREGS       (2)   /* SP + PC only */
 #define ARCH_SIG_JMP_OFF 0x100 /* Based on code generated! */
 
 /**
- * ARM64 code. Currently Unimplemented
+ * Initializes a context, zeros out registers, and sets the Instruction and
+ * Stack pointers
+ * @param actx arch_context to init
+ * @param ip value to set instruction pointer to
+ * @param sp value to set stack pointer to
  */
 
-typedef uint64_t reg_t;
-
-struct arch_context {
-	reg_t      regs[ARCH_NREGS];
-	mcontext_t mctx;
-};
-
-extern __thread struct arch_context worker_thread_base_context;
-
-/* Initialized a context, zeroing out registers and setting the Instruction and Stack pointers */
 static inline void
 arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
 	memset(&actx->mctx, 0, sizeof(mcontext_t));
-	memset((void *)actx->regs, 0, sizeof(reg_t) * ARCH_NREGS);
+	memset((void *)actx->regs, 0, sizeof(reg_t) * UREG_COUNT);
 
-	*(actx->regs)     = sp;
-	*(actx->regs + 1) = ip;
+	actx->regs[UREG_RSP] = sp;
+	actx->regs[UREG_RIP] = ip;
 }
 
-static int
-arch_mcontext_restore(mcontext_t *mc, struct arch_context *ctx)
-{
-	assert(ctx != &worker_thread_base_context);
-
-	/*
-	 * if ctx->regs[0] is set, this was last in a user-level context switch state!
-	 * else restore mcontext..
-	 */
-	if (ctx->regs[0]) {
-		mc->sp       = ctx->regs[0];
-		mc->pc       = ctx->regs[1] + ARCH_SIG_JMP_OFF;
-		ctx->regs[0] = 0;
-
-		return 1;
-	} else {
-		memcpy(mc, &ctx->mctx, sizeof(mcontext_t));
-		memset(&ctx->mctx, 0, sizeof(mcontext_t));
-	}
-
-	return 0;
-}
-
-static void
-arch_mcontext_save(struct arch_context *ctx, mcontext_t *mc)
-{
-	assert(ctx != &worker_thread_base_context);
-
-	ctx->regs[0] = 0;
-	memcpy(&ctx->mctx, mc, sizeof(mcontext_t));
-}
-
-
+/**
+ * @param current - the registers and context of the thing running
+ * @param next - the registers and context of what we're switching to
+ * @return always returns 0, indicating success
+ *
+ * NULL in either of these values indicates the "no sandbox to execute" state,
+ * which defaults to resuming execution of main
+ */
 static inline int
-arch_context_switch(struct arch_context *ca, struct arch_context *na)
+arch_context_switch(struct arch_context *current, struct arch_context *next)
 {
-	if (!ca) {
-		assert(na);
-		/* switching from "no sandbox to execute" state to "executing a sandbox" */
-		ca = &worker_thread_base_context;
-	} else if (!na) {
-		assert(ca);
+	/* Assumption: Software Interrupts are disabled by caller */
+	assert(!software_interrupt_is_enabled());
 
-		/* switching from "executing a sandbox" to "no execution" state. */
-		na = &worker_thread_base_context;
-	} else {
-		assert(na && ca);
+	/* if both current and next are NULL, there is no state change */
+	assert(current != NULL || next != NULL);
 
-		/* switching between sandboxes. */
-	}
+	/* Assumption: The caller does not switch to itself */
+	assert(current != next);
 
-	reg_t *cr = ca->regs, *nr = na->regs;
-	assert(cr && nr);
+	/* Set any NULLs to worker_thread_base_context to resume execution of main */
+	if (current == NULL) current = &worker_thread_base_context;
+	if (next == NULL) next = &worker_thread_base_context;
+
+	reg_t *current_registers = current->regs, *next_registers = next->regs;
+	assert(current_registers && next_registers);
 
 	asm volatile("mov x0, sp\n\t"
 	             "adr x1, reset%=\n\t"
-	             "str x1, [%[curr], 8]\n\t"
-	             "str x0, [%[curr]]\n\t"
+	             "str x1, [%[current], 8]\n\t"
+	             "str x0, [%[current]]\n\t"
 	             "ldr x2, [%[next]]\n\t"
 	             "cbz x2, slow%=\n\t"
 	             "ldr x3, [%[next], 8]\n\t"
@@ -105,9 +67,11 @@ arch_context_switch(struct arch_context *ca, struct arch_context *na)
 	             ".align 8\n\t"
 	             "exit%=:\n\t"
 	             :
-	             : [ curr ] "r"(cr), [ next ] "r"(nr), [ slowpath ] "r"(&arch_context_mcontext_restore)
+	             : [ current ] "r"(current_registers), [ next ] "r"(next_registers),
+	               [ slowpath ] "r"(&arch_context_mcontext_restore)
 	             : "memory", "cc", "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
 	               "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
 	               "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15");
+
 	return 0;
 }
