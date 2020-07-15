@@ -93,7 +93,7 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	   * Check if the variant of the context we're trying to switch to is SLOW (mcontext-based)
 	   * If it is, jump to label 1 to restore the preempted sandbox
 	   */
-	  "cmpq $2, (%%rcx)\n\t" /* if (next->variant == ARCH_CONTEXT_SLOW); */
+	  "cmpq $2, (%%rdx)\n\t" /* if (next->variant == ARCH_CONTEXT_SLOW); */
 	  "je 1f\n\t"            /* 	goto 1; restore the existing sandbox using mcontext */
 
 	  /*
