@@ -14,8 +14,7 @@ struct global_request_scheduler_config {
 };
 
 
-void global_request_scheduler_initialize(struct global_request_scheduler_config *config);
-
+void                    global_request_scheduler_initialize(struct global_request_scheduler_config *config);
 struct sandbox_request *global_request_scheduler_add(struct sandbox_request *);
 int                     global_request_scheduler_remove(struct sandbox_request **);
 uint64_t                global_request_scheduler_peek();

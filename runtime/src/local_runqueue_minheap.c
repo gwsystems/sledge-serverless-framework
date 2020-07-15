@@ -6,6 +6,7 @@
 #include "local_runqueue_minheap.h"
 #include "panic.h"
 #include "priority_queue.h"
+#include "software_interrupt.h"
 
 
 __thread static struct priority_queue local_runqueue_minheap;
@@ -70,8 +71,12 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 struct sandbox *
 local_runqueue_minheap_get_next()
 {
-	struct sandbox *sandbox    = NULL;
-	int             sandbox_rc = local_runqueue_minheap_remove(&sandbox);
+	/* Assumption: Software Interrupts are disabed by caller */
+	assert(!software_interrupt_is_enabled());
+
+	struct sandbox *        sandbox = NULL;
+	struct sandbox_request *sandbox_request;
+	int                     sandbox_rc = local_runqueue_minheap_remove(&sandbox);
 
 	if (sandbox_rc == 0) {
 		/* Sandbox ready pulled from local runqueue */
@@ -82,20 +87,27 @@ local_runqueue_minheap_get_next()
 		local_runqueue_minheap_add(sandbox);
 	} else if (sandbox_rc == -1) {
 		/* local runqueue was empty, try to pull a sandbox request and return NULL if we're unable to get one */
-		struct sandbox_request *sandbox_request;
-		int                     sandbox_request_rc = global_request_scheduler_remove(&sandbox_request);
-		if (sandbox_request_rc != 0) return NULL;
+		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
 
+		/* Try to allocate a sandbox, returning the request on failure */
 		sandbox = sandbox_allocate(sandbox_request);
-		assert(sandbox);
-		free(sandbox_request);
+		if (!sandbox) goto sandbox_allocate_err;
+
 		sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_minheap_add(sandbox);
 	} else if (sandbox_rc == -2) {
 		/* Unable to take lock, so just return NULL and try later */
 		assert(sandbox == NULL);
 	}
+done:
 	return sandbox;
+sandbox_allocate_err:
+	debuglog("local_runqueue_minheap_get_next failed to allocating sandbox. Readding request to global "
+	         "request scheduler\n");
+	global_request_scheduler_add(sandbox_request);
+err:
+	sandbox = NULL;
+	goto done;
 }
 
 
@@ -109,7 +121,8 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 {
 	assert(user_context != NULL);
 
-	software_interrupt_disable(); /* no nesting! */
+	/* Prevent nested preemption */
+	software_interrupt_disable();
 
 	struct sandbox *current_sandbox = current_sandbox_get();
 
@@ -126,37 +139,27 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 	uint64_t local_deadline                   = priority_queue_peek(&local_runqueue_minheap);
 	uint64_t global_deadline                  = global_request_scheduler_peek();
 
-	/* Our local deadline should only be ULONG_MAX if our local runqueue is empty */
-	if (local_deadline == ULONG_MAX) { assert(local_runqueue_minheap.first_free == 1); };
-
-	/*
-	 * If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it
-	 *
-	 * TODO: Factor quantum and/or sandbox allocation time into decision
-	 * Something like global_request_scheduler_peek() - software_interrupt_interval_duration_in_cycles;
-	 */
-
+	/* If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it */
+	struct sandbox_request *sandbox_request;
 	if (global_deadline < local_deadline) {
 		debuglog("Thread %lu | Sandbox %lu | Had deadline of %lu. Trying to preempt for request with %lu\n",
 		         pthread_self(), current_sandbox->allocation_timestamp, local_deadline, global_deadline);
 
-		struct sandbox_request *sandbox_request;
-		int                     return_code = global_request_scheduler_remove(&sandbox_request);
+		int return_code = global_request_scheduler_remove(&sandbox_request);
 
-		// If we were unable to get a sandbox_request, exit
+		/* If we were unable to get a sandbox_request, exit */
 		if (return_code != 0) goto done;
 
 		debuglog("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
 		         sandbox_request->absolute_deadline);
+
 		/* Allocate the request */
 		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
-		assert(next_sandbox);
-		free(sandbox_request);
-		next_sandbox->state = SANDBOX_RUNNABLE;
+		if (!next_sandbox) goto err_sandbox_allocate;
 
-		/* Add it to the runqueue */
+		/* Set as runnable and add it to the runqueue */
+		next_sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_add(next_sandbox);
-		debuglog("[%p: %s]\n", sandbox, sandbox->module->name);
 
 		/* Save the context of the currently executing sandbox before switching from it */
 		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
@@ -174,6 +177,14 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 	}
 done:
 	if (should_enable_software_interrupt) software_interrupt_enable();
+	return;
+err_sandbox_allocate:
+	assert(sandbox_request);
+	debuglog("local_runqueue_minheap_preempt failed to allocate sandbox, returning request to global request "
+	         "scheduler\n");
+	global_request_scheduler_add(sandbox_request);
+err:
+	goto done;
 }
 
 

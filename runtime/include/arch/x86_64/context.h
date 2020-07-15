@@ -120,6 +120,9 @@ arch_mcontext_save(struct arch_context *ctx, mcontext_t *mc)
 static inline int
 arch_context_switch(struct arch_context *current, struct arch_context *next)
 {
+	/* Assumption: Software Interrupts are disabled by caller */
+	assert(software_interrupt_is_disabled);
+
 	/* if both current and next are NULL, there is no state change */
 	assert(current != NULL || next != NULL);
 

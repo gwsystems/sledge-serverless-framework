@@ -380,19 +380,27 @@ err_stack_allocation_failed:
 	return -1;
 }
 
+/**
+ * Allocates a new sandbox from a sandbox request
+ * Frees the sandbox request on success
+ * @param sandbox_request request being allocated
+ * @returns sandbox * on success, NULL on error
+ */
 struct sandbox *
 sandbox_allocate(struct sandbox_request *sandbox_request)
 {
-	assert(sandbox_request != NULL);
-	assert(sandbox_request->module != NULL);
-	assert(module_is_valid(sandbox_request->module));
+	/* Assumption: Caller has disabled software interrupts */
+	assert(!software_interrupt_is_enabled());
 
+	/* Validate Arguments */
+	assert(sandbox_request != NULL);
+	module_validate(sandbox_request->module);
+
+	struct sandbox *sandbox;
 	char *          error_message = "";
-	int             rc;
-	struct sandbox *sandbox = NULL;
 
 	/* Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space */
-	sandbox = (struct sandbox *)sandbox_allocate_memory(sandbox_request->module);
+	sandbox = sandbox_allocate_memory(sandbox_request->module);
 	if (!sandbox) {
 		error_message = "failed to allocate sandbox heap and linear memory";
 		goto err_memory_allocation_failed;
@@ -402,8 +410,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	sandbox->state = SANDBOX_INITIALIZING;
 
 	/* Allocate the Stack */
-	rc = sandbox_allocate_stack(sandbox);
-	if (rc != 0) {
+	if (sandbox_allocate_stack(sandbox) == -1) {
 		error_message = "failed to allocate sandbox heap and linear memory";
 		goto err_stack_allocation_failed;
 	}
@@ -429,6 +436,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	/* Initialize Parsec control structures (used by Completion Queue) */
 	ps_list_init_d(sandbox);
 
+	free(sandbox_request);
 done:
 	return sandbox;
 err_stack_allocation_failed:

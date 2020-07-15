@@ -97,7 +97,6 @@ void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
-
 /**
  * Given a sandbox, returns the module that sandbox is executing
  * @param sandbox the sandbox whose module we want
