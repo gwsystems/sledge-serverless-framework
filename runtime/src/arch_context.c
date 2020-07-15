@@ -11,7 +11,6 @@
  */
 void __attribute__((noinline)) __attribute__((noreturn)) arch_context_mcontext_restore(void)
 {
-	debuglog("Sending SIGUSR1");
 	pthread_kill(pthread_self(), SIGUSR1);
 	assert(false);
 }
