@@ -142,16 +142,15 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 	/* If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it */
 	struct sandbox_request *sandbox_request;
 	if (global_deadline < local_deadline) {
-		debuglog("Thread %lu | Sandbox %lu | Had deadline of %lu. Trying to preempt for request with %lu\n",
-		         pthread_self(), current_sandbox->allocation_timestamp, local_deadline, global_deadline);
+		debuglog("Sandbox %lu has deadline of %lu. Trying to preempt for request with %lu\n",
+		         current_sandbox->request_arrival_timestamp, local_deadline, global_deadline);
 
 		int return_code = global_request_scheduler_remove(&sandbox_request);
 
 		/* If we were unable to get a sandbox_request, exit */
 		if (return_code != 0) goto done;
 
-		debuglog("Thread %lu Preempted %lu for %lu\n", pthread_self(), local_deadline,
-		         sandbox_request->absolute_deadline);
+		debuglog("Preempted %lu for %lu\n", local_deadline, sandbox_request->absolute_deadline);
 
 		/* Allocate the request */
 		struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);

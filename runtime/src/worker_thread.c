@@ -60,8 +60,8 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 		/* Switching from "Base Context" */
 		current_sandbox_set(next_sandbox);
 
-		debuglog("Thread %lu | Switching from Base Context to Sandbox %lu\n", pthread_self(),
-		         next_sandbox->allocation_timestamp);
+		debuglog("Base Context > Sandbox %lu (%d variant)\n", next_sandbox->request_arrival_timestamp,
+		         next_context->variant);
 
 		arch_context_switch(NULL, next_context);
 
@@ -76,8 +76,8 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 		current_sandbox_set(next_sandbox);
 
-		debuglog("Thread %lu | Switching from Sandbox %lu to Sandbox %lu\n", pthread_self(),
-		         current_sandbox->allocation_timestamp, next_sandbox->allocation_timestamp);
+		debuglog("Sandbox %lu > Sandbox %lu\n", current_sandbox->request_arrival_timestamp,
+		         next_sandbox->request_arrival_timestamp);
 
 		/* Switch to the associated context. */
 		arch_context_switch(current_context, next_context);
@@ -93,7 +93,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 static inline void
 worker_thread_switch_to_base_context()
 {
-	software_interrupt_disable();
+	assert(!software_interrupt_is_enabled());
 	assert(worker_thread_is_switching_context == false);
 	worker_thread_is_switching_context = true;
 
@@ -105,8 +105,7 @@ worker_thread_switch_to_base_context()
 
 	current_sandbox_set(NULL);
 
-	debuglog("Thread %lu | Switching from Sandbox %lu to Base Context\n", pthread_self(),
-	         current_sandbox->allocation_timestamp);
+	debuglog("Sandbox %lu > Base Context\n", current_sandbox->request_arrival_timestamp);
 
 	arch_context_switch(&current_sandbox->ctxt, &worker_thread_base_context);
 
@@ -155,8 +154,8 @@ worker_thread_block_current_sandbox(void)
 
 	/* Switch to the next sandbox */
 	struct sandbox *next_sandbox = local_runqueue_get_next();
-	debuglog("[%p: %next_sandbox, %p: %next_sandbox]\n", current_sandbox, current_sandbox->module->name,
-	         next_sandbox, next_sandbox ? next_sandbox->module->name : "");
+	debuglog("[%p: %p, %p: %p]\n", current_sandbox, current_sandbox->module->name, next_sandbox,
+	         next_sandbox ? next_sandbox->module->name : "");
 
 	/* If able to get one, switch to it. Otherwise, return to base context */
 	if (next_sandbox == NULL) {
@@ -273,6 +272,7 @@ __attribute__((noreturn)) void
 worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 {
 	assert(exiting_sandbox);
+	debuglog("Exiting %lu\n", exiting_sandbox->request_arrival_timestamp);
 
 	/* Because the stack is still in use, only unmap linear memory and defer free resources until "main
 	function execution" */

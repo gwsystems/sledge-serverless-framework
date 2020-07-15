@@ -81,7 +81,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			assert(signal_info->si_code == SI_TKILL);
 		}
 
-		debuglog("alrm:%d\n", software_interrupt_SIGALRM_count);
 		software_interrupt_SIGALRM_count++;
 
 		/* NOOP if software interrupts not enabled */

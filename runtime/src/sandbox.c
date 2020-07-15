@@ -66,7 +66,7 @@ sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 
 /**
  * Receive and Parse the Request for the current sandbox
- * @return 1 on success, 0 if no context, < 0 on failure.
+ * @return 1 on success, < 0 on failure.
  */
 static inline int
 sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
@@ -78,9 +78,8 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	int r = 0;
 	r = recv(sandbox->client_socket_descriptor, (sandbox->request_response_data), sandbox->module->max_request_size,
 	         0);
-	if (r <= 0) {
-		if (r < 0) perror("Error reading request data from client socket");
-		if (r == 0) perror("Client unexpectedly returned zero bytes");
+	if (r < 0) {
+		perror("Error reading request data from client socket");
 		return r;
 	}
 	while (r > 0) {

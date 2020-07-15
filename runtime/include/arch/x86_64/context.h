@@ -1,6 +1,7 @@
 #pragma once
 
 #include "arch/common.h"
+#include "types.h"
 
 #define ARCH_SIG_JMP_OFF 8
 
@@ -54,6 +55,11 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 {
 	/* Assumption: Software Interrupts are disabled by caller */
 	assert(software_interrupt_is_disabled);
+
+	if (next->variant == ARCH_CONTEXT_QUICK && (next->regs[UREG_RIP] == 0 || next->regs[UREG_RSP] == 0)) {
+		debuglog("Next Context was Quick Variant, but data was invalid.");
+		assert(0);
+	}
 
 	/* if both current and next are NULL, there is no state change */
 	assert(current != NULL || next != NULL);
