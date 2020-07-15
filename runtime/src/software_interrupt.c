@@ -88,7 +88,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (!software_interrupt_is_enabled()) return;
 
 		/* Do not allow more than one layer of preemption */
-		if (worker_thread_next_context) return;
+		if (worker_thread_is_switching_context) return;
 
 		/*
 		 * if a SIGALRM fires while the worker thread is between sandboxes, executing libuv, completion queue
@@ -122,13 +122,19 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		assert(!software_interrupt_is_enabled());
 
 		/* Assumption: Caller sets current_sandbox to the preempted sandbox */
-		assert(worker_thread_next_context && (&current_sandbox->ctxt == worker_thread_next_context));
+		assert(current_sandbox);
+
+		/* Extra checks to verify that preemption properly set context state */
+		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_SLOW);
+		assert(current_sandbox->ctxt.regs[UREG_RSP] != 0);
+		assert(current_sandbox->ctxt.regs[UREG_RIP] != 0);
 
 		software_interrupt_SIGUSR_count++;
 		debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
 
 		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
-		worker_thread_next_context = NULL;
+
+		worker_thread_is_switching_context = false;
 		software_interrupt_enable();
 
 		return;

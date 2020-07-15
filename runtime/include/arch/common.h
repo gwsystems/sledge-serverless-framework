@@ -22,9 +22,20 @@ enum UREGS
 	UREG_COUNT
 };
 
+/* The enum is compared directly in assembly, so maintain integral values! */
+enum ARCH_CONTEXT
+{
+	ARCH_CONTEXT_UNUSED  = 0,
+	ARCH_CONTEXT_QUICK   = 1,
+	ARCH_CONTEXT_SLOW    = 2,
+	ARCH_CONTEXT_RUNNING = 3
+};
+
+
 struct arch_context {
-	reg_t      regs[UREG_COUNT];
-	mcontext_t mctx;
+	enum ARCH_CONTEXT variant;
+	reg_t             regs[UREG_COUNT];
+	mcontext_t        mctx;
 };
 
 /*
@@ -35,3 +46,5 @@ extern __thread struct arch_context worker_thread_base_context;
 
 /* Cannot be inlined because called in Assembly */
 void __attribute__((noinline)) __attribute__((noreturn)) arch_context_mcontext_restore(void);
+
+extern __thread volatile bool worker_thread_is_switching_context;
