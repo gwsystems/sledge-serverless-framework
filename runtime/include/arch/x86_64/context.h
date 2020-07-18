@@ -38,7 +38,7 @@ static void __attribute__((noinline)) arch_context_init(struct arch_context *act
 
 	actx->regs[UREG_RSP] = sp;
 	actx->regs[UREG_RIP] = ip;
-	actx->variant        = ARCH_CONTEXT_QUICK;
+	actx->variant        = ARCH_CONTEXT_FAST;
 }
 
 
@@ -56,8 +56,8 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	/* Assumption: Software Interrupts are disabled by caller */
 	assert(software_interrupt_is_disabled);
 
-	if (next->variant == ARCH_CONTEXT_QUICK && (next->regs[UREG_RIP] == 0 || next->regs[UREG_RSP] == 0)) {
-		debuglog("Next Context was Quick Variant, but data was invalid.");
+	if (next->variant == ARCH_CONTEXT_FAST && (next->regs[UREG_RIP] == 0 || next->regs[UREG_RSP] == 0)) {
+		debuglog("Next Context was Fast Variant, but data was invalid.");
 		assert(0);
 	}
 
@@ -72,7 +72,7 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	if (next == NULL) next = &worker_thread_base_context;
 
 	/* Assumption: The context we are switching to should have saved a context in some form */
-	assert(next->variant == ARCH_CONTEXT_QUICK || next->variant != ARCH_CONTEXT_UNUSED);
+	assert(next->variant == ARCH_CONTEXT_FAST || next->variant != ARCH_CONTEXT_UNUSED);
 
 	reg_t *current_registers = current->regs, *next_registers = next->regs;
 	assert(current_registers && next_registers);
@@ -87,7 +87,7 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	   */
 	  "movq $2f, 8(%%rax)\n\t"  /* Write the address of label 2 to current_registers[1] (instruction_pointer). */
 	  "movq %%rsp, (%%rax)\n\t" /* current_registers[0] (stack_pointer) = stack_pointer */
-	  "movq $1, (%%rcx)\n\t"    /* current->variant = ARCH_CONTEXT_QUICK; */
+	  "movq $1, (%%rcx)\n\t"    /* current->variant = ARCH_CONTEXT_FAST; */
 
 	  /*
 	   * Check if the variant of the context we're trying to switch to is SLOW (mcontext-based)
@@ -119,7 +119,7 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	   * The sandbox either resumes at label 2 or 3 depending on if an offset of 8 is used.
 	   */
 	  "2:\n\t"
-	  "movq $3, (%%rdx)\n\t" /* next->variant = ARCH_CONTEXT_QUICK; */
+	  "movq $3, (%%rdx)\n\t" /* next->variant = ARCH_CONTEXT_FAST; */
 	  ".align 8\n\t"
 
 	  /* This label is used in conjunction with a static offset */
