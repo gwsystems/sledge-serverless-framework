@@ -19,28 +19,28 @@
 
 typedef uint64_t reg_t;
 
-/* Userspace Registers. */
-enum UREGS
+/* Register context saved and restored on user-level, direct context switches. */
+typedef enum
 {
-	UREG_RSP = 0,
-	UREG_RIP = 1,
-	UREG_COUNT
-};
+	ureg_rsp = 0,
+	ureg_rip = 1,
+	ureg_count
+} ureg_t;
 
 /* The enum is compared directly in assembly, so maintain integral values! */
-enum ARCH_CONTEXT
+typedef enum
 {
-	ARCH_CONTEXT_UNUSED  = 0,
-	ARCH_CONTEXT_FAST    = 1,
-	ARCH_CONTEXT_SLOW    = 2,
-	ARCH_CONTEXT_RUNNING = 3
-};
+	arch_context_unused  = 0,
+	arch_context_fast    = 1,
+	arch_context_slow    = 2,
+	arch_context_running = 3
+} arch_context_t;
 
 
 struct arch_context {
-	enum ARCH_CONTEXT variant;
-	reg_t             regs[UREG_COUNT];
-	mcontext_t        mctx;
+	arch_context_t variant;
+	reg_t          regs[ureg_count];
+	mcontext_t     mctx;
 };
 
 /*

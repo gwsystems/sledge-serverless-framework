@@ -124,7 +124,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		assert(current_sandbox);
 
 		/* Extra checks to verify that preemption properly set context state */
-		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_SLOW);
+		assert(current_sandbox->ctxt.variant == arch_context_slow);
 
 		software_interrupt_SIGUSR_count++;
 		debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);

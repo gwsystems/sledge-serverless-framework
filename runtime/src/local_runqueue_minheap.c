@@ -173,7 +173,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		 * If last in a user-level context switch state,
 		 * do not enable software interrupts.
 		 */
-		if (next_sandbox->ctxt.variant == ARCH_CONTEXT_SLOW) {
+		if (next_sandbox->ctxt.variant == arch_context_slow) {
 			arch_mcontext_restore(&user_context->uc_mcontext, &next_sandbox->ctxt);
 		} else {
 			arch_context_restore(&user_context->uc_mcontext, &next_sandbox->ctxt);
