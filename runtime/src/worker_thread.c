@@ -64,10 +64,6 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 		         next_context->variant);
 
 		arch_context_switch(NULL, next_context);
-
-		if (current_sandbox != NULL && current_sandbox->state == SANDBOX_RETURNED) {
-			panic("Unexpectedly returned to a sandbox in a RETURNED state\n");
-		}
 	} else {
 		/* Set the current sandbox to the next */
 		assert(next_sandbox != current_sandbox);
