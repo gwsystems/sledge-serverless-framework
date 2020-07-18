@@ -53,6 +53,7 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
 	/* Restore mcontext */
 	memcpy(active_context, &sandbox_context->mctx, sizeof(mcontext_t));
 	memset(&sandbox_context->mctx, 0, sizeof(mcontext_t));
+	sandbox_context->variant = arch_context_running;
 }
 
 /**
@@ -77,6 +78,7 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 	active_context->gregs[REG_RIP]  = sandbox_context->regs[ureg_rip] + ARCH_SIG_JMP_OFF;
 	sandbox_context->regs[ureg_rsp] = 0;
 	sandbox_context->regs[ureg_rip] = 0;
+	sandbox_context->variant        = arch_context_running;
 }
 
 /**

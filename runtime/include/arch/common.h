@@ -30,10 +30,10 @@ typedef enum
 /* The enum is compared directly in assembly, so maintain integral values! */
 typedef enum
 {
-	arch_context_unused  = 0,
-	arch_context_fast    = 1,
-	arch_context_slow    = 2,
-	arch_context_running = 3
+	arch_context_unused  = 0, /* Has not have saved a context */
+	arch_context_fast    = 1, /* Saved a fastpath context */
+	arch_context_slow    = 2, /* Saved a slowpath context */
+	arch_context_running = 3  /* Context is executing and content is out of date */
 } arch_context_t;
 
 
