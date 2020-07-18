@@ -125,8 +125,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		/* Extra checks to verify that preemption properly set context state */
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_SLOW);
-		assert(current_sandbox->ctxt.regs[UREG_RSP] == 0);
-		assert(current_sandbox->ctxt.regs[UREG_RIP] == 0);
 
 		software_interrupt_SIGUSR_count++;
 		debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
