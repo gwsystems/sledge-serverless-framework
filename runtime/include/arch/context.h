@@ -100,7 +100,6 @@ arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *activ
 	assert(active_context->gregs[REG_RIP] != 0);
 	assert(active_context->gregs[REG_RSP] != 0);
 
-	/* Set variant to slow */
 	sandbox_context->variant        = arch_context_slow;
 	sandbox_context->regs[ureg_rsp] = 0;
 	sandbox_context->regs[ureg_rip] = 0;
