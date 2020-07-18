@@ -44,7 +44,7 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
 	assert(sandbox_context != NULL);
 
 	/* Validate that the sandbox_context is well formed */
-	assert(sandbox_context->variant == ARCH_CONTEXT_SLOW);
+	assert(sandbox_context->variant == arch_context_slow);
 	assert(sandbox_context->mctx.gregs[REG_RSP] != 0);
 	assert(sandbox_context->mctx.gregs[REG_RIP] != 0);
 
@@ -67,16 +67,16 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 {
 	assert(active_context != NULL);
 	assert(sandbox_context != NULL);
-	assert(sandbox_context->variant == ARCH_CONTEXT_FAST);
+	assert(sandbox_context->variant == arch_context_fast);
 	assert(sandbox_context != &worker_thread_base_context);
 
 	/* TODO: Phani explained that we need to be able to restore a sandbox with an IP of 0. Why is this? */
-	assert(sandbox_context->regs[UREG_RSP]);
+	assert(sandbox_context->regs[ureg_rsp]);
 
-	active_context->gregs[REG_RSP]  = sandbox_context->regs[UREG_RSP];
-	active_context->gregs[REG_RIP]  = sandbox_context->regs[UREG_RIP] + ARCH_SIG_JMP_OFF;
-	sandbox_context->regs[UREG_RSP] = 0;
-	sandbox_context->regs[UREG_RIP] = 0;
+	active_context->gregs[REG_RSP]  = sandbox_context->regs[ureg_rsp];
+	active_context->gregs[REG_RIP]  = sandbox_context->regs[ureg_rip] + ARCH_SIG_JMP_OFF;
+	sandbox_context->regs[ureg_rsp] = 0;
+	sandbox_context->regs[ureg_rip] = 0;
 }
 
 /**
@@ -101,9 +101,9 @@ arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *activ
 	assert(active_context->gregs[REG_RSP] != 0);
 
 	/* Set variant to slow */
-	sandbox_context->variant        = ARCH_CONTEXT_SLOW;
-	sandbox_context->regs[UREG_RSP] = 0;
-	sandbox_context->regs[UREG_RIP] = 0;
+	sandbox_context->variant        = arch_context_slow;
+	sandbox_context->regs[ureg_rsp] = 0;
+	sandbox_context->regs[ureg_rip] = 0;
 
 	/* Copy mcontext */
 	memcpy(&sandbox_context->mctx, active_context, sizeof(mcontext_t));
