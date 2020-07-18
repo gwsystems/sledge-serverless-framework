@@ -72,7 +72,7 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	if (next == NULL) next = &worker_thread_base_context;
 
 	/* Assumption: The context we are switching to should have saved a context in some form */
-	assert(next->variant == arch_context_fast || next->variant != arch_context_unused);
+	assert(next->variant == arch_context_fast || next->variant == arch_context_slow);
 
 	reg_t *current_registers = current->regs, *next_registers = next->regs;
 	assert(current_registers && next_registers);
