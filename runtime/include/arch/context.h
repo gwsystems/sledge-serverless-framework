@@ -2,12 +2,21 @@
 
 /*
  * This header is the single entry point into the arch_context code.
- * This includes both dependent and independent code
+ * It includes processor independent code and conditionally includes architecture
+ * dependent code.
  */
 
 /*
- * Conditionally load architecture-dependent code
- * Each of these headers include common.h
+ * These preprocessor conditionals load architecture-dependent code.
+ *
+ * Each of these headers include common.h, a sibling header that contains common
+ * structures, enums, and externs used by the processor independent code. Those
+ * definitions are thus transitively loaded here with the appropriate architecture
+ * specific code.
+ *
+ * While the code in common.h could be located in this file above the conditionals,
+ * structuring the code as such prevents IDEs from knowing how to resolve the
+ * symbols when aarch64/context.h or x86_64/context is the active file.
  */
 #if defined(AARCH64) || defined(aarch64)
 #include "aarch64/context.h"

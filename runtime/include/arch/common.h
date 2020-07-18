@@ -9,7 +9,12 @@
 #include "software_interrupt.h"
 
 /*
- * This file contains the common dependencies of the architecture-dependent code
+ * This file contains the common dependencies of the architecture-dependent code.
+ *
+ * While all of the content in this file could alternatively be placed in context.h
+ * above the conditional preprocessor includes, IDEs generally assume each file includes
+ * their own dependent headers directly and form a clean independent subtree that
+ * can be walked to resolve all symbols when the file is active
  */
 
 typedef uint64_t reg_t;
