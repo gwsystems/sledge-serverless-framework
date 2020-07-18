@@ -15,6 +15,8 @@
 static inline void
 arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
+	assert(actx->variant == arch_context_unused);
+
 	memset(&actx->mctx, 0, sizeof(mcontext_t));
 	memset((void *)actx->regs, 0, sizeof(reg_t) * ureg_count);
 
