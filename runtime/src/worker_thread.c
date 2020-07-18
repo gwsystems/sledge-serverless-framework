@@ -163,7 +163,6 @@ worker_thread_block_current_sandbox(void)
 	} else {
 		debuglog("[%p: %p, %p: %p]\n", current_sandbox, current_sandbox->module->name, next_sandbox,
 		         next_sandbox ? next_sandbox->module->name : "");
-		// TODO: Looks like a zombie: software_interrupt_enable();
 		worker_thread_switch_to_sandbox(next_sandbox);
 	}
 }
