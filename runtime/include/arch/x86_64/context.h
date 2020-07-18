@@ -107,11 +107,11 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	   * Slow Path
 	   * If the variant is arch_context_slow, that means the sandbox was preempted and we need to
 	   * fallback to a full mcontext-based context switch. We do this by invoking
-	   * arch_context_mcontext_restore,  which fires a SIGUSR1 signal. The SIGUSR1 signal handler
+	   * arch_context_restore_preempted,  which fires a SIGUSR1 signal. The SIGUSR1 signal handler
 	   * executes the mcontext-based context switch.
 	   */
 	  "1:\n\t"
-	  "call arch_context_mcontext_restore\n\t"
+	  "call arch_context_restore_preempted\n\t"
 	  ".align 8\n\t"
 
 	  /*
