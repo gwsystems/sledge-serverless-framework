@@ -133,9 +133,6 @@ done:
 /**
  * Mark the currently executing sandbox as blocked, remove it from the local runqueue,
  * and pull the sandbox at the head of the runqueue
- *
- * FIXME: What happens if there are preempted or woken (but not running) sandboxes? When we block, when and how do we
- * run them? Is this the runqueue appropriately checked, and runnable sandboxes executed?
  */
 void
 worker_thread_block_current_sandbox(void)
