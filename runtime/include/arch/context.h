@@ -56,8 +56,8 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
 }
 
 /**
- * Restore a sandbox that was previously executing and preempted for higher-priority work.
- * This method restores only the instruction pointer and stack pointer registers rather than
+ * Restore a sandbox saved using a fastpath switch, restoring only the
+ * instruction pointer and stack pointer registers rather than
  * a full mcontext, so it is less expensive than arch_mcontext_restore.
  * @param active_context - the context of the current worker thread
  * @param sandbox_context - the context that we want to restore
