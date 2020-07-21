@@ -70,7 +70,7 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 	assert(sandbox_context->variant == arch_context_fast);
 	assert(sandbox_context != &worker_thread_base_context);
 
-	/* TODO: Phani explained that we need to be able to restore a sandbox with an IP of 0. Why is this? */
+	assert(sandbox_context->regs[ureg_rip]);
 	assert(sandbox_context->regs[ureg_rsp]);
 
 	active_context->gregs[REG_RSP]  = sandbox_context->regs[ureg_rsp];
