@@ -116,7 +116,7 @@ arch_context_switch(struct arch_context *current, struct arch_context *next)
 	   * The sandbox either resumes at label 2 or 3 depending on if an offset of 8 is used.
 	   */
 	  "2:\n\t"
-	  "movq $3, (%%rdx)\n\t" /* next->variant = arch_context_fast; */
+	  "movq $3, (%%rdx)\n\t" /* next->variant = arch_context_running; */
 	  ".align 8\n\t"
 
 	  /* This label is used in conjunction with a static offset */
