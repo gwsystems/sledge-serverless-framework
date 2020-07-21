@@ -14,9 +14,6 @@
  */
 static void __attribute__((noinline)) arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
-	memset(&actx->mctx, 0, sizeof(mcontext_t));
-	memset((void *)actx->regs, 0, sizeof(reg_t) * ureg_count);
-
 	if (sp) {
 		/*
 		 * context_switch conventions: bp is expected to be on top of the stack

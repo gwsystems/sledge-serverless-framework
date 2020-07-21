@@ -31,7 +31,7 @@
 
 /**
  * Restore a full mcontext
- * Writes sandbox_context to active_context and then zeroes sandbox_context out
+ * Writes sandbox_context to active_context
  * @param active_context - the context of the current worker thread
  * @param sandbox_context - the context that we want to restore
  */
@@ -73,11 +73,9 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 	assert(sandbox_context->regs[ureg_rip]);
 	assert(sandbox_context->regs[ureg_rsp]);
 
-	active_context->gregs[REG_RSP]  = sandbox_context->regs[ureg_rsp];
-	active_context->gregs[REG_RIP]  = sandbox_context->regs[ureg_rip] + ARCH_SIG_JMP_OFF;
-	sandbox_context->regs[ureg_rsp] = 0;
-	sandbox_context->regs[ureg_rip] = 0;
-	sandbox_context->variant        = arch_context_running;
+	active_context->gregs[REG_RSP] = sandbox_context->regs[ureg_rsp];
+	active_context->gregs[REG_RIP] = sandbox_context->regs[ureg_rip] + ARCH_SIG_JMP_OFF;
+	sandbox_context->variant       = arch_context_running;
 }
 
 /**
@@ -101,9 +99,7 @@ arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *activ
 	assert(active_context->gregs[REG_RIP] != 0);
 	assert(active_context->gregs[REG_RSP] != 0);
 
-	sandbox_context->variant        = arch_context_slow;
-	sandbox_context->regs[ureg_rsp] = 0;
-	sandbox_context->regs[ureg_rip] = 0;
+	sandbox_context->variant = arch_context_slow;
 
 	/* Copy mcontext */
 	memcpy(&sandbox_context->mctx, active_context, sizeof(mcontext_t));
