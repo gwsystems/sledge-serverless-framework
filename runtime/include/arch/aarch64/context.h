@@ -18,9 +18,9 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 	assert(actx != NULL);
 
 	if (ip == 0 && sp == 0) {
-		actx->variant = arch_context_unused;
+		actx->variant = arch_context_variant_unused;
 	} else {
-		actx->variant = arch_context_fast;
+		actx->variant = arch_context_variant_fast;
 	}
 
 	actx->regs[ureg_rsp] = sp;
@@ -47,8 +47,8 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 	assert(sandbox_context->pc);
 
 	/* Transitioning from Fast -> Running */
-	assert(sandbox_context->variant == arch_context_fast);
-	sandbox_context->variant = arch_context_running;
+	assert(sandbox_context->variant == arch_context_variant_fast);
+	sandbox_context->variant = arch_context_variant_running;
 
 	active_context->sp = sandbox_context->regs[ureg_rsp];
 	active_context->pc = sandbox_context->regs[ureg_rip] + ARCH_SIG_JMP_OFF;
@@ -79,13 +79,13 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	if (b == NULL) b = &worker_thread_base_context;
 
 	/* A Transition {Unused, Running} -> Fast */
-	assert(a->variant == arch_context_unused || a->variant == arch_context_running);
+	assert(a->variant == arch_context_variant_unused || a->variant == arch_context_variant_running);
 
 	/* B Transition {Fast, Slow} -> Running */
-	assert(b->variant == arch_context_fast || b->variant == arch_context_slow);
+	assert(b->variant == arch_context_variant_fast || b->variant == arch_context_variant_slow);
 
 	/* Assumption: Fastpath state is well formed */
-	if (b->variant == arch_context_fast) {
+	if (b->variant == arch_context_variant_fast) {
 		assert(b->regs[ureg_rip] != 0);
 		assert(b->regs[ureg_rsp] != 0);
 	}

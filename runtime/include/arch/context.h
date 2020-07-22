@@ -48,8 +48,8 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
 	assert(sandbox_context != &worker_thread_base_context);
 
 	/* Transitioning from Slow -> Running */
-	assert(sandbox_context->variant == arch_context_slow);
-	sandbox_context->variant = arch_context_running;
+	assert(sandbox_context->variant == arch_context_variant_slow);
+	sandbox_context->variant = arch_context_variant_running;
 
 	/* Restore mcontext */
 	memcpy(active_context, &sandbox_context->mctx, sizeof(mcontext_t));
@@ -74,8 +74,9 @@ arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *activ
 	assert(sandbox_context != &worker_thread_base_context);
 
 	/* Transitioning from {Unused, Running} -> Slow */
-	assert(sandbox_context->variant == arch_context_unused || sandbox_context->variant == arch_context_running);
-	sandbox_context->variant = arch_context_slow;
+	assert(sandbox_context->variant == arch_context_variant_unused
+	       || sandbox_context->variant == arch_context_variant_running);
+	sandbox_context->variant = arch_context_variant_slow;
 
 	/* Copy mcontext */
 	memcpy(&sandbox_context->mctx, active_context, sizeof(mcontext_t));
