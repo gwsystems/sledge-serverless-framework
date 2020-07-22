@@ -157,16 +157,18 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	  ".align 8\n\t"
 
 	  /*
-	   * These labels are used to switch
-	   * This label is what is saved as the IP of a context that was saved using a fastpath context switch
-	   * When this is resumed
-	   * The sandbox either resumes at label 2 or 3 depending on if an offset of 8 is used.
+	   * This label is saved as the IP of a context during a fastpath context switch
 	   */
 	  "2:\n\t"
 	  "movq $3, (%%rdx)\n\t" /* b->variant = arch_context_variant_running; */
 	  ".align 8\n\t"
 
-	  /* This label is used in conjunction with a static offset */
+	  /*
+	   * During slowpath context switches caused by preemption, the caller function
+	   * arch_context_restore sets the variant to running in C and then restores at label
+	   * 3 using the address of label 2 plus an offset equal to ARCH_SIG_JMP_OFF
+	   * This must always equal the value in the .align instruction above!
+	   */
 	  "3:\n\t"
 	  "popq %%rbp\n\t" /* base_pointer = stack[--stack_len]; Base Pointer is restored */
 	  :
