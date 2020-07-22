@@ -29,9 +29,6 @@ __thread uv_loop_t worker_thread_uvio_handle;
 /* Flag to signify if the thread is currently running callbacks in the libuv event loop */
 static __thread bool worker_thread_is_in_libuv_event_loop = false;
 
-/* Flag to signify if the thread is currently undergoing a context switch */
-__thread volatile bool worker_thread_is_switching_context = false;
-
 /***********************
  * Worker Thread Logic *
  **********************/
@@ -50,8 +47,6 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 	assert(next_sandbox != NULL);
 	struct arch_context *next_context = &next_sandbox->ctxt;
-
-	worker_thread_is_switching_context = true;
 
 	/* Get the old sandbox we're switching from */
 	struct sandbox *current_sandbox = current_sandbox_get();
@@ -92,8 +87,6 @@ static inline void
 worker_thread_switch_to_base_context()
 {
 	assert(!software_interrupt_is_enabled());
-	assert(worker_thread_is_switching_context == false);
-	worker_thread_is_switching_context = true;
 
 	struct sandbox *current_sandbox = current_sandbox_get();
 
@@ -110,7 +103,6 @@ worker_thread_switch_to_base_context()
 	arch_context_switch(&current_sandbox->ctxt, &worker_thread_base_context);
 
 	software_interrupt_enable();
-	worker_thread_is_switching_context = false;
 }
 
 /**
@@ -222,7 +214,6 @@ worker_thread_main(void *return_code)
 	/* Initialize Flags */
 	software_interrupt_is_disabled       = false;
 	worker_thread_is_in_libuv_event_loop = false;
-	worker_thread_is_switching_context   = false;
 
 	/* Unmask signals */
 #ifndef PREEMPT_DISABLE

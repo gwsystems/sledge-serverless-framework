@@ -80,9 +80,6 @@ struct sandbox {
  * Externs                 *
  **************************/
 
-
-extern __thread volatile bool worker_thread_is_switching_context;
-
 extern void worker_thread_block_current_sandbox(void);
 extern void worker_thread_on_sandbox_exit(struct sandbox *sandbox);
 extern void worker_thread_process_io(void);

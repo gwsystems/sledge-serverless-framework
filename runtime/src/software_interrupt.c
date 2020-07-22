@@ -86,9 +86,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		/* NOOP if software interrupts not enabled */
 		if (!software_interrupt_is_enabled()) return;
 
-		/* Do not allow more than one layer of preemption */
-		if (worker_thread_is_switching_context) return;
-
 		/*
 		 * if a SIGALRM fires while the worker thread is between sandboxes, executing libuv, completion queue
 		 * cleanup, etc. current_sandbox might be NULL. In this case, we should just allow return to allow the
@@ -131,7 +128,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
 
-		worker_thread_is_switching_context = false;
 		software_interrupt_enable();
 
 		return;
