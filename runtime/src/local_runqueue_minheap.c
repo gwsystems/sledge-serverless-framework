@@ -160,8 +160,6 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		next_sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_add(next_sandbox);
 
-		worker_thread_is_switching_context = true;
-
 		/* Save the context of the currently executing sandbox before switching from it */
 		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
 

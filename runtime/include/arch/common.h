@@ -68,5 +68,3 @@ extern __thread struct arch_context worker_thread_base_context;
 
 /* Cannot be inlined because called in assembly */
 void __attribute__((noinline)) __attribute__((noreturn)) arch_context_restore_preempted(void);
-
-extern __thread volatile bool worker_thread_is_switching_context;
