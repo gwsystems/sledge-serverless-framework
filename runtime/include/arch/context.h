@@ -32,6 +32,7 @@
 /**
  * Restore a full mcontext
  * Writes sandbox_context to active_context
+ * active_context was saved to the stack by a signal handler
  * @param active_context - the context of the current worker thread
  * @param sandbox_context - the context that we want to restore
  */
