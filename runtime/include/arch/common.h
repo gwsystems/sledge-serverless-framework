@@ -36,6 +36,23 @@ typedef enum
 	arch_context_running = 3  /* Context is executing and content is out of date */
 } arch_context_t;
 
+static inline char *
+arch_context_print(arch_context_t context)
+{
+	switch (context) {
+	case arch_context_unused:
+		return "Unused";
+	case arch_context_fast:
+		return "Fast";
+	case arch_context_slow:
+		return "Slow";
+	case arch_context_running:
+		return "Running";
+	default:
+		panic("Encountered unexpected arch_context variant\n");
+	}
+}
+
 
 struct arch_context {
 	arch_context_t variant;
