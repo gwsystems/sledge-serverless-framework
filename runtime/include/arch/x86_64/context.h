@@ -16,9 +16,9 @@ static void __attribute__((noinline)) arch_context_init(struct arch_context *act
 	assert(actx != NULL);
 
 	if (ip == 0 && sp == 0) {
-		actx->variant = arch_context_unused;
+		actx->variant = arch_context_variant_unused;
 	} else {
-		actx->variant = arch_context_fast;
+		actx->variant = arch_context_variant_fast;
 	}
 
 	if (sp) {
@@ -64,8 +64,8 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 	assert(sandbox_context->regs[ureg_rip]);
 
 	/* Transitioning from Fast -> Running */
-	assert(sandbox_context->variant == arch_context_fast);
-	sandbox_context->variant = arch_context_running;
+	assert(sandbox_context->variant == arch_context_variant_fast);
+	sandbox_context->variant = arch_context_variant_running;
 
 	active_context->gregs[REG_RSP] = sandbox_context->regs[ureg_rsp];
 	active_context->gregs[REG_RIP] = sandbox_context->regs[ureg_rip] + ARCH_SIG_JMP_OFF;
@@ -96,13 +96,13 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	if (b == NULL) b = &worker_thread_base_context;
 
 	/* A Transition {Unused, Running} -> Fast */
-	assert(a->variant == arch_context_unused || a->variant == arch_context_running);
+	assert(a->variant == arch_context_variant_unused || a->variant == arch_context_variant_running);
 
 	/* B Transition {Fast, Slow} -> Running */
-	assert(b->variant == arch_context_fast || b->variant == arch_context_slow);
+	assert(b->variant == arch_context_variant_fast || b->variant == arch_context_variant_slow);
 
 	/* Assumption: Fastpath state is well formed */
-	if (b->variant == arch_context_fast) {
+	if (b->variant == arch_context_variant_fast) {
 		assert(b->regs[ureg_rip] != 0);
 		assert(b->regs[ureg_rsp] != 0);
 	}
@@ -122,7 +122,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	   */
 	  "movq $2f, 8(%%rax)\n\t"  /* Write the address of label 2 to context a's IP. */
 	  "movq %%rsp, (%%rax)\n\t" /* a_registers[0] (stack_pointer) = stack_pointer */
-	  "movq $1, (%%rcx)\n\t"    /* a->variant = arch_context_fast; */
+	  "movq $1, (%%rcx)\n\t"    /* a->variant = arch_context_variant_fast; */
 
 	  /*
 	   * Execute a fastpath or slowpath context switch based on context B's variant
@@ -130,7 +130,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	   * If slow (mcontext-based), jump to label 1 to restore via a signal handler
 	   * Otherwise, fall through and execute fast path.
 	   */
-	  "cmpq $2, (%%rdx)\n\t" /* if (b->variant == arch_context_slow); */
+	  "cmpq $2, (%%rdx)\n\t" /* if (b->variant == arch_context_variant_slow); */
 	  "je 1f\n\t"            /* 	goto 1; restore the existing sandbox using mcontext */
 
 	  /*
@@ -147,7 +147,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 
 	  /*
 	   * Slow Path
-	   * If the variant is arch_context_slow, that means the sandbox was preempted and we need to
+	   * If the variant is arch_context_variant_slow, that means the sandbox was preempted and we need to
 	   * fallback to a full mcontext-based context switch. We do this by invoking
 	   * arch_context_restore_preempted, which fires a SIGUSR1 signal. The SIGUSR1 signal handler
 	   * executes the mcontext-based context switch.
@@ -163,7 +163,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	   * The sandbox either resumes at label 2 or 3 depending on if an offset of 8 is used.
 	   */
 	  "2:\n\t"
-	  "movq $3, (%%rdx)\n\t" /* b->variant = arch_context_running; */
+	  "movq $3, (%%rdx)\n\t" /* b->variant = arch_context_variant_running; */
 	  ".align 8\n\t"
 
 	  /* This label is used in conjunction with a static offset */

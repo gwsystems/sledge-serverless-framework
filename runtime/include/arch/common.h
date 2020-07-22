@@ -30,23 +30,23 @@ typedef enum
 /* The enum is compared directly in assembly, so maintain integral values! */
 typedef enum
 {
-	arch_context_unused  = 0, /* Has not have saved a context */
-	arch_context_fast    = 1, /* Saved a fastpath context */
-	arch_context_slow    = 2, /* Saved a slowpath context */
-	arch_context_running = 3  /* Context is executing and content is out of date */
-} arch_context_t;
+	arch_context_variant_unused  = 0, /* Has not have saved a context */
+	arch_context_variant_fast    = 1, /* Saved a fastpath context */
+	arch_context_variant_slow    = 2, /* Saved a slowpath context */
+	arch_context_variant_running = 3  /* Context is executing and content is out of date */
+} arch_context_variant_t;
 
 static inline char *
-arch_context_print(arch_context_t context)
+arch_context_variant_print(arch_context_variant_t context)
 {
 	switch (context) {
-	case arch_context_unused:
+	case arch_context_variant_unused:
 		return "Unused";
-	case arch_context_fast:
+	case arch_context_variant_fast:
 		return "Fast";
-	case arch_context_slow:
+	case arch_context_variant_slow:
 		return "Slow";
-	case arch_context_running:
+	case arch_context_variant_running:
 		return "Running";
 	default:
 		panic("Encountered unexpected arch_context variant\n");
@@ -55,9 +55,9 @@ arch_context_print(arch_context_t context)
 
 
 struct arch_context {
-	arch_context_t variant;
-	reg_t          regs[ureg_count];
-	mcontext_t     mctx;
+	arch_context_variant_t variant;
+	reg_t                  regs[ureg_count];
+	mcontext_t             mctx;
 };
 
 /*

@@ -55,8 +55,8 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 		/* Switching from "Base Context" */
 
 		debuglog("Base Context (%s) > Sandbox %lu (%s)\n",
-		         arch_context_print(worker_thread_base_context.variant),
-		         next_sandbox->request_arrival_timestamp, arch_context_print(next_context->variant));
+		         arch_context_variant_print(worker_thread_base_context.variant),
+		         next_sandbox->request_arrival_timestamp, arch_context_variant_print(next_context->variant));
 
 		current_sandbox_set(next_sandbox);
 
@@ -97,8 +97,8 @@ worker_thread_switch_to_base_context()
 	current_sandbox_set(NULL);
 
 	debuglog("Sandbox %lu (%s) > Base Context (%s)\n", current_sandbox->request_arrival_timestamp,
-	         arch_context_print(current_sandbox->ctxt.variant),
-	         arch_context_print(worker_thread_base_context.variant));
+	         arch_context_variant_print(current_sandbox->ctxt.variant),
+	         arch_context_variant_print(worker_thread_base_context.variant));
 
 	arch_context_switch(&current_sandbox->ctxt, &worker_thread_base_context);
 
