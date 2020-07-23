@@ -18,13 +18,13 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 	assert(actx != NULL);
 
 	if (ip == 0 && sp == 0) {
-		actx->variant = arch_context_variant_unused;
+		actx->variant = ARCH_CONTEXT_VARIANT_UNUSED;
 	} else {
-		actx->variant = arch_context_variant_fast;
+		actx->variant = ARCH_CONTEXT_VARIANT_FAST;
 	}
 
-	actx->regs[ureg_rsp] = sp;
-	actx->regs[ureg_rip] = ip;
+	actx->regs[UREG_SP] = sp;
+	actx->regs[UREG_IP] = ip;
 }
 
 /**
@@ -43,15 +43,15 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 	/* Assumption: Base Context is only ever used by arch_context_switch */
 	assert(sandbox_context != &worker_thread_base_context);
 
-	assert(sandbox_context->regs[ureg_rsp]);
-	assert(sandbox_context->regs[ureg_rip]);
+	assert(sandbox_context->regs[UREG_SP]);
+	assert(sandbox_context->regs[UREG_IP]);
 
 	/* Transitioning from Fast -> Running */
-	assert(sandbox_context->variant == arch_context_variant_fast);
-	sandbox_context->variant = arch_context_variant_running;
+	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_FAST);
+	sandbox_context->variant = ARCH_CONTEXT_VARIANT_RUNNING;
 
-	active_context->sp = sandbox_context->regs[ureg_rsp];
-	active_context->pc = sandbox_context->regs[ureg_rip] + ARCH_SIG_JMP_OFF;
+	active_context->sp = sandbox_context->regs[UREG_SP];
+	active_context->pc = sandbox_context->regs[UREG_IP] + ARCH_SIG_JMP_OFF;
 }
 
 /**
@@ -79,15 +79,15 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	if (b == NULL) b = &worker_thread_base_context;
 
 	/* A Transition {Unused, Running} -> Fast */
-	assert(a->variant == arch_context_variant_unused || a->variant == arch_context_variant_running);
+	assert(a->variant == ARCH_CONTEXT_VARIANT_UNUSED || a->variant == ARCH_CONTEXT_VARIANT_RUNNING);
 
 	/* B Transition {Fast, Slow} -> Running */
-	assert(b->variant == arch_context_variant_fast || b->variant == arch_context_variant_slow);
+	assert(b->variant == ARCH_CONTEXT_VARIANT_FAST || b->variant == ARCH_CONTEXT_VARIANT_SLOW);
 
 	/* Assumption: Fastpath state is well formed */
-	if (b->variant == arch_context_variant_fast) {
-		assert(b->regs[ureg_rip] != 0);
-		assert(b->regs[ureg_rsp] != 0);
+	if (b->variant == ARCH_CONTEXT_VARIANT_FAST) {
+		assert(b->regs[UREG_IP] != 0);
+		assert(b->regs[UREG_SP] != 0);
 	}
 
 	reg_t *a_registers = a->regs, *b_registers = b->regs;
@@ -97,12 +97,12 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	             "adr x1, reset%=\n\t"
 	             "str x1, [%[a], 8]\n\t"
 	             "str x0, [%[a]]\n\t"
-		     "mov x0, #1\n\t"
-		     "str x0, [%[av]]\n\t"
+	             "mov x0, #1\n\t"
+	             "str x0, [%[av]]\n\t"
 	             "ldr x1, [%[bv]]\n\t"
-		     "sub x1, x1, #2\n\t"
+	             "sub x1, x1, #2\n\t"
 	             "cbz x1, slow%=\n\t"
-		     "ldr x0, [%[b]]\n\t"
+	             "ldr x0, [%[b]]\n\t"
 	             "ldr x1, [%[b], 8]\n\t"
 	             "mov sp, x0\n\t"
 	             "br x1\n\t"
@@ -115,11 +115,11 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	             ".align 8\n\t"
 	             "exit%=:\n\t"
 	             :
-	             : [ a ] "r"(a_registers), [ b ] "r"(b_registers), [ av ] "r"(&a->variant), [ bv ] "r"(&b->variant), 
-		       [ slowpath ] "r"(&arch_context_restore_preempted)
+	             : [ a ] "r"(a_registers), [ b ] "r"(b_registers), [ av ] "r"(&a->variant), [ bv ] "r"(&b->variant),
+	               [ slowpath ] "r"(&arch_context_restore_preempted)
 	             : "memory", "cc", "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
-	               "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24",
-	               "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15");
+	               "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24", "d8", "d9",
+	               "d10", "d11", "d12", "d13", "d14", "d15");
 
 	return 0;
 }
