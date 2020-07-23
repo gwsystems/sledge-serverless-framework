@@ -16,9 +16,9 @@ static void __attribute__((noinline)) arch_context_init(struct arch_context *act
 	assert(actx != NULL);
 
 	if (ip == 0 && sp == 0) {
-		actx->variant = arch_context_variant_unused;
+		actx->variant = ARCH_CONTEXT_VARIANT_UNUSED;
 	} else {
-		actx->variant = arch_context_variant_fast;
+		actx->variant = ARCH_CONTEXT_VARIANT_FAST;
 	}
 
 	if (sp) {
@@ -40,8 +40,8 @@ static void __attribute__((noinline)) arch_context_init(struct arch_context *act
 		             : "memory", "cc", "rbx");
 	}
 
-	actx->regs[ureg_rsp] = sp;
-	actx->regs[ureg_rip] = ip;
+	actx->regs[UREG_SP] = sp;
+	actx->regs[UREG_IP] = ip;
 }
 
 /**
@@ -60,15 +60,15 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 	/* Assumption: Base Context is only ever used by arch_context_switch */
 	assert(sandbox_context != &worker_thread_base_context);
 
-	assert(sandbox_context->regs[ureg_rsp]);
-	assert(sandbox_context->regs[ureg_rip]);
+	assert(sandbox_context->regs[UREG_SP]);
+	assert(sandbox_context->regs[UREG_IP]);
 
 	/* Transitioning from Fast -> Running */
-	assert(sandbox_context->variant == arch_context_variant_fast);
-	sandbox_context->variant = arch_context_variant_running;
+	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_FAST);
+	sandbox_context->variant = ARCH_CONTEXT_VARIANT_RUNNING;
 
-	active_context->gregs[REG_RSP] = sandbox_context->regs[ureg_rsp];
-	active_context->gregs[REG_RIP] = sandbox_context->regs[ureg_rip] + ARCH_SIG_JMP_OFF;
+	active_context->gregs[REG_RSP] = sandbox_context->regs[UREG_SP];
+	active_context->gregs[REG_RIP] = sandbox_context->regs[UREG_IP] + ARCH_SIG_JMP_OFF;
 }
 
 /**
@@ -96,15 +96,15 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	if (b == NULL) b = &worker_thread_base_context;
 
 	/* A Transition {Unused, Running} -> Fast */
-	assert(a->variant == arch_context_variant_unused || a->variant == arch_context_variant_running);
+	assert(a->variant == ARCH_CONTEXT_VARIANT_UNUSED || a->variant == ARCH_CONTEXT_VARIANT_RUNNING);
 
 	/* B Transition {Fast, Slow} -> Running */
-	assert(b->variant == arch_context_variant_fast || b->variant == arch_context_variant_slow);
+	assert(b->variant == ARCH_CONTEXT_VARIANT_FAST || b->variant == ARCH_CONTEXT_VARIANT_SLOW);
 
 	/* Assumption: Fastpath state is well formed */
-	if (b->variant == arch_context_variant_fast) {
-		assert(b->regs[ureg_rip] != 0);
-		assert(b->regs[ureg_rsp] != 0);
+	if (b->variant == ARCH_CONTEXT_VARIANT_FAST) {
+		assert(b->regs[UREG_IP] != 0);
+		assert(b->regs[UREG_SP] != 0);
 	}
 
 	reg_t *a_registers = a->regs, *b_registers = b->regs;
@@ -122,7 +122,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	   */
 	  "movq $2f, 8(%%rax)\n\t"  /* Write the address of label 2 to context a's IP. */
 	  "movq %%rsp, (%%rax)\n\t" /* a_registers[0] (stack_pointer) = stack_pointer */
-	  "movq $1, (%%rcx)\n\t"    /* a->variant = arch_context_variant_fast; */
+	  "movq $1, (%%rcx)\n\t"    /* a->variant = ARCH_CONTEXT_VARIANT_FAST; */
 
 	  /*
 	   * Execute a fastpath or slowpath context switch based on context B's variant
@@ -130,7 +130,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	   * If slow (mcontext-based), jump to label 1 to restore via a signal handler
 	   * Otherwise, fall through and execute fast path.
 	   */
-	  "cmpq $2, (%%rdx)\n\t" /* if (b->variant == arch_context_variant_slow); */
+	  "cmpq $2, (%%rdx)\n\t" /* if (b->variant == ARCH_CONTEXT_VARIANT_SLOW); */
 	  "je 1f\n\t"            /* 	goto 1; restore the existing sandbox using mcontext */
 
 	  /*
@@ -147,7 +147,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 
 	  /*
 	   * Slow Path
-	   * If the variant is arch_context_variant_slow, that means the sandbox was preempted and we need to
+	   * If the variant is ARCH_CONTEXT_VARIANT_SLOW, that means the sandbox was preempted and we need to
 	   * fallback to a full mcontext-based context switch. We do this by invoking
 	   * arch_context_restore_preempted, which fires a SIGUSR1 signal. The SIGUSR1 signal handler
 	   * executes the mcontext-based context switch.
@@ -160,7 +160,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	   * This label is saved as the IP of a context during a fastpath context switch
 	   */
 	  "2:\n\t"
-	  "movq $3, (%%rdx)\n\t" /* b->variant = arch_context_variant_running; */
+	  "movq $3, (%%rdx)\n\t" /* b->variant = ARCH_CONTEXT_VARIANT_RUNNING; */
 	  ".align 8\n\t"
 
 	  /*
