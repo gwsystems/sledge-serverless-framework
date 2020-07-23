@@ -72,6 +72,12 @@ struct sandbox {
 	/* The variable name "list" is used for ps_list's default name-based MACROS. */
 	struct ps_list list;
 
+	/*
+	 * The length of the HTTP Request.
+	 * This acts as an offset to the STDOUT of the Sandbox
+	 */
+	ssize_t request_length;
+
 	ssize_t request_response_data_length; /* Should be <= module->max_request_or_response_size */
 	char    request_response_data[1];     /* of request_response_data_length, following sandbox mem.. */
 } PAGE_ALIGNED;
