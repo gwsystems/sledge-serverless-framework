@@ -124,6 +124,7 @@ extern void worker_thread_wakeup_sandbox(struct sandbox *sandbox);
 
 struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
+void            sandbox_free_linear_memory(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 

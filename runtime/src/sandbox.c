@@ -485,6 +485,17 @@ err:
 }
 
 /**
+ * Free Linear Memory, leaving stack in place
+ * @param sandbox
+ **/
+void
+sandbox_free_linear_memory(struct sandbox *sandbox)
+{
+	int rc = munmap(sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
+	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
+}
+
+/**
  * Free stack and heap resources.. also any I/O handles.
  * @param sandbox
  */

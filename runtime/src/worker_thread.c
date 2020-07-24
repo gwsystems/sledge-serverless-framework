@@ -263,8 +263,7 @@ worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 
 	/* Because the stack is still in use, only unmap linear memory and defer free resources until "main
 	function execution" */
-	int rc = munmap(exiting_sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
-	if (rc == -1) perror("worker_thread_on_sandbox_exit - munmap failed\n");
+	sandbox_free_linear_memory(exiting_sandbox);
 
 	/* TODO: I do not understand when software interrupts must be disabled? */
 	software_interrupt_disable();
