@@ -388,6 +388,7 @@ done:
 	assert(0);
 err:
 	fprintf(stderr, "%s", error_message);
+	sandbox_set_as_error(sandbox);
 	goto done;
 }
 
@@ -728,6 +729,54 @@ sandbox_set_as_returned(struct sandbox *sandbox)
 }
 
 /**
+ * Transitions a sandbox to the SANDBOX_ERROR state.
+ * This can occur during initialization or execution
+ * Unmaps linear memory, removes from the runqueue (if on it), and adds to the completion queue
+ * Because the stack is still in use, freeing the stack is deferred until later
+ *
+ * TODO: Is the sandbox adding itself to the completion queue here? Is this a problem?
+ *
+ * @param sandbox the sandbox erroring out
+ */
+void
+sandbox_set_as_error(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_ERROR;
+	debuglog("Thread %lu | Sandbox %lu | %s => Error\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_SET_AS_INITIALIZED:
+		/* Technically, this is a degenerate sandbox that we generate by hand */
+		sandbox->initializing_duration += duration_of_last_state;
+		sandbox_free_linear_memory(sandbox);
+		break;
+	case SANDBOX_RUNNING: {
+		sandbox->running_duration += duration_of_last_state;
+		local_runqueue_delete(sandbox);
+		sandbox_free_linear_memory(sandbox);
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Error\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_ERROR;
+
+	sandbox_print_perf(sandbox);
+
+	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
+	local_completion_queue_add(sandbox);
+}
+
+/**
  * Transitions a sandbox from the SANDBOX_RETURNED state to the SANDBOX_COMPLETE state.
  * Adds the sandbox to the completion queue
  * @param sandbox the sandbox erroring out
@@ -805,7 +854,14 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 done:
 	return sandbox;
 err_stack_allocation_failed:
-	sandbox_free(sandbox);
+	/*
+	 * This is a degenerate sandbox that never successfully completed initialization, so we need to
+	 * hand jam some things to be able to cleanly transition to ERROR state
+	 */
+	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
+	sandbox->last_state_change_timestamp = now;
+	ps_list_init_d(sandbox);
+	sandbox_set_as_error(sandbox);
 err_memory_allocation_failed:
 err:
 	perror(error_message);

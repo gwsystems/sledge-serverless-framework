@@ -285,3 +285,4 @@ void sandbox_set_as_blocked(struct sandbox *sandbox);
 void sandbox_set_as_preempted(struct sandbox *sandbox);
 void sandbox_set_as_returned(struct sandbox *sandbox);
 void sandbox_set_as_complete(struct sandbox *sandbox);
+void sandbox_set_as_error(struct sandbox *sandbox);
