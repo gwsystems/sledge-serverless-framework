@@ -159,11 +159,12 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		/* Set as runnable and add it to the runqueue */
 		sandbox_set_as_runnable(next_sandbox);
 
+		sandbox_set_as_preempted(current_sandbox);
 		/* Save the context of the currently executing sandbox before switching from it */
 		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
 
 		/* Update current_sandbox to the next sandbox */
-		current_sandbox_set(next_sandbox);
+		sandbox_set_as_running(next_sandbox);
 
 		/*
 		 * Restore the context of this new sandbox

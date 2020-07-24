@@ -7,6 +7,7 @@
 #include "current_sandbox.h"
 #include "http_parser_settings.h"
 #include "libuv_callbacks.h"
+#include "local_completion_queue.h"
 #include "local_runqueue.h"
 #include "panic.h"
 #include "runtime.h"
@@ -330,7 +331,7 @@ current_sandbox_main(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
-	assert(sandbox->state == SANDBOX_RUNNABLE);
+	assert(sandbox->state == SANDBOX_RUNNING);
 
 	char *error_message = "";
 
@@ -572,6 +573,122 @@ sandbox_set_as_runnable(struct sandbox *sandbox)
 	sandbox->state                       = SANDBOX_RUNNABLE;
 }
 
+/**
+ * Transitions a sandbox to the SANDBOX_RUNNING state.
+ *
+ * This occurs in the following scenarios:
+ * - A sandbox is in a RUNNABLE state
+ * 		- after initialization. This sandbox has thus not yet been executed
+ * 		- after previously executing, blocking, waking up.
+ * - A sandbox in the PREEMPTED state is now the highest priority work to execute
+ *
+ * @param sandbox
+ * @param active_context - the worker thread context that is going to execute this sandbox. Only provided
+ * when performing a full mcontext restore
+ **/
+void
+sandbox_set_as_running(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+
+	sandbox->state = SANDBOX_SET_AS_RUNNING;
+	debuglog("Thread %lu | Sandbox %lu | %s => Running\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_RUNNABLE: {
+		sandbox->runnable_duration += duration_of_last_state;
+		current_sandbox_set(sandbox);
+		break;
+	}
+	case SANDBOX_PREEMPTED: {
+		sandbox->preempted_duration += duration_of_last_state;
+		current_sandbox_set(sandbox);
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Running\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RUNNING;
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_PREEMPTED state.
+ *
+ * This occurs when a sandbox is executing and in a RUNNING state and a SIGALRM software interrupt fires
+ * and pulls a sandbox with an earlier absolute deadline from the global request scheduler.
+ *
+ * @param sandbox the sandbox being preempted
+ */
+void
+sandbox_set_as_preempted(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_PREEMPTED;
+	debuglog("Thread %lu | Sandbox %lu | %s => Preempted\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_RUNNING: {
+		sandbox->running_duration += duration_of_last_state;
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Preempted\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_PREEMPTED;
+}
+
+/**
+ * Transitions a sandbox from the SANDBOX_RETURNED state to the SANDBOX_COMPLETE state.
+ * Adds the sandbox to the completion queue
+ * @param sandbox the sandbox erroring out
+ */
+void
+sandbox_set_as_complete(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_COMPLETE;
+	debuglog("Thread %lu | Sandbox %lu | %s => Complete\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_RETURNED: {
+		sandbox->completion_timestamp = now;
+		sandbox->returned_duration += duration_of_last_state;
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Error\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_COMPLETE;
+
+	sandbox_print_perf(sandbox);
+
+	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
+	local_completion_queue_add(sandbox);
+}
 
 /**
  * Allocates a new sandbox from a sandbox request
