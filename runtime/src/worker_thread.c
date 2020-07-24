@@ -269,6 +269,8 @@ worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 	software_interrupt_disable();
 	local_runqueue_delete(exiting_sandbox);
 	exiting_sandbox->state = SANDBOX_RETURNED;
+
+	sandbox_print_perf(exiting_sandbox);
 	local_completion_queue_add(exiting_sandbox);
 
 	/* This should force return to main event loop */
