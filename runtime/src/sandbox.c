@@ -443,7 +443,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	}
 
 	/* Set state to initializing */
-	sandbox->state = SANDBOX_INITIALIZING;
+	sandbox->state = SANDBOX_UNINITIALIZED;
 
 	/* Allocate the Stack */
 	if (sandbox_allocate_stack(sandbox) < 0) {
@@ -493,7 +493,7 @@ sandbox_free(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	assert(sandbox != current_sandbox_get());
-	assert(sandbox->state == SANDBOX_INITIALIZING || sandbox->state == SANDBOX_RETURNED);
+	assert(sandbox->state == SANDBOX_UNINITIALIZED || sandbox->state == SANDBOX_RETURNED);
 
 	char *error_message = NULL;
 	int   rc;
