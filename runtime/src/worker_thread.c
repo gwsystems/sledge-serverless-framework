@@ -161,8 +161,8 @@ worker_thread_block_current_sandbox(void)
 
 	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
 	struct sandbox *current_sandbox = current_sandbox_get();
-	local_runqueue_delete(current_sandbox);
-	current_sandbox->state = SANDBOX_BLOCKED;
+	sandbox_set_as_blocked(current_sandbox);
+	current_sandbox_set(NULL);
 
 	/* Switch to the next sandbox */
 	struct sandbox *next_sandbox = local_runqueue_get_next();
