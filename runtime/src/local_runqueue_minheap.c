@@ -102,7 +102,7 @@ local_runqueue_minheap_get_next()
 done:
 	return sandbox;
 sandbox_allocate_err:
-	debuglog("local_runqueue_minheap_get_next failed to allocating sandbox. Readding request to global "
+	debuglog("local_runqueue_minheap_get_next failed to allocate sandbox. Adding request back to global "
 	         "request scheduler\n");
 	global_request_scheduler_add(sandbox_request);
 err:
