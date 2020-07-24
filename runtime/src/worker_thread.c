@@ -116,12 +116,7 @@ worker_thread_wakeup_sandbox(struct sandbox *sandbox)
 	assert(sandbox->state == SANDBOX_BLOCKED);
 
 	software_interrupt_disable();
-
-	sandbox->state = SANDBOX_RUNNABLE;
-	debuglog("Marking blocked sandbox as runnable\n");
-	local_runqueue_add(sandbox);
-
-done:
+	sandbox_set_as_runnable(sandbox);
 	software_interrupt_enable();
 }
 
