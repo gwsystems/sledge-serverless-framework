@@ -477,12 +477,8 @@ err_stack_allocation_failed:
  * to assume that sandbox->state is garbage.
  * @param sandbox an uninitialized sandbox
  * @param sandbox_request the request we are initializing the sandbox from
- * @param allocation_timestamp timestamp of when the allocation
- *
- * TODO: Consider zeroing out allocation of the sandbox struct to be able to assert that we are only calling this on a
- * clean allocation. Additionally, we might want to shift the sandbox states up, so zero is distinct from
- * SANDBOX_INITIALIZED
- **/
+ * @param allocation_timestamp timestamp of allocation
+ */
 void
 sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
                            uint64_t allocation_timestamp)
@@ -541,10 +537,9 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
  * This occurs in the following scenarios:
  * - A sandbox in the SANDBOX_INITIALIZED state completes initialization and is ready to be run
  * - A sandbox in the SANDBOX_BLOCKED state completes what was blocking it and is ready to be run
- * - A sandbox in the SANDBOX_RUNNING state is preempted before competion and is ready to be run
  *
  * @param sandbox
- **/
+ */
 void
 sandbox_set_as_runnable(struct sandbox *sandbox)
 {
@@ -588,9 +583,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox)
  * - A sandbox in the PREEMPTED state is now the highest priority work to execute
  *
  * @param sandbox
- * @param active_context - the worker thread context that is going to execute this sandbox. Only provided
- * when performing a full mcontext restore
- **/
+ */
 void
 sandbox_set_as_running(struct sandbox *sandbox)
 {
@@ -779,7 +772,7 @@ sandbox_set_as_error(struct sandbox *sandbox)
 /**
  * Transitions a sandbox from the SANDBOX_RETURNED state to the SANDBOX_COMPLETE state.
  * Adds the sandbox to the completion queue
- * @param sandbox the sandbox erroring out
+ * @param sandbox
  */
 void
 sandbox_set_as_complete(struct sandbox *sandbox)
@@ -872,7 +865,7 @@ err:
 /**
  * Free Linear Memory, leaving stack in place
  * @param sandbox
- **/
+ */
 void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
