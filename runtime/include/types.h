@@ -105,11 +105,11 @@ typedef void (*mod_libc_fn_t)(int32_t, int32_t);
 #define HTTP_MAX_HEADER_VALUE_LENGTH 64
 #define HTTP_RESPONSE_200_OK         "HTTP/1.1 200 OK\r\n"
 
-#define HTTP_RESPONSE_CONTENT_LENGTH            "Content-length: "
-#define HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR " \r\n\r\n" /* content body follows this */
+#define HTTP_RESPONSE_CONTENT_LENGTH            "Content-Length: "
+#define HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR "\r\n\r\n" /* content body follows this */
 
 
-#define HTTP_RESPONSE_CONTENT_TYPE            "Content-type: "
+#define HTTP_RESPONSE_CONTENT_TYPE            "Content-Type: "
 #define HTTP_RESPONSE_CONTENT_TYPE_PLAIN      "text/plain"
 #define HTTP_RESPONSE_CONTENT_TYPE_TERMINATOR " \r\n"
 
