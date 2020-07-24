@@ -117,6 +117,7 @@ worker_thread_switch_to_base_context()
 	assert(!software_interrupt_is_enabled());
 
 	struct sandbox *current_sandbox = current_sandbox_get();
+	worker_thread_transition_exiting_sandbox(current_sandbox);
 
 	/* Assumption: Base Context should never switch to Base Context */
 	assert(current_sandbox != NULL);
@@ -282,22 +283,7 @@ __attribute__((noreturn)) void
 worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 {
 	assert(exiting_sandbox);
-	debuglog("Exiting %lu\n", exiting_sandbox->request_arrival_timestamp);
-
-	/* Because the stack is still in use, only unmap linear memory and defer free resources until "main
-	function execution" */
-	sandbox_free_linear_memory(exiting_sandbox);
-
-	/* TODO: I do not understand when software interrupts must be disabled? */
 	software_interrupt_disable();
-	local_runqueue_delete(exiting_sandbox);
-	exiting_sandbox->state = SANDBOX_RETURNED;
-
-	sandbox_print_perf(exiting_sandbox);
-	local_completion_queue_add(exiting_sandbox);
-
-	/* This should force return to main event loop */
 	worker_thread_switch_to_base_context();
-
 	assert(0);
 }

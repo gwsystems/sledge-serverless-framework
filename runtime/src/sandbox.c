@@ -373,6 +373,10 @@ current_sandbox_main(void)
 
 	sandbox->response_timestamp = __getcycles();
 
+	software_interrupt_disable();
+	sandbox_set_as_returned(sandbox);
+	software_interrupt_enable();
+
 done:
 	/* Cleanup connection and exit sandbox */
 	sandbox_close_http(sandbox);
@@ -687,6 +691,43 @@ sandbox_set_as_blocked(struct sandbox *sandbox)
 }
 
 /**
+ * Transitions a sandbox to the SANDBOX_RETURNED state.
+ * This occurs when a sandbox is executing and runs to completion.
+ * Automatically removes the sandbox from the runqueue and unmaps linear memory.
+ * Because the stack is still in use, freeing the stack is deferred until later
+ * @param sandbox the blocking sandbox
+ */
+void
+sandbox_set_as_returned(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_RETURNED;
+	debuglog("Thread %lu | Sandbox %lu | %s => Returned\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_RUNNING: {
+		sandbox->response_timestamp = now;
+		sandbox->total_time         = now - sandbox->request_arrival_timestamp;
+		sandbox->running_duration += duration_of_last_state;
+		local_runqueue_delete(sandbox);
+		sandbox_free_linear_memory(sandbox);
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Returned\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RETURNED;
+}
+
+/**
  * Transitions a sandbox from the SANDBOX_RETURNED state to the SANDBOX_COMPLETE state.
  * Adds the sandbox to the completion queue
  * @param sandbox the sandbox erroring out
@@ -792,7 +833,7 @@ sandbox_free(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	assert(sandbox != current_sandbox_get());
-	assert(sandbox->state == SANDBOX_UNINITIALIZED || sandbox->state == SANDBOX_RETURNED);
+	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
 
 	char *error_message = NULL;
 	int   rc;
