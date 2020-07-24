@@ -7,6 +7,7 @@
 #include "current_sandbox.h"
 #include "http_parser_settings.h"
 #include "libuv_callbacks.h"
+#include "local_runqueue.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
@@ -526,6 +527,49 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->returned_duration     = 0;
 
 	sandbox->state = SANDBOX_INITIALIZED;
+}
+
+/**
+ * Transitions a sandbox to the SANDBOX_RUNNABLE state.
+ *
+ * This occurs in the following scenarios:
+ * - A sandbox in the SANDBOX_INITIALIZED state completes initialization and is ready to be run
+ * - A sandbox in the SANDBOX_BLOCKED state completes what was blocking it and is ready to be run
+ * - A sandbox in the SANDBOX_RUNNING state is preempted before competion and is ready to be run
+ *
+ * @param sandbox
+ **/
+void
+sandbox_set_as_runnable(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	assert(sandbox->last_state_change_timestamp > 0);
+	uint64_t        now                    = __getcycles();
+	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	sandbox_state_t last_state             = sandbox->state;
+	sandbox->state                         = SANDBOX_SET_AS_RUNNABLE;
+	debuglog("Thread %lu | Sandbox %lu | %s => Runnable\n", pthread_self(), sandbox->allocation_timestamp,
+	         sandbox_state_stringify(last_state));
+
+	switch (last_state) {
+	case SANDBOX_INITIALIZED: {
+		sandbox->initializing_duration += duration_of_last_state;
+		local_runqueue_add(sandbox);
+		break;
+	}
+	case SANDBOX_BLOCKED: {
+		sandbox->blocked_duration += duration_of_last_state;
+		local_runqueue_add(sandbox);
+		break;
+	}
+	default: {
+		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Runnable\n", pthread_self(),
+		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+	}
+	}
+
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RUNNABLE;
 }
 
 
