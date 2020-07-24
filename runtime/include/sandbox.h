@@ -280,3 +280,6 @@ sandbox_print_perf(struct sandbox *sandbox)
 void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
                                 uint64_t allocation_timestamp);
 void sandbox_set_as_runnable(struct sandbox *sandbox);
+void sandbox_set_as_running(struct sandbox *sandbox);
+void sandbox_set_as_preempted(struct sandbox *sandbox);
+void sandbox_set_as_complete(struct sandbox *sandbox);

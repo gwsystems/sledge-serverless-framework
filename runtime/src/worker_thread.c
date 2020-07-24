@@ -34,6 +34,32 @@ static __thread bool worker_thread_is_in_libuv_event_loop = false;
  **********************/
 
 /**
+ * Conditionally triggers appropriate state changes for exiting sandboxes
+ * @param exiting_sandbox - The sandbox that ran to completion
+ */
+static inline void
+worker_thread_transition_exiting_sandbox(struct sandbox *exiting_sandbox)
+{
+	assert(exiting_sandbox != NULL);
+
+	switch (exiting_sandbox->state) {
+	case SANDBOX_RETURNED:
+		/*
+		 * We draw a distinction between RETURNED and COMPLETED because a sandbox cannot add itself to the
+		 * completion queue
+		 */
+		sandbox_set_as_complete(exiting_sandbox);
+		break;
+	case SANDBOX_ERROR:
+		/* Terminal State, so just break */
+		break;
+	default:
+		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
+		      sandbox_state_stringify(exiting_sandbox->state));
+	}
+}
+
+/**
  * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in SANDBOX_RETURNED state
  * @param next_sandbox The Sandbox Context to switch to
  *
@@ -54,23 +80,25 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	if (current_sandbox == NULL) {
 		/* Switching from "Base Context" */
 
+		sandbox_set_as_running(next_sandbox);
+
 		debuglog("Base Context (%s) > Sandbox %lu (%s)\n",
 		         arch_context_variant_print(worker_thread_base_context.variant),
 		         next_sandbox->request_arrival_timestamp, arch_context_variant_print(next_context->variant));
-
-		current_sandbox_set(next_sandbox);
 
 		arch_context_switch(NULL, next_context);
 	} else {
 		/* Set the current sandbox to the next */
 		assert(next_sandbox != current_sandbox);
 
+		worker_thread_transition_exiting_sandbox(current_sandbox);
+
+		sandbox_set_as_running(next_sandbox);
+
 		struct arch_context *current_context = &current_sandbox->ctxt;
 
 		debuglog("Sandbox %lu > Sandbox %lu\n", current_sandbox->request_arrival_timestamp,
 		         next_sandbox->request_arrival_timestamp);
-
-		current_sandbox_set(next_sandbox);
 
 		/* Switch to the associated context. */
 		arch_context_switch(current_context, next_context);
