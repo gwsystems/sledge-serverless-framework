@@ -276,3 +276,6 @@ sandbox_print_perf(struct sandbox *sandbox)
 	         sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
 	         running_us, blocked_us, returned_us);
 }
+
+void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
+                                uint64_t allocation_timestamp);
