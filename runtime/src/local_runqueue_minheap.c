@@ -196,7 +196,7 @@ sandbox_get_priority(void *element)
 
 /**
  * Registers the PS variant with the polymorphic interface
- **/
+ */
 void
 local_runqueue_minheap_initialize()
 {

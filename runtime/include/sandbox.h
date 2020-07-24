@@ -256,7 +256,7 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 /**
  * Prints key performance metrics for a sandbox to STDOUT
  * @param sandbox
- **/
+ */
 static inline void
 sandbox_print_perf(struct sandbox *sandbox)
 {
