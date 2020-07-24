@@ -24,10 +24,25 @@ struct sandbox_io_handle {
 
 typedef enum
 {
-	SANDBOX_INITIALIZING,
+	SANDBOX_UNINITIALIZED = 0, /* Assumption: mmap zeros out structure */
+	SANDBOX_ALLOCATED,
+	SANDBOX_SET_AS_INITIALIZED,
+	SANDBOX_INITIALIZED,
+	SANDBOX_SET_AS_RUNNABLE,
 	SANDBOX_RUNNABLE,
+	SANDBOX_SET_AS_RUNNING,
+	SANDBOX_RUNNING,
+	SANDBOX_SET_AS_PREEMPTED,
+	SANDBOX_PREEMPTED,
+	SANDBOX_SET_AS_BLOCKED,
 	SANDBOX_BLOCKED,
-	SANDBOX_RETURNED
+	SANDBOX_SET_AS_RETURNED,
+	SANDBOX_RETURNED,
+	SANDBOX_SET_AS_COMPLETE,
+	SANDBOX_COMPLETE,
+	SANDBOX_SET_AS_ERROR,
+	SANDBOX_ERROR,
+	SANDBOX_STATE_COUNT
 } sandbox_state_t;
 
 struct sandbox {
@@ -44,10 +59,22 @@ struct sandbox {
 
 	struct arch_context ctxt; /* register context for context switch. */
 
-	uint64_t request_arrival_timestamp;
+	uint64_t request_arrival_timestamp;   /* Timestamp when request is received */
+	uint64_t allocation_timestamp;        /* Timestamp when sandbox is allocated */
+	uint64_t response_timestamp;          /* Timestamp when response is sent */
+	uint64_t completion_timestamp;        /* Timestamp when sandbox runs to completion */
+	uint64_t last_state_change_timestamp; /* Used for bookkeeping of actual execution time */
+
+	/* Duration of time (in cycles) that the sandbox is in each state */
+	uint64_t initializing_duration;
+	uint64_t runnable_duration;
+	uint64_t preempted_duration;
+	uint64_t running_duration;
+	uint64_t blocked_duration;
+	uint64_t returned_duration;
 
 	uint64_t absolute_deadline;
-	uint64_t total_time;
+	uint64_t total_time; /* From Request to Response */
 
 	struct module *module; /* the module this is an instance of */
 
