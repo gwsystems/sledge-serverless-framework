@@ -181,7 +181,7 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 	assert(response_cursor < sandbox->request_length);
 
 	/* Move the Sandbox's Data after the HTTP Response Data */
-	memmove(sandbox->request_response_data + response_cursor - 1,
+	memmove(sandbox->request_response_data + response_cursor,
 	        sandbox->request_response_data + sandbox->request_length, body_size);
 	response_cursor += body_size;
 
