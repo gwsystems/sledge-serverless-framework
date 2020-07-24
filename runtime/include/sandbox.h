@@ -252,3 +252,27 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return NULL;
 	return &sandbox->io_handles[io_handle_index].libuv_handle;
 }
+
+/**
+ * Prints key performance metrics for a sandbox to STDOUT
+ * @param sandbox
+ **/
+static inline void
+sandbox_print_perf(struct sandbox *sandbox)
+{
+	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
+	uint64_t queued_us     = (sandbox->allocation_timestamp - sandbox->request_arrival_timestamp)
+	                     / runtime_processor_speed_MHz;
+	uint64_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
+	uint64_t runnable_us     = sandbox->runnable_duration / runtime_processor_speed_MHz;
+	uint64_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
+	uint64_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
+	uint64_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
+	debuglog("%s():%d, state: %s, deadline: %u, actual: %lu, queued: %lu, initializing: %lu, runnable: %lu, "
+	         "running: "
+	         "%lu, blocked: "
+	         "%lu, returned %lu\n",
+	         sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
+	         sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
+	         running_us, blocked_us, returned_us);
+}

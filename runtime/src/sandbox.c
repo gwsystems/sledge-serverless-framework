@@ -359,7 +359,8 @@ current_sandbox_main(void)
 	sandbox_setup_arguments(sandbox);
 
 	/* Executing the function */
-	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->return_value         = module_main(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->completion_timestamp = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
 	rc = sandbox_build_and_send_client_response(sandbox);
@@ -367,6 +368,8 @@ current_sandbox_main(void)
 		error_message = "Unable to build and send client response\n";
 		goto err;
 	};
+
+	sandbox->response_timestamp = __getcycles();
 
 done:
 	/* Cleanup connection and exit sandbox */
@@ -480,6 +483,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 
 	struct sandbox *sandbox;
 	char *          error_message = "";
+	uint64_t        now           = __getcycles();
 
 	/* Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space */
 	sandbox = sandbox_allocate_memory(sandbox_request->module);
@@ -487,6 +491,8 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 		error_message = "failed to allocate sandbox heap and linear memory";
 		goto err_memory_allocation_failed;
 	}
+
+	sandbox->allocation_timestamp = now;
 
 	/* Set state to initializing */
 	sandbox->state = SANDBOX_UNINITIALIZED;
