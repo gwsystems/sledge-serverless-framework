@@ -127,6 +127,7 @@ void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_free_linear_memory(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
+char *          sandbox_state_stringify(sandbox_state_t sandbox_state);
 
 /**
  * Given a sandbox, returns the module that sandbox is executing
