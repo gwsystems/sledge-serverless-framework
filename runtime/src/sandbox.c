@@ -555,12 +555,10 @@ sandbox_set_as_runnable(struct sandbox *sandbox)
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
 		sandbox->initializing_duration += duration_of_last_state;
-		local_runqueue_add(sandbox);
 		break;
 	}
 	case SANDBOX_BLOCKED: {
 		sandbox->blocked_duration += duration_of_last_state;
-		local_runqueue_add(sandbox);
 		break;
 	}
 	default: {
@@ -569,6 +567,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox)
 	}
 	}
 
+	local_runqueue_add(sandbox);
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RUNNABLE;
 }
@@ -599,12 +598,10 @@ sandbox_set_as_running(struct sandbox *sandbox)
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
 		sandbox->runnable_duration += duration_of_last_state;
-		current_sandbox_set(sandbox);
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
 		sandbox->preempted_duration += duration_of_last_state;
-		current_sandbox_set(sandbox);
 		break;
 	}
 	default: {
@@ -613,6 +610,7 @@ sandbox_set_as_running(struct sandbox *sandbox)
 	}
 	}
 
+	current_sandbox_set(sandbox);
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RUNNING;
 }
@@ -746,12 +744,10 @@ sandbox_set_as_error(struct sandbox *sandbox)
 	case SANDBOX_SET_AS_INITIALIZED:
 		/* Technically, this is a degenerate sandbox that we generate by hand */
 		sandbox->initializing_duration += duration_of_last_state;
-		sandbox_free_linear_memory(sandbox);
 		break;
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
-		sandbox_free_linear_memory(sandbox);
 		break;
 	}
 	default: {
@@ -760,6 +756,7 @@ sandbox_set_as_error(struct sandbox *sandbox)
 	}
 	}
 
+	sandbox_free_linear_memory(sandbox);
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_ERROR;
 
