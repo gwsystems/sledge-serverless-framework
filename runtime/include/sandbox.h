@@ -127,7 +127,53 @@ void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_free_linear_memory(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
-char *          sandbox_state_stringify(sandbox_state_t sandbox_state);
+
+static inline char *
+sandbox_state_stringify(sandbox_state_t state)
+{
+	switch (state) {
+	case SANDBOX_UNINITIALIZED:
+		return "Uninitialized";
+	case SANDBOX_ALLOCATED:
+		return "Allocated";
+	case SANDBOX_SET_AS_INITIALIZED:
+		return "Set As Initialized";
+	case SANDBOX_INITIALIZED:
+		return "Initialized";
+	case SANDBOX_SET_AS_RUNNABLE:
+		return "Set As Runnable";
+	case SANDBOX_RUNNABLE:
+		return "Runnable";
+	case SANDBOX_SET_AS_RUNNING:
+		return "Set As Running";
+	case SANDBOX_RUNNING:
+		return "Running";
+	case SANDBOX_SET_AS_PREEMPTED:
+		return "Set As Preempted";
+	case SANDBOX_PREEMPTED:
+		return "Preempted";
+	case SANDBOX_SET_AS_BLOCKED:
+		return "Set As Blocked";
+	case SANDBOX_BLOCKED:
+		return "Blocked";
+	case SANDBOX_SET_AS_RETURNED:
+		return "Set As Returned";
+	case SANDBOX_RETURNED:
+		return "Returned";
+	case SANDBOX_SET_AS_COMPLETE:
+		return "Set As Complete";
+	case SANDBOX_COMPLETE:
+		return "Complete";
+	case SANDBOX_SET_AS_ERROR:
+		return "Set As Error";
+	case SANDBOX_ERROR:
+		return "Error";
+	default:
+		/* Crash, as this should be exclusive */
+		assert(0);
+	}
+}
+
 
 /**
  * Given a sandbox, returns the module that sandbox is executing
