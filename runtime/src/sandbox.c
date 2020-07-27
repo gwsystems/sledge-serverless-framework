@@ -544,7 +544,8 @@ void
 sandbox_set_as_runnable(struct sandbox *sandbox)
 {
 	assert(sandbox);
-	assert(sandbox->last_state_change_timestamp > 0);
+	assert(!software_interrupt_is_enabled());
+
 	uint64_t        now                    = __getcycles();
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
@@ -587,6 +588,8 @@ void
 sandbox_set_as_running(struct sandbox *sandbox)
 {
 	assert(sandbox);
+	assert(!software_interrupt_is_enabled());
+
 	uint64_t        now                    = __getcycles();
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
@@ -627,6 +630,8 @@ void
 sandbox_set_as_preempted(struct sandbox *sandbox)
 {
 	assert(sandbox);
+	assert(!software_interrupt_is_enabled());
+
 	uint64_t        now                    = __getcycles();
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
@@ -659,6 +664,8 @@ void
 sandbox_set_as_blocked(struct sandbox *sandbox)
 {
 	assert(sandbox);
+	assert(!software_interrupt_is_enabled());
+
 	uint64_t        now                    = __getcycles();
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
@@ -693,6 +700,8 @@ void
 sandbox_set_as_returned(struct sandbox *sandbox)
 {
 	assert(sandbox);
+	assert(!software_interrupt_is_enabled());
+
 	uint64_t        now                    = __getcycles();
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
