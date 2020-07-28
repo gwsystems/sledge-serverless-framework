@@ -325,7 +325,10 @@ current_sandbox_main(void)
 	sandbox->response_timestamp = __getcycles();
 
 	software_interrupt_disable();
-	sandbox_set_as_returned(sandbox);
+
+	assert(sandbox->state == SANDBOX_RUNNING);
+	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);
+
 	software_interrupt_enable();
 
 done:
@@ -339,7 +342,8 @@ done:
 	assert(0);
 err:
 	fprintf(stderr, "%s", error_message);
-	sandbox_set_as_error(sandbox);
+	assert(sandbox->state == SANDBOX_RUNNING);
+	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);
 	goto done;
 }
 
@@ -451,7 +455,6 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->request_arrival_timestamp   = sandbox_request->request_arrival_timestamp;
 	sandbox->allocation_timestamp        = allocation_timestamp;
 	sandbox->last_state_change_timestamp = allocation_timestamp;
-	sandbox_state_t last_state           = sandbox->state;
 	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
@@ -481,17 +484,19 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
  * - A sandbox in the SANDBOX_BLOCKED state completes what was blocking it and is ready to be run
  *
  * @param sandbox
+ * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
+ * enable the compiler to perform constant propagation optimizations.
  */
 void
-sandbox_set_as_runnable(struct sandbox *sandbox)
+sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
 	assert(!software_interrupt_is_enabled());
 
-	uint64_t        now                    = __getcycles();
-	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
-	sandbox_state_t last_state             = sandbox->state;
-	sandbox->state                         = SANDBOX_SET_AS_RUNNABLE;
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
 	debuglog("Sandbox %lu | %s => Runnable\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
@@ -525,16 +530,17 @@ sandbox_set_as_runnable(struct sandbox *sandbox)
  * - A sandbox in the PREEMPTED state is now the highest priority work to execute
  *
  * @param sandbox
+ * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
+ * enable the compiler to perform constant propagation optimizations.
  */
 void
-sandbox_set_as_running(struct sandbox *sandbox)
+sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
 	assert(!software_interrupt_is_enabled());
 
-	uint64_t        now                    = __getcycles();
-	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
-	sandbox_state_t last_state             = sandbox->state;
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
 	debuglog("Sandbox %lu | %s => Running\n", sandbox->request_arrival_timestamp,
@@ -567,17 +573,19 @@ sandbox_set_as_running(struct sandbox *sandbox)
  * and pulls a sandbox with an earlier absolute deadline from the global request scheduler.
  *
  * @param sandbox the sandbox being preempted
+ * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
+ * enable the compiler to perform constant propagation optimizations.
  */
 void
-sandbox_set_as_preempted(struct sandbox *sandbox)
+sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
 	assert(!software_interrupt_is_enabled());
 
-	uint64_t        now                    = __getcycles();
-	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
-	sandbox_state_t last_state             = sandbox->state;
-	sandbox->state                         = SANDBOX_SET_AS_PREEMPTED;
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	sandbox->state = SANDBOX_SET_AS_PREEMPTED;
 	debuglog("Sandbox %lu | %s => Preempted\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
@@ -601,17 +609,19 @@ sandbox_set_as_preempted(struct sandbox *sandbox)
  * This occurs when a sandbox is executing and it makes a blocking API call of some kind.
  * Automatically removes the sandbox from the runqueue
  * @param sandbox the blocking sandbox
+ * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
+ * enable the compiler to perform constant propagation optimizations.
  */
 void
-sandbox_set_as_blocked(struct sandbox *sandbox)
+sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
 	assert(!software_interrupt_is_enabled());
 
-	uint64_t        now                    = __getcycles();
-	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
-	sandbox_state_t last_state             = sandbox->state;
-	sandbox->state                         = SANDBOX_SET_AS_BLOCKED;
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	sandbox->state = SANDBOX_SET_AS_BLOCKED;
 	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
@@ -637,17 +647,19 @@ sandbox_set_as_blocked(struct sandbox *sandbox)
  * Automatically removes the sandbox from the runqueue and unmaps linear memory.
  * Because the stack is still in use, freeing the stack is deferred until later
  * @param sandbox the blocking sandbox
+ * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
+ * enable the compiler to perform constant propagation optimizations.
  */
 void
-sandbox_set_as_returned(struct sandbox *sandbox)
+sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
 	assert(!software_interrupt_is_enabled());
 
-	uint64_t        now                    = __getcycles();
-	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
-	sandbox_state_t last_state             = sandbox->state;
-	sandbox->state                         = SANDBOX_SET_AS_RETURNED;
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	sandbox->state = SANDBOX_SET_AS_RETURNED;
 	debuglog("Sandbox %lu | %s => Returned\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
@@ -679,15 +691,18 @@ sandbox_set_as_returned(struct sandbox *sandbox)
  * TODO: Is the sandbox adding itself to the completion queue here? Is this a problem?
  *
  * @param sandbox the sandbox erroring out
+ * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
+ * enable the compiler to perform constant propagation optimizations.
  */
 void
-sandbox_set_as_error(struct sandbox *sandbox)
+sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-	uint64_t        now                    = __getcycles();
-	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
-	sandbox_state_t last_state             = sandbox->state;
-	sandbox->state                         = SANDBOX_SET_AS_ERROR;
+
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	sandbox->state = SANDBOX_SET_AS_ERROR;
 	debuglog("Sandbox %lu | %s => Error\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
@@ -708,6 +723,7 @@ sandbox_set_as_error(struct sandbox *sandbox)
 	}
 
 	sandbox_free_linear_memory(sandbox);
+
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_ERROR;
 
@@ -721,15 +737,17 @@ sandbox_set_as_error(struct sandbox *sandbox)
  * Transitions a sandbox from the SANDBOX_RETURNED state to the SANDBOX_COMPLETE state.
  * Adds the sandbox to the completion queue
  * @param sandbox
+ * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
+ * enable the compiler to perform constant propagation optimizations.
  */
 void
-sandbox_set_as_complete(struct sandbox *sandbox)
+sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-	uint64_t        now                    = __getcycles();
-	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
-	sandbox_state_t last_state             = sandbox->state;
-	sandbox->state                         = SANDBOX_SET_AS_COMPLETE;
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+
+	sandbox->state = SANDBOX_SET_AS_COMPLETE;
 	debuglog("Sandbox %lu | %s => Complete\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
@@ -802,7 +820,7 @@ err_stack_allocation_failed:
 	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
 	sandbox->last_state_change_timestamp = now;
 	ps_list_init_d(sandbox);
-	sandbox_set_as_error(sandbox);
+	sandbox_set_as_error(sandbox, SANDBOX_SET_AS_INITIALIZED);
 err_memory_allocation_failed:
 err:
 	perror(error_message);

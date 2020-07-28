@@ -48,7 +48,7 @@ worker_thread_transition_exiting_sandbox(struct sandbox *exiting_sandbox)
 		 * We draw a distinction between RETURNED and COMPLETED because a sandbox cannot add itself to the
 		 * completion queue
 		 */
-		sandbox_set_as_complete(exiting_sandbox);
+		sandbox_set_as_complete(exiting_sandbox, SANDBOX_RETURNED);
 		break;
 	case SANDBOX_ERROR:
 		/* Terminal State, so just break */
@@ -80,7 +80,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	if (current_sandbox == NULL) {
 		/* Switching from "Base Context" */
 
-		sandbox_set_as_running(next_sandbox);
+		sandbox_set_as_running(next_sandbox, next_sandbox->state);
 
 		debuglog("Base Context (%s) > Sandbox %lu (%s)\n",
 		         arch_context_variant_print(worker_thread_base_context.variant),
@@ -93,7 +93,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 		worker_thread_transition_exiting_sandbox(current_sandbox);
 
-		sandbox_set_as_running(next_sandbox);
+		sandbox_set_as_running(next_sandbox, next_sandbox->state);
 
 		struct arch_context *current_context = &current_sandbox->ctxt;
 
@@ -145,7 +145,7 @@ worker_thread_wakeup_sandbox(struct sandbox *sandbox)
 	assert(sandbox->state == SANDBOX_BLOCKED);
 
 	software_interrupt_disable();
-	sandbox_set_as_runnable(sandbox);
+	sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
 	software_interrupt_enable();
 }
 
@@ -162,7 +162,10 @@ worker_thread_block_current_sandbox(void)
 
 	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
 	struct sandbox *current_sandbox = current_sandbox_get();
-	sandbox_set_as_blocked(current_sandbox);
+
+	assert(current_sandbox->state == SANDBOX_RUNNING);
+	sandbox_set_as_blocked(current_sandbox, SANDBOX_RUNNING);
+
 	current_sandbox_set(NULL);
 
 	/* Switch to the next sandbox */
