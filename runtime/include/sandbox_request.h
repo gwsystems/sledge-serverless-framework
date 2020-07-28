@@ -43,6 +43,7 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->absolute_deadline         = request_arrival_timestamp
 	                                     + module->relative_deadline_us * runtime_processor_speed_MHz;
 
-	debuglog("%s:%d @ %p\n", sandbox_request->module->name, sandbox_request->module->port, sandbox_request);
+	debuglog("Allocating %lu of %s:%d\n", sandbox_request->request_arrival_timestamp, sandbox_request->module->name,
+	         sandbox_request->module->port);
 	return sandbox_request;
 }

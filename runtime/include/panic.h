@@ -1,16 +1,13 @@
 #pragma once
 
 #include <assert.h>
+#include <pthread.h>
+#include <sched.h>
 #include <stdio.h>
-#include <stdarg.h>
-#include <stdlib.h>
 
-__attribute__((noreturn, format(printf, 1, 2))) static inline void
-panic(const char *format, ...)
-{
-	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	assert(0);
-}
+#define panic(fmt, ...)                                                                                           \
+	{                                                                                                         \
+		fprintf(stderr, "C: %02d, T: 0x%lx, F: %s> PANIC! \n\t" fmt "\n", sched_getcpu(), pthread_self(), \
+		        __func__, ##__VA_ARGS__);                                                                 \
+		exit(EXIT_FAILURE);                                                                               \
+	}

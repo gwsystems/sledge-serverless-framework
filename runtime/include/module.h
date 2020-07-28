@@ -137,12 +137,11 @@ module_validate(struct module *module)
 	assert(!software_interrupt_is_enabled());
 
 	if (!module) {
-		panic("%lu | module %p | module is unexpectedly NULL\n", pthread_self(), module);
+		panic("module %p | module is unexpectedly NULL\n", module);
 	} else if (!module->dynamic_library_handle) {
-		panic("%lu | module %p | module->dynamic_library_handle is unexpectedly NULL\n", pthread_self(),
-		      module);
+		panic("module %p | module->dynamic_library_handle is unexpectedly NULL\n", module);
 	} else if (!module->main) {
-		panic("%lu | module %p | module->main is unexpectedly NULL\n", pthread_self(), module);
+		panic("module %p | module->main is unexpectedly NULL\n", module);
 	}
 }
 

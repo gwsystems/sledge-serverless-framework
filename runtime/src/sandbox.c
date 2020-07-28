@@ -192,9 +192,6 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 	sandbox->total_time    = end_time - sandbox->request_arrival_timestamp;
 	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 
-	debuglog("%s():%d, %u, %lu\n", sandbox->module->name, sandbox->module->port,
-	         sandbox->module->relative_deadline_us, total_time_us);
-
 #ifndef USE_HTTP_UVIO
 	int r = send(sandbox->client_socket_descriptor, sandbox->request_response_data, response_cursor, 0);
 	if (r < 0) {
@@ -387,6 +384,7 @@ sandbox_allocate_memory(struct module *module)
 	}
 
 	/* Populate Sandbox members */
+	sandbox->state                  = SANDBOX_UNINITIALIZED;
 	sandbox->linear_memory_start    = (char *)addr + sandbox_size;
 	sandbox->linear_memory_size     = linear_memory_size;
 	sandbox->linear_memory_max_size = linear_memory_max_size;
@@ -427,8 +425,7 @@ err_stack_allocation_failed:
 }
 
 /**
- * Transitions a sandbox to the SANDBOX_INITIALIZED state. Because this is the initial state of a new sandbox, we have
- * to assume that sandbox->state is garbage.
+ * Transitions a sandbox to the SANDBOX_INITIALIZED state.
  * @param sandbox an uninitialized sandbox
  * @param sandbox_request the request we are initializing the sandbox from
  * @param allocation_timestamp timestamp of allocation
@@ -448,7 +445,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 
 	assert(allocation_timestamp > 0);
 
-	debuglog("Thread %lu | Sandbox %lu | Uninitialized => Initialized\n", pthread_self(), allocation_timestamp);
+	debuglog("Sandbox %lu | Uninitialized => Initialized\n", sandbox->request_arrival_timestamp);
 
 	sandbox->request_arrival_timestamp   = sandbox_request->request_arrival_timestamp;
 	sandbox->allocation_timestamp        = allocation_timestamp;
@@ -504,7 +501,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_RUNNABLE;
-	debuglog("Thread %lu | Sandbox %lu | %s => Runnable\n", pthread_self(), sandbox->allocation_timestamp,
+	debuglog("Sandbox %lu | %s => Runnable\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
 	switch (last_state) {
@@ -517,8 +514,8 @@ sandbox_set_as_runnable(struct sandbox *sandbox)
 		break;
 	}
 	default: {
-		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Runnable\n", pthread_self(),
-		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+		panic("Sandbox %lu | Illegal transition from %s to Runnable\n", sandbox->request_arrival_timestamp,
+		      sandbox_state_stringify(last_state));
 	}
 	}
 
@@ -549,7 +546,7 @@ sandbox_set_as_running(struct sandbox *sandbox)
 	sandbox_state_t last_state             = sandbox->state;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
-	debuglog("Thread %lu | Sandbox %lu | %s => Running\n", pthread_self(), sandbox->allocation_timestamp,
+	debuglog("Sandbox %lu | %s => Running\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
 	switch (last_state) {
@@ -562,8 +559,8 @@ sandbox_set_as_running(struct sandbox *sandbox)
 		break;
 	}
 	default: {
-		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Running\n", pthread_self(),
-		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+		panic("Sandbox %lu | Illegal transition from %s to Running\n", sandbox->request_arrival_timestamp,
+		      sandbox_state_stringify(last_state));
 	}
 	}
 
@@ -590,7 +587,7 @@ sandbox_set_as_preempted(struct sandbox *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_PREEMPTED;
-	debuglog("Thread %lu | Sandbox %lu | %s => Preempted\n", pthread_self(), sandbox->allocation_timestamp,
+	debuglog("Sandbox %lu | %s => Preempted\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
 	switch (last_state) {
@@ -599,8 +596,8 @@ sandbox_set_as_preempted(struct sandbox *sandbox)
 		break;
 	}
 	default: {
-		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Preempted\n", pthread_self(),
-		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+		panic("Sandbox %lu | Illegal transition from %s to Preempted\n", sandbox->request_arrival_timestamp,
+		      sandbox_state_stringify(last_state));
 	}
 	}
 
@@ -624,8 +621,7 @@ sandbox_set_as_blocked(struct sandbox *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_BLOCKED;
-	debuglog("Thread %lu | Sandbox %lu | %s => Blocked\n", pthread_self(), sandbox->allocation_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->request_arrival_timestamp, sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -634,8 +630,8 @@ sandbox_set_as_blocked(struct sandbox *sandbox)
 		break;
 	}
 	default: {
-		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Blocked\n", pthread_self(),
-		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+		panic("Sandbox %lu | Illegal transition from %s to Blocked\n", sandbox->request_arrival_timestamp,
+		      sandbox_state_stringify(last_state));
 	}
 	}
 
@@ -660,8 +656,7 @@ sandbox_set_as_returned(struct sandbox *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_RETURNED;
-	debuglog("Thread %lu | Sandbox %lu | %s => Returned\n", pthread_self(), sandbox->allocation_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Returned\n", sandbox->request_arrival_timestamp, sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -673,8 +668,8 @@ sandbox_set_as_returned(struct sandbox *sandbox)
 		break;
 	}
 	default: {
-		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Returned\n", pthread_self(),
-		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+		panic("Sandbox %lu | Illegal transition from %s to Returned\n", sandbox->request_arrival_timestamp,
+		      sandbox_state_stringify(last_state));
 	}
 	}
 
@@ -700,8 +695,7 @@ sandbox_set_as_error(struct sandbox *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_ERROR;
-	debuglog("Thread %lu | Sandbox %lu | %s => Error\n", pthread_self(), sandbox->allocation_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Error\n", sandbox->request_arrival_timestamp, sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_SET_AS_INITIALIZED:
@@ -714,8 +708,8 @@ sandbox_set_as_error(struct sandbox *sandbox)
 		break;
 	}
 	default: {
-		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Error\n", pthread_self(),
-		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->request_arrival_timestamp,
+		      sandbox_state_stringify(last_state));
 	}
 	}
 
@@ -742,7 +736,7 @@ sandbox_set_as_complete(struct sandbox *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_COMPLETE;
-	debuglog("Thread %lu | Sandbox %lu | %s => Complete\n", pthread_self(), sandbox->allocation_timestamp,
+	debuglog("Sandbox %lu | %s => Complete\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
 
 	switch (last_state) {
@@ -752,8 +746,8 @@ sandbox_set_as_complete(struct sandbox *sandbox)
 		break;
 	}
 	default: {
-		panic("Thread %lu | Sandbox %lu | Illegal transition from %s to Error\n", pthread_self(),
-		      sandbox->allocation_timestamp, sandbox_state_stringify(last_state));
+		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->request_arrival_timestamp,
+		      sandbox_state_stringify(last_state));
 	}
 	}
 
@@ -857,7 +851,7 @@ sandbox_free(struct sandbox *sandbox)
 	errno = 0;
 	rc    = munmap(stkaddr, stksz);
 	if (rc == -1) {
-		fprintf(stderr, "Thread %lu | Failed to unmap stack %p\n", pthread_self(), sandbox);
+		debuglog("Failed to unmap stack of Sandbox %lu\n", sandbox->request_arrival_timestamp);
 		goto err_free_stack_failed;
 	};
 
@@ -871,7 +865,7 @@ sandbox_free(struct sandbox *sandbox)
 	errno = 0;
 	rc    = munmap(sandbox, sandbox_address_space_size);
 	if (rc == -1) {
-		fprintf(stderr, "Thread %lu | Failed to unmap sanbox %p\n", pthread_self(), sandbox);
+		debuglog("Failed to unmap Sandbox %lu\n", sandbox->request_arrival_timestamp);
 		goto err_free_sandbox_failed;
 	};
 
@@ -881,5 +875,5 @@ err_free_sandbox_failed:
 err_free_stack_failed:
 err:
 	/* Errors freeing memory is a fatal error */
-	panic("Thread %lu | Failed to free sandbox %p\n", pthread_self(), sandbox);
+	panic("Failed to free Sandbox %lu\n", sandbox->request_arrival_timestamp);
 }

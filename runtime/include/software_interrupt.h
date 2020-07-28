@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <panic.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>

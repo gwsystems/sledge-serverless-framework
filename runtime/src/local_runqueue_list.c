@@ -71,7 +71,6 @@ local_runqueue_list_get_next()
 	assert(next_sandbox->state != SANDBOX_RETURNED);
 	local_runqueue_add(next_sandbox);
 
-	debuglog("[%p: %s]\n", next_sandbox, next_sandbox->module->name);
 	return next_sandbox;
 }
 
@@ -84,8 +83,6 @@ void
 local_runqueue_list_append(struct sandbox *sandbox_to_append)
 {
 	assert(ps_list_singleton_d(sandbox_to_append));
-	debuglog("(%d,%lu) %s: run %p, %s\n", sched_getcpu(), pthread_self(), __func__, sandbox_to_append,
-	         sandbox_to_append->module->name);
 	ps_list_head_append_d(&local_runqueue_list, sandbox_to_append);
 }
 
