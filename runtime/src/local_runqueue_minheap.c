@@ -93,7 +93,8 @@ local_runqueue_minheap_get_next()
 		sandbox = sandbox_allocate(sandbox_request);
 		if (!sandbox) goto sandbox_allocate_err;
 
-		sandbox_set_as_runnable(sandbox);
+		assert(sandbox->state == SANDBOX_INITIALIZED);
+		sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
 
 	} else if (sandbox_rc == -2) {
 		/* Unable to take lock, so just return NULL and try later */
@@ -157,14 +158,18 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		if (!next_sandbox) goto err_sandbox_allocate;
 
 		/* Set as runnable and add it to the runqueue */
-		sandbox_set_as_runnable(next_sandbox);
+		assert(next_sandbox->state == SANDBOX_INITIALIZED);
+		sandbox_set_as_runnable(next_sandbox, SANDBOX_INITIALIZED);
 
-		sandbox_set_as_preempted(current_sandbox);
+		assert(current_sandbox->state == SANDBOX_RUNNING);
+		sandbox_set_as_preempted(current_sandbox, SANDBOX_RUNNING);
+
 		/* Save the context of the currently executing sandbox before switching from it */
 		arch_mcontext_save(&current_sandbox->ctxt, &user_context->uc_mcontext);
 
 		/* Update current_sandbox to the next sandbox */
-		sandbox_set_as_running(next_sandbox);
+		assert(next_sandbox->state == SANDBOX_RUNNABLE);
+		sandbox_set_as_running(next_sandbox, SANDBOX_RUNNABLE);
 
 		/*
 		 * Restore the context of this new sandbox
