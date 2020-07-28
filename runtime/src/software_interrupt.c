@@ -45,6 +45,90 @@ extern pthread_t runtime_worker_threads[];
 static inline void software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw);
 
 /**
+ * SIGALRM is the preemption signal that occurs every quantum of execution
+ * @param signal_info data structure containing signal info
+ * @param user_context userland context
+ * @param current_sandbox the sanbox active on the worker thread
+ */
+static inline void
+sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox *current_sandbox)
+{
+	/*
+	 * A POSIX signal is delivered to only one thread.
+	 * We need to ensure this thread broadcasts to all other threads
+	 */
+	if (signal_info->si_code == SI_KERNEL) {
+		/* Signal was sent directly by the kernel, so forward to other threads */
+		for (int i = 0; i < runtime_total_worker_processors; i++) {
+			if (pthread_self() == runtime_worker_threads[i]) continue;
+
+			pthread_kill(runtime_worker_threads[i], SIGALRM);
+		}
+	} else {
+		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
+		assert(signal_info->si_code == SI_TKILL);
+	}
+
+	software_interrupt_SIGALRM_count++;
+
+	/* NOOP if software interrupts not enabled */
+	if (!software_interrupt_is_enabled()) return;
+
+	/*
+	 * if a SIGALRM fires while the worker thread is between sandboxes, executing libuv, completion queue
+	 * cleanup, etc. current_sandbox might be NULL. In this case, we should just allow return to allow the
+	 * worker thread to run the main loop until it loads a new sandbox.
+	 *
+	 * TODO: Consider if this should be an invarient and the worker thread should disable software
+	 * interrupts when doing this work.
+	 */
+	if (!current_sandbox) return;
+
+	/*
+	 * if a SIGALRM fires while the worker thread executing cleanup of a sandbox, it might be in a RETURNED
+	 * state. In this case, we should just allow return to allow the sandbox to complete cleanup, as it is
+	 * about to switch to a new sandbox.
+	 *
+	 * TODO: Consider if this should be an invarient and the worker thread should disable software
+	 * interrupts when doing this work.
+	 */
+	if (current_sandbox->state == SANDBOX_RETURNED) return;
+
+	/* Preempt */
+	local_runqueue_preempt(user_context);
+
+	return;
+}
+
+/**
+ * SIGUSR1 restores a preempted sandbox using mcontext
+ * @param signal_info data structure containing signal info
+ * @param user_context userland context
+ * @param current_sandbox the sanbox active on the worker thread
+ */
+static inline void
+sigusr1_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox *current_sandbox)
+{
+	/* Assumption: Caller disables interrupt before triggering SIGUSR1 */
+	assert(!software_interrupt_is_enabled());
+
+	/* Assumption: Caller sets current_sandbox to the preempted sandbox */
+	assert(current_sandbox);
+
+	/* Extra checks to verify that preemption properly set context state */
+	assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
+
+	software_interrupt_SIGUSR_count++;
+	debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
+
+	arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
+
+	software_interrupt_enable();
+
+	return;
+}
+
+/**
  * The handler function for Software Interrupts (signals)
  * SIGALRM is executed periodically by an interval timer, causing preemption of the current sandbox
  * SIGUSR1 restores a preempted sandbox
@@ -56,81 +140,17 @@ static inline void
 software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 {
 #ifdef PREEMPT_DISABLE
-	assert(0);
+	panic("Unexpectedly invoked signal handlers when PREEMPT_DISABLE set\n");
 #else
 	ucontext_t *    user_context    = (ucontext_t *)user_context_raw;
 	struct sandbox *current_sandbox = current_sandbox_get();
 
 	switch (signal_type) {
 	case SIGALRM: {
-		/* SIGALRM is the preemption signal that occurs every quantum of execution */
-
-		/*
-		 * A POSIX signal is delivered to only one thread.
-		 * We need to ensure this thread broadcasts to all other threads
-		 */
-		if (signal_info->si_code == SI_KERNEL) {
-			/* Signal was sent directly by the kernel, so forward to other threads */
-			for (int i = 0; i < runtime_total_worker_processors; i++) {
-				if (pthread_self() == runtime_worker_threads[i]) continue;
-
-				pthread_kill(runtime_worker_threads[i], SIGALRM);
-			}
-		} else {
-			/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
-			assert(signal_info->si_code == SI_TKILL);
-		}
-
-		software_interrupt_SIGALRM_count++;
-
-		/* NOOP if software interrupts not enabled */
-		if (!software_interrupt_is_enabled()) return;
-
-		/*
-		 * if a SIGALRM fires while the worker thread is between sandboxes, executing libuv, completion queue
-		 * cleanup, etc. current_sandbox might be NULL. In this case, we should just allow return to allow the
-		 * worker thread to run the main loop until it loads a new sandbox.
-		 *
-		 * TODO: Consider if this should be an invarient and the worker thread should disable software
-		 * interrupts when doing this work.
-		 */
-		if (!current_sandbox) return;
-
-		/*
-		 * if a SIGALRM fires while the worker thread executing cleanup of a sandbox, it might be in a RETURNED
-		 * state. In this case, we should just allow return to allow the sandbox to complete cleanup, as it is
-		 * about to switch to a new sandbox.
-		 *
-		 * TODO: Consider if this should be an invarient and the worker thread should disable software
-		 * interrupts when doing this work.
-		 */
-		if (current_sandbox->state == SANDBOX_RETURNED) return;
-
-		/* Preempt */
-		local_runqueue_preempt(user_context);
-
-		return;
+		return sigalrm_handler(signal_info, user_context, current_sandbox);
 	}
 	case SIGUSR1: {
-		/* SIGUSR1 restores a preempted sandbox using mcontext. */
-
-		/* Assumption: Caller disables interrupt before triggering SIGUSR1 */
-		assert(!software_interrupt_is_enabled());
-
-		/* Assumption: Caller sets current_sandbox to the preempted sandbox */
-		assert(current_sandbox);
-
-		/* Extra checks to verify that preemption properly set context state */
-		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
-
-		software_interrupt_SIGUSR_count++;
-		debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
-
-		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
-
-		software_interrupt_enable();
-
-		return;
+		return sigusr1_handler(signal_info, user_context, current_sandbox);
 	}
 	default:
 		if (signal_info->si_code == SI_TKILL) {
