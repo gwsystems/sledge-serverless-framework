@@ -426,6 +426,7 @@ err_stack_allocation_failed:
 
 /**
  * Transitions a sandbox to the SANDBOX_INITIALIZED state.
+ * The sandbox was already zeroed out during allocation
  * @param sandbox an uninitialized sandbox
  * @param sandbox_request the request we are initializing the sandbox from
  * @param allocation_timestamp timestamp of allocation
@@ -449,8 +450,6 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 
 	sandbox->request_arrival_timestamp   = sandbox_request->request_arrival_timestamp;
 	sandbox->allocation_timestamp        = allocation_timestamp;
-	sandbox->response_timestamp          = 0;
-	sandbox->completion_timestamp        = 0;
 	sandbox->last_state_change_timestamp = allocation_timestamp;
 	sandbox_state_t last_state           = sandbox->state;
 	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
@@ -470,14 +469,6 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->arguments                = (void *)sandbox_request->arguments;
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
 	memcpy(&sandbox->client_address, sandbox_request->socket_address, sizeof(struct sockaddr));
-
-	sandbox->total_time            = 0;
-	sandbox->initializing_duration = 0;
-	sandbox->runnable_duration     = 0;
-	sandbox->preempted_duration    = 0;
-	sandbox->running_duration      = 0;
-	sandbox->blocked_duration      = 0;
-	sandbox->returned_duration     = 0;
 
 	sandbox->state = SANDBOX_INITIALIZED;
 }
