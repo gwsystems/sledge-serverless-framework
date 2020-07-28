@@ -462,7 +462,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	/* Initialize file descriptors to -1 */
 	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
 
-	/* Initialize Parsec control structures (used by Completion Queue) */
+	/* Initialize Parsec control structures */
 	ps_list_init_d(sandbox);
 
 	/* Copy the socket descriptor, address, and arguments of the client invocation */
@@ -621,7 +621,8 @@ sandbox_set_as_blocked(struct sandbox *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_BLOCKED;
-	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->request_arrival_timestamp, sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->request_arrival_timestamp,
+	         sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -656,7 +657,8 @@ sandbox_set_as_returned(struct sandbox *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_RETURNED;
-	debuglog("Sandbox %lu | %s => Returned\n", sandbox->request_arrival_timestamp, sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Returned\n", sandbox->request_arrival_timestamp,
+	         sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -695,7 +697,8 @@ sandbox_set_as_error(struct sandbox *sandbox)
 	uint64_t        duration_of_last_state = now - sandbox->last_state_change_timestamp;
 	sandbox_state_t last_state             = sandbox->state;
 	sandbox->state                         = SANDBOX_SET_AS_ERROR;
-	debuglog("Sandbox %lu | %s => Error\n", sandbox->request_arrival_timestamp, sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Error\n", sandbox->request_arrival_timestamp,
+	         sandbox_state_stringify(last_state));
 
 	switch (last_state) {
 	case SANDBOX_SET_AS_INITIALIZED:
