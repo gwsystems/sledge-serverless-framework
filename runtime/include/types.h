@@ -147,6 +147,8 @@ typedef void (*mod_libc_fn_t)(int32_t, int32_t);
 #define SOFTWARE_INTERRUPT_TIME_TO_START_IN_USEC     (10 * 1000) /* 10 ms */
 #define SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC (5 * 1000)  /* 5 ms */
 
-/* If multicore, use all but the dedicated listener core
-If there are fewer cores than this, main dynamically overrides this and uses all available */
-#define WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
+/*
+ * The runtime explicitly requires at least two cores, allocating all as worker threads
+ * minus the dedicated listener core
+ */
+#define WORKER_THREAD_CORE_COUNT (NCORES - 1)

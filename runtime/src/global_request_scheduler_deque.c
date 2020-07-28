@@ -14,15 +14,8 @@ global_request_scheduler_deque_add(void *sandbox_request_raw)
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)sandbox_request_raw;
 	int                     return_code     = 1;
 
-/* TODO: Running the runtime and listener cores on a single shared core is untested
-We are unsure if the locking behavior is correct, so there may be deadlocks */
-#if NCORES == 1
-	pthread_mutex_lock(&global_request_scheduler_deque_mutex);
-#endif
 	return_code = deque_push_sandbox(global_request_scheduler_deque, &sandbox_request);
-#if NCORES == 1
-	pthread_mutex_unlock(&global_request_scheduler_deque_mutex);
-#endif
+
 	if (return_code != 0) return NULL;
 	return sandbox_request_raw;
 }
@@ -34,22 +27,12 @@ We are unsure if the locking behavior is correct, so there may be deadlocks */
  *
  * Relevant Read: https://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf
  *
- * TODO: Notice the mutex_lock for NCORES == 1 in both push/pop functions and steal calling 'pop' for NCORES == 1.
- * Ideally you don't call steal for same core consumption but I just made the steal API wrap that logic. Which is
- * perhaps not good. We might just add the #if in the scheduling code which should explicitly call "pop" for single core
- * and add an assert in "steal" function for NCORES == 1.
- *
  * @returns 0 if successfully returned a sandbox request, -1 if empty, -2 if atomic instruction unsuccessful
  */
 static int
 global_request_scheduler_deque_remove(struct sandbox_request **removed_sandbox_request)
 {
 	int return_code;
-#if NCORES == 1
-	pthread_mutex_lock(&global_request_scheduler_deque_mutex);
-	return_code = deque_pop_sandbox(global_request_scheduler_deque, *removed_sandbox_request);
-	pthread_mutex_unlock(&global_request_scheduler_deque_mutex);
-#else
 	return_code = deque_steal_sandbox(global_request_scheduler_deque, removed_sandbox_request);
 	/* The Deque uses different return codes other than 0, so map here */
 	if (return_code == -2) {
@@ -57,8 +40,6 @@ global_request_scheduler_deque_remove(struct sandbox_request **removed_sandbox_r
 	} else if (return_code == -11) {
 		return_code = -2;
 	}
-
-#endif
 	return return_code;
 }
 
