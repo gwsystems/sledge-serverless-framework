@@ -75,22 +75,18 @@ runtime_allocate_available_cores()
 	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
 
-	/* If multicore, we'll pin one core as a listener and run sandbox threads on all others */
-	if (runtime_total_online_processors > 1) {
-		runtime_first_worker_processor = 1;
-		/* WORKER_THREAD_CORE_COUNT can be used as a cap on the number of cores to use, but if there are few
-		 * cores that WORKER_THREAD_CORE_COUNT, just use what is available */
-		uint32_t max_possible_workers   = runtime_total_online_processors - 1;
-		runtime_total_worker_processors = max_possible_workers;
-		if (max_possible_workers >= WORKER_THREAD_CORE_COUNT)
-			runtime_total_worker_processors = WORKER_THREAD_CORE_COUNT;
+	if (runtime_total_online_processors < 2) panic("Runtime requires at least two cores!");
 
-		assert(runtime_total_worker_processors == WORKER_THREAD_CORE_COUNT);
-	} else {
-		/* If single core, we'll do everything on CPUID 0 */
-		runtime_first_worker_processor  = 0;
-		runtime_total_worker_processors = 1;
-	}
+	runtime_first_worker_processor = 1;
+	/* WORKER_THREAD_CORE_COUNT can be used as a cap on the number of cores to use, but if there are few
+	 * cores that WORKER_THREAD_CORE_COUNT, just use what is available */
+	uint32_t max_possible_workers   = runtime_total_online_processors - 1;
+	runtime_total_worker_processors = max_possible_workers;
+	if (max_possible_workers >= WORKER_THREAD_CORE_COUNT)
+		runtime_total_worker_processors = WORKER_THREAD_CORE_COUNT;
+
+	assert(runtime_total_worker_processors == WORKER_THREAD_CORE_COUNT);
+
 	printf("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
 	       runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
 	       LISTENER_THREAD_CORE_ID);
@@ -193,6 +189,10 @@ main(int argc, char **argv)
 {
 #ifdef DEBUG
 	runtime_process_debug_log_behavior();
+#endif
+
+#if NCORES == 1
+	panic("Runtime requires at least two cores!");
 #endif
 
 	debuglog("Initializing the runtime\n");
