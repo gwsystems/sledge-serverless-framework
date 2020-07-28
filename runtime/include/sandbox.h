@@ -314,13 +314,13 @@ sandbox_print_perf(struct sandbox *sandbox)
 	uint64_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
 	uint64_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
 	uint64_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
-	debuglog("%s():%d, state: %s, deadline: %u, actual: %lu, queued: %lu, initializing: %lu, runnable: %lu, "
+	debuglog("%lu, %s():%d, state: %s, deadline: %u, actual: %lu, queued: %lu, initializing: %lu, runnable: %lu, "
 	         "running: "
 	         "%lu, blocked: "
 	         "%lu, returned %lu\n",
-	         sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
-	         sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
-	         running_us, blocked_us, returned_us);
+	         sandbox->request_arrival_timestamp, sandbox->module->name, sandbox->module->port,
+	         sandbox_state_stringify(sandbox->state), sandbox->module->relative_deadline_us, total_time_us,
+	         queued_us, initializing_us, runnable_us, running_us, blocked_us, returned_us);
 }
 
 void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,

@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <math.h>
 #include <printf.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -89,12 +90,13 @@ typedef void (*mod_libc_fn_t)(int32_t, int32_t);
  */
 #ifdef DEBUG
 #ifdef LOG_TO_FILE
-#define debuglog(fmt, ...)                                                                                      \
-	dprintf(runtime_log_file_descriptor, "CPU: %02d, Thread: %x> %s: " fmt, sched_getcpu(), pthread_self(), \
-	        __func__, ##__VA_ARGS__)
+#define debuglog(fmt, ...)                                                                              \
+	dprintf(runtime_log_file_descriptor, "C: %02d, T: 0x%lx, F: %s> \n\t" fmt "\n", sched_getcpu(), \
+	        pthread_self(), __func__, ##__VA_ARGS__);
 #else /* !LOG_TO_FILE */
-#define debuglog(fmt, ...) \
-	printf("CPU: %02d, Thread: 0x%lx> %s: " fmt, sched_getcpu(), pthread_self(), __func__, ##__VA_ARGS__)
+#define debuglog(fmt, ...)                                                                                   \
+	fprintf(stderr, "C: %02d, T: 0x%lx, F: %s> \n\t" fmt "\n", sched_getcpu(), pthread_self(), __func__, \
+	        ##__VA_ARGS__);
 #endif /* LOG_TO_FILE */
 #else  /* !DEBUG */
 #define debuglog(fmt, ...)

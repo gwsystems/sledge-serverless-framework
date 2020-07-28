@@ -2,7 +2,6 @@
 
 #include <assert.h>
 #include <sys/mman.h>
-#include <pthread.h>
 #include <signal.h>
 #include <uv.h>
 
