@@ -1,6 +1,7 @@
 #pragma once
 
 #include <assert.h>
+#include <errno.h>
 #include <panic.h>
 #include <pthread.h>
 #include <signal.h>
