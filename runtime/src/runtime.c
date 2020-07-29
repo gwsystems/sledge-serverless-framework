@@ -1,4 +1,3 @@
-#include <pthread.h>
 #include <signal.h>
 #include <sched.h>
 #include <sys/mman.h>

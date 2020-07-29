@@ -1,6 +1,9 @@
+#include <assert.h>
+
 #include "global_request_scheduler.h"
 #include "panic.h"
 #include "priority_queue.h"
+#include "runtime.h"
 
 static struct priority_queue global_request_scheduler_minheap;
 
@@ -12,6 +15,11 @@ static struct priority_queue global_request_scheduler_minheap;
 static struct sandbox_request *
 global_request_scheduler_minheap_add(void *sandbox_request)
 {
+/* This function is called by both the listener core and workers */
+#ifndef NDEBUG
+	if (runtime_is_worker()) assert(!software_interrupt_is_enabled());
+#endif
+
 	int return_code = priority_queue_enqueue(&global_request_scheduler_minheap, sandbox_request);
 	/* TODO: Propagate -1 to caller */
 	if (return_code == -1) panic("Request Queue is full\n");
@@ -25,6 +33,7 @@ global_request_scheduler_minheap_add(void *sandbox_request)
 int
 global_request_scheduler_minheap_remove(struct sandbox_request **removed_sandbox_request)
 {
+	assert(!software_interrupt_is_enabled());
 	return priority_queue_dequeue(&global_request_scheduler_minheap, (void **)removed_sandbox_request);
 }
 

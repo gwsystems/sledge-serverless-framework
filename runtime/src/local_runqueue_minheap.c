@@ -30,6 +30,8 @@ local_runqueue_minheap_is_empty()
 void
 local_runqueue_minheap_add(struct sandbox *sandbox)
 {
+	assert(!software_interrupt_is_enabled());
+
 	int return_code = priority_queue_enqueue(&local_runqueue_minheap, sandbox);
 	/* TODO: propagate RC to caller */
 	if (return_code == -1) panic("Thread Runqueue is full!\n");
@@ -43,6 +45,8 @@ local_runqueue_minheap_add(struct sandbox *sandbox)
 static int
 local_runqueue_minheap_remove(struct sandbox **to_remove)
 {
+	assert(!software_interrupt_is_enabled());
+
 	return priority_queue_dequeue(&local_runqueue_minheap, (void **)to_remove);
 }
 
@@ -53,7 +57,9 @@ local_runqueue_minheap_remove(struct sandbox **to_remove)
 static void
 local_runqueue_minheap_delete(struct sandbox *sandbox)
 {
+	assert(!software_interrupt_is_enabled());
 	assert(sandbox != NULL);
+
 	int rc = priority_queue_delete(&local_runqueue_minheap, sandbox);
 	if (rc == -1) {
 		panic("Tried to delete sandbox %lu from runqueue, but was not present\n",
@@ -72,7 +78,6 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 struct sandbox *
 local_runqueue_minheap_get_next()
 {
-	/* Assumption: Software Interrupts are disabed by caller */
 	assert(!software_interrupt_is_enabled());
 
 	struct sandbox *        sandbox = NULL;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <pthread.h>
 #include <sys/epoll.h> /* for epoll_create1(), epoll_ctl(), struct epoll_event */
 #include <stdbool.h>
 
@@ -26,6 +27,10 @@ void         stub_init(int32_t offset);
 
 unsigned long long __getcycles(void);
 
+/**
+ * Used to determine if running in the context of a worker thread
+ * @returns true if worker. false if listener core
+ */
 static inline bool
 runtime_is_worker()
 {
