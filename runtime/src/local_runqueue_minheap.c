@@ -9,7 +9,6 @@
 #include "priority_queue.h"
 #include "software_interrupt.h"
 
-
 __thread static struct priority_queue local_runqueue_minheap;
 
 /**
@@ -34,20 +33,22 @@ local_runqueue_minheap_add(struct sandbox *sandbox)
 
 	int return_code = priority_queue_enqueue(&local_runqueue_minheap, sandbox);
 	/* TODO: propagate RC to caller */
-	if (return_code == -1) panic("Thread Runqueue is full!\n");
+	if (return_code == -ENOSPC) panic("Thread Runqueue is full!\n");
 }
 
 /**
  * Removes the highest priority sandbox from the run queue
  * @param pointer to test to address of removed sandbox if successful
- * @returns 0 if successful, -1 if empty, -2 if unable to take lock
+ * @returns RC 0 if successfully set dequeued_element, -ENOENT if empty
  */
 static int
 local_runqueue_minheap_remove(struct sandbox **to_remove)
 {
 	assert(!software_interrupt_is_enabled());
+	int rc = priority_queue_dequeue(&local_runqueue_minheap, (void **)to_remove);
+	if (rc == -EAGAIN) panic("Worker unexpectedly unable to take lock on own runqueue\n");
 
-	return priority_queue_dequeue(&local_runqueue_minheap, (void **)to_remove);
+	return rc;
 }
 
 /**
@@ -82,18 +83,13 @@ local_runqueue_minheap_get_next()
 
 	struct sandbox *        sandbox = NULL;
 	struct sandbox_request *sandbox_request;
-	int                     sandbox_rc = local_runqueue_minheap_remove(&sandbox);
+	int                     sandbox_rc = priority_queue_top(&local_runqueue_minheap, (void **)&sandbox);
 
-	if (sandbox_rc == 0) {
-		/* Sandbox ready pulled from local runqueue */
-
-		/* TODO: We remove and immediately re-add sandboxes. This seems like extra work. Consider an API to get
-		 * the min without removing it
-		 */
-		local_runqueue_minheap_add(sandbox);
-	} else if (sandbox_rc == -1) {
-		/* local runqueue was empty, try to pull a sandbox request and return NULL if we're unable to get one */
-		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
+	if (sandbox_rc == -EAGAIN) {
+		panic("Worker unexpectedly unable to take lock on own runqueue\n");
+	} else if (sandbox_rc == -ENOENT) {
+		/* local runqueue empty, try to pull a sandbox request */
+		if (global_request_scheduler_remove(&sandbox_request) < 0) goto done;
 
 		/* Try to allocate a sandbox, returning the request on failure */
 		sandbox = sandbox_allocate(sandbox_request);
@@ -101,11 +97,8 @@ local_runqueue_minheap_get_next()
 
 		assert(sandbox->state == SANDBOX_INITIALIZED);
 		sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
-
-	} else if (sandbox_rc == -2) {
-		/* Unable to take lock, so just return NULL and try later */
-		assert(sandbox == NULL);
 	}
+
 done:
 	return sandbox;
 sandbox_allocate_err:

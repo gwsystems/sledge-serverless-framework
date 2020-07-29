@@ -41,5 +41,6 @@ int      priority_queue_dequeue(struct priority_queue *self, void **dequeued_ele
 int      priority_queue_length(struct priority_queue *self);
 uint64_t priority_queue_peek(struct priority_queue *self);
 int      priority_queue_delete(struct priority_queue *self, void *value);
+int      priority_queue_top(struct priority_queue *self, void **dequeued_element);
 
 #endif /* PRIORITY_QUEUE_H */
