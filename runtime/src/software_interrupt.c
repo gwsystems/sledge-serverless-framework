@@ -136,6 +136,24 @@ sigusr1_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 }
 
 /**
+ * Validates that the thread running the signal handler is a known worker thread
+ */
+static inline void
+software_interrupt_validate_worker()
+{
+#ifndef NDEBUG
+	bool is_worker = false;
+	for (int i = 0; i < runtime_total_worker_processors; i++) {
+		if (pthread_self() == runtime_worker_threads[i]) {
+			is_worker = true;
+			break;
+		}
+	}
+	if (!is_worker) panic("A non-worker thread received has unexpectedly received a signal!");
+#endif
+}
+
+/**
  * The handler function for Software Interrupts (signals)
  * SIGALRM is executed periodically by an interval timer, causing preemption of the current sandbox
  * SIGUSR1 restores a preempted sandbox
@@ -149,6 +167,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 #ifdef PREEMPT_DISABLE
 	panic("Unexpectedly invoked signal handlers when PREEMPT_DISABLE set\n");
 #else
+
+	software_interrupt_validate_worker();
+
 	ucontext_t *    user_context    = (ucontext_t *)user_context_raw;
 	struct sandbox *current_sandbox = current_sandbox_get();
 
@@ -217,7 +238,7 @@ software_interrupt_disarm_timer(void)
 
 /**
  * Initialize software Interrupts
- * Register sonftint_handler to execute on SIGALRM and SIGUSR1
+ * Register softint_handler to execute on SIGALRM and SIGUSR1
  */
 void
 software_interrupt_initialize(void)
