@@ -44,21 +44,16 @@ extern pthread_t runtime_worker_threads[];
 
 static inline void software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw);
 
+
 /**
- * SIGALRM is the preemption signal that occurs every quantum of execution
- * @param signal_info data structure containing signal info
- * @param user_context userland context
- * @param current_sandbox the sanbox active on the worker thread
+ * A POSIX signal is delivered to only one thread.
+ * This function broadcasts the sigalarm signal to all other worker threads
  */
 static inline void
-sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox *current_sandbox)
+sigalrm_propagate_workers(siginfo_t *signal_info)
 {
-	/*
-	 * A POSIX signal is delivered to only one thread.
-	 * We need to ensure this thread broadcasts to all other threads
-	 */
+	/* Signal was sent directly by the kernel, so forward to other threads */
 	if (signal_info->si_code == SI_KERNEL) {
-		/* Signal was sent directly by the kernel, so forward to other threads */
 		for (int i = 0; i < runtime_total_worker_processors; i++) {
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
@@ -68,6 +63,18 @@ sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 		assert(signal_info->si_code == SI_TKILL);
 	}
+}
+
+/**
+ * SIGALRM is the preemption signal that occurs every quantum of execution
+ * @param signal_info data structure containing signal info
+ * @param user_context userland context
+ * @param current_sandbox the sanbox active on the worker thread
+ */
+static inline void
+sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox *current_sandbox)
+{
+	sigalrm_propagate_workers(signal_info);
 
 	software_interrupt_SIGALRM_count++;
 
