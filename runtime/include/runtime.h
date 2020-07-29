@@ -14,6 +14,7 @@
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
 
 extern int       runtime_epoll_file_descriptor;
+extern float     runtime_processor_speed_MHz;
 extern uint32_t  runtime_total_worker_processors;
 extern pthread_t runtime_worker_threads[];
 

@@ -32,7 +32,8 @@ struct module {
 	uint32_t                    stack_size; /* a specification? */
 	uint64_t                    max_memory; /* perhaps a specification of the module. (max 4GB) */
 	uint32_t                    relative_deadline_us;
-	uint32_t                    reference_count; /* ref count how many instances exist here. */
+	uint64_t                    relative_deadline; /* cycles */
+	uint32_t                    reference_count;   /* ref count how many instances exist here. */
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
 	struct sockaddr_in          socket_address;
 	int                         socket_descriptor;

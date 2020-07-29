@@ -7,8 +7,6 @@
 #include "module.h"
 #include "runtime.h"
 
-extern float runtime_processor_speed_MHz;
-
 struct sandbox_request {
 	struct module *  module;
 	char *           arguments;
@@ -40,8 +38,7 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->socket_descriptor         = socket_descriptor;
 	sandbox_request->socket_address            = (struct sockaddr *)socket_address;
 	sandbox_request->request_arrival_timestamp = request_arrival_timestamp;
-	sandbox_request->absolute_deadline         = request_arrival_timestamp
-	                                     + module->relative_deadline_us * runtime_processor_speed_MHz;
+	sandbox_request->absolute_deadline         = request_arrival_timestamp + module->relative_deadline;
 
 	debuglog("Allocating %lu of %s:%d\n", sandbox_request->request_arrival_timestamp, sandbox_request->module->name,
 	         sandbox_request->module->port);
