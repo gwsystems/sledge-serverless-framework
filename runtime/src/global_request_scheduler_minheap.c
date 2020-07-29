@@ -22,13 +22,13 @@ global_request_scheduler_minheap_add(void *sandbox_request)
 
 	int return_code = priority_queue_enqueue(&global_request_scheduler_minheap, sandbox_request);
 	/* TODO: Propagate -1 to caller */
-	if (return_code == -1) panic("Request Queue is full\n");
+	if (return_code == -ENOSPC) panic("Request Queue is full\n");
 	return sandbox_request;
 }
 
 /**
  * @param pointer to the pointer that we want to set to the address of the removed sandbox request
- * @returns 0 if successful, -1 if empty, -2 if unable to take lock or perform atomic operation
+ * @returns 0 if successful, -ENOENT if empty, -EAGAIN if unable to take lock
  */
 int
 global_request_scheduler_minheap_remove(struct sandbox_request **removed_sandbox_request)

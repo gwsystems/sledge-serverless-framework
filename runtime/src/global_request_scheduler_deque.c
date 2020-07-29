@@ -28,20 +28,12 @@ global_request_scheduler_deque_add(void *sandbox_request_raw)
  *
  * Relevant Read: https://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf
  *
- * @returns 0 if successfully returned a sandbox request, -1 if empty, -2 if atomic instruction unsuccessful
+ * @returns 0 if successfully returned a sandbox request, -ENOENT if empty, -EAGAIN if atomic instruction unsuccessful
  */
 static int
 global_request_scheduler_deque_remove(struct sandbox_request **removed_sandbox_request)
 {
-	int return_code;
-	return_code = deque_steal_sandbox(global_request_scheduler_deque, removed_sandbox_request);
-	/* The Deque uses different return codes other than 0, so map here */
-	if (return_code == -2) {
-		return_code = -1;
-	} else if (return_code == -11) {
-		return_code = -2;
-	}
-	return return_code;
+	return deque_steal_sandbox(global_request_scheduler_deque, removed_sandbox_request);
 }
 
 void

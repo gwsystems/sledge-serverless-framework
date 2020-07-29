@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,7 +16,7 @@
  * Adds a value to the end of the binary heap
  * @param self the priority queue
  * @param new_item the value we are adding
- * @return 0 on success. -1 when priority queue is full
+ * @return 0 on success. -ENOSPC when priority queue is full
  */
 static inline int
 priority_queue_append(struct priority_queue *self, void *new_item)
@@ -23,7 +24,7 @@ priority_queue_append(struct priority_queue *self, void *new_item)
 	assert(self != NULL);
 	assert(ck_spinlock_fas_locked(&self->lock));
 
-	if (self->first_free >= MAX) return -1;
+	if (self->first_free >= MAX) return -ENOSPC;
 
 	self->items[self->first_free++] = new_item;
 	return 0;
@@ -165,7 +166,7 @@ priority_queue_length(struct priority_queue *self)
 /**
  * @param self - the priority queue we want to add to
  * @param value - the value we want to add
- * @returns 0 on success. -1 on full.
+ * @returns 0 on success. -ENOSPC on full.
  */
 int
 priority_queue_enqueue(struct priority_queue *self, void *value)
@@ -173,7 +174,7 @@ priority_queue_enqueue(struct priority_queue *self, void *value)
 	assert(self != NULL);
 	ck_spinlock_fas_lock(&self->lock);
 
-	if (priority_queue_append(self, value) == -1) return -1;
+	if (priority_queue_append(self, value) == -ENOSPC) return -ENOSPC;
 
 	/* If this is the first element we add, update the highest priority */
 	if (self->first_free == 2) {
@@ -213,7 +214,7 @@ priority_queue_delete(struct priority_queue *self, void *value)
 /**
  * @param self - the priority queue we want to add to
  * @param dequeued_element a pointer to set to the dequeued element
- * @returns RC 0 if successfully set dequeued_element, -1 if empty, -2 if unable to take lock
+ * @returns RC 0 if successfully set dequeued_element, -ENOENT if empty, -EAGAIN if unable to take lock
  */
 int
 priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
@@ -225,12 +226,12 @@ priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 	int return_code;
 
 	if (ck_spinlock_fas_trylock(&self->lock) == false) {
-		return_code = -2;
+		return_code = -EAGAIN;
 		goto done;
 	};
 
 	if (priority_queue_is_empty_locked(self)) {
-		return_code = -1;
+		return_code = -ENOENT;
 		goto release_lock;
 	}
 
@@ -247,6 +248,40 @@ priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 		self->highest_priority = ULONG_MAX;
 	}
 	return_code = 0;
+
+release_lock:
+	ck_spinlock_fas_unlock(&self->lock);
+done:
+	return return_code;
+}
+
+/**
+ * Returns the top of the priority queue without removing it
+ * @param self - the priority queue we want to add to
+ * @param dequeued_element a pointer to set to the top element
+ * @returns RC 0 if successfully set dequeued_element, -ENOENT if empty, -EAGAIN if unable to take lock
+ */
+int
+priority_queue_top(struct priority_queue *self, void **dequeued_element)
+{
+	assert(self != NULL);
+	assert(dequeued_element != NULL);
+	assert(self->get_priority_fn != NULL);
+
+	int return_code;
+
+	if (ck_spinlock_fas_trylock(&self->lock) == false) {
+		return_code = -EAGAIN;
+		goto done;
+	};
+
+	if (priority_queue_is_empty_locked(self)) {
+		return_code = -ENOENT;
+		goto release_lock;
+	}
+
+	*dequeued_element = self->items[1];
+	return_code       = 0;
 
 release_lock:
 	ck_spinlock_fas_unlock(&self->lock);
