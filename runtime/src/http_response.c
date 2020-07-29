@@ -1,8 +1,9 @@
-#include "http_response.h"
-
+#include <assert.h>
 #ifdef USE_HTTP_UVIO
 #include <uv.h>
 #endif
+
+#include "http_response.h"
 
 /***************************************************
  * General HTTP Response Functions                 *

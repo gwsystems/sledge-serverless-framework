@@ -9,13 +9,13 @@
 
 #include "arch/context.h"
 #include "current_sandbox.h"
+#include "debuglog.h"
 #include "local_runqueue.h"
 #include "module.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
 #include "software_interrupt.h"
-#include "types.h"
 
 /*******************
  * Process Globals *

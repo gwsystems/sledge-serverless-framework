@@ -3,6 +3,13 @@
 #include <sys/epoll.h> /* for epoll_create1(), epoll_ctl(), struct epoll_event */
 #include "types.h"
 
+#define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
+#define LISTENER_THREAD_MAX_EPOLL_EVENTS 1024
+
+#define RUNTIME_LOG_FILE                  "awesome.log"
+#define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19) /* random! */
+#define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
+
 extern int      runtime_epoll_file_descriptor;
 extern uint32_t runtime_total_worker_processors;
 

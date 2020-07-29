@@ -1,7 +1,6 @@
 #pragma once
 
 #include "sandbox.h"
-#include "types.h"
 
 void                 current_sandbox_close_file_descriptor(int io_handle_index);
 struct sandbox *     current_sandbox_get(void);

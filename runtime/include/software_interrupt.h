@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define SOFTWARE_INTERRUPT_TIME_TO_START_IN_USEC     (10 * 1000) /* 10 ms */
+#define SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC (5 * 1000)  /* 5 ms */
+
 /************
  * Externs  *
  ***********/

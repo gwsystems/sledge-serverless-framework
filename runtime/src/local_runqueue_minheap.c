@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 #include "current_sandbox.h"
+#include "debuglog.h"
 #include "global_request_scheduler.h"
 #include "local_runqueue.h"
 #include "local_runqueue_minheap.h"

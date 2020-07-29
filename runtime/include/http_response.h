@@ -2,13 +2,19 @@
 
 #include <http_parser.h>
 #include <sys/uio.h>
-
-#include "types.h"
-
 /* Conditionally load libuv */
 #ifdef USE_HTTP_UVIO
 #include <uv.h>
 #endif
+
+#include "http.h"
+
+#define HTTP_RESPONSE_200_OK                    "HTTP/1.1 200 OK\r\n"
+#define HTTP_RESPONSE_CONTENT_LENGTH            "Content-Length: "
+#define HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR "\r\n\r\n" /* content body follows this */
+#define HTTP_RESPONSE_CONTENT_TYPE              "Content-Type: "
+#define HTTP_RESPONSE_CONTENT_TYPE_PLAIN        "text/plain"
+#define HTTP_RESPONSE_CONTENT_TYPE_TERMINATOR   " \r\n"
 
 struct http_response_header {
 	char *header;

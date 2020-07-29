@@ -6,6 +6,7 @@
 #include <uv.h>
 
 #include "current_sandbox.h"
+#include "debuglog.h"
 #include "global_request_scheduler.h"
 #include "local_completion_queue.h"
 #include "local_runqueue.h"
@@ -13,7 +14,6 @@
 #include "local_runqueue_minheap.h"
 #include "panic.h"
 #include "runtime.h"
-#include "types.h"
 #include "worker_thread.h"
 
 /***************************

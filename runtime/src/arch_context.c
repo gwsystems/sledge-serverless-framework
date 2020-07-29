@@ -1,7 +1,7 @@
-#include <signal.h>
+#include <assert.h>
 #include <pthread.h>
-
-#include "types.h"
+#include <signal.h>
+#include <stdbool.h>
 
 /**
  * Called by the inline assembly in arch_context_switch to send a SIGUSR1 in order to restore a previously preempted
