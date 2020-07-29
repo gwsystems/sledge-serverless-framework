@@ -192,7 +192,7 @@ main(int argc, char **argv)
 #endif
 
 #if NCORES == 1
-	panic("Runtime requires at least two cores!");
+#error "RUNTIME MINIMUM REQUIREMENT IS 2 CORES"
 #endif
 
 	debuglog("Initializing the runtime\n");
