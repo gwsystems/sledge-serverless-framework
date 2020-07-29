@@ -1,6 +1,8 @@
 #pragma once
 
 #include <sys/epoll.h> /* for epoll_create1(), epoll_ctl(), struct epoll_event */
+#include <stdbool.h>
+
 #include "types.h"
 
 #define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
@@ -10,8 +12,9 @@
 #define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19) /* random! */
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
 
-extern int      runtime_epoll_file_descriptor;
-extern uint32_t runtime_total_worker_processors;
+extern int       runtime_epoll_file_descriptor;
+extern uint32_t  runtime_total_worker_processors;
+extern pthread_t runtime_worker_threads[];
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);
@@ -22,3 +25,14 @@ void         listener_thread_initialize(void);
 void         stub_init(int32_t offset);
 
 unsigned long long __getcycles(void);
+
+static inline bool
+runtime_is_worker()
+{
+	pthread_t self = pthread_self();
+	for (int i = 0; i < runtime_total_worker_processors; i++) {
+		if (runtime_worker_threads[i] == self) return true;
+	}
+
+	return false;
+}
