@@ -166,6 +166,7 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	module->stack_size           = round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size);
 	module->max_memory           = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
 	module->relative_deadline_us = relative_deadline_us;
+	module->relative_deadline    = relative_deadline_us * runtime_processor_speed_MHz;
 	module->socket_descriptor    = -1;
 	module->port                 = port;
 
