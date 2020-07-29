@@ -12,7 +12,6 @@
 #include "runtime.h"
 #include "sandbox_request.h"
 #include "software_interrupt.h"
-#include "types.h"
 
 /***************************
  * Shared Process State    *

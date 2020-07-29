@@ -5,6 +5,7 @@
 #include <uv.h>
 
 #include "current_sandbox.h"
+#include "debuglog.h"
 #include "http_parser_settings.h"
 #include "libuv_callbacks.h"
 #include "local_completion_queue.h"
@@ -12,7 +13,6 @@
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
-#include "types.h"
 #include "worker_thread.h"
 
 /**
@@ -360,7 +360,7 @@ sandbox_allocate_memory(struct module *module)
 
 	char *          error_message          = NULL;
 	unsigned long   linear_memory_size     = WASM_PAGE_SIZE * WASM_START_PAGES; /* The initial pages */
-	uint64_t        linear_memory_max_size = (uint64_t)SBOX_MAX_MEM;
+	uint64_t        linear_memory_max_size = (uint64_t)SANDBOX_MAX_MEMORY;
 	struct sandbox *sandbox                = NULL;
 	unsigned long   sandbox_size           = sizeof(struct sandbox) + module->max_request_or_response_size;
 
@@ -835,7 +835,7 @@ err:
 void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
-	int rc = munmap(sandbox->linear_memory_start, SBOX_MAX_MEM + PAGE_SIZE);
+	int rc = munmap(sandbox->linear_memory_start, SANDBOX_MAX_MEMORY + PAGE_SIZE);
 	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
 }
 

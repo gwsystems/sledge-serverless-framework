@@ -2,10 +2,10 @@
 
 #include <stdbool.h>
 
+#include "debuglog.h"
 #include "deque.h"
 #include "module.h"
 #include "runtime.h"
-#include "types.h"
 
 extern float runtime_processor_speed_MHz;
 

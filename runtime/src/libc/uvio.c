@@ -1,11 +1,11 @@
 #include <uv.h>
 
 #include "current_sandbox.h"
+#include "debuglog.h"
 #include "http_request.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
-#include "types.h"
 #include "worker_thread.h"
 
 // What should we tell the child program its UID and GID are?

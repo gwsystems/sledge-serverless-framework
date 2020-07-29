@@ -3,13 +3,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <uv.h>
 
+#include "debuglog.h"
+#include "http.h"
 #include "module.h"
 #include "module_database.h"
 #include "panic.h"
 #include "runtime.h"
-#include "types.h"
+
+const int JSON_MAX_ELEMENT_COUNT = 16;
+const int JSON_MAX_ELEMENT_SIZE  = 1024;
 
 /*************************
  * Private Static Inline *

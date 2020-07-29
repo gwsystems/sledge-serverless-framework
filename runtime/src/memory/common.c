@@ -1,3 +1,6 @@
+#include <assert.h>
+#include <string.h>
+
 #include "runtime.h"
 #include "types.h"
 

@@ -1,5 +1,4 @@
 #include "current_sandbox.h"
-#include "types.h"
 
 /* current sandbox that is active.. */
 static __thread struct sandbox *worker_thread_current_sandbox = NULL;

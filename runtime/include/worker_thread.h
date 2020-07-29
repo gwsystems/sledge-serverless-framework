@@ -2,7 +2,9 @@
 
 #include <uv.h>
 
-#include "types.h"
+/* If multicore, use all but the dedicated listener core
+If there are fewer cores than this, main dynamically overrides this and uses all available */
+#define WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
 
 extern __thread uv_loop_t worker_thread_uvio_handle;
 

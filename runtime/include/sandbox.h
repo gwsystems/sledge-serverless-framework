@@ -3,15 +3,20 @@
 #include <ucontext.h>
 #include <uv.h>
 #include <stdbool.h>
-#include "sandbox_request.h"
 
 #include "arch/context.h"
+#include "debuglog.h"
 #include "deque.h"
 #include "http_request.h"
 #include "http_response.h"
 #include "module.h"
 #include "ps_list.h"
+#include "sandbox_request.h"
 #include "software_interrupt.h"
+
+#define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) /* upside down LOLLOLLOL 🤣😂🤣*/
+#define SANDBOX_MAX_IO_HANDLE_COUNT           32
+#define SANDBOX_MAX_MEMORY                    (1L << 32) /* 4GB */
 
 /*********************
  * Structs and Types *
@@ -323,12 +328,12 @@ sandbox_print_perf(struct sandbox *sandbox)
 	         queued_us, initializing_us, runnable_us, running_us, blocked_us, returned_us);
 }
 
-void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
-                                uint64_t allocation_timestamp) __attribute__((always_inline));
-void sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state) __attribute__((always_inline));
-void sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state) __attribute__((always_inline));
-void sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state) __attribute__((always_inline));
-void sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state) __attribute__((always_inline));
-void sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state) __attribute__((always_inline));
-void sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state) __attribute__((always_inline));
-void sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state) __attribute__((always_inline));
+INLINE void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
+                                       uint64_t allocation_timestamp);
+INLINE void sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state);
+INLINE void sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state);
+INLINE void sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state);
+INLINE void sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state);
+INLINE void sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state);
+INLINE void sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state);
+INLINE void sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state);

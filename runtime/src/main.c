@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "debuglog.h"
 #include "module.h"
 #include "panic.h"
 #include "runtime.h"
@@ -17,7 +18,7 @@
 
 /* Conditionally used by debuglog when DEBUG is set */
 #ifdef DEBUG
-int32_t runtime_log_file_descriptor = -1;
+int32_t debuglog_file_descriptor = -1;
 #endif
 
 float    runtime_processor_speed_MHz                          = 0;
@@ -138,13 +139,13 @@ runtime_process_debug_log_behavior()
 	fclose(stdout);
 	fclose(stderr);
 	fclose(stdin);
-	runtime_log_file_descriptor = open(RUNTIME_LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
-	if (runtime_log_file_descriptor < 0) {
+	debuglog_file_descriptor = open(RUNTIME_LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
+	if (debuglog_file_descriptor < 0) {
 		perror("open");
 		exit(-1);
 	}
 #else
-	runtime_log_file_descriptor = 1;
+	debuglog_file_descriptor = 1;
 #endif /* LOG_TO_FILE */
 }
 #endif /* DEBUG */
