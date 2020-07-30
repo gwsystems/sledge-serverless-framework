@@ -13,10 +13,21 @@
 #define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19) /* random! */
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
 
-extern int       runtime_epoll_file_descriptor;
-extern float     runtime_processor_speed_MHz;
-extern uint32_t  runtime_total_worker_processors;
+/*
+ * Descriptor of the epoll instance used to monitor the socket descriptors of registered
+ * serverless modules. The listener cores listens for incoming client requests through this.
+ */
+extern int runtime_epoll_file_descriptor;
+
+/*
+ * Assumption: All cores are the same speed
+ * See runtime_get_processor_speed_MHz for further details
+ */
+extern float runtime_processor_speed_MHz;
+
+/* Count of worker threads and array of their pthread identifiers */
 extern pthread_t runtime_worker_threads[];
+extern uint32_t  runtime_worker_threads_count;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);
@@ -36,7 +47,7 @@ static inline bool
 runtime_is_worker()
 {
 	pthread_t self = pthread_self();
-	for (int i = 0; i < runtime_total_worker_processors; i++) {
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		if (runtime_worker_threads[i] == self) return true;
 	}
 
