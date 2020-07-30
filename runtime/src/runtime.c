@@ -33,7 +33,7 @@ runtime_initialize(void)
 	assert(runtime_epoll_file_descriptor >= 0);
 
 	/* Allocate and Initialize the global deque
-	TODO: Improve to expose variant as a config
+	TODO: Improve to expose variant as a config #Issue 93
 	*/
 	// global_request_scheduler_deque_initialize();
 	global_request_scheduler_minheap_initialize();

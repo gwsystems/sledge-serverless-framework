@@ -21,7 +21,7 @@
 #define PAGE_ALIGNED __attribute__((aligned(PAGE_SIZE)))
 #define WEAK         __attribute__((weak))
 
-/* FIXME: per-module configuration? */
+/* FIXME: per-module configuration? Issue #101 */
 #define WASM_PAGE_SIZE   (1024 * 64) /* 64KB */
 #define WASM_START_PAGES (1 << 8)    /* 16MB */
 #define WASM_MAX_PAGES   (1 << 15)   /* 4GB */

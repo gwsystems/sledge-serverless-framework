@@ -286,7 +286,7 @@ static inline void
 sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
 {
 	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return;
-	/* TODO: Do we actually need to call some sort of close function here? */
+	/* TODO: Do we actually need to call some sort of close function here? Issue #90 */
 	sandbox->io_handles[io_handle_index].file_descriptor = -1;
 }
 

@@ -20,7 +20,7 @@
  * https://www.di.ens.fr/~zappa/readings/ppopp13.pdf
  */
 
-/* TODO: Implement the ability to dynamically resize! */
+/* TODO: Implement the ability to dynamically resize! Issue #89 */
 #define DEQUE_MAX_SZ (1 << 23)
 
 #define DEQUE_PROTOTYPE(name, type)                                                                 \

@@ -32,7 +32,7 @@ local_runqueue_minheap_add(struct sandbox *sandbox)
 	assert(!software_interrupt_is_enabled());
 
 	int return_code = priority_queue_enqueue(&local_runqueue_minheap, sandbox);
-	/* TODO: propagate RC to caller */
+	/* TODO: propagate RC to caller. Issue #92 */
 	if (return_code == -ENOSPC) panic("Thread Runqueue is full!\n");
 }
 
@@ -173,7 +173,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		/*
 		 * Restore the context of this new sandbox
 		 * user-level context switch state, so do not enable software interrupts.
-		 * TODO: Review the interrupt logic here
+		 * TODO: Review the interrupt logic here. Issue #63
 		 */
 		arch_context_restore(&user_context->uc_mcontext, &next_sandbox->ctxt);
 		should_enable_software_interrupt = false;

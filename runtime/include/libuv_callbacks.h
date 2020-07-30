@@ -16,7 +16,7 @@
  * @param buffer unused
  *
  * FIXME: is there some weird edge case where a UNICODE character might be split between reads? Do we care?
- * Called after libuv has read a chunk of data
+ * Called after libuv has read a chunk of data. Issue #100
  */
 static inline void
 libuv_callbacks_on_read_parse_http_request(uv_stream_t *stream, ssize_t number_read, const uv_buf_t *buffer)

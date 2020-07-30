@@ -87,7 +87,7 @@ sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 	 * worker thread to run the main loop until it loads a new sandbox.
 	 *
 	 * TODO: Consider if this should be an invarient and the worker thread should disable software
-	 * interrupts when doing this work.
+	 * interrupts when doing this work. Issue #95
 	 */
 	if (!current_sandbox) return;
 
@@ -97,7 +97,7 @@ sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 	 * about to switch to a new sandbox.
 	 *
 	 * TODO: Consider if this should be an invarient and the worker thread should disable software
-	 * interrupts when doing this work.
+	 * interrupts when doing this work. Issue #95 with above
 	 */
 	if (current_sandbox->state == SANDBOX_RETURNED) return;
 

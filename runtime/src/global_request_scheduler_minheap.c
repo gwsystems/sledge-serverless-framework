@@ -21,7 +21,7 @@ global_request_scheduler_minheap_add(void *sandbox_request)
 #endif
 
 	int return_code = priority_queue_enqueue(&global_request_scheduler_minheap, sandbox_request);
-	/* TODO: Propagate -1 to caller */
+	/* TODO: Propagate -1 to caller. Issue #91 */
 	if (return_code == -ENOSPC) panic("Request Queue is full\n");
 	return sandbox_request;
 }

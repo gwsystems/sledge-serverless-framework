@@ -62,8 +62,6 @@ worker_thread_transition_exiting_sandbox(struct sandbox *exiting_sandbox)
 /**
  * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in SANDBOX_RETURNED state
  * @param next_sandbox The Sandbox Context to switch to
- *
- * TODO: Confirm that this can gracefully resume sandboxes in a PREEMPTED state
  */
 static inline void
 worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
@@ -192,9 +190,11 @@ worker_thread_process_io(void)
 {
 #ifdef USE_HTTP_UVIO
 #ifdef USE_HTTP_SYNC
-	/* realistically, we're processing all async I/O on this core when a sandbox blocks on http processing,
-	 * not great! if there is a way (TODO), perhaps RUN_ONCE and check if your I/O is processed, if yes,
-	 * return else do async block! */
+	/*
+	 * TODO: realistically, we're processing all async I/O on this core when a sandbox blocks on http processing,
+	 * not great! if there is a way, perhaps RUN_ONCE and check if your I/O is processed, if yes,
+	 * return else do async block! Issue #98
+	 */
 	uv_run(worker_thread_get_libuv_handle(), UV_RUN_DEFAULT);
 #else  /* USE_HTTP_SYNC */
 	worker_thread_block_current_sandbox();
@@ -280,7 +280,6 @@ worker_thread_main(void *return_code)
  * Called when the function in the sandbox exits
  * Removes the standbox from the thread-local runqueue, sets its state to SANDBOX_RETURNED,
  * releases the linear memory, and then returns to the base context
- * TODO: Consider moving this to a future current_sandbox file. This has thus far proven difficult to move
  */
 __attribute__((noreturn)) void
 worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)

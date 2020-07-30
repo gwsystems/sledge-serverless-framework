@@ -71,7 +71,8 @@ module_listen(struct module *module)
  * Closes the socket and dynamic library, and then frees the module
  * Returns harmlessly if there are outstanding references
  *
- * TODO: Untested Functionality. Unsure if this will work
+ * TODO: Untested Functionality. Unsure if this will work. Also, what about the module database? Do we
+ * need to do any cleanup there? Issue #17
  * @param module - the module to teardown
  */
 void
@@ -83,7 +84,6 @@ module_free(struct module *module)
 	/* Do not free if we still have oustanding references */
 	if (module->reference_count) return;
 
-	/* TODO: What about the module database? Do we need to do any cleanup there? */
 
 	close(module->socket_descriptor);
 	dlclose(module->dynamic_library_handle);
