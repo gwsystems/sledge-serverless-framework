@@ -23,7 +23,7 @@ int32_t debuglog_file_descriptor = -1;
 
 float    runtime_processor_speed_MHz                          = 0;
 uint32_t runtime_total_online_processors                      = 0;
-uint32_t runtime_total_worker_processors                      = 0;
+uint32_t runtime_worker_threads_count                         = 0;
 uint32_t runtime_first_worker_processor                       = 0;
 int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; /* The worker sets its argument to -1 on error */
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
@@ -81,15 +81,14 @@ runtime_allocate_available_cores()
 	runtime_first_worker_processor = 1;
 	/* WORKER_THREAD_CORE_COUNT can be used as a cap on the number of cores to use, but if there are few
 	 * cores that WORKER_THREAD_CORE_COUNT, just use what is available */
-	uint32_t max_possible_workers   = runtime_total_online_processors - 1;
-	runtime_total_worker_processors = max_possible_workers;
-	if (max_possible_workers >= WORKER_THREAD_CORE_COUNT)
-		runtime_total_worker_processors = WORKER_THREAD_CORE_COUNT;
+	uint32_t max_possible_workers = runtime_total_online_processors - 1;
+	runtime_worker_threads_count  = max_possible_workers;
+	if (max_possible_workers >= WORKER_THREAD_CORE_COUNT) runtime_worker_threads_count = WORKER_THREAD_CORE_COUNT;
 
-	assert(runtime_total_worker_processors == WORKER_THREAD_CORE_COUNT);
+	assert(runtime_worker_threads_count == WORKER_THREAD_CORE_COUNT);
 
 	printf("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
-	       runtime_total_online_processors, runtime_total_worker_processors, runtime_first_worker_processor,
+	       runtime_total_online_processors, runtime_worker_threads_count, runtime_first_worker_processor,
 	       LISTENER_THREAD_CORE_ID);
 }
 
@@ -156,7 +155,7 @@ runtime_process_debug_log_behavior()
 void
 runtime_start_runtime_worker_threads()
 {
-	for (int i = 0; i < runtime_total_worker_processors; i++) {
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_create(&runtime_worker_threads[i], NULL, worker_thread_main,
 		                         (void *)&runtime_worker_threads_argument[i]);
 		if (ret) {
@@ -173,7 +172,7 @@ runtime_start_runtime_worker_threads()
 	}
 	debuglog("Sandboxing environment ready!\n");
 
-	for (int i = 0; i < runtime_total_worker_processors; i++) {
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);
 		if (ret) {
 			errno = ret;

@@ -54,7 +54,7 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 {
 	/* Signal was sent directly by the kernel, so forward to other threads */
 	if (signal_info->si_code == SI_KERNEL) {
-		for (int i = 0; i < runtime_total_worker_processors; i++) {
+		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
 			pthread_kill(runtime_worker_threads[i], SIGALRM);
