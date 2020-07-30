@@ -15,8 +15,6 @@ static http_parser_settings runtime_http_parser_settings;
 /**
  * http-parser data callback called when a URL is called
  * Sanity check to make sure that the path matches the name of the module
- * TODO: Why does this not fail this assertion? To execute fibonacci, I just request localhost:10000, not
- *localhost:10000/fibonacci
  * @param parser
  * @param at the start of the URL
  * @param length the length of the URL
@@ -49,11 +47,8 @@ http_parser_settings_on_message_begin(http_parser *parser)
 
 /**
  * http-parser callback called when a header field is parsed
- * Sets the key value of the latest header
- * on a new header if last_was_value is true
+ * Sets the key value of the latest header on a new header if last_was_value is true
  * updating an existing header if last_was_value is false
- * TODO: Is this logic correct? What is the relationship between fields and values? Is overwrite the correct logic if
- *on_header executes twice in a row?
  * @param parser
  * @param at start address of the header field
  * @param length length of the header field

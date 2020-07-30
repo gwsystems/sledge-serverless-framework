@@ -478,7 +478,7 @@ wasm_ioctl(int32_t file_descriptor, int32_t request, int32_t data_offet)
 {
 	// int d = current_sandbox_get_file_descriptor(file_descriptor);
 	// musl libc does some ioctls to stdout, so just allow these to silently go through
-	// FIXME: The above is idiotic
+	// FIXME: The above is idiotic. Issue #102.
 	// assert(d == 1);
 	return 0;
 }

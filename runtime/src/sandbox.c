@@ -364,8 +364,10 @@ sandbox_allocate_memory(struct module *module)
 	struct sandbox *sandbox                = NULL;
 	unsigned long   sandbox_size           = sizeof(struct sandbox) + module->max_request_or_response_size;
 
-	/* Control information should be page-aligned
-	        TODO: Should I use round_up_to_page when setting sandbox_page? */
+	/*
+	 * Control information should be page-aligned
+	 * TODO: Should I use round_up_to_page when setting sandbox_page? Issue #50
+	 */
 	assert(round_up_to_page(sandbox_size) == sandbox_size);
 
 	/* At an address of the system's choosing, allocate the memory, marking it as inaccessible */
@@ -688,7 +690,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
  * Unmaps linear memory, removes from the runqueue (if on it), and adds to the completion queue
  * Because the stack is still in use, freeing the stack is deferred until later
  *
- * TODO: Is the sandbox adding itself to the completion queue here? Is this a problem?
+ * TODO: Is the sandbox adding itself to the completion queue here? Is this a problem? Issue #94
  *
  * @param sandbox the sandbox erroring out
  * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to

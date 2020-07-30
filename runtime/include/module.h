@@ -47,9 +47,6 @@ struct module {
 	 * so, using direct epoll for accepting connections.
 	 */
 
-	// TODO: Should this be removed?
-	//	uv_handle_t srvuv;
-
 	unsigned long max_request_size;
 	char          request_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
 	int           request_header_count;
