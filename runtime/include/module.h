@@ -5,6 +5,7 @@
 
 #include "http.h"
 #include "panic.h"
+#include "perf_window.h"
 #include "software_interrupt.h"
 #include "types.h"
 
@@ -37,6 +38,7 @@ struct module {
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
 	struct sockaddr_in          socket_address;
 	int                         socket_descriptor;
+	struct perf_window          perf_window;
 	int                         port;
 
 	/*

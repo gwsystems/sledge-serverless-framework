@@ -201,6 +201,9 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	/* Add the module to the in-memory module DB */
 	module_database_add(module);
 
+	/* Initialize Perf Window */
+	perf_window_initialize(&module->perf_window);
+
 	/* Start listening for requests */
 	module_listen(module);
 
