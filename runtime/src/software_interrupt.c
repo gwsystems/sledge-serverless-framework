@@ -142,14 +142,7 @@ static inline void
 software_interrupt_validate_worker()
 {
 #ifndef NDEBUG
-	bool is_worker = false;
-	for (int i = 0; i < runtime_total_worker_processors; i++) {
-		if (pthread_self() == runtime_worker_threads[i]) {
-			is_worker = true;
-			break;
-		}
-	}
-	if (!is_worker) panic("A non-worker thread received has unexpectedly received a signal!");
+	if (!runtime_is_worker()) panic("A non-worker thread received has unexpectedly received a signal!");
 #endif
 }
 
