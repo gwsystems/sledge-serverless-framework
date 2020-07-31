@@ -7,6 +7,7 @@
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
 #include "http_parser_settings.h"
+#include "http_response.h"
 #include "module.h"
 #include "runtime.h"
 #include "sandbox_request.h"
@@ -115,10 +116,11 @@ listener_thread_main(void *dummy)
 
 			/*
 			 * Reject Requests that exceed system capacity
-			 * TODO: Enhance to gracefully return HTTP status code 503 Service Unavailable
 			 */
 			if (runtime_admitted + admissions_estimate >= runtime_worker_threads_count) {
-				debuglog("Would have rejected!");
+				send(socket_descriptor, HTTP_RESPONSE_504_SERVICE_UNAVAILABLE,
+				     strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE), 0);
+				goto done;
 			}
 
 			/* Allocate a Sandbox Request */
@@ -137,6 +139,7 @@ listener_thread_main(void *dummy)
 		}
 	}
 
+done:
 	free(epoll_events);
 	return NULL;
 }
