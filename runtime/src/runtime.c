@@ -16,7 +16,8 @@
  * Shared Process State    *
  **************************/
 
-int runtime_epoll_file_descriptor;
+int    runtime_epoll_file_descriptor;
+double runtime_admitted;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -44,6 +45,8 @@ runtime_initialize(void)
 
 	/* Initialize http_parser_settings global */
 	http_parser_settings_initialize();
+
+	runtime_admitted = 0;
 }
 
 /*************************
@@ -92,14 +95,45 @@ listener_thread_main(void *dummy)
 			}
 			total_requests++;
 
+			/* Perform Admission Control */
+
+			/*
+			 * TODO: Enhance to use configurable percentiles rather than just mean. This can be policy
+			 * defined in the module specification
+			 */
+			uint64_t estimated_execution = perf_window_get_mean(&module->perf_window);
+
+			/*
+			 * If this is the first execution, assume a default execution
+			 * TODO: Enhance module specification to provide "seed" value of estimated duration
+			 * TODO: Should we "rate limit" or only admit one request before we have actual data? Otherwise
+			 * we might be flooded with sandboxes that possibly underestimate
+			 */
+			if (estimated_execution == -1) estimated_execution = 1000;
+
+			double admissions_estimate = (double)estimated_execution / module->relative_deadline;
+
+			/*
+			 * Reject Requests that exceed system capacity
+			 * TODO: Enhance to gracefully return HTTP status code 503 Service Unavailable
+			 */
+			if (runtime_admitted + admissions_estimate >= runtime_worker_threads_count) {
+				debuglog("Would have rejected!");
+			}
+
 			/* Allocate a Sandbox Request */
 			struct sandbox_request *sandbox_request =
 			  sandbox_request_allocate(module, module->name, socket_descriptor,
-			                           (const struct sockaddr *)&client_address, request_arrival_timestamp);
+			                           (const struct sockaddr *)&client_address, request_arrival_timestamp,
+			                           admissions_estimate);
 			assert(sandbox_request);
 
 			/* Add to the Global Sandbox Request Scheduler */
 			global_request_scheduler_add(sandbox_request);
+
+			/* Add to work accepted by the runtime */
+			runtime_admitted += admissions_estimate;
+			debuglog("Runtime Utilization: %f%%\n", runtime_admitted / runtime_worker_threads_count * 100);
 		}
 	}
 

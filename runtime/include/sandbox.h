@@ -81,6 +81,12 @@ struct sandbox {
 	uint64_t absolute_deadline;
 	uint64_t total_time; /* From Request to Response */
 
+	/*
+	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request
+	 * Calculated by estimated execution time (cycles) / relative deadline (cycles)
+	 */
+	double admissions_estimate;
+
 	struct module *module; /* the module this is an instance of */
 
 	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */

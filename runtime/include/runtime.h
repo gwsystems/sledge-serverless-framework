@@ -29,6 +29,18 @@ extern float runtime_processor_speed_MHz;
 extern pthread_t runtime_worker_threads[];
 extern uint32_t  runtime_worker_threads_count;
 
+/*
+ * Unitless estimate of the instantaneous fraction of system capacity required to complete all previously
+ * admitted work. This is used to calculate free capacity as part of admissions control
+ *
+ * The estimated requirements of a single admitted request is calculated as
+ * estimated execution time (cycles) / relative deadline (cycles)
+ *
+ * These estimates are incremented on request acceptance and decremented on request completion (either
+ * success or failure)
+ */
+extern double runtime_admitted;
+
 void         alloc_linear_memory(void);
 void         expand_memory(void);
 INLINE char *get_function_from_table(uint32_t idx, uint32_t type_id);
