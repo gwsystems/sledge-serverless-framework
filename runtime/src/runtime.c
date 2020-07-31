@@ -114,32 +114,29 @@ listener_thread_main(void *dummy)
 
 			double admissions_estimate = (double)estimated_execution / module->relative_deadline;
 
-			/*
-			 * Reject Requests that exceed system capacity
-			 */
 			if (runtime_admitted + admissions_estimate >= runtime_worker_threads_count) {
+				/* Reject Requests that exceed system capacity */
 				send(socket_descriptor, HTTP_RESPONSE_504_SERVICE_UNAVAILABLE,
 				     strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE), 0);
-				goto done;
+			} else {
+				/* Allocate a Sandbox Request */
+				struct sandbox_request *sandbox_request =
+				  sandbox_request_allocate(module, module->name, socket_descriptor,
+				                           (const struct sockaddr *)&client_address,
+				                           request_arrival_timestamp, admissions_estimate);
+				assert(sandbox_request);
+
+				/* Add to the Global Sandbox Request Scheduler */
+				global_request_scheduler_add(sandbox_request);
+
+				/* Add to work accepted by the runtime */
+				runtime_admitted += admissions_estimate;
+				debuglog("Runtime Utilization: %f%%\n",
+				         runtime_admitted / runtime_worker_threads_count * 100);
 			}
-
-			/* Allocate a Sandbox Request */
-			struct sandbox_request *sandbox_request =
-			  sandbox_request_allocate(module, module->name, socket_descriptor,
-			                           (const struct sockaddr *)&client_address, request_arrival_timestamp,
-			                           admissions_estimate);
-			assert(sandbox_request);
-
-			/* Add to the Global Sandbox Request Scheduler */
-			global_request_scheduler_add(sandbox_request);
-
-			/* Add to work accepted by the runtime */
-			runtime_admitted += admissions_estimate;
-			debuglog("Runtime Utilization: %f%%\n", runtime_admitted / runtime_worker_threads_count * 100);
 		}
 	}
 
-done:
 	free(epoll_events);
 	return NULL;
 }
