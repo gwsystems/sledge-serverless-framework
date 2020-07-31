@@ -103,11 +103,11 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	                      libuv_callbacks_on_allocate_setup_request_response_data,
 	                      libuv_callbacks_on_read_parse_http_request);
 	worker_thread_process_io();
-	if (sandbox->request_response_data_length == 0) {
-		perror("request_response_data_length was unexpectedly 0");
-		return 0
-	};
 #endif
+	if (sandbox->request_response_data_length == 0) {
+		debuglog("request_response_data_length was unexpectedly 0");
+		return 0;
+	}
 	sandbox->request_length = sandbox->request_response_data_length;
 	return 1;
 }
@@ -343,6 +343,9 @@ done:
 err:
 	fprintf(stderr, "%s", error_message);
 	assert(sandbox->state == SANDBOX_RUNNING);
+	send(sandbox->client_socket_descriptor, HTTP_RESPONSE_400_BAD_REQUEST, strlen(HTTP_RESPONSE_400_BAD_REQUEST),
+	     0);
+	software_interrupt_disable();
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);
 	goto done;
 }
