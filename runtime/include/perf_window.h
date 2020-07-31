@@ -3,7 +3,12 @@
 #include <spinlock/fas.h>
 #include <stdint.h>
 
-#define PERF_WINDOW_BUFFER_SIZE 10
+/* Should be Power of 2! */
+#define PERF_WINDOW_BUFFER_SIZE 16
+
+#if ((PERF_WINDOW_BUFFER_SIZE == 0) || (PERF_WINDOW_BUFFER_SIZE & (PERF_WINDOW_BUFFER_SIZE - 1)) != 0)
+#error "PERF_WINDOW_BUFFER_SIZE must be power of 2!"
+#endif
 
 struct perf_window {
 	uint64_t          buffer[PERF_WINDOW_BUFFER_SIZE];
