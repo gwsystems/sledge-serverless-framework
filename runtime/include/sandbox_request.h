@@ -14,6 +14,12 @@ struct sandbox_request {
 	struct sockaddr *socket_address;
 	uint64_t         request_arrival_timestamp; /* cycles */
 	uint64_t         absolute_deadline;         /* cycles */
+
+	/*
+	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request
+	 * Calculated by estimated execution time (cycles) / relative deadline (cycles)
+	 */
+	double admissions_estimate;
 };
 
 DEQUE_PROTOTYPE(sandbox, struct sandbox_request *);
@@ -29,7 +35,8 @@ DEQUE_PROTOTYPE(sandbox, struct sandbox_request *);
  */
 static inline struct sandbox_request *
 sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
-                         const struct sockaddr *socket_address, uint64_t request_arrival_timestamp)
+                         const struct sockaddr *socket_address, uint64_t request_arrival_timestamp,
+                         double admissions_estimate)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)malloc(sizeof(struct sandbox_request));
 	assert(sandbox_request);
@@ -39,6 +46,7 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->socket_address            = (struct sockaddr *)socket_address;
 	sandbox_request->request_arrival_timestamp = request_arrival_timestamp;
 	sandbox_request->absolute_deadline         = request_arrival_timestamp + module->relative_deadline;
+	sandbox_request->admissions_estimate       = admissions_estimate;
 
 	debuglog("Allocating %lu of %s:%d\n", sandbox_request->request_arrival_timestamp, sandbox_request->module->name,
 	         sandbox_request->module->port);

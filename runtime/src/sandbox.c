@@ -454,6 +454,8 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 
 	debuglog("Sandbox %lu | Uninitialized => Initialized\n", sandbox->request_arrival_timestamp);
 
+	sandbox->admissions_estimate = sandbox_request->admissions_estimate;
+
 	sandbox->request_arrival_timestamp   = sandbox_request->request_arrival_timestamp;
 	sandbox->allocation_timestamp        = allocation_timestamp;
 	sandbox->last_state_change_timestamp = allocation_timestamp;
@@ -731,6 +733,11 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox_print_perf(sandbox);
 
+	runtime_admitted -= sandbox->admissions_estimate;
+	assert(runtime_admitted >= 0);
+
+	debuglog("Runtime Utilization: %f%%\n", runtime_admitted / runtime_worker_threads_count * 100);
+
 	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
 }
@@ -767,6 +774,17 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_COMPLETE;
+
+	/*
+	 * TODO: Enhance to include "spinning" or better "local|global scheduling latency" as well.
+	 * Given the async I/O model of libuv, it is ambiguous how to model "spinning"
+	 */
+	perf_window_add(&sandbox->module->perf_window, sandbox->running_duration);
+
+	runtime_admitted -= sandbox->admissions_estimate;
+	assert(runtime_admitted >= 0);
+
+	debuglog("Runtime Utilization: %f%%\n", runtime_admitted / runtime_worker_threads_count * 100);
 
 	sandbox_print_perf(sandbox);
 
