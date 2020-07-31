@@ -11,6 +11,7 @@
 
 #define HTTP_RESPONSE_200_OK                    "HTTP/1.1 200 OK\r\n"
 #define HTTP_RESPONSE_504_SERVICE_UNAVAILABLE   "HTTP/1.1 504 Service Unavailable\r\n\r\n"
+#define HTTP_RESPONSE_400_BAD_REQUEST           "HTTP/1.1 400 Bad Request\r\n\r\n"
 #define HTTP_RESPONSE_CONTENT_LENGTH            "Content-Length: "
 #define HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR "\r\n\r\n" /* content body follows this */
 #define HTTP_RESPONSE_CONTENT_TYPE              "Content-Type: "
