@@ -4,6 +4,12 @@
 
 extern int32_t debuglog_file_descriptor;
 
+#ifdef LOG_TO_FILE
+#ifndef DEBUG
+#error LOG_TO_FILE is only valid if in DEBUG mode
+#endif /* DEBUG */
+#endif /* LOG_TO_FILE */
+
 /**
  * debuglog is a macro that behaves based on the macros DEBUG and LOG_TO_FILE
  * If DEBUG is not set, debuglog does nothing
