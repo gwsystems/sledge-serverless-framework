@@ -135,16 +135,15 @@ void
 runtime_process_debug_log_behavior()
 {
 #ifdef LOG_TO_FILE
-	fclose(stdout);
-	fclose(stderr);
-	fclose(stdin);
 	debuglog_file_descriptor = open(RUNTIME_LOG_FILE, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG);
 	if (debuglog_file_descriptor < 0) {
-		perror("open");
+		perror("Error opening logfile\n");
 		exit(-1);
 	}
+	dup2(debuglog_file_descriptor, STDOUT_FILENO);
+	dup2(debuglog_file_descriptor, STDERR_FILENO);
 #else
-	debuglog_file_descriptor = 1;
+	debuglog_file_descriptor = STDOUT_FILENO;
 #endif /* LOG_TO_FILE */
 }
 #endif /* DEBUG */
