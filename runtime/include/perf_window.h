@@ -1,7 +1,10 @@
 #pragma once
 
-#include <spinlock/fas.h>
+#include <spinlock/mcs.h>
 #include <stdint.h>
+
+#include "runtime.h"
+#include "worker_thread.h"
 
 /* Should be Power of 2! */
 #define PERF_WINDOW_BUFFER_SIZE 16
@@ -13,7 +16,7 @@
 struct perf_window {
 	uint64_t          buffer[PERF_WINDOW_BUFFER_SIZE];
 	uint64_t          count;
-	ck_spinlock_fas_t lock;
+	ck_spinlock_mcs_t queue;
 	double            mean;
 };
 
@@ -26,7 +29,7 @@ static inline void
 perf_window_update_mean(struct perf_window *self)
 {
 	assert(self != NULL);
-	assert(ck_spinlock_fas_locked(&self->lock));
+	assert(ck_spinlock_mcs_locked(&self->queue));
 
 	uint64_t limit = self->count;
 	if (limit > PERF_WINDOW_BUFFER_SIZE) { limit = PERF_WINDOW_BUFFER_SIZE; }
@@ -47,7 +50,7 @@ perf_window_initialize(struct perf_window *self)
 {
 	assert(self != NULL);
 
-	ck_spinlock_fas_init(&self->lock);
+	ck_spinlock_mcs_init(&self->queue);
 	self->count = 0;
 	self->mean  = 0;
 	memset(&self->buffer, 0, sizeof(uint64_t) * PERF_WINDOW_BUFFER_SIZE);
@@ -64,14 +67,18 @@ perf_window_add(struct perf_window *self, uint64_t value)
 {
 	assert(self != NULL);
 
-
 	/* A successful invocation should run for a non-zero amount of time */
 	assert(value > 0);
 
-	ck_spinlock_fas_lock(&self->lock);
+	struct ck_spinlock_mcs lock;
+	uint64_t               pre = __getcycles();
+	ck_spinlock_mcs_lock(&self->queue, &lock);
+	worker_thread_lock_duration += (__getcycles() - pre);
+
 	self->buffer[self->count++ % PERF_WINDOW_BUFFER_SIZE] = value;
 	perf_window_update_mean(self);
-	ck_spinlock_fas_unlock(&self->lock);
+
+	ck_spinlock_mcs_unlock(&self->queue, &lock);
 }
 
 /**

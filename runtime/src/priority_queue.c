@@ -22,7 +22,7 @@ static inline int
 priority_queue_append(struct priority_queue *self, void *new_item)
 {
 	assert(self != NULL);
-	assert(ck_spinlock_fas_locked(&self->lock));
+	assert(ck_spinlock_mcs_locked(&self->queue));
 
 	if (self->first_free >= MAX) return -ENOSPC;
 
@@ -39,7 +39,7 @@ priority_queue_percolate_up(struct priority_queue *self)
 {
 	assert(self != NULL);
 	assert(self->get_priority_fn != NULL);
-	assert(ck_spinlock_fas_locked(&self->lock));
+	assert(ck_spinlock_mcs_locked(&self->queue));
 
 	for (int i = self->first_free - 1;
 	     i / 2 != 0 && self->get_priority_fn(self->items[i]) < self->get_priority_fn(self->items[i / 2]); i /= 2) {
@@ -64,7 +64,7 @@ priority_queue_find_smallest_child(struct priority_queue *self, int parent_index
 	assert(self != NULL);
 	assert(parent_index >= 1 && parent_index < self->first_free);
 	assert(self->get_priority_fn != NULL);
-	assert(ck_spinlock_fas_locked(&self->lock));
+	assert(ck_spinlock_mcs_locked(&self->queue));
 
 	int left_child_index  = 2 * parent_index;
 	int right_child_index = 2 * parent_index + 1;
@@ -92,7 +92,7 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 {
 	assert(self != NULL);
 	assert(self->get_priority_fn != NULL);
-	assert(ck_spinlock_fas_locked(&self->lock));
+	assert(ck_spinlock_mcs_locked(&self->queue));
 
 	int left_child_index = 2 * parent_index;
 	while (left_child_index >= 2 && left_child_index < self->first_free) {
@@ -120,7 +120,7 @@ static inline bool
 priority_queue_is_empty_locked(struct priority_queue *self)
 {
 	assert(self != NULL);
-	assert(ck_spinlock_fas_locked(&self->lock));
+	assert(ck_spinlock_mcs_locked(&self->queue));
 	return self->first_free == 1;
 }
 
@@ -141,7 +141,7 @@ priority_queue_initialize(struct priority_queue *self, priority_queue_get_priori
 
 	memset(self->items, 0, sizeof(void *) * MAX);
 
-	ck_spinlock_fas_init(&self->lock);
+	ck_spinlock_mcs_init(&self->queue);
 	self->first_free      = 1;
 	self->get_priority_fn = get_priority_fn;
 
@@ -157,9 +157,15 @@ int
 priority_queue_length(struct priority_queue *self)
 {
 	assert(self != NULL);
-	ck_spinlock_fas_lock(&self->lock);
+
+	struct ck_spinlock_mcs lock;
+	uint64_t               pre = __getcycles();
+	ck_spinlock_mcs_lock(&self->queue, &lock);
+	worker_thread_lock_duration += (__getcycles() - pre);
+
 	int length = self->first_free - 1;
-	ck_spinlock_fas_unlock(&self->lock);
+
+	ck_spinlock_mcs_unlock(&self->queue, &lock);
 	return length;
 }
 
@@ -172,7 +178,11 @@ int
 priority_queue_enqueue(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
-	ck_spinlock_fas_lock(&self->lock);
+
+	struct ck_spinlock_mcs lock;
+	uint64_t               pre = __getcycles();
+	ck_spinlock_mcs_lock(&self->queue, &lock);
+	worker_thread_lock_duration += (__getcycles() - pre);
 
 	if (priority_queue_append(self, value) == -ENOSPC) return -ENOSPC;
 
@@ -182,7 +192,9 @@ priority_queue_enqueue(struct priority_queue *self, void *value)
 	} else {
 		priority_queue_percolate_up(self);
 	}
-	ck_spinlock_fas_unlock(&self->lock);
+
+	ck_spinlock_mcs_unlock(&self->queue, &lock);
+
 	return 0;
 }
 /**
@@ -194,7 +206,11 @@ int
 priority_queue_delete(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
-	ck_spinlock_fas_lock(&self->lock);
+
+	struct ck_spinlock_mcs lock;
+	uint64_t               pre = __getcycles();
+	ck_spinlock_mcs_lock(&self->queue, &lock);
+	worker_thread_lock_duration += (__getcycles() - pre);
 
 	bool did_delete = false;
 	for (int i = 1; i < self->first_free; i++) {
@@ -206,7 +222,8 @@ priority_queue_delete(struct priority_queue *self, void *value)
 		}
 	}
 
-	ck_spinlock_fas_unlock(&self->lock);
+	ck_spinlock_mcs_unlock(&self->queue, &lock);
+
 	if (!did_delete) return -1;
 	return 0;
 }
@@ -225,10 +242,14 @@ priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 
 	int return_code;
 
-	if (ck_spinlock_fas_trylock(&self->lock) == false) {
+	struct ck_spinlock_mcs lock;
+	uint64_t               pre = __getcycles();
+	if (ck_spinlock_mcs_trylock(&self->queue, &lock) == false) {
+		worker_thread_lock_duration += (__getcycles() - pre);
 		return_code = -EAGAIN;
 		goto done;
 	};
+	worker_thread_lock_duration += (__getcycles() - pre);
 
 	if (priority_queue_is_empty_locked(self)) {
 		return_code = -ENOENT;
@@ -250,7 +271,7 @@ priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 	return_code = 0;
 
 release_lock:
-	ck_spinlock_fas_unlock(&self->lock);
+	ck_spinlock_mcs_unlock(&self->queue, &lock);
 done:
 	return return_code;
 }
@@ -270,10 +291,14 @@ priority_queue_top(struct priority_queue *self, void **dequeued_element)
 
 	int return_code;
 
-	if (ck_spinlock_fas_trylock(&self->lock) == false) {
+	struct ck_spinlock_mcs lock;
+	uint64_t               pre = __getcycles();
+	if (ck_spinlock_mcs_trylock(&self->queue, &lock) == false) {
+		worker_thread_lock_duration += (__getcycles() - pre);
 		return_code = -EAGAIN;
 		goto done;
 	};
+	worker_thread_lock_duration += (__getcycles() - pre);
 
 	if (priority_queue_is_empty_locked(self)) {
 		return_code = -ENOENT;
@@ -284,7 +309,7 @@ priority_queue_top(struct priority_queue *self, void **dequeued_element)
 	return_code       = 0;
 
 release_lock:
-	ck_spinlock_fas_unlock(&self->lock);
+	ck_spinlock_mcs_unlock(&self->queue, &lock);
 done:
 	return return_code;
 }
