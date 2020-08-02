@@ -8,6 +8,8 @@
 If there are fewer cores than this, main dynamically overrides this and uses all available */
 #define WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
 
+extern __thread uint64_t  worker_thread_lock_duration;
+extern __thread uint64_t  worker_thread_start_timestamp;
 extern __thread uv_loop_t worker_thread_uvio_handle;
 
 void *worker_thread_main(void *return_code);
