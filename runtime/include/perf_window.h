@@ -3,6 +3,9 @@
 #include <spinlock/fas.h>
 #include <stdint.h>
 
+#include "runtime.h"
+#include "worker_thread.h"
+
 /* Should be Power of 2! */
 #define PERF_WINDOW_BUFFER_SIZE 16
 
@@ -68,7 +71,9 @@ perf_window_add(struct perf_window *self, uint64_t value)
 	/* A successful invocation should run for a non-zero amount of time */
 	assert(value > 0);
 
+	uint64_t pre = __getcycles();
 	ck_spinlock_fas_lock(&self->lock);
+	worker_thread_lock_duration += (__getcycles() - pre);
 	self->buffer[self->count++ % PERF_WINDOW_BUFFER_SIZE] = value;
 	perf_window_update_mean(self);
 	ck_spinlock_fas_unlock(&self->lock);

@@ -157,7 +157,9 @@ int
 priority_queue_length(struct priority_queue *self)
 {
 	assert(self != NULL);
+	uint64_t pre = __getcycles();
 	ck_spinlock_fas_lock(&self->lock);
+	worker_thread_lock_duration += (__getcycles() - pre);
 	int length = self->first_free - 1;
 	ck_spinlock_fas_unlock(&self->lock);
 	return length;
@@ -172,7 +174,9 @@ int
 priority_queue_enqueue(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
+	uint64_t pre = __getcycles();
 	ck_spinlock_fas_lock(&self->lock);
+	worker_thread_lock_duration += (__getcycles() - pre);
 
 	if (priority_queue_append(self, value) == -ENOSPC) return -ENOSPC;
 
@@ -194,7 +198,9 @@ int
 priority_queue_delete(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
+	uint64_t pre = __getcycles();
 	ck_spinlock_fas_lock(&self->lock);
+	worker_thread_lock_duration += (__getcycles() - pre);
 
 	bool did_delete = false;
 	for (int i = 1; i < self->first_free; i++) {
@@ -225,10 +231,13 @@ priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 
 	int return_code;
 
+	uint64_t pre = __getcycles();
 	if (ck_spinlock_fas_trylock(&self->lock) == false) {
+		worker_thread_lock_duration += (__getcycles() - pre);
 		return_code = -EAGAIN;
 		goto done;
 	};
+	worker_thread_lock_duration += (__getcycles() - pre);
 
 	if (priority_queue_is_empty_locked(self)) {
 		return_code = -ENOENT;
@@ -270,10 +279,13 @@ priority_queue_top(struct priority_queue *self, void **dequeued_element)
 
 	int return_code;
 
+	uint64_t pre = __getcycles();
 	if (ck_spinlock_fas_trylock(&self->lock) == false) {
+		worker_thread_lock_duration += (__getcycles() - pre);
 		return_code = -EAGAIN;
 		goto done;
 	};
+	worker_thread_lock_duration += (__getcycles() - pre);
 
 	if (priority_queue_is_empty_locked(self)) {
 		return_code = -ENOENT;

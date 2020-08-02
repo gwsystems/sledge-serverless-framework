@@ -3,6 +3,9 @@
 
 #include <spinlock/fas.h>
 
+#include "runtime.h"
+#include "worker_thread.h"
+
 #define MAX 4096
 
 /**

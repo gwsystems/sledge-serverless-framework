@@ -29,9 +29,28 @@ __thread uv_loop_t worker_thread_uvio_handle;
 /* Flag to signify if the thread is currently running callbacks in the libuv event loop */
 static __thread bool worker_thread_is_in_libuv_event_loop = false;
 
+/* Total Lock Contention in Cycles */
+__thread uint64_t worker_thread_lock_duration;
+
+/* Timestamp when worker thread began executing */
+__thread uint64_t worker_thread_start_timestamp;
+
 /***********************
  * Worker Thread Logic *
  **********************/
+
+/**
+ * Reports lock contention for the worker thread
+ */
+static inline void
+worker_thread_dump_lock_overhead()
+{
+#ifdef DEBUG
+	uint64_t worker_duration = __getcycles() - worker_thread_start_timestamp;
+	debuglog("Locks consumed %lu / %lu cycles, or %f%%\n", worker_thread_lock_duration, worker_duration,
+	         (double)worker_thread_lock_duration / worker_duration * 100);
+#endif
+}
 
 /**
  * Conditionally triggers appropriate state changes for exiting sandboxes
@@ -228,6 +247,10 @@ worker_thread_execute_libuv_event_loop(void)
 void *
 worker_thread_main(void *return_code)
 {
+	/* Initialize Bookkeeping */
+	worker_thread_start_timestamp = __getcycles();
+	worker_thread_lock_duration   = 0;
+
 	/* Initialize Base Context */
 	arch_context_init(&worker_thread_base_context, 0, 0);
 
@@ -286,6 +309,7 @@ worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 {
 	assert(exiting_sandbox);
 	software_interrupt_disable();
+	worker_thread_dump_lock_overhead();
 	worker_thread_switch_to_base_context();
 	assert(0);
 }
