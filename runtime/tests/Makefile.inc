@@ -1,4 +1,4 @@
-BASE=awsm
+BASE=sledge
 SFCC=silverfish
 CC=clang
 WASMCC=wasm32-unknown-unknown-wasm-clang
@@ -15,7 +15,7 @@ MEMC_GEN=generic.c
 MEMC_MPX=mpx.c
 MEMC_SEG=segmented.c
 
-BASE_DIR=../../silverfish/
+BASE_DIR=../../awsm/
 RT_DIR=${BASE_DIR}/runtime/
 RT_MEM=${RT_DIR}/memory/
 RT_LIBC=${RT_DIR}/libc/libc_backing.c
@@ -25,7 +25,7 @@ RT_ENV=${RT_DIR}/libc/env.c ${RT_DIR}/libc/env_${ARCH}.c
 MEMC=${RT_MEM}/${MEMC_64}
 DUMMY=${BASE_DIR}/code_benches/dummy.c
 
-# for awsm
+# for SLEdge
 ABASE_DIR=../../
 ART_DIR=${ABASE_DIR}/runtime/
 ART_INC=${ART_DIR}/include/

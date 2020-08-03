@@ -2,7 +2,7 @@ CC=clang
 
 RTDIR=src/
 CFILES=${RTDIR}/*.c ${RTDIR}/libc/*.c ${RTDIR}/memory/common.c
-RUNTIME=bin/awsmrt
+RUNTIME=bin/sledgert
 INC=include/
 ARCH := $(shell uname -m)
 

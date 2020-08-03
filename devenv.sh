@@ -5,38 +5,38 @@
 # Root directory of host
 HOST_ROOT=${HOST_ROOT:-$(cd "$(dirname "${BASH_SOURCE:-$0}")" && pwd)}
 
-# Name use to represent the Awsm system
-SYS_NAME='awsm'
+# Name use to represent the SLEdge system
+SYS_NAME='sledge'
 
-# /awsm
+# /sledge
 HOST_SYS_MOUNT=${HOST_SYS_MOUNT:-"/${SYS_NAME}"}
 
-SYS_WASMCEPTION='silverfish/wasmception'
+# SYS_WASMCEPTION='silverfish/wasmception'
 
-# awsm
+# sledge
 SYS_DOC_NAME=${SYS_NAME}
 
-# awsm-dev
+# sledge-dev
 SYS_DOC_DEVNAME=${SYS_DOC_NAME}'-dev'
 
 # Docker Tag we want to use
 SYS_DOC_TAG='latest'
 
-# The name of the non-dev Docker container that we want to build. awsm:latest
+# The name of the non-dev Docker container that we want to build. sledge:latest
 SYS_DOC_NAMETAG=${SYS_DOC_NAME}:${SYS_DOC_TAG}
 SYS_DOC_DEVNAMETAG=${SYS_DOC_DEVNAME}:${SYS_DOC_TAG}
 
-# An optional timeout that allows a user to terminate the script if awsm-dev is detected
+# An optional timeout that allows a user to terminate the script if sledge-dev is detected
 SYS_BUILD_TIMEOUT=0
 
 # Provides help to user on how to use this script
 usage() {
   echo "usage $0 <setup||run||stop||rm||rma/>"
-  echo "      setup   Build aWsm and a Docker container with toolchain needed to compile your own functions"
-  echo "      run     Start the aWsm Docker image as an interactive container with this repository mounted"
-  echo "      stop    Stop and remove the aWsm Docker container after use"
-  echo "      rm      Remove the aWsm runtime container and image, but leaves the awsm-dev container in place"
-  echo "      rma     Removes all the awsm and awsm-dev containers and images"
+  echo "      setup   Build a sledge runtime container and sledge-dev, a build container with toolchain needed to compile your own functions"
+  echo "      run     Start the sledge Docker image as an interactive container with this repository mounted"
+  echo "      stop    Stop and remove the sledge Docker container after use"
+  echo "      rm      Remove the sledge runtime container and image, but leaves the sledge-dev container in place"
+  echo "      rma     Removes all the sledge and sledge-dev containers and images"
 }
 
 # Given a number of seconds, initiates a countdown sequence
@@ -50,19 +50,19 @@ countdown() {
   echo
 }
 
-# Build and runs the build container awsm-dev and then executes make install on the project
-# Finally "forks" the awsm-dev build container into the awsm execution container
+# Build and runs the build container sledge-dev and then executes make install on the project
+# Finally "forks" the sledge-dev build container into the sledge execution container
 envsetup() {
   # I want to create this container before the Makefile executes so that my user owns it
-  # This allows me to execute the awsmrt binary from my local host
+  # This allows me to execute the sledgert binary from my local host
   mkdir -p "$HOST_ROOT/runtime/bin"
 
-  # Check to see if the awsm:latest image exists, exiting if it does
-  # Because awsm:latest is "forked" after completing envsetup, this suggests that envsetup was already run
+  # Check to see if the sledge:latest image exists, exiting if it does
+  # Because sledge:latest is "forked" after completing envsetup, this suggests that envsetup was already run
   if docker image inspect ${SYS_DOC_NAMETAG} 1>/dev/null 2>/dev/null; then
     echo "${SYS_DOC_NAMETAG} image exists, which means that 'devenv.sh setup' already ran to completion!"
-    echo "If you are explicitly trying to rebuild Awsm, run the following:"
-    echo "devenv.sh rma | Removes the images awsm:latest AND awsm-dev:latest"
+    echo "If you are explicitly trying to rebuild SLEdge, run the following:"
+    echo "devenv.sh rma | Removes the images sledge:latest AND sledge-dev:latest"
     exit 1
   fi
 
@@ -75,8 +75,8 @@ envsetup() {
   rm -f Dockerfile
   ln -s Dockerfile.$(uname -m) Dockerfile
 
-  # As a user nicety, warn the user if awsm-dev is detected
-  # This UX differs from detecting awsm, which immediately exits
+  # As a user nicety, warn the user if sledge-dev is detected
+  # This UX differs from detecting sledge, which immediately exits
   # This is disabled because it doesn't seem useful
   if
     docker image inspect "${SYS_DOC_DEVNAMETAG}" 1>/dev/null 2>/dev/null && [ $SYS_BUILD_TIMEOUT -gt 0 ]
@@ -86,11 +86,11 @@ envsetup() {
     countdown ${SYS_BUILD_TIMEOUT}
   fi
 
-  # Build the image awsm-dev:latest
+  # Build the image sledge-dev:latest
   echo "Building ${SYS_DOC_DEVNAMETAG}"
   docker build --tag "${SYS_DOC_DEVNAMETAG}" .
 
-  # Run the awsm-dev:latest image as a background container named awsm-dev with the project directly mounted at /awsm
+  # Run the sledge-dev:latest image as a background container named sledge-dev with the project directly mounted at /sledge
   echo "Creating the build container ${SYS_DOC_NAMETAG} from the image ${SYS_DOC_DEVNAMETAG}"
   docker run \
     --privileged \
@@ -99,18 +99,18 @@ envsetup() {
     --mount type=bind,src="$(cd "$(dirname "${0}")" && pwd -P || exit 1),target=/${SYS_NAME}" \
     "${SYS_DOC_DEVNAMETAG}" /bin/sleep 99999999 >/dev/null
 
-  # Execute the make install command on the awsm-dev image to build the project
+  # Execute the make install command on the sledge-dev image to build the project
   echo "Building ${SYS_NAME}"
   docker exec \
     --tty \
     --workdir "${HOST_SYS_MOUNT}" \
     ${SYS_DOC_DEVNAME} make install
 
-  # Create the image awsm:latest from the current state of docker-dev
+  # Create the image sledge:latest from the current state of docker-dev
   echo "Tagging the new image"
   docker container commit ${SYS_DOC_DEVNAME} ${SYS_DOC_NAMETAG}
 
-  # Kill and remove the running awsm-dev container
+  # Kill and remove the running sledge-dev container
   echo "Cleaning up ${SYS_DOC_DEVNAME}"
   docker kill ${SYS_DOC_DEVNAME}
   docker rm ${SYS_DOC_DEVNAME}
@@ -118,10 +118,10 @@ envsetup() {
   echo "Done!"
 }
 
-# Executes an interactive BASH shell in the awsm container with /awsm as the working directory
-# This is the Awsm project directory mounted from the host environment.
-# If the image awsm:latest does not exist, automatically runs envsetup to build awsm and create it
-# If the a container names awsm is not running, starts it from awsm:latest, mounting the Awsm project directory to /awsm
+# Executes an interactive BASH shell in the sledge container with /sledge as the working directory
+# This is the SLEdge project directory mounted from the host environment.
+# If the image sledge:latest does not exist, automatically runs envsetup to build sledge and create it
+# If the a container names sledge is not running, starts it from sledge:latest, mounting the SLEdge project directory to /sledge
 envrun() {
   if ! docker image inspect ${SYS_DOC_NAMETAG} >/dev/null; then
     envsetup
@@ -145,7 +145,7 @@ envrun() {
   docker exec --tty --interactive --workdir "${HOST_SYS_MOUNT}" ${SYS_DOC_NAME} /bin/bash
 }
 
-# Stops and removes the awsm "runtime" container
+# Stops and removes the sledge "runtime" container
 envstop() {
   echo "Stopping container"
   docker stop ${SYS_DOC_NAME}
@@ -153,13 +153,13 @@ envstop() {
   docker rm ${SYS_DOC_NAME}
 }
 
-# Stops and removes the awsm "runtime" container and then removes the awsm "runtime" image
+# Stops and removes the sledge "runtime" container and then removes the sledge "runtime" image
 envrm() {
   envstop
   docker rmi ${SYS_DOC_NAME}
 }
 
-# Stops and removes the awsm "runtime" container and image and then removes the awsm-dev "build image" image
+# Stops and removes the sledge "runtime" container and image and then removes the sledge-dev "build image" image
 envrma() {
   envrm
   docker rmi ${SYS_DOC_DEVNAME}
