@@ -13,7 +13,7 @@ cd ../../bin
 export LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH"
 gdb --eval-command="handle SIGUSR1 nostop" \
   --eval-command="set pagination off" \
-  --eval-command="set substitute-path /awsm/runtime $project_path" \
+  --eval-command="set substitute-path /sledge/runtime $project_path" \
   --eval-command="run ../tests/preemption/test_fibonacci_multiple.json" \
-  ./awsmrt
+  ./sledgert
 cd ../../tests

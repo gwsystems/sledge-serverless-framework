@@ -1,7 +1,5 @@
 #!/bin/sh
-# Executing by the root Makefile, typically within the awsm-dev build container
-
-
+# Executing by the root Makefile, typically within the sledge-dev build container
 
 echo "Setting up toolchain environment"
 
@@ -17,21 +15,21 @@ if [ ! -x "${SYS_SRC_PREFIX}/install.sh" ]; then
   exit 1
 fi
 
-SYS_NAME='awsm'
-SILVERFISH='silverfish'
+SYS_NAME='sledge'
+COMPILER='awsm'
 
-# /opt/awsm
+# /opt/sledge
 SYS_PREFIX=${SYS_PREFIX:-"/opt/${SYS_NAME}"}
 
-# /awsm, where the awsm repo is mounted from the host
+# /sledge, where the sledge repo is mounted from the host
 SYS_SRC_PREFIX=${SYS_SRC_PREFIX:-"/${SYS_NAME}"}
 
-# The release directory containing the silverfish binary
-SYS_SF_REL_DIR=${SYS_SF_REL_DIR:-"${SYS_SRC_PREFIX}/${SILVERFISH}/target/release"}
+# The release directory containing the binary of the aWsm compiler
+SYS_COMPILER_REL_DIR=${SYS_COMPILER_REL_DIR:-"${SYS_SRC_PREFIX}/${COMPILER}/target/release"}
 
-# /opt/awsm/bin?
+# /opt/sledge/bin?
 SYS_BIN_DIR=${SYS_BIN_DIR:-"${SYS_PREFIX}/bin"}
-# /opt/awsm/lib?
+# /opt/sledge/lib?
 SYS_LIB_DIR=${SYS_LIB_DIR:-"${SYS_PREFIX}/lib"}
 
 # The first argument can be either wasi or wasmception. This determines the system interface used
@@ -39,7 +37,7 @@ SYS_LIB_DIR=${SYS_LIB_DIR:-"${SYS_PREFIX}/lib"}
 # Currently, WASI is not actually supported by the runtime.
 if [ $# -eq 0 ] || [ "$1" = "wasmception" ]; then
   echo "Setting up for wasmception"
-  WASM_PREFIX=${WASM_PREFIX:-"${SYS_SRC_PREFIX}/${SILVERFISH}/wasmception"}
+  WASM_PREFIX=${WASM_PREFIX:-"${SYS_SRC_PREFIX}/${COMPILER}/wasmception"}
   WASM_BIN=${WASM_BIN:-"${WASM_PREFIX}/dist/bin"}
   WASM_SYSROOT=${WASM_SYSROOT:-"${WASM_PREFIX}/sysroot"}
   WASM_TARGET=${WASM_TARGET:-"wasm32-unknown-unknown-wasm"}
@@ -59,10 +57,10 @@ rm -f "${SYS_BIN_DIR}"/*
 install -d -v "$SYS_BIN_DIR" || exit 1
 
 # Link each of the binaries in the system bin directory
-BINS=${SILVERFISH}
+BINS=${COMPILER}
 for bin in $BINS; do
-  # i.e. ./silverfish/target/release/silverfish -> /opt/awsm/bin/silverfish
-  ln -sfv "${SYS_SF_REL_DIR}/${bin}" "${SYS_BIN_DIR}/${bin}"
+  # i.e. ./silverfish/target/release/silverfish -> /opt/sledge/bin/silverfish
+  ln -sfv "${SYS_COMPILER_REL_DIR}/${bin}" "${SYS_BIN_DIR}/${bin}"
 done
 
 for file in clang clang++; do

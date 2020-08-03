@@ -61,5 +61,5 @@ RUN curl -sS -L -O https://github.com/CraneStation/wasi-sdk/releases/download/wa
 	&& dpkg -i wasi-sdk_7.0_amd64.deb && rm -f wasi-sdk_7.0_amd64.deb
 
 ENV WASI_SDK=/opt/wasi-sdk
-ENV PATH=/opt/awsm/bin:$PATH
+ENV PATH=/opt/sledge/bin:$PATH
 

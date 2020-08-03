@@ -1,4 +1,4 @@
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./awsmrt ../tests/test_fibonacci_multiple.json
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_fibonacci_multiple.json
 
 
 # fib(20)

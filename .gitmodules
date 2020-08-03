@@ -1,13 +1,13 @@
-[submodule "silverfish"]
-	path = silverfish
-	url = https://github.com/gparmer/silverfish.git
-	ignore = dirty
+[submodule "awsm"]
+path = awsm
+url = https://github.com/gwsystems/aWsm
+ignore = dirty
 [submodule "runtime/thirdparty/http-parser"]
-	path = runtime/thirdparty/http-parser
-	url = https://github.com/gwsystems/http-parser.git
+path = runtime/thirdparty/http-parser
+url = https://github.com/gwsystems/http-parser.git
 [submodule "runtime/thirdparty/jsmn"]
-	path = runtime/thirdparty/jsmn
-	url = https://github.com/gwsystems/jsmn.git
+path = runtime/thirdparty/jsmn
+url = https://github.com/gwsystems/jsmn.git
 [submodule "runtime/thirdparty/ck"]
-	path = runtime/thirdparty/ck
-	url = https://github.com/gwsystems/ck.git
+path = runtime/thirdparty/ck
+url = https://github.com/gwsystems/ck.git

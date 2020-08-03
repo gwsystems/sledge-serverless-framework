@@ -1,6 +1,6 @@
-# aWsm (awesome)
+# SLEdge
 
-**aWsm** is an efficient serverless runtime built with the `silverfish` compiler. It combines WebAssembly sandboxing with asynchronous I/O to provide a lightweight serverless solution suitable for edge computing.
+**SLEdge** is a lightweight serverless solution suitable for edge computing. It combines WebAssembly sandboxing provided by the [aWsm compiler](https://github.com/gwsystems/aWsm) with asynchronous I/O provided by [libuv](https://github.com/libuv/libuv).
 
 ## Host Dependencies
 
@@ -17,7 +17,7 @@ sudo apt-get install libuv1-dev
 
 **Note: These steps require Docker. Make sure you've got it installed!**
 
-We provide a Docker build environment configured with the dependencies and toolchain needed to build the aWsm runtime and serverless functions.
+We provide a Docker build environment configured with the dependencies and toolchain needed to build the SLEdge runtime and serverless functions.
 
 To setup this environment, run:
 
@@ -33,21 +33,21 @@ To enter the docker environment, run:
 ./devenv.sh run
 ```
 
-The first time you enter this environment, run the following to copy the awsmrt binary to /awsm/runtime/bin.
+The first time you enter this environment, run the following to copy the sledgert binary to /sledge/runtime/bin.
 
 ```bash
-cd /awsm/runtime
+cd /sledge/runtime
 make clean all
 ```
 
-There are a set of benchmarking applications in the `/awsm/runtime/tests` directory. Run the following to compile all benchmarks runtime tests using silverfish and then copy all resulting `<application>_wasm.so` files to /awsm/runtime/bin.
+There are a set of benchmarking applications in the `/sledge/runtime/tests` directory. Run the following to compile all benchmarks runtime tests using the aWsm compiler and then copy all resulting `<application>_wasm.so` files to /sledge/runtime/bin.
 
 ```bash
-cd /awsm/runtime/tests/
+cd /sledge/runtime/tests/
 make clean all
 ```
 
-You now have everything that you need to execute your first serverless function on aWsm
+You now have everything that you need to execute your first serverless function on SLEdge
 
 To exit the container:
 
@@ -63,7 +63,7 @@ To stop the Docker container:
 
 ## Running your first serverless function
 
-An aWsm serverless function consists of a shared library (\*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:
+An SLEdge serverless function consists of a shared library (\*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:
 
 ```json
 {
@@ -83,11 +83,11 @@ An aWsm serverless function consists of a shared library (\*.so) and a JSON conf
 
 The `port` and `name` fields are used to determine the path where our serverless function will be served served.
 
-In our case, we are running the aWsm runtime on localhost, so our function is available at `http://localhost:10000/fibonacci`
+In our case, we are running the SLEdge runtime on localhost, so our function is available at `http://localhost:10000/fibonacci`
 
 Our fibonacci function will parse a single argument from the HTTP POST body that we send. The expected Content-Type is "text/plain" and the buffer is sized to 1024 bytes for both the request and response. This is sufficient for our simple Fibonacci function, but this must be changed and sized for other functions, such as image processing.
 
-Now that we understand roughly how the aWsm runtime interacts with serverless function, let's run Fibonacci!
+Now that we understand roughly how the SLEdge runtime interacts with serverless function, let's run Fibonacci!
 
 From the root project directory of the host environment (not the Docker container!), navigate to the binary directory
 
@@ -95,10 +95,10 @@ From the root project directory of the host environment (not the Docker containe
 cd runtime/bin/
 ```
 
-Now run the awsmrt binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by aWsm as shared libraries, we want to add the `runtime/tests/` directory to LD_LIBRARY_PATH.
+Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `runtime/tests/` directory to LD_LIBRARY_PATH.
 
 ```bash
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./awsmrt ../tests/test_fibonacci.json
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_fibonacci.json
 ```
 
 While you don't see any output to the console, the runtime is running in the foreground.
@@ -121,11 +121,11 @@ Content-type: text/plain
 55
 ```
 
-When done, terminal the aWsm runtime with `Ctrl+c`
+When done, terminal the SLEdge runtime with `Ctrl+c`
 
-## Removing the aWsm Runtime
+## Removing the SLEdge Runtime
 
-If you are finished working with the aWsm runtime and wish to remove it, run the following command to delete our Docker build and runtime images.
+If you are finished working with the SLEdge runtime and wish to remove it, run the following command to delete our Docker build and runtime images.
 
 ```bash
 ./devenv.sh rma
