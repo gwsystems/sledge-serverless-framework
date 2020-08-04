@@ -8,16 +8,33 @@ CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 
 BINARY_NAME=sledgert
 
-NCORES = ${TOTAL_CORES} # Number of Cores. Options: {2...N or TOTAL_CORES}
-USE_MEM = USE_MEM_VM # Options: {USE_MEM_GENERIC, USE_MEM_VM}
+# Number of Cores. Options: {2...N or TOTAL_CORES}
+NCORES = ${TOTAL_CORES}
 
+# Options: {USE_MEM_GENERIC, USE_MEM_VM}
+USE_MEM = USE_MEM_VM
+
+# Flags
+CFLAGS += -D${ARCH}
+#CFLAGS += -DDEBUG
+#CFLAGS += -DLOG_TO_FILE
+CFLAGS += -DNCORES=${NCORES}
+CFLAGS += -DPAGE_SIZE=$(PAGE_SIZE)
+#CFLAGS += -DPREEMPT_DISABLE
+#CFLAGS += -DUSE_HTTP_UVIO #-DUSE_HTTP_SYNC
+CFLAGS += -D${USE_MEM}
+#CFLAGS += -DUSE_SYSCALL
+
+# Preprocessor
+LDFLAGS += -Wl,--export-dynamic -ldl -lm
+LDFLAGS += -Lthirdparty/dist/lib/
 INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
 
 # CFILES
-CFILES += src/*.c 
-CFILES += src/arch/${ARCH}/*.c 
-CFILES += src/libc/*.c 
-CFILES += src/memory/common.c 
+CFILES += src/*.c
+CFILES += src/arch/${ARCH}/*.c
+CFILES += src/libc/*.c
+CFILES += src/memory/common.c
 CFILES += thirdparty/dist/lib/http_parser.o
 # TODO: Is USE_MEM_GENERIC out of date? I do not see that file.
 # Does that mean we can make USE_MEM_VM an invariant?
@@ -27,22 +44,8 @@ else ifeq ($(USE_MEM),USE_MEM_VM)
 CFILES += src/memory/64bit_nix.c
 endif
 
-# Flags
-CFLAGS += -D${ARCH}
-#CFLAGS += -DDEBUG 
-#CFLAGS += -DLOG_TO_FILE
-CFLAGS += -DNCORES=${NCORES}
-CFLAGS += -DPAGE_SIZE=$(PAGE_SIZE)
-#CFLAGS += -DPREEMPT_DISABLE
-#CFLAGS += -DUSE_HTTP_UVIO #-DUSE_HTTP_SYNC
-CFLAGS += -D${USE_MEM}  
-#CFLAGS += -DUSE_SYSCALL
-
-LDFLAGS += -Wl,--export-dynamic -ldl -lm
-LDFLAGS += -Lthirdparty/dist/lib/
-
-# Configuring JasmineEEE
-JSMNCFLAGS += -DJSMN_STATIC 
+# Configuring Jasmine
+JSMNCFLAGS += -DJSMN_STATIC
 JSMNCFLAGS += -DJSMN_STRICT
 
 all: clean runtime
