@@ -2,12 +2,12 @@
 path = awsm
 url = https://github.com/gwsystems/aWsm
 ignore = dirty
-[submodule "runtime/thirdparty/http-parser"]
+[submodule "http-parser"]
 path = runtime/thirdparty/http-parser
 url = https://github.com/gwsystems/http-parser.git
-[submodule "runtime/thirdparty/jsmn"]
-path = runtime/thirdparty/jsmn
-url = https://github.com/gwsystems/jsmn.git
-[submodule "runtime/thirdparty/ck"]
+[submodule "ck"]
 path = runtime/thirdparty/ck
 url = https://github.com/gwsystems/ck.git
+[submodule "jsmn"]
+path = runtime/thirdparty/jsmn
+url = https://github.com/gwsystems/jsmn.git
