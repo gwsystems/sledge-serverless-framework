@@ -2,6 +2,8 @@
 
 #include <uv.h>
 
+#include "runtime.h"
+
 /* If multicore, use all but the dedicated listener core
 If there are fewer cores than this, main dynamically overrides this and uses all available */
 #define WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
