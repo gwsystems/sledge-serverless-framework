@@ -5,10 +5,10 @@ WASMCC=wasm32-unknown-unknown-wasm-clang # Source -> WebAssembly
 
 OPTFLAGS=-O3 -flto
 MEMC_64=64bit_nix.c
-MEMC_NO=no_protection.c
-MEMC_GEN=generic.c
-MEMC_MPX=mpx.c
-MEMC_SEG=segmented.c
+# MEMC_NO=no_protection.c
+# MEMC_GEN=generic.c
+# MEMC_MPX=mpx.c
+# MEMC_SEG=segmented.c
 TMP_DIR=tmp/
 
 # same stack-size for all
@@ -32,7 +32,6 @@ WASM2OBJ_MEMC=${WASM2OBJ_RT_MEM}/${MEMC_64}
 WASM2OBJ_DUMMY=${WASM2OBJ_BASE_DIR}/code_benches/dummy.c
 
 # for SLEdge
-SERVERLESS_BASE=sledge
 SERVERLESS_BASE_DIR=../../
 SERVERLESS_RT_DIR=${SERVERLESS_BASE_DIR}/runtime/
 SERVERLESS_RT_INC=${SERVERLESS_RT_DIR}/include/
