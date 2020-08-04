@@ -1,73 +1,74 @@
-CC=clang
-
-RTDIR=src/
-CFILES=${RTDIR}/*.c ${RTDIR}/libc/*.c ${RTDIR}/memory/common.c
-RUNTIME=bin/sledgert
-INC=include/
 ARCH := $(shell uname -m)
+TOTAL_CORES := $(shell getconf _NPROCESSORS_CONF)
+PAGE_SIZE=$(shell getconf PAGESIZE)
 
-OPTFLAGS = -O3
-OPTFLAGS += -flto -g
-LDFLAGS = -Wl,--export-dynamic -ldl -lm
-USE_MEM = USE_MEM_VM
-CFLAGS = ${OPTFLAGS} -D${USE_MEM} -I${INC} -pthread
-CFLAGS += -D${ARCH}
-CFILES += ${RTDIR}/arch/${ARCH}/*.c
-# CFLAGS += -DDEBUG 
-CFLAGS += -D_GNU_SOURCE
-#CFLAGS += -DLOG_TO_FILE
-#CFLAGS += -DUSE_HTTP_UVIO #-DUSE_HTTP_SYNC
-#CFLAGS += -DUSE_SYSCALL
-#CFLAGS += -DPREEMPT_DISABLE
-NCORES_CONF := $(shell getconf _NPROCESSORS_CONF)
-#todo:cross-compile
-CFLAGS += -DNCORES=${NCORES_CONF}
-#CFLAGS += -DNCORES=4
-CFLAGS += -DPAGE_SIZE=$(shell getconf PAGESIZE)
+# Compiler Settings
+CC=clang
+CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 
-MAKE= make --no-print-directory
-THIRDPARTY=thirdparty
+BINARY_NAME=sledgert
 
-THIRDPARTY_DIST=${THIRDPARTY}/dist/
-THIRDPARTY_INC=${THIRDPARTY_DIST}/include/
-THIRDPARTY_LIB=${THIRDPARTY_DIST}/lib/
-LDFLAGS += -L${THIRDPARTY_LIB}
-CFLAGS += -I${THIRDPARTY_INC}
+NCORES = ${TOTAL_CORES} # Number of Cores. Options: {2...N or TOTAL_CORES}
+USE_MEM = USE_MEM_VM # Options: {USE_MEM_GENERIC, USE_MEM_VM}
 
-JSMNCFLAGS=-DJSMN_STATIC -DJSMN_STRICT
-HTTPPARSEOBJ=${THIRDPARTY_LIB}/http_parser.o
-CFILES += ${HTTPPARSEOBJ}
+INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
 
+# CFILES
+CFILES += src/*.c 
+CFILES += src/arch/${ARCH}/*.c 
+CFILES += src/libc/*.c 
+CFILES += src/memory/common.c 
+CFILES += thirdparty/dist/lib/http_parser.o
+# TODO: Is USE_MEM_GENERIC out of date? I do not see that file.
+# Does that mean we can make USE_MEM_VM an invariant?
 ifeq ($(USE_MEM),USE_MEM_GENERIC)
-CFILES += ${RTDIR}/memory/generic.c
+CFILES += src/memory/generic.c
 else ifeq ($(USE_MEM),USE_MEM_VM)
-CFILES += ${RTDIR}/memory/64bit_nix.c
+CFILES += src/memory/64bit_nix.c
 endif
+
+# Flags
+CFLAGS += -D${ARCH}
+#CFLAGS += -DDEBUG 
+#CFLAGS += -DLOG_TO_FILE
+CFLAGS += -DNCORES=${NCORES}
+CFLAGS += -DPAGE_SIZE=$(PAGE_SIZE)
+#CFLAGS += -DPREEMPT_DISABLE
+#CFLAGS += -DUSE_HTTP_UVIO #-DUSE_HTTP_SYNC
+CFLAGS += -D${USE_MEM}  
+#CFLAGS += -DUSE_SYSCALL
+
+LDFLAGS += -Wl,--export-dynamic -ldl -lm
+LDFLAGS += -Lthirdparty/dist/lib/
+
+# Configuring JasmineEEE
+JSMNCFLAGS += -DJSMN_STATIC 
+JSMNCFLAGS += -DJSMN_STRICT
 
 all: clean runtime
 
 runtime:
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	@${CC} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} ${HTTPPARSECFLAGS} -L/usr/lib/ -luv $^ -o ${RUNTIME}
+	@${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ -luv $^ -o bin/${BINARY_NAME}
 
 thirdparty:
 	@echo "Compiling thirdparty"
-	@${MAKE} -C thirdparty build
+	@make --no-print-directory -C thirdparty build
 
 tools:
 #	@echo "Compiling tools"
-	@${MAKE} -C tools
+	@make --no-print-directory -C tools
 
 clean:
 	@rm -f core
 	@echo "Cleaning up runtime"
-	@rm -f ${RUNTIME}
+	@rm -f bin/${BINARY_NAME}
 #	@echo "Cleaning up tools"
-#	@${MAKE} -C tools clean
+#	@make --no-print-directory -C tools clean
 
 distclean: clean
-	@${MAKE} -C thirdparty clean
+	@make --no-print-directory -C thirdparty clean
 
 fetch:
 	@git submodule update --init --recursive

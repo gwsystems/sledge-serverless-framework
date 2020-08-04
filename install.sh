@@ -17,6 +17,7 @@ fi
 
 SYS_NAME='sledge'
 COMPILER='awsm'
+COMPILER_EXECUTABLE='silverfish'
 
 # /opt/sledge
 SYS_PREFIX=${SYS_PREFIX:-"/opt/${SYS_NAME}"}
@@ -57,7 +58,7 @@ rm -f "${SYS_BIN_DIR}"/*
 install -d -v "$SYS_BIN_DIR" || exit 1
 
 # Link each of the binaries in the system bin directory
-BINS=${COMPILER}
+BINS=${COMPILER_EXECUTABLE}
 for bin in $BINS; do
   # i.e. ./silverfish/target/release/silverfish -> /opt/sledge/bin/silverfish
   ln -sfv "${SYS_COMPILER_REL_DIR}/${bin}" "${SYS_BIN_DIR}/${bin}"
