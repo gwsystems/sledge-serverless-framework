@@ -1,6 +1,9 @@
 /* code from https://github.com/gwsystems/silverfish/blob/master/runtime/runtime.c */
 #include <assert.h>
+#include <math.h>
 #include <types.h>
+
+#define CHAR_BIT 8
 
 // TODO: Throughout here we use `assert` for error conditions, which isn't optimal
 // Instead we should use `unlikely` branches to a single trapping function (which should optimize better)
