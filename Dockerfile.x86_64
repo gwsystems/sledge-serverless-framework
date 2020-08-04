@@ -62,4 +62,3 @@ RUN curl -sS -L -O https://github.com/CraneStation/wasi-sdk/releases/download/wa
 
 ENV WASI_SDK=/opt/wasi-sdk
 ENV PATH=/opt/sledge/bin:$PATH
-
