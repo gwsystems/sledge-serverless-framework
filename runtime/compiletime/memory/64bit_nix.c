@@ -1,4 +1,6 @@
 /* https://github.com/gwsystems/silverfish/blob/master/runtime/memory/64bit_nix.c */
+
+#include <assert.h>
 #include "types.h"
 
 #ifdef USE_MEM_VM
