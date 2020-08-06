@@ -11,8 +11,6 @@ SYS_NAME='sledge'
 # /sledge
 HOST_SYS_MOUNT=${HOST_SYS_MOUNT:-"/${SYS_NAME}"}
 
-# SYS_WASMCEPTION='silverfish/wasmception'
-
 # sledge
 SYS_DOC_NAME=${SYS_NAME}
 

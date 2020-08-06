@@ -1,4 +1,3 @@
-/* https://github.com/gwsystems/silverfish/blob/master/runtime/libc/libc_backing.c */
 #include <assert.h>
 #include <ck_pr.h>
 #include <math.h>

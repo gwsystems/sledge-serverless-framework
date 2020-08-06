@@ -1,4 +1,3 @@
-/* code from https://github.com/gwsystems/silverfish/blob/master/runtime/runtime.c */
 #include <assert.h>
 #include <math.h>
 #include <types.h>

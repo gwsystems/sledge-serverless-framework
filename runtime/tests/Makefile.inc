@@ -15,11 +15,8 @@ TMP_DIR=tmp/
 WASMLINKFLAGS=-Wl,-z,stack-size=524288,--allow-undefined,--no-threads,--stack-first,--no-entry,--export-all,--export=main,--export=dummy
 WASMCFLAGS=${WASMLINKFLAGS} -nostartfiles
 
-# aWsm Compiler Runtime (WebAssembly -> Native)
-# Currently, the component which compiles WebAssembly modules to native code, is named aWsm
-# However, the executable itself still currently retains the older name silverfish
+# aWsm Compiler Runtime (WebAssembly -> LLVM Bitcode)
 AWSM_NAME=awsm
-AWSM_EXECUTABLE=silverfish
 AWSM_BASE_DIR=../../${AWSM_NAME}
 AWSM_RT_DIR=${AWSM_BASE_DIR}/runtime/
 AWSM_RT_MEM=${AWSM_RT_DIR}/memory/

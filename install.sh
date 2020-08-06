@@ -28,9 +28,9 @@ SYS_SRC_PREFIX=${SYS_SRC_PREFIX:-"/${SYS_NAME}"}
 # The release directory containing the binary of the aWsm compiler
 SYS_COMPILER_REL_DIR=${SYS_COMPILER_REL_DIR:-"${SYS_SRC_PREFIX}/${COMPILER}/target/release"}
 
-# /opt/sledge/bin?
+# /opt/sledge/bin
 SYS_BIN_DIR=${SYS_BIN_DIR:-"${SYS_PREFIX}/bin"}
-# /opt/sledge/lib?
+# /opt/sledge/lib
 SYS_LIB_DIR=${SYS_LIB_DIR:-"${SYS_PREFIX}/lib"}
 
 # The first argument can be either wasi or wasmception. This determines the system interface used
@@ -57,12 +57,9 @@ fi
 rm -f "${SYS_BIN_DIR}"/*
 install -d -v "$SYS_BIN_DIR" || exit 1
 
-# Link each of the binaries in the system bin directory
-BINS=${COMPILER_EXECUTABLE}
-for bin in $BINS; do
-  # i.e. ./silverfish/target/release/silverfish -> /opt/sledge/bin/silverfish
-  ln -sfv "${SYS_COMPILER_REL_DIR}/${bin}" "${SYS_BIN_DIR}/${bin}"
-done
+# Link the Awsm compiler. Rename to awsm if still using legacy "silverfish" name
+# /sledge/awsm/target/release/silverfish /opt/sledge/bin/awsm
+ln -sfv "${SYS_COMPILER_REL_DIR}/${COMPILER_EXECUTABLE}" "${SYS_BIN_DIR}/awsm"
 
 for file in clang clang++; do
   wrapper_file="$(mktemp)"
