@@ -1,8 +1,7 @@
 #ifndef PRIORITY_QUEUE_H
 #define PRIORITY_QUEUE_H
 
-#include <spinlock/mcs.h>
-
+#include "lock.h"
 #include "runtime.h"
 #include "worker_thread.h"
 
@@ -20,7 +19,7 @@ typedef uint64_t (*priority_queue_get_priority_fn_t)(void *element);
 
 /* We assume that priority is expressed in terms of a 64 bit unsigned integral */
 struct priority_queue {
-	ck_spinlock_mcs_t                queue;
+	LOCK_T                           queue;
 	uint64_t                         highest_priority;
 	void *                           items[MAX];
 	int                              first_free;
