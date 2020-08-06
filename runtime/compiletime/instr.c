@@ -3,6 +3,8 @@
 #include <math.h>
 #include <types.h>
 
+#define CHAR_BIT 8
+
 // TODO: Throughout here we use `assert` for error conditions, which isn't optimal
 // Instead we should use `unlikely` branches to a single trapping function (which should optimize better)
 // The below functions are for implementing WASM instructions
