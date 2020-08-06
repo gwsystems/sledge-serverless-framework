@@ -1,4 +1,3 @@
-/* Code from https://github.com/gwsystems/silverfish/blob/master/runtime/memory/64bit_nix.c */
 #include "current_sandbox.h"
 #include "panic.h"
 #include "runtime.h"
