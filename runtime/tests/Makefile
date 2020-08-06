@@ -25,7 +25,7 @@ clean:
 	${AWSM_EXECUTABLE} ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
 	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} -D${ARCH} ${TMP_DIR}/$(@:%_rt=%).bc ${AWSM_MEMC} ${AWSM_RT_LIBC} ${AWSM_RT_ENV} ${AWSM_RT_RT} -lm -o ${TMP_DIR}/$(@:%_rt=%)_wasm.out
 	${AWSM_EXECUTABLE} --inline-constant-globals --runtime-globals ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
-	${CC} --shared -fPIC ${OPTFLAGS} -I${SERVERLESS_RT_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${SERVERLESS_MEMC} ${SERVERLESS_WASMISA} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.so
-	@cp ${TMP_DIR}/$(@:%_rt=%)_wasm.so ${SERVERLESS_BIN_DIR} 
+	${CC} --shared -fPIC ${OPTFLAGS} -I${SLEDGE_RT_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${SLEDGE_MEMC} ${SLEDGE_WASMISA} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.so
+	@cp ${TMP_DIR}/$(@:%_rt=%)_wasm.so ${SLEDGE_BIN_DIR} 
 #	@rm -rf ${TMP_DIR}
 
