@@ -18,18 +18,18 @@ WASMCFLAGS=${WASMLINKFLAGS} -nostartfiles
 # aWsm Compiler Runtime (WebAssembly -> Native)
 # Currently, the component which compiles WebAssembly modules to native code, is named aWsm
 # However, the executable itself still currently retains the older name silverfish
-WASM2OBJ_NAME=awsm
-WASM2OBJ_EXECUTABLE=silverfish
-WASM2OBJ_BASE_DIR=../../${WASM2OBJ_NAME}
-WASM2OBJ_RT_DIR=${WASM2OBJ_BASE_DIR}/runtime/
-WASM2OBJ_RT_MEM=${WASM2OBJ_RT_DIR}/memory/
-WASM2OBJ_RT_LIBC=${WASM2OBJ_RT_DIR}/libc/libc_backing.c
-WASM2OBJ_RT_RT=${WASM2OBJ_RT_DIR}/runtime.c
-WASM2OBJ_RT_ENV=${WASM2OBJ_RT_DIR}/libc/env.c
+AWSM_NAME=awsm
+AWSM_EXECUTABLE=silverfish
+AWSM_BASE_DIR=../../${AWSM_NAME}
+AWSM_RT_DIR=${AWSM_BASE_DIR}/runtime/
+AWSM_RT_MEM=${AWSM_RT_DIR}/memory/
+AWSM_RT_LIBC=${AWSM_RT_DIR}/libc/libc_backing.c
+AWSM_RT_RT=${AWSM_RT_DIR}/runtime.c
+AWSM_RT_ENV=${AWSM_RT_DIR}/libc/env.c
 # Is seems like the arch specific code no longer exists
-# WASM2OBJ_RT_ENV=${WASM2OBJ_RT_DIR}/libc/env.c ${WASM2OBJ_RT_DIR}/libc/env_${ARCH}.c
-WASM2OBJ_MEMC=${WASM2OBJ_RT_MEM}/${MEMC_64}
-WASM2OBJ_DUMMY=${WASM2OBJ_BASE_DIR}/code_benches/dummy.c
+# AWSM_RT_ENV=${AWSM_RT_DIR}/libc/env.c ${AWSM_RT_DIR}/libc/env_${ARCH}.c
+AWSM_MEMC=${AWSM_RT_MEM}/${MEMC_64}
+AWSM_DUMMY=${AWSM_BASE_DIR}/code_benches/dummy.c
 
 # for SLEdge
 SERVERLESS_BASE_DIR=../../
