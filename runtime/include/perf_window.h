@@ -16,7 +16,7 @@
 struct perf_window {
 	uint64_t buffer[PERF_WINDOW_BUFFER_SIZE];
 	uint64_t count;
-	LOCK_T   lock;
+	lock_t   lock;
 	double   mean;
 };
 
@@ -29,7 +29,7 @@ static inline void
 perf_window_update_mean(struct perf_window *self)
 {
 	assert(self != NULL);
-	LOCK_IS_LOCKED(&self->lock);
+	assert(LOCK_IS_LOCKED(&self->lock));
 
 	uint64_t limit = self->count;
 	if (limit > PERF_WINDOW_BUFFER_SIZE) { limit = PERF_WINDOW_BUFFER_SIZE; }
