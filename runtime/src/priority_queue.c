@@ -24,10 +24,18 @@ priority_queue_append(struct priority_queue *self, void *new_item)
 	assert(self != NULL);
 	assert(LOCK_IS_LOCKED(&self->lock));
 
-	if (self->first_free >= MAX) return -ENOSPC;
+	int rc;
+
+	if (self->first_free >= MAX) goto err_enospc;
 
 	self->items[self->first_free++] = new_item;
-	return 0;
+
+	rc = 0;
+done:
+	return rc;
+err_enospc:
+	rc = -ENOSPC;
+	goto done;
 }
 
 /**
@@ -70,16 +78,20 @@ priority_queue_find_smallest_child(struct priority_queue *self, int parent_index
 	int right_child_index = 2 * parent_index + 1;
 	assert(self->items[left_child_index] != NULL);
 
+	int smallest_child_idx;
+
 	/* If we don't have a right child or the left child is smaller, return it */
 	if (right_child_index == self->first_free) {
-		return left_child_index;
+		smallest_child_idx = left_child_index;
 	} else if (self->get_priority_fn(self->items[left_child_index])
 	           < self->get_priority_fn(self->items[right_child_index])) {
-		return left_child_index;
+		smallest_child_idx = left_child_index;
 	} else {
 		/* Otherwise, return the right child */
-		return right_child_index;
+		smallest_child_idx = right_child_index;
 	}
+
+	return smallest_child_idx;
 }
 
 /**
@@ -174,9 +186,11 @@ priority_queue_enqueue(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
 
+	int rc;
+
 	LOCK_LOCK(&self->lock);
 
-	if (priority_queue_append(self, value) == -ENOSPC) return -ENOSPC;
+	if (priority_queue_append(self, value) == -ENOSPC) goto err_enospc;
 
 	/* If this is the first element we add, update the highest priority */
 	if (self->first_free == 2) {
@@ -185,10 +199,16 @@ priority_queue_enqueue(struct priority_queue *self, void *value)
 		priority_queue_percolate_up(self);
 	}
 
+	rc = 0;
+release_lock:
 	LOCK_UNLOCK(&self->lock);
-
-	return 0;
+done:
+	return rc;
+err_enospc:
+	rc = -ENOSPC;
+	goto release_lock;
 }
+
 /**
  * @param self - the priority queue we want to delete from
  * @param value - the value we want to delete
@@ -233,10 +253,7 @@ priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 
 	LOCK_LOCK(&self->lock);
 
-	if (priority_queue_is_empty_locked(self)) {
-		return_code = -ENOENT;
-		goto release_lock;
-	}
+	if (priority_queue_is_empty_locked(self)) goto err_enoent;
 
 	*dequeued_element             = self->items[1];
 	self->items[1]                = self->items[--self->first_free];
@@ -256,6 +273,9 @@ release_lock:
 	LOCK_UNLOCK(&self->lock);
 done:
 	return return_code;
+err_enoent:
+	return_code = -ENOENT;
+	goto release_lock;
 }
 
 /**
@@ -275,10 +295,7 @@ priority_queue_top(struct priority_queue *self, void **dequeued_element)
 
 	LOCK_LOCK(&self->lock);
 
-	if (priority_queue_is_empty_locked(self)) {
-		return_code = -ENOENT;
-		goto release_lock;
-	}
+	if (priority_queue_is_empty_locked(self)) goto err_enoent;
 
 	*dequeued_element = self->items[1];
 	return_code       = 0;
@@ -287,6 +304,9 @@ release_lock:
 	LOCK_UNLOCK(&self->lock);
 done:
 	return return_code;
+err_enoent:
+	return_code = -ENOENT;
+	goto release_lock;
 }
 
 /**
