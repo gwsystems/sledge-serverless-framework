@@ -45,10 +45,7 @@ static int
 local_runqueue_minheap_remove(struct sandbox **to_remove)
 {
 	assert(!software_interrupt_is_enabled());
-	int rc = priority_queue_dequeue(&local_runqueue_minheap, (void **)to_remove);
-	if (rc == -EAGAIN) panic("Worker unexpectedly unable to take lock on own runqueue\n");
-
-	return rc;
+	return priority_queue_dequeue(&local_runqueue_minheap, (void **)to_remove);
 }
 
 /**
@@ -85,9 +82,7 @@ local_runqueue_minheap_get_next()
 	struct sandbox_request *sandbox_request;
 	int                     sandbox_rc = priority_queue_top(&local_runqueue_minheap, (void **)&sandbox);
 
-	if (sandbox_rc == -EAGAIN) {
-		panic("Worker unexpectedly unable to take lock on own runqueue\n");
-	} else if (sandbox_rc == -ENOENT) {
+	if (sandbox_rc == -ENOENT) {
 		/* local runqueue empty, try to pull a sandbox request */
 		if (global_request_scheduler_remove(&sandbox_request) < 0) goto done;
 

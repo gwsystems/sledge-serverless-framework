@@ -22,7 +22,7 @@ static inline int
 priority_queue_append(struct priority_queue *self, void *new_item)
 {
 	assert(self != NULL);
-	assert(LOCK_IS_LOCKED(&self->queue));
+	assert(LOCK_IS_LOCKED(&self->lock));
 
 	if (self->first_free >= MAX) return -ENOSPC;
 
@@ -39,7 +39,7 @@ priority_queue_percolate_up(struct priority_queue *self)
 {
 	assert(self != NULL);
 	assert(self->get_priority_fn != NULL);
-	assert(LOCK_IS_LOCKED(&self->queue));
+	assert(LOCK_IS_LOCKED(&self->lock));
 
 	for (int i = self->first_free - 1;
 	     i / 2 != 0 && self->get_priority_fn(self->items[i]) < self->get_priority_fn(self->items[i / 2]); i /= 2) {
@@ -64,7 +64,7 @@ priority_queue_find_smallest_child(struct priority_queue *self, int parent_index
 	assert(self != NULL);
 	assert(parent_index >= 1 && parent_index < self->first_free);
 	assert(self->get_priority_fn != NULL);
-	assert(LOCK_IS_LOCKED(&self->queue));
+	assert(LOCK_IS_LOCKED(&self->lock));
 
 	int left_child_index  = 2 * parent_index;
 	int right_child_index = 2 * parent_index + 1;
@@ -92,7 +92,7 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 {
 	assert(self != NULL);
 	assert(self->get_priority_fn != NULL);
-	assert(LOCK_IS_LOCKED(&self->queue));
+	assert(LOCK_IS_LOCKED(&self->lock));
 
 	int left_child_index = 2 * parent_index;
 	while (left_child_index >= 2 && left_child_index < self->first_free) {
@@ -120,7 +120,7 @@ static inline bool
 priority_queue_is_empty_locked(struct priority_queue *self)
 {
 	assert(self != NULL);
-	assert(LOCK_IS_LOCKED(&self->queue));
+	assert(LOCK_IS_LOCKED(&self->lock));
 	return self->first_free == 1;
 }
 
@@ -141,7 +141,7 @@ priority_queue_initialize(struct priority_queue *self, priority_queue_get_priori
 
 	memset(self->items, 0, sizeof(void *) * MAX);
 
-	LOCK_INIT(&self->queue);
+	LOCK_INIT(&self->lock);
 	self->first_free      = 1;
 	self->get_priority_fn = get_priority_fn;
 
@@ -158,9 +158,9 @@ priority_queue_length(struct priority_queue *self)
 {
 	assert(self != NULL);
 
-	LOCK_LOCK(&self->queue);
+	LOCK_LOCK(&self->lock);
 	int length = self->first_free - 1;
-	LOCK_UNLOCK(&self->queue);
+	LOCK_UNLOCK(&self->lock);
 	return length;
 }
 
@@ -174,7 +174,7 @@ priority_queue_enqueue(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
 
-	LOCK_LOCK(&self->queue);
+	LOCK_LOCK(&self->lock);
 
 	if (priority_queue_append(self, value) == -ENOSPC) return -ENOSPC;
 
@@ -185,7 +185,7 @@ priority_queue_enqueue(struct priority_queue *self, void *value)
 		priority_queue_percolate_up(self);
 	}
 
-	LOCK_UNLOCK(&self->queue);
+	LOCK_UNLOCK(&self->lock);
 
 	return 0;
 }
@@ -199,7 +199,7 @@ priority_queue_delete(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
 
-	LOCK_LOCK(&self->queue);
+	LOCK_LOCK(&self->lock);
 
 	bool did_delete = false;
 	for (int i = 1; i < self->first_free; i++) {
@@ -211,7 +211,7 @@ priority_queue_delete(struct priority_queue *self, void *value)
 		}
 	}
 
-	LOCK_UNLOCK(&self->queue);
+	LOCK_UNLOCK(&self->lock);
 
 	if (!did_delete) return -1;
 	return 0;
@@ -220,7 +220,7 @@ priority_queue_delete(struct priority_queue *self, void *value)
 /**
  * @param self - the priority queue we want to add to
  * @param dequeued_element a pointer to set to the dequeued element
- * @returns RC 0 if successfully set dequeued_element, -ENOENT if empty, -EAGAIN if unable to take lock
+ * @returns RC 0 if successfully set dequeued_element, -ENOENT if empty
  */
 int
 priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
@@ -231,14 +231,7 @@ priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 
 	int return_code;
 
-	struct ck_spinlock_mcs lock;
-	uint64_t               pre = __getcycles();
-	if (ck_spinlock_mcs_trylock(&self->queue, &lock) == false) {
-		worker_thread_lock_duration += (__getcycles() - pre);
-		return_code = -EAGAIN;
-		goto done;
-	};
-	worker_thread_lock_duration += (__getcycles() - pre);
+	LOCK_LOCK(&self->lock);
 
 	if (priority_queue_is_empty_locked(self)) {
 		return_code = -ENOENT;
@@ -260,7 +253,7 @@ priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 	return_code = 0;
 
 release_lock:
-	ck_spinlock_mcs_unlock(&self->queue, &lock);
+	LOCK_UNLOCK(&self->lock);
 done:
 	return return_code;
 }
@@ -269,7 +262,7 @@ done:
  * Returns the top of the priority queue without removing it
  * @param self - the priority queue we want to add to
  * @param dequeued_element a pointer to set to the top element
- * @returns RC 0 if successfully set dequeued_element, -ENOENT if empty, -EAGAIN if unable to take lock
+ * @returns RC 0 if successfully set dequeued_element, -ENOENT if empty
  */
 int
 priority_queue_top(struct priority_queue *self, void **dequeued_element)
@@ -280,14 +273,7 @@ priority_queue_top(struct priority_queue *self, void **dequeued_element)
 
 	int return_code;
 
-	struct ck_spinlock_mcs lock;
-	uint64_t               pre = __getcycles();
-	if (ck_spinlock_mcs_trylock(&self->queue, &lock) == false) {
-		worker_thread_lock_duration += (__getcycles() - pre);
-		return_code = -EAGAIN;
-		goto done;
-	};
-	worker_thread_lock_duration += (__getcycles() - pre);
+	LOCK_LOCK(&self->lock);
 
 	if (priority_queue_is_empty_locked(self)) {
 		return_code = -ENOENT;
@@ -298,7 +284,7 @@ priority_queue_top(struct priority_queue *self, void **dequeued_element)
 	return_code       = 0;
 
 release_lock:
-	ck_spinlock_mcs_unlock(&self->queue, &lock);
+	LOCK_UNLOCK(&self->lock);
 done:
 	return return_code;
 }
