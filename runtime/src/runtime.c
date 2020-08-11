@@ -124,7 +124,9 @@ listener_thread_main(void *dummy)
 
 				/* Add to work accepted by the runtime */
 				runtime_admitted += admissions_estimate;
+#ifdef LOG_ADMISSIONS_CONTROL
 				debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
+#endif
 			}
 		}
 	}

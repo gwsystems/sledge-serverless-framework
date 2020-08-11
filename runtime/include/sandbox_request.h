@@ -48,7 +48,9 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->absolute_deadline         = request_arrival_timestamp + module->relative_deadline;
 	sandbox_request->admissions_estimate       = admissions_estimate;
 
+#ifdef LOG_REQUEST_ALLOCATION
 	debuglog("Allocating %lu of %s:%d\n", sandbox_request->request_arrival_timestamp, sandbox_request->module->name,
 	         sandbox_request->module->port);
+#endif
 	return sandbox_request;
 }

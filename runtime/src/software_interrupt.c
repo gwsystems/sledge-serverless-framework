@@ -126,7 +126,10 @@ sigusr1_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 	assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
 
 	software_interrupt_SIGUSR_count++;
-	debuglog("usr1:%d\n", software_interrupt_SIGUSR_count);
+
+#ifdef LOG_PREEMPTION
+	debuglog("Total SIGUSR1 Received: %d\n", software_interrupt_SIGUSR_count);
+#endif
 
 	arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
 

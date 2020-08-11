@@ -87,9 +87,9 @@ runtime_allocate_available_cores()
 
 	assert(runtime_worker_threads_count == WORKER_THREAD_CORE_COUNT);
 
-	printf("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
-	       runtime_total_online_processors, runtime_worker_threads_count, runtime_first_worker_processor,
-	       LISTENER_THREAD_CORE_ID);
+	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
+	         runtime_total_online_processors, runtime_worker_threads_count, runtime_first_worker_processor,
+	         LISTENER_THREAD_CORE_ID);
 }
 
 /**
@@ -210,8 +210,9 @@ main(int argc, char **argv)
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();
 	runtime_initialize();
-
+#ifdef LOG_MODULE_LOADING
 	debuglog("Parsing modules file [%s]\n", argv[1]);
+#endif
 	if (module_new_from_json(argv[1])) panic("failed to parse modules file[%s]\n", argv[1]);
 
 	debuglog("Starting listener thread\n");

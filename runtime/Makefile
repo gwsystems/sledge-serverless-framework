@@ -14,10 +14,32 @@ NCORES = ${TOTAL_CORES}
 # Options: {USE_MEM_GENERIC, USE_MEM_VM}
 USE_MEM = USE_MEM_VM
 
-# Flags
+# Debugging Flags
+
+# Strips out calls to assert()
+# CFLAGS += -DNDEBUG
+
+# Turns on debuglog and other assorted printfs in third party libs
+CFLAGS += -DDEBUG
+
+# Redirects debuglogs to /runtime/bin/awesome.log 
+#FIXME This log should be changed to sledge.log (and likely to a user defined path)
+# CFLAGS += -DLOG_TO_FILE
+
+# Various Informational Logs for Debugging
+# CFLAGS += -DLOG_STATE_CHANGES
+# CFLAGS += -DLOG_LOCK_OVERHEAD
+# CFLAGS += -DLOG_CONTEXT_SWITCHES
+# CFLAGS += -DLOG_ADMISSIONS_CONTROL
+# CFLAGS += -DLOG_SANDBOX_PERF
+# CFLAGS += -DLOG_REQUEST_ALLOCATION
+# CFLAGS += -DLOG_PREEMPTION
+# CFLAGS += -DLOG_MODULE_LOADING
+
+# System Configuraiton Flags
+
+# Sets a flag equal to the processor architecture
 CFLAGS += -D${ARCH}
-#CFLAGS += -DDEBUG
-#CFLAGS += -DLOG_TO_FILE
 CFLAGS += -DNCORES=${NCORES}
 CFLAGS += -DPAGE_SIZE=$(PAGE_SIZE)
 #CFLAGS += -DPREEMPT_DISABLE

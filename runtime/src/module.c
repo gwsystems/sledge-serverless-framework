@@ -261,7 +261,9 @@ module_new_from_json(char *file_name)
 	/* Read the file into the buffer and check that the buffer size equals the file size */
 	errno                = 0;
 	int total_chars_read = fread(file_buffer, sizeof(char), stat_buffer.st_size, module_file);
+#ifdef LOG_MODULE_LOADING
 	debuglog("size read: %d content: %s\n", total_chars_read, file_buffer);
+#endif
 	if (total_chars_read != stat_buffer.st_size) {
 		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
 		goto fread_err;
@@ -417,8 +419,9 @@ module_new_from_json(char *file_name)
 	}
 
 	if (module_count == 0) fprintf(stderr, "%s contained no active modules\n", file_name);
+#ifdef LOG_MODULE_LOADING
 	debuglog("Loaded %d module%s!\n", module_count, module_count > 1 ? "s" : "");
-
+#endif
 	free(file_buffer);
 
 	return_code = 0;
