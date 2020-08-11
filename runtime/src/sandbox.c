@@ -329,8 +329,6 @@ current_sandbox_main(void)
 	assert(sandbox->state == SANDBOX_RUNNING);
 	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);
 
-	software_interrupt_enable();
-
 done:
 	/* Cleanup connection and exit sandbox */
 	sandbox_close_http(sandbox);
