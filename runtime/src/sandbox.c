@@ -785,9 +785,8 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	perf_window_add(&sandbox->module->perf_window, sandbox->running_duration);
 
 	runtime_admitted -= sandbox->admissions_estimate;
-	assert(runtime_admitted >= 0);
 
-	debuglog("Runtime Utilization: %f%%\n", runtime_admitted / runtime_worker_threads_count * 100);
+	debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
 
 	sandbox_print_perf(sandbox);
 

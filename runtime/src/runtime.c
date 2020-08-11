@@ -98,17 +98,10 @@ listener_thread_main(void *dummy)
 
 			/* Perform Admission Control */
 
-			/*
-			 * TODO: Enhance to use configurable percentiles rather than just mean. This can be policy
-			 * defined in the module specification
-			 */
-			uint64_t estimated_execution = perf_window_get_mean(&module->perf_window);
-
+			uint64_t estimated_execution = perf_window_get_percentile(&module->perf_window, 0.5);
 			/*
 			 * If this is the first execution, assume a default execution
 			 * TODO: Enhance module specification to provide "seed" value of estimated duration
-			 * TODO: Should we "rate limit" or only admit one request before we have actual data? Otherwise
-			 * we might be flooded with sandboxes that possibly underestimate
 			 */
 			if (estimated_execution == -1) estimated_execution = 1000;
 
@@ -131,8 +124,7 @@ listener_thread_main(void *dummy)
 
 				/* Add to work accepted by the runtime */
 				runtime_admitted += admissions_estimate;
-				debuglog("Runtime Utilization: %f%%\n",
-				         runtime_admitted / runtime_worker_threads_count * 100);
+				debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
 			}
 		}
 	}
