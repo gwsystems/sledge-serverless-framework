@@ -26,8 +26,9 @@ extern uint64_t                       software_interrupt_interval_duration_in_cy
 static inline void
 software_interrupt_disable(void)
 {
-	while (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 0, 1) == false)
-		;
+	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 0, 1) == false) {
+		panic("Recursive call to software_interrupt_disable\n");
+	}
 }
 
 
