@@ -133,10 +133,12 @@ perf_window_add(struct perf_window *self, uint64_t value)
 	/* The idx that we replaces should still point to the same value */
 	assert(self->sorted[self->buffer[self->count % PERF_WINDOW_BUFFER_SIZE]].execution_time == value);
 
-	/* The sorted array should be ordered by execution time */
+/* The sorted array should be ordered by execution time */
+#ifndef NDEBUG
 	for (int i = 1; i < PERF_WINDOW_BUFFER_SIZE; i++) {
 		assert(self->sorted[i - 1].execution_time <= self->sorted[i].execution_time);
 	}
+#endif
 
 	self->count++;
 
