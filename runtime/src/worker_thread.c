@@ -47,9 +47,11 @@ static inline void
 worker_thread_dump_lock_overhead()
 {
 #ifdef DEBUG
+#ifdef LOG_LOCK_OVERHEAD
 	uint64_t worker_duration = __getcycles() - worker_thread_start_timestamp;
 	debuglog("Locks consumed %lu / %lu cycles, or %f%%\n", worker_thread_lock_duration, worker_duration,
 	         (double)worker_thread_lock_duration / worker_duration * 100);
+#endif
 #endif
 }
 
@@ -100,9 +102,11 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 		sandbox_set_as_running(next_sandbox, next_sandbox->state);
 
+#ifdef LOG_CONTEXT_SWITCHES
 		debuglog("Base Context (%s) > Sandbox %lu (%s)\n",
 		         arch_context_variant_print(worker_thread_base_context.variant),
 		         next_sandbox->request_arrival_timestamp, arch_context_variant_print(next_context->variant));
+#endif
 
 		arch_context_switch(NULL, next_context);
 	} else {
@@ -115,8 +119,10 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 		struct arch_context *current_context = &current_sandbox->ctxt;
 
+#ifdef LOG_CONTEXT_SWITCHES
 		debuglog("Sandbox %lu > Sandbox %lu\n", current_sandbox->request_arrival_timestamp,
 		         next_sandbox->request_arrival_timestamp);
+#endif
 
 		/* Switch to the associated context. */
 		arch_context_switch(current_context, next_context);
@@ -143,9 +149,11 @@ worker_thread_switch_to_base_context()
 
 	current_sandbox_set(NULL);
 
+#ifdef LOG_CONTEXT_SWITCHES
 	debuglog("Sandbox %lu (%s) > Base Context (%s)\n", current_sandbox->request_arrival_timestamp,
 	         arch_context_variant_print(current_sandbox->ctxt.variant),
 	         arch_context_variant_print(worker_thread_base_context.variant));
+#endif
 
 	arch_context_switch(&current_sandbox->ctxt, &worker_thread_base_context);
 

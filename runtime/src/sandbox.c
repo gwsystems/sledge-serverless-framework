@@ -453,9 +453,9 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	assert(sandbox_request->socket_descriptor > 0);
 
 	assert(allocation_timestamp > 0);
-
+#ifdef LOG_STATE_CHANGES
 	debuglog("Sandbox %lu | Uninitialized => Initialized\n", sandbox_request->request_arrival_timestamp);
-
+#endif
 	sandbox->admissions_estimate = sandbox_request->admissions_estimate;
 
 	sandbox->request_arrival_timestamp   = sandbox_request->request_arrival_timestamp;
@@ -503,8 +503,11 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
+
+#ifdef LOG_STATE_CHANGES
 	debuglog("Sandbox %lu | %s => Runnable\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
+#endif
 
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
@@ -549,8 +552,10 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
+#ifdef LOG_STATE_CHANGES
 	debuglog("Sandbox %lu | %s => Running\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
+#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
@@ -592,8 +597,10 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_PREEMPTED;
+#ifdef LOG_STATE_CHANGES
 	debuglog("Sandbox %lu | %s => Preempted\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
+#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -628,8 +635,10 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_BLOCKED;
+#ifdef LOG_STATE_CHANGES
 	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
+#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -666,8 +675,10 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RETURNED;
+#ifdef LOG_STATE_CHANGES
 	debuglog("Sandbox %lu | %s => Returned\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
+#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -709,8 +720,10 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_ERROR;
+#ifdef LOG_STATE_CHANGES
 	debuglog("Sandbox %lu | %s => Error\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
+#endif
 
 	switch (last_state) {
 	case SANDBOX_SET_AS_INITIALIZED:
@@ -733,12 +746,16 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_ERROR;
 
+#ifdef LOG_SANDBOX_PERF
 	sandbox_print_perf(sandbox);
+#endif
 
 	runtime_admitted -= sandbox->admissions_estimate;
 	assert(runtime_admitted >= 0);
 
-	debuglog("Runtime Utilization: %f%%\n", runtime_admitted / runtime_worker_threads_count * 100);
+#ifdef LOG_ADMISSIONS_CONTROL
+	debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
+#endif
 
 	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
@@ -759,8 +776,10 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_COMPLETE;
+#ifdef LOG_STATE_CHANGES
 	debuglog("Sandbox %lu | %s => Complete\n", sandbox->request_arrival_timestamp,
 	         sandbox_state_stringify(last_state));
+#endif
 
 	switch (last_state) {
 	case SANDBOX_RETURNED: {
@@ -785,9 +804,13 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	runtime_admitted -= sandbox->admissions_estimate;
 
+#ifdef LOG_ADMISSIONS_CONTROL
 	debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
+#endif
 
+#ifdef LOG_SANDBOX_PERF
 	sandbox_print_perf(sandbox);
+#endif
 
 	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
