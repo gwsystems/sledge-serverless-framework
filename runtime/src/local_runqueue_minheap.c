@@ -78,13 +78,25 @@ local_runqueue_minheap_get_next()
 {
 	assert(!software_interrupt_is_enabled());
 
-	struct sandbox *        sandbox = NULL;
-	struct sandbox_request *sandbox_request;
-	int                     sandbox_rc = priority_queue_top(&local_runqueue_minheap, (void **)&sandbox);
+	struct sandbox *        sandbox         = NULL;
+	struct sandbox_request *sandbox_request = NULL;
+	int                     sandbox_rc      = priority_queue_top(&local_runqueue_minheap, (void **)&sandbox);
 
 	if (sandbox_rc == -ENOENT) {
 		/* local runqueue empty, try to pull a sandbox request */
-		if (global_request_scheduler_remove(&sandbox_request) < 0) goto done;
+
+		/*
+		 * This is effectively the idle loop. A worker thread spinlocks on
+		 * the earliest deadline, checking for the condition that indicates that
+		 * it is empty.
+		 */
+		while (sandbox_request == NULL) {
+			/* Spin without taking the lock if the request queue is empty */
+			while (global_request_scheduler_peek() == ULONG_MAX)
+				;
+
+			if (global_request_scheduler_remove(&sandbox_request) < 0) goto done;
+		}
 
 		/* Try to allocate a sandbox, returning the request on failure */
 		sandbox = sandbox_allocate(sandbox_request);
