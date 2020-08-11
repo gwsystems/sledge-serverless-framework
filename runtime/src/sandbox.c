@@ -501,7 +501,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
 	debuglog("Sandbox %lu | %s => Runnable\n", sandbox->request_arrival_timestamp,
@@ -547,7 +547,7 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
 	debuglog("Sandbox %lu | %s => Running\n", sandbox->request_arrival_timestamp,
@@ -590,7 +590,7 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_PREEMPTED;
 	debuglog("Sandbox %lu | %s => Preempted\n", sandbox->request_arrival_timestamp,
@@ -626,7 +626,7 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_BLOCKED;
 	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->request_arrival_timestamp,
@@ -664,7 +664,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RETURNED;
 	debuglog("Sandbox %lu | %s => Returned\n", sandbox->request_arrival_timestamp,
@@ -707,7 +707,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(sandbox);
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_ERROR;
 	debuglog("Sandbox %lu | %s => Error\n", sandbox->request_arrival_timestamp,
@@ -757,7 +757,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_COMPLETE;
 	debuglog("Sandbox %lu | %s => Complete\n", sandbox->request_arrival_timestamp,
