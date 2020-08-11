@@ -444,6 +444,7 @@ void
 sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
                            uint64_t allocation_timestamp)
 {
+	assert(!software_interrupt_is_enabled());
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_ALLOCATED);
 
@@ -455,7 +456,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 
 	assert(allocation_timestamp > 0);
 
-	debuglog("Sandbox %lu | Uninitialized => Initialized\n", sandbox->request_arrival_timestamp);
+	debuglog("Sandbox %lu | Uninitialized => Initialized\n", sandbox_request->request_arrival_timestamp);
 
 	sandbox->admissions_estimate = sandbox_request->admissions_estimate;
 
