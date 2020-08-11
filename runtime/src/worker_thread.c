@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sched.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <uv.h>
 
@@ -311,5 +312,5 @@ worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 	assert(!software_interrupt_is_enabled());
 	worker_thread_dump_lock_overhead();
 	worker_thread_switch_to_base_context();
-	assert(0);
+	abort();
 }

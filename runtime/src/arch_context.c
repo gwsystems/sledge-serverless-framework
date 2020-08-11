@@ -1,7 +1,7 @@
-#include <assert.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 /**
  * Called by the inline assembly in arch_context_switch to send a SIGUSR1 in order to restore a previously preempted
@@ -12,5 +12,5 @@
 void __attribute__((noinline)) __attribute__((noreturn)) arch_context_restore_preempted(void)
 {
 	pthread_kill(pthread_self(), SIGUSR1);
-	assert(false);
+	abort();
 }
