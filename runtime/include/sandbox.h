@@ -71,12 +71,12 @@ struct sandbox {
 	uint64_t last_state_change_timestamp; /* Used for bookkeeping of actual execution time */
 
 	/* Duration of time (in cycles) that the sandbox is in each state */
-	uint64_t initializing_duration;
-	uint64_t runnable_duration;
-	uint64_t preempted_duration;
-	uint64_t running_duration;
-	uint64_t blocked_duration;
-	uint64_t returned_duration;
+	uint32_t initializing_duration;
+	uint32_t runnable_duration;
+	uint32_t preempted_duration;
+	uint32_t running_duration;
+	uint32_t blocked_duration;
+	uint32_t returned_duration;
 
 	uint64_t absolute_deadline;
 	uint64_t total_time; /* From Request to Response */
@@ -317,18 +317,18 @@ sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
 static inline void
 sandbox_print_perf(struct sandbox *sandbox)
 {
-	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
-	uint64_t queued_us     = (sandbox->allocation_timestamp - sandbox->request_arrival_timestamp)
+	uint32_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
+	uint32_t queued_us     = (sandbox->allocation_timestamp - sandbox->request_arrival_timestamp)
 	                     / runtime_processor_speed_MHz;
-	uint64_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
-	uint64_t runnable_us     = sandbox->runnable_duration / runtime_processor_speed_MHz;
-	uint64_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
-	uint64_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
-	uint64_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
-	debuglog("%lu, %s():%d, state: %s, deadline: %u, actual: %lu, queued: %lu, initializing: %lu, runnable: %lu, "
-	         "running: "
-	         "%lu, blocked: "
-	         "%lu, returned %lu\n",
+	uint32_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
+	uint32_t runnable_us     = sandbox->runnable_duration / runtime_processor_speed_MHz;
+	uint32_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
+	uint32_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
+	uint32_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
+	debuglog("%lu, %s():%d, state: %s, deadline: %u, actual: %u, queued: %u, initializing: %u, runnable: %u, "
+	         "running: %u, "
+	         "blocked: %u, "
+	         "returned %u\n",
 	         sandbox->request_arrival_timestamp, sandbox->module->name, sandbox->module->port,
 	         sandbox_state_stringify(sandbox->state), sandbox->module->relative_deadline_us, total_time_us,
 	         queued_us, initializing_us, runnable_us, running_us, blocked_us, returned_us);

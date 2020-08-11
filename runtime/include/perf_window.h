@@ -20,7 +20,7 @@
  * This provides a sorted circular buffer
  */
 struct execution_node {
-	uint64_t execution_time;
+	uint32_t execution_time;
 	uint16_t buffer_idx; /* Reverse Index back to the sorted bin equal to this index */
 };
 
@@ -68,8 +68,8 @@ perf_window_swap(struct perf_window *self, uint16_t first_sorted_idx, uint16_t s
 	assert(self->buffer[first_buffer_idx] == first_sorted_idx);
 	assert(self->buffer[second_buffer_idx] == second_sorted_idx);
 
-	uint64_t first_execution_time  = self->sorted[first_sorted_idx].execution_time;
-	uint64_t second_execution_time = self->sorted[second_sorted_idx].execution_time;
+	uint32_t first_execution_time  = self->sorted[first_sorted_idx].execution_time;
+	uint32_t second_execution_time = self->sorted[second_sorted_idx].execution_time;
 
 	/* Swap Indices in Buffer*/
 	self->buffer[first_buffer_idx]  = second_sorted_idx;
@@ -92,7 +92,7 @@ perf_window_swap(struct perf_window *self, uint16_t first_sorted_idx, uint16_t s
  * @param value
  */
 static inline void
-perf_window_add(struct perf_window *self, uint64_t value)
+perf_window_add(struct perf_window *self, uint32_t value)
 {
 	assert(self != NULL);
 
@@ -152,7 +152,7 @@ done:
  * @param percentile represented by double between 0 and 1
  * @returns execution time or -1 if buffer is empty
  */
-static inline uint64_t
+static inline uint32_t
 perf_window_get_percentile(struct perf_window *self, double percentile)
 {
 	assert(self != NULL);

@@ -98,7 +98,7 @@ listener_thread_main(void *dummy)
 
 			/* Perform Admission Control */
 
-			uint64_t estimated_execution = perf_window_get_percentile(&module->perf_window, 0.5);
+			uint32_t estimated_execution = perf_window_get_percentile(&module->perf_window, 0.5);
 			/*
 			 * If this is the first execution, assume a default execution
 			 * TODO: Enhance module specification to provide "seed" value of estimated duration
