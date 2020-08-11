@@ -14,19 +14,20 @@
 #endif
 
 /*
- * The sorted array sorts the last N executions by execution time
- * The buffer array acts as a circular buffer of indices into the sorted array
+ * The by_duration array sorts the last N executions by execution time
+ * The by_termination array acts as a circular buffer that maps to indices in the by_duration array
  *
- * This provides a sorted circular buffer
+ * by_termination ensures that the when the circular buffer is full, the oldest data in both arrays is
+ * overwritten, providing a sorted circular buffer
  */
 struct execution_node {
 	uint32_t execution_time;
-	uint16_t buffer_idx; /* Reverse Index back to the sorted bin equal to this index */
+	uint16_t by_termination_idx; /* Reverse idx of the associated by_termination bin. Used for swaps! */
 };
 
 struct perf_window {
-	struct execution_node sorted[PERF_WINDOW_BUFFER_SIZE];
-	uint16_t              buffer[PERF_WINDOW_BUFFER_SIZE];
+	struct execution_node by_duration[PERF_WINDOW_BUFFER_SIZE];
+	uint16_t              by_termination[PERF_WINDOW_BUFFER_SIZE];
 	uint64_t              count;
 	lock_t                lock;
 };
@@ -42,47 +43,50 @@ perf_window_initialize(struct perf_window *self)
 
 	LOCK_INIT(&self->lock);
 	self->count = 0;
-	memset(&self->sorted, 0, sizeof(struct execution_node) * PERF_WINDOW_BUFFER_SIZE);
-	memset(&self->buffer, 0, sizeof(uint16_t) * PERF_WINDOW_BUFFER_SIZE);
+	memset(&self->by_duration, 0, sizeof(struct execution_node) * PERF_WINDOW_BUFFER_SIZE);
+	memset(&self->by_termination, 0, sizeof(uint16_t) * PERF_WINDOW_BUFFER_SIZE);
 }
 
 
 /**
- * Swaps two execution nodes in the sorted array, including updating the indices in the circular buffer
+ * Swaps two execution nodes in the by_duration array, including updating the indices in the by_termination circular
+ * buffer
  * @param self
- * @param first_sorted_idx
- * @param second_sorted_idx
+ * @param first_by_duration_idx
+ * @param second_by_duration_idx
  */
 static inline void
-perf_window_swap(struct perf_window *self, uint16_t first_sorted_idx, uint16_t second_sorted_idx)
+perf_window_swap(struct perf_window *self, uint16_t first_by_duration_idx, uint16_t second_by_duration_idx)
 {
 	assert(LOCK_IS_LOCKED(&self->lock));
 	assert(self != NULL);
-	assert(first_sorted_idx >= 0 && first_sorted_idx < PERF_WINDOW_BUFFER_SIZE);
-	assert(second_sorted_idx >= 0 && second_sorted_idx < PERF_WINDOW_BUFFER_SIZE);
+	assert(first_by_duration_idx >= 0 && first_by_duration_idx < PERF_WINDOW_BUFFER_SIZE);
+	assert(second_by_duration_idx >= 0 && second_by_duration_idx < PERF_WINDOW_BUFFER_SIZE);
 
-	uint16_t first_buffer_idx  = self->sorted[first_sorted_idx].buffer_idx;
-	uint16_t second_buffer_idx = self->sorted[second_sorted_idx].buffer_idx;
+	uint16_t first_by_termination_idx  = self->by_duration[first_by_duration_idx].by_termination_idx;
+	uint16_t second_by_termination_idx = self->by_duration[second_by_duration_idx].by_termination_idx;
 
-	/* The execution node's buffer_idx points to a buffer cell equal to its own sorted index  */
-	assert(self->buffer[first_buffer_idx] == first_sorted_idx);
-	assert(self->buffer[second_buffer_idx] == second_sorted_idx);
+	/* The execution node's by_termination_idx points to a by_termination cell equal to its own by_duration index */
+	assert(self->by_termination[first_by_termination_idx] == first_by_duration_idx);
+	assert(self->by_termination[second_by_termination_idx] == second_by_duration_idx);
 
-	uint32_t first_execution_time  = self->sorted[first_sorted_idx].execution_time;
-	uint32_t second_execution_time = self->sorted[second_sorted_idx].execution_time;
+	uint32_t first_execution_time  = self->by_duration[first_by_duration_idx].execution_time;
+	uint32_t second_execution_time = self->by_duration[second_by_duration_idx].execution_time;
 
 	/* Swap Indices in Buffer*/
-	self->buffer[first_buffer_idx]  = second_sorted_idx;
-	self->buffer[second_buffer_idx] = first_sorted_idx;
+	self->by_termination[first_by_termination_idx]  = second_by_duration_idx;
+	self->by_termination[second_by_termination_idx] = first_by_duration_idx;
 
-	/* Swap buffer_idx */
-	struct execution_node tmp_node  = self->sorted[first_sorted_idx];
-	self->sorted[first_sorted_idx]  = self->sorted[second_sorted_idx];
-	self->sorted[second_sorted_idx] = tmp_node;
+	/* Swap by_termination_idx */
+	struct execution_node tmp_node            = self->by_duration[first_by_duration_idx];
+	self->by_duration[first_by_duration_idx]  = self->by_duration[second_by_duration_idx];
+	self->by_duration[second_by_duration_idx] = tmp_node;
 
-	/* The circular buffer indices should always point to the same execution times across all swaps  */
-	assert(self->sorted[self->buffer[first_buffer_idx]].execution_time == first_execution_time);
-	assert(self->sorted[self->buffer[second_buffer_idx]].execution_time == second_execution_time);
+	/* The circular by_termination indices should always point to the same execution times across all swaps  */
+	assert(self->by_duration[self->by_termination[first_by_termination_idx]].execution_time
+	       == first_execution_time);
+	assert(self->by_duration[self->by_termination[second_by_termination_idx]].execution_time
+	       == second_execution_time);
 }
 
 /**
@@ -104,39 +108,41 @@ perf_window_add(struct perf_window *self, uint32_t value)
 	/* If count is 0, then fill entire array with initial execution times */
 	if (self->count == 0) {
 		for (int i = 0; i < PERF_WINDOW_BUFFER_SIZE; i++) {
-			self->buffer[i] = i;
-			self->sorted[i] = (struct execution_node){ .execution_time = value, .buffer_idx = i };
+			self->by_termination[i] = i;
+			self->by_duration[i]    = (struct execution_node){ .execution_time     = value,
+                                                                        .by_termination_idx = i };
 		}
 		self->count = PERF_WINDOW_BUFFER_SIZE;
 		goto done;
 	}
 
 	/* Otherwise, replace the oldest value, and then sort */
-	uint16_t idx_of_oldest = self->buffer[self->count % PERF_WINDOW_BUFFER_SIZE];
-	bool     check_up      = value > self->sorted[idx_of_oldest].execution_time;
+	uint16_t idx_of_oldest = self->by_termination[self->count % PERF_WINDOW_BUFFER_SIZE];
+	bool     check_up      = value > self->by_duration[idx_of_oldest].execution_time;
 
-	self->sorted[idx_of_oldest].execution_time = value;
+	self->by_duration[idx_of_oldest].execution_time = value;
 
 	if (check_up) {
-		for (uint16_t i = idx_of_oldest; i + 1 < PERF_WINDOW_BUFFER_SIZE
-		                                 && self->sorted[i + 1].execution_time < self->sorted[i].execution_time;
+		for (uint16_t i = idx_of_oldest;
+		     i + 1 < PERF_WINDOW_BUFFER_SIZE
+		     && self->by_duration[i + 1].execution_time < self->by_duration[i].execution_time;
 		     i++) {
 			perf_window_swap(self, i, i + 1);
 		}
 	} else {
-		for (uint16_t i = idx_of_oldest;
-		     i - 1 >= 0 && self->sorted[i - 1].execution_time > self->sorted[i].execution_time; i--) {
+		for (int i = idx_of_oldest;
+		     i - 1 >= 0 && self->by_duration[i - 1].execution_time > self->by_duration[i].execution_time; i--) {
 			perf_window_swap(self, i, i - 1);
 		}
 	}
 
 	/* The idx that we replaces should still point to the same value */
-	assert(self->sorted[self->buffer[self->count % PERF_WINDOW_BUFFER_SIZE]].execution_time == value);
+	assert(self->by_duration[self->by_termination[self->count % PERF_WINDOW_BUFFER_SIZE]].execution_time == value);
 
-/* The sorted array should be ordered by execution time */
+/* The by_duration array should be ordered by execution time */
 #ifndef NDEBUG
 	for (int i = 1; i < PERF_WINDOW_BUFFER_SIZE; i++) {
-		assert(self->sorted[i - 1].execution_time <= self->sorted[i].execution_time);
+		assert(self->by_duration[i - 1].execution_time <= self->by_duration[i].execution_time);
 	}
 #endif
 
@@ -150,7 +156,7 @@ done:
  * Returns pXX execution time
  * @param self
  * @param percentile represented by double between 0 and 1
- * @returns execution time or -1 if buffer is empty
+ * @returns execution time or -1 if by_termination is empty
  */
 static inline uint32_t
 perf_window_get_percentile(struct perf_window *self, double percentile)
@@ -160,7 +166,7 @@ perf_window_get_percentile(struct perf_window *self, double percentile)
 
 	if (self->count == 0) return -1;
 
-	return self->sorted[(int)(PERF_WINDOW_BUFFER_SIZE * percentile)].execution_time;
+	return self->by_duration[(int)(PERF_WINDOW_BUFFER_SIZE * percentile)].execution_time;
 }
 
 /**
