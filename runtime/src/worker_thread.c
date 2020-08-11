@@ -308,7 +308,7 @@ __attribute__((noreturn)) void
 worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 {
 	assert(exiting_sandbox);
-	software_interrupt_disable();
+	assert(!software_interrupt_is_enabled());
 	worker_thread_dump_lock_overhead();
 	worker_thread_switch_to_base_context();
 	assert(0);
