@@ -142,10 +142,17 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		         current_sandbox->request_arrival_timestamp, local_deadline, global_deadline);
 #endif
 
-		int return_code = global_request_scheduler_remove(&sandbox_request);
+		int return_code = global_request_scheduler_remove_if_earlier(&sandbox_request, local_deadline);
 
 		/* If we were unable to get a sandbox_request, exit */
-		if (return_code != 0) goto done;
+		if (return_code != 0) {
+#ifdef LOG_PREEMPTION
+			debuglog("Preemption aborted. Another thread took the request\n");
+#endif
+			goto done;
+		}
+
+		assert(sandbox_request->absolute_deadline < local_deadline);
 
 #ifdef LOG_PREEMPTION
 		debuglog("Preempted %lu for %lu\n", local_deadline, sandbox_request->absolute_deadline);

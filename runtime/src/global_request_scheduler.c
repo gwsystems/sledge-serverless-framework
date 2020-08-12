@@ -62,6 +62,20 @@ global_request_scheduler_remove(struct sandbox_request **removed_sandbox)
 }
 
 /**
+ * Removes a sandbox request according to the scheduling policy of the variant
+ * @param removed_sandbox where to write the adddress of the removed sandbox
+ * @param target_deadline the deadline that must be validated before dequeuing
+ * @returns 0 if successfully returned a sandbox request, -ENOENT if empty or if no element meets target_deadline,
+ * -EAGAIN if atomic operation unsuccessful
+ */
+int
+global_request_scheduler_remove_if_earlier(struct sandbox_request **removed_sandbox, uint64_t target_deadline)
+{
+	assert(removed_sandbox != NULL);
+	return global_request_scheduler.remove_if_earlier_fn(removed_sandbox, target_deadline);
+}
+
+/**
  * Peeks at the priority of the highest priority sandbox request
  * @returns highest priority
  */
