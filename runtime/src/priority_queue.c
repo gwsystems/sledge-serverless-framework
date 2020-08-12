@@ -245,6 +245,18 @@ priority_queue_delete(struct priority_queue *self, void *value)
 int
 priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 {
+	return priority_queue_dequeue_if_earlier(self, dequeued_element, UINT64_MAX);
+}
+
+/**
+ * @param self - the priority queue we want to add to
+ * @param dequeued_element a pointer to set to the dequeued element
+ * @param target_deadline the deadline that the request must be earlier than in order to dequeue
+ * @returns RC 0 if successfully set dequeued_element, -ENOENT if empty or if none meet target_deadline
+ */
+int
+priority_queue_dequeue_if_earlier(struct priority_queue *self, void **dequeued_element, uint64_t target_deadline)
+{
 	assert(self != NULL);
 	assert(dequeued_element != NULL);
 	assert(self->get_priority_fn != NULL);
@@ -253,7 +265,8 @@ priority_queue_dequeue(struct priority_queue *self, void **dequeued_element)
 
 	LOCK_LOCK(&self->lock);
 
-	if (priority_queue_is_empty_locked(self)) goto err_enoent;
+	/* If the dequeue is not higher priority (earlier timestamp) than targed_deadline, return immediately */
+	if (priority_queue_is_empty_locked(self) || self->highest_priority >= target_deadline) goto err_enoent;
 
 	*dequeued_element             = self->items[1];
 	self->items[1]                = self->items[--self->first_free];

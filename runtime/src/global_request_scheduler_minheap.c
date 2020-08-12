@@ -38,6 +38,20 @@ global_request_scheduler_minheap_remove(struct sandbox_request **removed_sandbox
 }
 
 /**
+ * @param removed_sandbox_request pointer to set to removed sandbox request
+ * @param target_deadline the deadline that the request must be earlier than to dequeue
+ * @returns 0 if successful, -ENOENT if empty or if request isn't earlier than target_deadline
+ */
+int
+global_request_scheduler_minheap_remove_if_earlier(struct sandbox_request **removed_sandbox_request,
+                                                   uint64_t                 target_deadline)
+{
+	assert(!software_interrupt_is_enabled());
+	return priority_queue_dequeue_if_earlier(&global_request_scheduler_minheap, (void **)removed_sandbox_request,
+	                                         target_deadline);
+}
+
+/**
  * Peek at the priority of the highest priority task without having to take the lock
  * Because this is a min-heap PQ, the highest priority is the lowest 64-bit integer
  * This is used to store an absolute deadline
@@ -65,9 +79,12 @@ global_request_scheduler_minheap_initialize()
 {
 	priority_queue_initialize(&global_request_scheduler_minheap, sandbox_request_get_priority_fn);
 
-	struct global_request_scheduler_config config = { .add_fn    = global_request_scheduler_minheap_add,
-		                                          .remove_fn = global_request_scheduler_minheap_remove,
-		                                          .peek_fn   = global_request_scheduler_minheap_peek };
+	struct global_request_scheduler_config config = {
+		.add_fn               = global_request_scheduler_minheap_add,
+		.remove_fn            = global_request_scheduler_minheap_remove,
+		.remove_if_earlier_fn = global_request_scheduler_minheap_remove_if_earlier,
+		.peek_fn              = global_request_scheduler_minheap_peek
+	};
 
 	global_request_scheduler_initialize(&config);
 }

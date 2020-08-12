@@ -36,6 +36,14 @@ global_request_scheduler_deque_remove(struct sandbox_request **removed_sandbox_r
 	return deque_steal_sandbox(global_request_scheduler_deque, removed_sandbox_request);
 }
 
+static int
+global_request_scheduler_deque_remove_if_earlier(struct sandbox_request **removed_sandbox_request,
+                                                 uint64_t                 target_deadline)
+{
+	panic("Deque variant does not support this call\n");
+	return -1;
+}
+
 void
 global_request_scheduler_deque_initialize()
 {
@@ -46,8 +54,11 @@ global_request_scheduler_deque_initialize()
 	deque_init_sandbox(global_request_scheduler_deque, RUNTIME_MAX_SANDBOX_REQUEST_COUNT);
 
 	/* Register Function Pointers for Abstract Scheduling API */
-	struct global_request_scheduler_config config = { .add_fn    = global_request_scheduler_deque_add,
-		                                          .remove_fn = global_request_scheduler_deque_remove };
+	struct global_request_scheduler_config config = {
+		.add_fn               = global_request_scheduler_deque_add,
+		.remove_fn            = global_request_scheduler_deque_remove,
+		.remove_if_earlier_fn = global_request_scheduler_deque_remove_if_earlier
+	};
 
 	global_request_scheduler_initialize(&config);
 }
