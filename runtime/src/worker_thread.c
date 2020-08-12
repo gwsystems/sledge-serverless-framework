@@ -320,5 +320,5 @@ worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 	assert(!software_interrupt_is_enabled());
 	worker_thread_dump_lock_overhead();
 	worker_thread_switch_to_base_context();
-	abort();
+	panic("Unexpected return\n");
 }
