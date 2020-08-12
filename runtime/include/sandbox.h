@@ -181,7 +181,7 @@ sandbox_state_stringify(sandbox_state_t state)
 		return "Error";
 	default:
 		/* Crash, as this should be exclusive */
-		abort();
+		panic("%d is an unrecognized sandbox state\n", state);
 	}
 }
 

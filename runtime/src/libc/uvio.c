@@ -628,7 +628,7 @@ wasm_fcntl(uint32_t file_descriptor, uint32_t cmd, uint32_t arg_or_lock_ptr)
 	case WF_SETLK:
 		return 0;
 	default:
-		abort();
+		panic("Invalid command %d\n", cmd);
 	}
 }
 
