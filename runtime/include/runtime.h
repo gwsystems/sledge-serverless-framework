@@ -12,7 +12,7 @@
 #endif
 
 #define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
-#define LISTENER_THREAD_MAX_EPOLL_EVENTS 1024
+#define LISTENER_THREAD_MAX_EPOLL_EVENTS 2048
 
 #define RUNTIME_LOG_FILE                  "awesome.log"
 #define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19) /* random! */
@@ -83,9 +83,12 @@ runtime_is_worker()
 static inline void
 runtime_log_requests_responses()
 {
-	debuglog("Requests: %u\n2XX: %u\n4XX: %u\n5XX: %u\nOutstanding Requests: %u\n", runtime_total_requests,
-	         runtime_total_2XX_responses, runtime_total_4XX_responses, runtime_total_5XX_responses,
-	         runtime_total_requests - runtime_total_2XX_responses - runtime_total_4XX_responses
-	           - runtime_total_5XX_responses);
+	int64_t total_responses = runtime_total_2XX_responses + runtime_total_4XX_responses
+	                          + runtime_total_5XX_responses;
+	int64_t outstanding_requests = (int64_t)runtime_total_requests - total_responses;
+
+	debuglog("Requests: %u (%ld outstanding)\n\tResponses: %ld\n\t\t2XX: %u\n\t\t4XX: %u\n\t\t5XX: %u\n",
+	         runtime_total_requests, outstanding_requests, total_responses, runtime_total_2XX_responses,
+	         runtime_total_4XX_responses, runtime_total_5XX_responses);
 };
 #endif
