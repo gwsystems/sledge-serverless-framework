@@ -4,6 +4,7 @@
 #include <uv.h>
 
 #include "arch/context.h"
+#include "debuglog.h"
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
 #include "http_parser_settings.h"
@@ -20,6 +21,13 @@
 int    runtime_epoll_file_descriptor;
 double runtime_admitted;
 
+#ifdef LOG_TOTAL_REQS_RESPS
+_Atomic uint32_t runtime_total_requests;
+_Atomic uint32_t runtime_total_2XX_responses;
+_Atomic uint32_t runtime_total_4XX_responses;
+_Atomic uint32_t runtime_total_5XX_responses;
+#endif
+
 /******************************************
  * Shared Process / Listener Thread Logic *
  *****************************************/
@@ -33,6 +41,15 @@ runtime_initialize(void)
 	/* Setup epoll */
 	runtime_epoll_file_descriptor = epoll_create1(0);
 	assert(runtime_epoll_file_descriptor >= 0);
+
+
+#ifdef LOG_TOTAL_REQS_RESPS
+	/* Setup Counts */
+	runtime_total_requests      = 0;
+	runtime_total_2XX_responses = 0;
+	runtime_total_4XX_responses = 0;
+	runtime_total_5XX_responses = 0;
+#endif
 
 	/* Allocate and Initialize the global deque
 	TODO: Improve to expose variant as a config #Issue 93
@@ -55,6 +72,32 @@ runtime_initialize(void)
  ************************/
 
 /**
+ * Rejects Requests as determined by admissions control
+ * @param socket_descriptor - the client we are rejecting
+ */
+static inline void
+listener_thread_reject(int socket_descriptor)
+{
+	assert(socket_descriptor >= 0);
+
+	int send_rc = send(socket_descriptor, HTTP_RESPONSE_504_SERVICE_UNAVAILABLE,
+	                   strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE), 0);
+	if (send_rc < 0) goto send_504_err;
+
+#ifdef LOG_TOTAL_REQS_RESPS
+	runtime_total_5XX_responses++;
+	runtime_log_requests_responses();
+#endif
+
+close:
+	if (close(socket_descriptor) < 0) panic("Error closing client socket - %s", strerror(errno));
+	return;
+send_504_err:
+	debuglog("Error sending 504: %s", strerror(errno));
+	goto close;
+}
+
+/**
  * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and pushes
  * the sandbox object to the global dequeue
  * @param dummy data pointer provided by pthreads API. Unused in this function
@@ -64,12 +107,11 @@ runtime_initialize(void)
  * runtime_epoll_file_descriptor - the epoll file descriptor
  *
  */
-void *
+__attribute__((noreturn)) void *
 listener_thread_main(void *dummy)
 {
-	struct epoll_event *epoll_events   = (struct epoll_event *)malloc(LISTENER_THREAD_MAX_EPOLL_EVENTS
-                                                                        * sizeof(struct epoll_event));
-	int                 total_requests = 0;
+	struct epoll_event *epoll_events = (struct epoll_event *)malloc(LISTENER_THREAD_MAX_EPOLL_EVENTS
+	                                                                * sizeof(struct epoll_event));
 
 	while (true) {
 		int request_count = epoll_wait(runtime_epoll_file_descriptor, epoll_events,
@@ -94,7 +136,10 @@ listener_thread_main(void *dummy)
 				perror("accept");
 				assert(false);
 			}
-			total_requests++;
+#ifdef LOG_TOTAL_REQS_RESPS
+			runtime_total_requests++;
+			runtime_log_requests_responses();
+#endif
 
 			/* Perform Admission Control */
 
@@ -108,31 +153,30 @@ listener_thread_main(void *dummy)
 			double admissions_estimate = (double)estimated_execution / module->relative_deadline;
 
 			if (runtime_admitted + admissions_estimate >= runtime_worker_threads_count) {
-				/* Reject Requests that exceed system capacity */
-				send(socket_descriptor, HTTP_RESPONSE_504_SERVICE_UNAVAILABLE,
-				     strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE), 0);
-			} else {
-				/* Allocate a Sandbox Request */
-				struct sandbox_request *sandbox_request =
-				  sandbox_request_allocate(module, module->name, socket_descriptor,
-				                           (const struct sockaddr *)&client_address,
-				                           request_arrival_timestamp, admissions_estimate);
-				assert(sandbox_request);
-
-				/* Add to the Global Sandbox Request Scheduler */
-				global_request_scheduler_add(sandbox_request);
-
-				/* Add to work accepted by the runtime */
-				runtime_admitted += admissions_estimate;
-#ifdef LOG_ADMISSIONS_CONTROL
-				debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
-#endif
+				listener_thread_reject(socket_descriptor);
+				continue;
 			}
+
+			/* Allocate a Sandbox Request */
+			struct sandbox_request *sandbox_request =
+			  sandbox_request_allocate(module, module->name, socket_descriptor,
+			                           (const struct sockaddr *)&client_address, request_arrival_timestamp,
+			                           admissions_estimate);
+
+			/* Add to the Global Sandbox Request Scheduler */
+			global_request_scheduler_add(sandbox_request);
+
+			/* Add to work accepted by the runtime */
+			runtime_admitted += admissions_estimate;
+
+#ifdef LOG_ADMISSIONS_CONTROL
+			debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
+#endif
 		}
 	}
 
 	free(epoll_events);
-	return NULL;
+	panic("Listener thread unexpectedly broke loop\n");
 }
 
 /**

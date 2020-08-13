@@ -81,7 +81,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	r = recv(sandbox->client_socket_descriptor, (sandbox->request_response_data), sandbox->module->max_request_size,
 	         0);
 	if (r < 0) {
-		perror("Error reading request data from client socket");
+		debuglog("Error reading request data from client socket - %s", strerror(errno));
 		return r;
 	}
 	while (r > 0) {
@@ -94,7 +94,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 		         (sandbox->request_response_data + sandbox->request_response_data_length),
 		         sandbox->module->max_request_size - sandbox->request_response_data_length, 0);
 		if (r < 0) {
-			perror("recv2");
+			debuglog("Error reading request data from client socket - %s", strerror(errno));
 			return r;
 		}
 	}
@@ -228,7 +228,9 @@ sandbox_close_http(struct sandbox *sandbox)
 	uv_close((uv_handle_t *)&sandbox->client_libuv_stream, libuv_callbacks_on_close_wakeup_sakebox);
 	worker_thread_process_io();
 #else
-	close(sandbox->client_socket_descriptor);
+	if (close(sandbox->client_socket_descriptor) < 0) {
+		panic("Error closing client socket - %s", strerror(errno));
+	}
 #endif
 }
 
@@ -322,16 +324,21 @@ current_sandbox_main(void)
 		goto err;
 	};
 
+#ifdef LOG_TOTAL_REQS_RESPS
+	runtime_total_2XX_responses++;
+	runtime_log_requests_responses();
+#endif
+
 	sandbox->response_timestamp = __getcycles();
 
 	software_interrupt_disable();
 
 	assert(sandbox->state == SANDBOX_RUNNING);
+	sandbox_close_http(sandbox);
 	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);
 
 done:
 	/* Cleanup connection and exit sandbox */
-	sandbox_close_http(sandbox);
 	worker_thread_on_sandbox_exit(sandbox);
 
 	/* This assert prevents a segfault discussed in
@@ -343,7 +350,14 @@ err:
 	assert(sandbox->state == SANDBOX_RUNNING);
 	send(sandbox->client_socket_descriptor, HTTP_RESPONSE_400_BAD_REQUEST, strlen(HTTP_RESPONSE_400_BAD_REQUEST),
 	     0);
+
+#ifdef LOG_TOTAL_REQS_RESPS
+	runtime_total_4XX_responses++;
+	debuglog("At %llu, Sandbox %lu - 4XX\n", __getcycles(), sandbox->request_arrival_timestamp);
+	runtime_log_requests_responses();
+#endif
 	software_interrupt_disable();
+	sandbox_close_http(sandbox);
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);
 	goto done;
 }
@@ -751,7 +765,6 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 #endif
 
 	runtime_admitted -= sandbox->admissions_estimate;
-	assert(runtime_admitted >= 0);
 
 #ifdef LOG_ADMISSIONS_CONTROL
 	debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);

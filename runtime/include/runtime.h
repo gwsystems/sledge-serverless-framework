@@ -6,6 +6,11 @@
 
 #include "types.h"
 
+#ifdef LOG_TOTAL_REQS_RESPS
+#include <stdatomic.h>
+#include "debuglog.h"
+#endif
+
 #define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
 #define LISTENER_THREAD_MAX_EPOLL_EVENTS 1024
 
@@ -28,6 +33,14 @@ extern float runtime_processor_speed_MHz;
 /* Count of worker threads and array of their pthread identifiers */
 extern pthread_t runtime_worker_threads[];
 extern uint32_t  runtime_worker_threads_count;
+
+#ifdef LOG_TOTAL_REQS_RESPS
+/* Counts to track requests and responses */
+extern _Atomic uint32_t runtime_total_requests;
+extern _Atomic uint32_t runtime_total_2XX_responses;
+extern _Atomic uint32_t runtime_total_4XX_responses;
+extern _Atomic uint32_t runtime_total_5XX_responses;
+#endif
 
 /*
  * Unitless estimate of the instantaneous fraction of system capacity required to complete all previously
@@ -65,3 +78,14 @@ runtime_is_worker()
 
 	return false;
 }
+
+#ifdef LOG_TOTAL_REQS_RESPS
+static inline void
+runtime_log_requests_responses()
+{
+	debuglog("Requests: %u\n2XX: %u\n4XX: %u\n5XX: %u\nOutstanding Requests: %u\n", runtime_total_requests,
+	         runtime_total_2XX_responses, runtime_total_4XX_responses, runtime_total_5XX_responses,
+	         runtime_total_requests - runtime_total_2XX_responses - runtime_total_4XX_responses
+	           - runtime_total_5XX_responses);
+};
+#endif
