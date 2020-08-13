@@ -74,14 +74,15 @@ static inline int
 sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-
-	sandbox->request_response_data_length = 0;
+	assert(sandbox->module->max_request_size > 0);
+	assert(sandbox->request_response_data_length == 0);
 #ifndef USE_HTTP_UVIO
 	int r = 0;
-	r = recv(sandbox->client_socket_descriptor, (sandbox->request_response_data), sandbox->module->max_request_size,
+	r = recv(sandbox->client_socket_descriptor, sandbox->request_response_data, sandbox->module->max_request_size,
 	         0);
+	if (r == 0) debuglog("Socket %d returned 0 bytes\n", sandbox->client_socket_descriptor);
 	if (r < 0) {
-		debuglog("Error reading request data from client socket - %s", strerror(errno));
+		debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor, strerror(errno));
 		return r;
 	}
 	while (r > 0) {
@@ -94,7 +95,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 		         (sandbox->request_response_data + sandbox->request_response_data_length),
 		         sandbox->module->max_request_size - sandbox->request_response_data_length, 0);
 		if (r < 0) {
-			debuglog("Error reading request data from client socket - %s", strerror(errno));
+			debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor, strerror(errno));
 			return r;
 		}
 	}
@@ -105,7 +106,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	worker_thread_process_io();
 #endif
 	if (sandbox->request_response_data_length == 0) {
-		debuglog("request_response_data_length was unexpectedly 0");
+		debuglog("request_response_data_length was unexpectedly 0\n");
 		return 0;
 	}
 	sandbox->request_length = sandbox->request_response_data_length;

@@ -73,14 +73,14 @@ runtime_initialize(void)
 
 /**
  * Rejects Requests as determined by admissions control
- * @param socket_descriptor - the client we are rejecting
+ * @param client_socket - the client we are rejecting
  */
 static inline void
-listener_thread_reject(int socket_descriptor)
+listener_thread_reject(int client_socket)
 {
-	assert(socket_descriptor >= 0);
+	assert(client_socket >= 0);
 
-	int send_rc = send(socket_descriptor, HTTP_RESPONSE_504_SERVICE_UNAVAILABLE,
+	int send_rc = send(client_socket, HTTP_RESPONSE_504_SERVICE_UNAVAILABLE,
 	                   strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE), 0);
 	if (send_rc < 0) goto send_504_err;
 
@@ -90,7 +90,7 @@ listener_thread_reject(int socket_descriptor)
 #endif
 
 close:
-	if (close(socket_descriptor) < 0) panic("Error closing client socket - %s", strerror(errno));
+	if (close(client_socket) < 0) panic("Error closing client socket - %s", strerror(errno));
 	return;
 send_504_err:
 	debuglog("Error sending 504: %s", strerror(errno));
@@ -116,30 +116,47 @@ listener_thread_main(void *dummy)
 	while (true) {
 		int request_count = epoll_wait(runtime_epoll_file_descriptor, epoll_events,
 		                               LISTENER_THREAD_MAX_EPOLL_EVENTS, -1);
+		if (request_count < 0) panic("epoll_wait: %s", strerror(errno));
+		if (request_count == 0) panic("Unexpectedly returned with epoll_wait timeout not set\n");
 
 		/* Capture Start Time to calculate absolute deadline */
 		uint64_t request_arrival_timestamp = __getcycles();
 		for (int i = 0; i < request_count; i++) {
-			if (epoll_events[i].events & EPOLLERR) {
-				perror("epoll_wait");
-				assert(false);
-			}
+			if (epoll_events[i].events & EPOLLERR) panic("epoll_wait: %s", strerror(errno));
 
 			/* Accept Client Request */
 			struct sockaddr_in client_address;
 			socklen_t          client_length = sizeof(client_address);
 			struct module *    module        = (struct module *)epoll_events[i].data.ptr;
 			assert(module);
-			int es                = module->socket_descriptor;
-			int socket_descriptor = accept(es, (struct sockaddr *)&client_address, &client_length);
-			if (socket_descriptor < 0) {
-				perror("accept");
-				assert(false);
-			}
+			int server_socket = module->socket_descriptor;
+			int client_socket = accept(server_socket, (struct sockaddr *)&client_address, &client_length);
+			if (client_socket < 0) panic("accept: %s", strerror(errno));
+
 #ifdef LOG_TOTAL_REQS_RESPS
 			runtime_total_requests++;
 			runtime_log_requests_responses();
 #endif
+
+			/* Peek to ensure the socket isn't empty. Return 400 and close if empty */
+			char peek_buffer[10];
+			int  bytes = recv(client_socket, &peek_buffer, 9, MSG_PEEK);
+			if (bytes < 0) panic("Peek: %s\n", strerror(errno));
+			if (bytes == 0) {
+				send(client_socket, HTTP_RESPONSE_400_BAD_REQUEST,
+				     strlen(HTTP_RESPONSE_400_BAD_REQUEST), 0);
+				if (close(client_socket) < 0) {
+					panic("Error closing client socket - %s", strerror(errno));
+				}
+
+#ifdef LOG_TOTAL_REQS_RESPS
+				runtime_total_4XX_responses++;
+				debuglog("Listener Core rejected empty request\n");
+				runtime_log_requests_responses();
+#endif
+				/* Advance in for loop to next socket */
+				continue;
+			};
 
 			/* Perform Admission Control */
 
@@ -153,13 +170,13 @@ listener_thread_main(void *dummy)
 			double admissions_estimate = (double)estimated_execution / module->relative_deadline;
 
 			if (runtime_admitted + admissions_estimate >= runtime_worker_threads_count) {
-				listener_thread_reject(socket_descriptor);
+				listener_thread_reject(client_socket);
 				continue;
 			}
 
 			/* Allocate a Sandbox Request */
 			struct sandbox_request *sandbox_request =
-			  sandbox_request_allocate(module, module->name, socket_descriptor,
+			  sandbox_request_allocate(module, module->name, client_socket,
 			                           (const struct sockaddr *)&client_address, request_arrival_timestamp,
 			                           admissions_estimate);
 
