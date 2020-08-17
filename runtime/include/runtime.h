@@ -12,7 +12,7 @@
 #endif
 
 #define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
-#define LISTENER_THREAD_MAX_EPOLL_EVENTS 2048
+#define LISTENER_THREAD_MAX_EPOLL_EVENTS 128
 
 #define RUNTIME_LOG_FILE                  "awesome.log"
 #define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19) /* random! */
