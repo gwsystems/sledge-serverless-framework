@@ -18,12 +18,26 @@
 
 #define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 
-#define MODULE_MAX_ARGUMENT_COUNT          16
-#define MODULE_MAX_ARGUMENT_SIZE           64
-#define MODULE_MAX_MODULE_COUNT            128
-#define MODULE_MAX_NAME_LENGTH             32
-#define MODULE_MAX_PATH_LENGTH             256
-#define MODULE_MAX_PENDING_CLIENT_REQUESTS 1000
+#define MODULE_MAX_ARGUMENT_COUNT 16
+#define MODULE_MAX_ARGUMENT_SIZE  64
+#define MODULE_MAX_MODULE_COUNT   128
+#define MODULE_MAX_NAME_LENGTH    32
+#define MODULE_MAX_PATH_LENGTH    256
+
+/*
+ * Defines the listen backlog, the queue length for completely established socketeds waiting to be accepted
+ * If this value is greater than the value in /proc/sys/net/core/somaxconn (typically 128), then it is silently
+ * truncated to this value. See man listen(2) for info
+ *
+ * When configuring the number of sockets to handle, the queue length of incomplete sockets defined in
+ * /proc/sys/net/ipv4/tcp_max_syn_backlog should also be considered. Optionally, enabling syncookies removes this
+ * maximum logical length. See tcp(7) for more info.
+ */
+#define MODULE_MAX_PENDING_CLIENT_REQUESTS 128
+#if MODULE_MAX_PENDING_CLIENT_REQUESTS > 128
+#warning \
+  "MODULE_MAX_PENDING_CLIENT_REQUESTS likely exceeds the value in /proc/sys/net/core/somaxconn and thus may be silently truncated";
+#endif
 
 struct module {
 	char                        name[MODULE_MAX_NAME_LENGTH];
