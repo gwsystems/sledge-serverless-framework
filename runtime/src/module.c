@@ -29,8 +29,8 @@ module_listen(struct module *module)
 {
 	int rc;
 
-	/* Allocate a new socket */
-	int socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
+	/* Allocate a new TCP/IP socket, setting it to be non-blocking */
+	int socket_descriptor = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	if (socket_descriptor < 0) goto err_create_socket;
 
 	module->socket_descriptor = socket_descriptor;

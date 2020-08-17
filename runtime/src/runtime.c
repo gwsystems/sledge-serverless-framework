@@ -110,11 +110,14 @@ send_504_err:
 __attribute__((noreturn)) void *
 listener_thread_main(void *dummy)
 {
-	struct epoll_event *epoll_events = (struct epoll_event *)malloc(LISTENER_THREAD_MAX_EPOLL_EVENTS
-	                                                                * sizeof(struct epoll_event));
+	struct epoll_event epoll_events[LISTENER_THREAD_MAX_EPOLL_EVENTS];
 
 	while (true) {
-		int request_count = epoll_wait(runtime_epoll_file_descriptor, epoll_events,
+		/*
+		 * Block indefinitely on the epoll file descriptor, waiting on up to a max number of events
+		 * TODO: Is LISTENER_THREAD_MAX_EPOLL_EVENTS actually limited to the max number of modules?
+		 */
+		int request_count = epoll_wait(runtime_epoll_file_descriptor, (struct epoll_event *)&epoll_events,
 		                               LISTENER_THREAD_MAX_EPOLL_EVENTS, -1);
 		if (request_count < 0) panic("epoll_wait: %s", strerror(errno));
 		if (request_count == 0) panic("Unexpectedly returned with epoll_wait timeout not set\n");
@@ -124,39 +127,53 @@ listener_thread_main(void *dummy)
 		for (int i = 0; i < request_count; i++) {
 			if (epoll_events[i].events & EPOLLERR) panic("epoll_wait: %s", strerror(errno));
 
-			/* Accept Client Request */
-			struct sockaddr_in client_address;
-			socklen_t          client_length = sizeof(client_address);
-			struct module *    module        = (struct module *)epoll_events[i].data.ptr;
+			/* Unpack module from epoll event */
+			struct module *module = (struct module *)epoll_events[i].data.ptr;
 			assert(module);
-			int server_socket = module->socket_descriptor;
-			int client_socket = accept(server_socket, (struct sockaddr *)&client_address, &client_length);
-			if (client_socket < 0) panic("accept: %s", strerror(errno));
+
+			/* Accept Client Request as a nonblocking socket, saving address information */
+			struct sockaddr_in client_address;
+			socklen_t          address_length = sizeof(client_address);
+			int client_socket = accept4(module->socket_descriptor, (struct sockaddr *)&client_address,
+			                            &address_length, SOCK_NONBLOCK);
+			if (client_socket < 0) {
+				switch (errno) {
+					/* Note: Assumes EAGAIN and EWOULDBLOCK are identical, as on Linux */
+				case EWOULDBLOCK: {
+					/*
+					 * According to accept(2), it is possible that a connection might
+					 * have been removed between us receiving an event via epoll_wait
+					 * and us calling accept. Thus we just want to gracefully ignore the
+					 * epoll event.
+					 */
+
+#ifdef LOG_EPOLL
+					debuglog("Encountered an epoll notification for %s that did not actually have "
+					         "an associated request\n",
+					         module->name);
+#endif
+
+					continue;
+				}
+				default:
+					panic("accept4: %s", strerror(errno));
+				}
+			};
+
+			/*
+			 * According to accept(2), it is possible that the the sockaddr structure client_address may be
+			 * too small, resulting in data being truncated to fit. The appect call mutates the size value
+			 * to indicate that this is the case.
+			 */
+			if (address_length > sizeof(client_address)) {
+				debuglog("A client address to %s has been truncated because buffer was too small\n",
+				         module->name);
+			}
 
 #ifdef LOG_TOTAL_REQS_RESPS
 			runtime_total_requests++;
 			runtime_log_requests_responses();
 #endif
-
-			/* Peek to ensure the socket isn't empty. Return 400 and close if empty */
-			char peek_buffer[10];
-			int  bytes = recv(client_socket, &peek_buffer, 9, MSG_PEEK);
-			if (bytes < 0) panic("Peek: %s\n", strerror(errno));
-			if (bytes == 0) {
-				send(client_socket, HTTP_RESPONSE_400_BAD_REQUEST,
-				     strlen(HTTP_RESPONSE_400_BAD_REQUEST), 0);
-				if (close(client_socket) < 0) {
-					panic("Error closing client socket - %s", strerror(errno));
-				}
-
-#ifdef LOG_TOTAL_REQS_RESPS
-				runtime_total_4XX_responses++;
-				debuglog("Listener Core rejected empty request\n");
-				runtime_log_requests_responses();
-#endif
-				/* Advance in for loop to next socket */
-				continue;
-			};
 
 			/* Perform Admission Control */
 
@@ -192,7 +209,6 @@ listener_thread_main(void *dummy)
 		}
 	}
 
-	free(epoll_events);
 	panic("Listener thread unexpectedly broke loop\n");
 }
 
