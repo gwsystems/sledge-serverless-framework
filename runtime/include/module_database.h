@@ -1,6 +1,7 @@
 #pragma once
 
-#include <module.h>
+#include "debuglog.h"
+#include "module.h"
 
 struct module *module_database_find_by_name(char *name);
 struct module *module_database_find_by_socket_descriptor(int socket_descriptor);
@@ -28,7 +29,7 @@ module_database_add(struct module *module)
 
 	int f = __sync_fetch_and_add(&module_database_free_offset, 1);
 	if (module_database_free_offset > MODULE_MAX_MODULE_COUNT) {
-		__sync_fetch_and_subtract(&module_database_free_offset, 1);
+		__sync_fetch_and_sub(&module_database_free_offset, 1);
 		goto err_no_space;
 	}
 
