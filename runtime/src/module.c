@@ -24,42 +24,59 @@ const int JSON_MAX_ELEMENT_SIZE  = 1024;
  * Start the module as a server listening at module->port
  * @param module
  */
-static inline void
+static inline int
 module_listen(struct module *module)
 {
+	int rc;
+
 	/* Allocate a new socket */
 	int socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
-	assert(socket_descriptor > 0);
+	if (socket_descriptor < 0) goto err_create_socket;
 
-	/* Configure socket address as [all addresses]:[module->port] */
-	module->socket_address.sin_family      = AF_INET;
-	module->socket_address.sin_addr.s_addr = htonl(INADDR_ANY);
-	module->socket_address.sin_port        = htons((unsigned short)module->port);
+	module->socket_descriptor = socket_descriptor;
+
 
 	/* Configure the socket to allow multiple sockets to bind to the same host and port */
 	int optval = 1;
-	setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+	rc         = setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+	if (rc < 0) goto err_set_socket_option;
 	optval = 1;
-	setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	rc     = setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	if (rc < 0) goto err_set_socket_option;
 
-	/* Bind to the interface */
-	if (bind(socket_descriptor, (struct sockaddr *)&module->socket_address, sizeof(module->socket_address)) < 0) {
-		perror("bind");
-		assert(0);
-	}
+	/* Bind name [all addresses]:[module->port] to socket */
+	module->socket_address.sin_family      = AF_INET;
+	module->socket_address.sin_addr.s_addr = htonl(INADDR_ANY);
+	module->socket_address.sin_port        = htons((unsigned short)module->port);
+	rc = bind(socket_descriptor, (struct sockaddr *)&module->socket_address, sizeof(module->socket_address));
+	if (rc < 0) goto err_bind_socket;
 
-	/* Listen to the interface? Check that it is live? */
-	if (listen(socket_descriptor, MODULE_MAX_PENDING_CLIENT_REQUESTS) < 0) assert(0);
+	/* Listen to the interface */
+	rc = listen(socket_descriptor, MODULE_MAX_PENDING_CLIENT_REQUESTS);
+	if (rc < 0) goto err_listen;
 
 
 	/* Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP
 	requests */
-	module->socket_descriptor = socket_descriptor;
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)module;
 	accept_evt.events   = EPOLLIN;
-	if (epoll_ctl(runtime_epoll_file_descriptor, EPOLL_CTL_ADD, module->socket_descriptor, &accept_evt) < 0)
-		assert(0);
+	rc = epoll_ctl(runtime_epoll_file_descriptor, EPOLL_CTL_ADD, module->socket_descriptor, &accept_evt);
+	if (rc < 0) goto err_add_to_epoll;
+
+	rc = 0;
+done:
+	return rc;
+err_add_to_epoll:
+err_listen:
+err_bind_socket:
+err_set_socket_option:
+	module->socket_descriptor = -1;
+err_create_socket:
+err:
+	debuglog("Socket Error: %s", strerror(errno));
+	rc = -1;
+	goto done;
 }
 
 /***************************************
@@ -111,6 +128,8 @@ struct module *
 module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, uint32_t max_memory,
            uint32_t relative_deadline_us, int port, int request_size, int response_size)
 {
+	int rc = 0;
+
 	errno                 = 0;
 	struct module *module = (struct module *)malloc(sizeof(struct module));
 	if (!module) {
@@ -205,14 +224,15 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	perf_window_initialize(&module->perf_window);
 
 	/* Start listening for requests */
-	module_listen(module);
+	rc = module_listen(module);
+	if (rc < 0) goto err_listen;
 
 done:
 	return module;
 
+err_listen:
 dl_error:
 	dlclose(module->dynamic_library_handle);
-
 dl_open_error:
 	free(module);
 err:
