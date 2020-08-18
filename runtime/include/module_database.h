@@ -17,12 +17,6 @@ extern int            module_database_free_offset;
 static inline int
 module_database_add(struct module *module)
 {
-	/*
-	 * Assumption: Module is added to database before being listened to
-	 * TODO: Why does this matter?
-	 */
-	assert(module->socket_descriptor == -1);
-
 	int rc;
 
 	if (module_database_free_offset >= MODULE_MAX_MODULE_COUNT) goto err_no_space;

@@ -217,9 +217,6 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	module_initialize_table(module);
 	local_sandbox_context_cache.module_indirect_table = NULL;
 
-	/* Add the module to the in-memory module DB */
-	module_database_add(module);
-
 	/* Initialize Perf Window */
 	perf_window_initialize(&module->perf_window);
 
