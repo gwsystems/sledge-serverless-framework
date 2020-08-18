@@ -80,9 +80,20 @@ listener_thread_reject(int client_socket)
 {
 	assert(client_socket >= 0);
 
-	int send_rc = send(client_socket, HTTP_RESPONSE_504_SERVICE_UNAVAILABLE,
-	                   strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE), 0);
-	if (send_rc < 0) goto send_504_err;
+	int rc;
+	int sent    = 0;
+	int to_send = strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE);
+
+	while (sent < to_send) {
+		rc = write(client_socket, HTTP_RESPONSE_504_SERVICE_UNAVAILABLE,
+		           strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE));
+		if (rc < 0) {
+			if (errno == EAGAIN) continue;
+
+			goto send_504_err;
+		}
+		sent += rc;
+	};
 
 #ifdef LOG_TOTAL_REQS_RESPS
 	runtime_total_5XX_responses++;
