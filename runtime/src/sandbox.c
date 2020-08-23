@@ -84,6 +84,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	assert(sandbox->module->max_request_size > 0);
 	assert(sandbox->request_response_data_length == 0);
 
+	int rc = 0;
 
 #ifndef USE_HTTP_UVIO
 
@@ -118,7 +119,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	worker_thread_process_io();
 #endif
 
-	int rc = 0;
+	rc = 0;
 done:
 	return rc;
 eagain:
