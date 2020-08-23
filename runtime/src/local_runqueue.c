@@ -1,6 +1,16 @@
+
+#ifdef LOG_LOCAL_RUNQUEUE
+#include <stdatomic.h>
+#include <stdint.h>
+#endif
+
 #include "local_runqueue.h"
 
 static struct local_runqueue_config local_runqueue;
+
+#ifdef LOG_LOCAL_RUNQUEUE
+__thread _Atomic uint32_t local_runqueue_count = 0;
+#endif
 
 /* Initializes a concrete implementation of the sandbox request scheduler interface */
 void
@@ -17,6 +27,9 @@ void
 local_runqueue_add(struct sandbox *sandbox)
 {
 	assert(local_runqueue.add_fn != NULL);
+#ifdef LOG_LOCAL_RUNQUEUE
+	local_runqueue_count++;
+#endif
 	return local_runqueue.add_fn(sandbox);
 }
 
@@ -28,6 +41,9 @@ void
 local_runqueue_delete(struct sandbox *sandbox)
 {
 	assert(local_runqueue.delete_fn != NULL);
+#ifdef LOG_LOCAL_RUNQUEUE
+	local_runqueue_count--;
+#endif
 	local_runqueue.delete_fn(sandbox);
 }
 

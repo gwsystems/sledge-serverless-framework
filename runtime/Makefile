@@ -4,7 +4,8 @@ PAGE_SIZE=$(shell getconf PAGESIZE)
 
 # Compiler Settings
 CC=clang
-CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
+# CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
+CC_OPTIONS = -O3 -g -pthread -D_GNU_SOURCE
 
 BINARY_NAME=sledgert
 
@@ -35,7 +36,20 @@ CFLAGS += -DDEBUG
 # CFLAGS += -DLOG_REQUEST_ALLOCATION
 # CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_MODULE_LOADING
+
+# This flag dumps totals of incoming requests and outgoing responses, broken out by status code
+# family, such as 2XX, 4XX, 5XX. It is useful to debug clients hanging waiting for a response.
+# To log, run `call runtime_log_requests_responses()` while in GDB
 # CFLAGS += -DLOG_TOTAL_REQS_RESPS
+
+# This flag logs the total number of sandboxes in the various states
+# It is useful to debug if sandboxes are "getting caught" in a particular state
+# To log, run `call runtime_log_sandbox_states()` while in GDB
+# CFLAGS += -DLOG_SANDBOX_TOTALS
+
+# This flag enables an per-worker atomic count of sandbox's local runqueue count in thread local storage
+# Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue
+# CFLAGS += -DLOG_LOCAL_RUNQUEUE
 
 # System Configuraiton Flags
 

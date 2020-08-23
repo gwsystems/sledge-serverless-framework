@@ -49,24 +49,24 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 
 /**
  * Run the http-parser on the sandbox's request_response_data using the configured settings global
+ * Success means that a "chunk" was fully parsed, not that parsing of a full request is complete
  * @param sandbox the sandbox containing the req_resp data that we want to parse
- * @param length The size of the request_response_data that we want to parse
+ * @param length The size of the data that we want to parse
  * @returns 0 on success, -1 on failure
  */
 int
-sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
+sandbox_parse_http_request(struct sandbox *sandbox, size_t length_read)
 {
 	assert(sandbox != NULL);
 
-	if (length == 0) return 0;
+	if (length_read == 0) return 0;
 
-	/* Why is our start address sandbox->request_response_data + sandbox->request_response_data_length?
-	it's like a cursor to keep track of what we've read so far */
-	size_t size_parsed = http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
-	                                         sandbox->request_response_data + sandbox->request_response_data_length,
-	                                         length);
+	size_t length_parsed = http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
+	                                           sandbox->request_response_data
+	                                             + sandbox->request_response_data_length,
+	                                           length_read);
 
-	if (size_parsed != length) return -1;
+	if (length_parsed != length_read) return -1;
 	return 0;
 }
 
@@ -81,28 +81,32 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	assert(sandbox->module->max_request_size > 0);
 	assert(sandbox->request_response_data_length == 0);
 
-	int rc;
 
 #ifndef USE_HTTP_UVIO
 
-	do {
-		/* Read from the Socket */
-		rc = read(sandbox->client_socket_descriptor, sandbox->request_response_data,
-		          sandbox->module->max_request_size);
-		if (rc < 0) {
-			if (errno == EAGAIN) continue;
+	/* Read from the Socket */
+	int length_read = recv(sandbox->client_socket_descriptor,
+	                       &sandbox->request_response_data[sandbox->request_response_data_length],
+	                       sandbox->module->max_request_size - sandbox->request_response_data_length, 0);
+	if (length_read < 0) {
+		if (errno == EAGAIN) goto eagain;
 
-			debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor, strerror(errno));
-			goto err;
-		}
+		/* All other errors */
+		debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor, strerror(errno));
+		goto err;
+	}
 
-		/* Parse what we've read */
-		if (sandbox_parse_http_request(sandbox, rc) == -1) {
-			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
-			goto err;
-		}
-		sandbox->request_response_data_length += rc;
-	} while (rc > 0);
+	/* Try to parse what we've read */
+	if (sandbox_parse_http_request(sandbox, length_read) < 0) {
+		debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
+		goto err;
+	}
+
+	sandbox->request_response_data_length += length_read;
+
+	if (!sandbox->http_request.message_end) goto eagain;
+
+	sandbox->request_length = sandbox->request_response_data_length;
 
 #else
 	rc = uv_read_start((uv_stream_t *)&sandbox->client_libuv_stream,
@@ -111,10 +115,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	worker_thread_process_io();
 #endif
 
-	if (!sandbox->http_request.message_end) goto eagain;
-
-	sandbox->request_length = sandbox->request_response_data_length;
-	rc                      = 0;
+	int rc = 0;
 done:
 	return rc;
 eagain:
@@ -310,11 +311,10 @@ current_sandbox_main(void)
 
 	sandbox_open_http(sandbox);
 
-	/* Parse the request. Treat EAGAIN as an error after three retries*/
-	int tries = 0;
+	/* Parse the request, polling until complete */
 	do {
 		rc = sandbox_receive_and_parse_client_request(sandbox);
-	} while (rc == -EAGAIN && tries < 3);
+	} while (rc == -EAGAIN);
 
 	if (rc < 0) {
 		error_message = "Unable to receive and parse client request\n";
@@ -324,7 +324,7 @@ current_sandbox_main(void)
 	/* Initialize the module */
 	struct module *current_module = sandbox_get_module(sandbox);
 	int            argument_count = module_get_argument_count(current_module);
-	// alloc_linear_memory();
+
 	module_initialize_globals(current_module);
 	module_initialize_memory(current_module);
 
@@ -344,7 +344,6 @@ current_sandbox_main(void)
 
 #ifdef LOG_TOTAL_REQS_RESPS
 	runtime_total_2XX_responses++;
-	runtime_log_requests_responses();
 #endif
 
 	sandbox->response_timestamp = __getcycles();
@@ -364,7 +363,7 @@ done:
 	 */
 	assert(0);
 err:
-	fprintf(stderr, "%s", error_message);
+	debuglog("%s", error_message);
 	assert(sandbox->state == SANDBOX_RUNNING);
 
 	int to_send = strlen(HTTP_RESPONSE_400_BAD_REQUEST);
@@ -385,7 +384,6 @@ err:
 #ifdef LOG_TOTAL_REQS_RESPS
 	runtime_total_4XX_responses++;
 	debuglog("At %llu, Sandbox %lu - 4XX\n", __getcycles(), sandbox->request_arrival_timestamp);
-	runtime_log_requests_responses();
 #endif
 	software_interrupt_disable();
 	sandbox_close_http(sandbox);
@@ -525,6 +523,9 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	memcpy(&sandbox->client_address, sandbox_request->socket_address, sizeof(struct sockaddr));
 
 	sandbox->state = SANDBOX_INITIALIZED;
+#ifdef LOG_SANDBOX_TOTALS
+	runtime_total_initialized_sandboxes++;
+#endif
 }
 
 /**
@@ -557,10 +558,18 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
 		sandbox->initializing_duration += duration_of_last_state;
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_initialized_sandboxes--;
+		runtime_total_runnable_sandboxes++;
+#endif
 		break;
 	}
 	case SANDBOX_BLOCKED: {
 		sandbox->blocked_duration += duration_of_last_state;
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_blocked_sandboxes--;
+		runtime_total_runnable_sandboxes++;
+#endif
 		break;
 	}
 	default: {
@@ -605,10 +614,18 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
 		sandbox->runnable_duration += duration_of_last_state;
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_runnable_sandboxes--;
+		runtime_total_running_sandboxes++;
+#endif
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
 		sandbox->preempted_duration += duration_of_last_state;
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_preempted_sandboxes--;
+		runtime_total_running_sandboxes++;
+#endif
 		break;
 	}
 	default: {
@@ -650,6 +667,10 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_running_sandboxes--;
+		runtime_total_preempted_sandboxes++;
+#endif
 		break;
 	}
 	default: {
@@ -689,6 +710,10 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_running_sandboxes--;
+		runtime_total_blocked_sandboxes++;
+#endif
 		break;
 	}
 	default: {
@@ -732,6 +757,10 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_running_sandboxes--;
+		runtime_total_returned_sandboxes++;
+#endif
 		break;
 	}
 	default: {
@@ -774,10 +803,18 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_SET_AS_INITIALIZED:
 		/* Technically, this is a degenerate sandbox that we generate by hand */
 		sandbox->initializing_duration += duration_of_last_state;
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_initialized_sandboxes--;
+		runtime_total_error_sandboxes++;
+#endif
 		break;
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_running_sandboxes--;
+		runtime_total_error_sandboxes++;
+#endif
 		break;
 	}
 	default: {
@@ -829,6 +866,10 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_RETURNED: {
 		sandbox->completion_timestamp = now;
 		sandbox->returned_duration += duration_of_last_state;
+#ifdef LOG_SANDBOX_TOTALS
+		runtime_total_returned_sandboxes--;
+		runtime_total_complete_sandboxes++;
+#endif
 		break;
 	}
 	default: {
@@ -897,6 +938,9 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	/* Set state to initializing */
 	sandbox_set_as_initialized(sandbox, sandbox_request, now);
 
+#ifdef LOG_SANDBOX_TOTALS
+	runtime_total_freed_requests++;
+#endif
 	free(sandbox_request);
 done:
 	return sandbox;

@@ -6,9 +6,8 @@
 
 #include "types.h"
 
-#ifdef LOG_TOTAL_REQS_RESPS
+#if defined(LOG_TOTAL_REQS_RESPS) || defined(LOG_SANDBOX_TOTALS)
 #include <stdatomic.h>
-#include "debuglog.h"
 #endif
 
 #define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
@@ -40,6 +39,19 @@ extern _Atomic uint32_t runtime_total_requests;
 extern _Atomic uint32_t runtime_total_2XX_responses;
 extern _Atomic uint32_t runtime_total_4XX_responses;
 extern _Atomic uint32_t runtime_total_5XX_responses;
+#endif
+
+#ifdef LOG_SANDBOX_TOTALS
+/* Counts to track sanboxes running through state transitions */
+extern _Atomic uint32_t runtime_total_freed_requests;
+extern _Atomic uint32_t runtime_total_initialized_sandboxes;
+extern _Atomic uint32_t runtime_total_runnable_sandboxes;
+extern _Atomic uint32_t runtime_total_blocked_sandboxes;
+extern _Atomic uint32_t runtime_total_running_sandboxes;
+extern _Atomic uint32_t runtime_total_preempted_sandboxes;
+extern _Atomic uint32_t runtime_total_returned_sandboxes;
+extern _Atomic uint32_t runtime_total_error_sandboxes;
+extern _Atomic uint32_t runtime_total_complete_sandboxes;
 #endif
 
 /*
@@ -78,17 +90,3 @@ runtime_is_worker()
 
 	return false;
 }
-
-#ifdef LOG_TOTAL_REQS_RESPS
-static inline void
-runtime_log_requests_responses()
-{
-	int64_t total_responses = runtime_total_2XX_responses + runtime_total_4XX_responses
-	                          + runtime_total_5XX_responses;
-	int64_t outstanding_requests = (int64_t)runtime_total_requests - total_responses;
-
-	debuglog("Requests: %u (%ld outstanding)\n\tResponses: %ld\n\t\t2XX: %u\n\t\t4XX: %u\n\t\t5XX: %u\n",
-	         runtime_total_requests, outstanding_requests, total_responses, runtime_total_2XX_responses,
-	         runtime_total_4XX_responses, runtime_total_5XX_responses);
-};
-#endif
