@@ -48,25 +48,28 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 }
 
 /**
- * Run the http-parser on the sandbox's request_response_data using the configured settings global
+ * Run the http-parser on the next N bytes of the sandbox's request_response_data buffer
  * Success means that a "chunk" was fully parsed, not that parsing of a full request is complete
- * @param sandbox the sandbox containing the req_resp data that we want to parse
+ * @param sandbox the sandbox containing that we want to parse
  * @param length The size of the data that we want to parse
  * @returns 0 on success, -1 on failure
  */
 int
-sandbox_parse_http_request(struct sandbox *sandbox, size_t length_read)
+sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 {
 	assert(sandbox != NULL);
 
-	if (length_read == 0) return 0;
+	if (length == 0) return 0;
+
+	/* Assumption: We shouldn't have anything left to parse if message was successfully parsed to completion */
+	assert(!sandbox->http_request.message_end);
 
 	size_t length_parsed = http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
 	                                           sandbox->request_response_data
 	                                             + sandbox->request_response_data_length,
-	                                           length_read);
+	                                           length);
 
-	if (length_parsed != length_read) return -1;
+	if (length_parsed != length) return -1;
 	return 0;
 }
 
