@@ -3,6 +3,7 @@
 #include <spinlock/mcs.h>
 
 #include "runtime.h"
+#include "software_interrupt.h"
 
 typedef ck_spinlock_mcs_t lock_t;
 
@@ -25,18 +26,22 @@ typedef ck_spinlock_mcs_t lock_t;
  * @param lock - the address of the lock
  * @param hygienic_prefix - a unique prefix to hygienically namespace an associated lock/unlock pair
  */
-#define LOCK_LOCK_WITH_BOOKKEEPING(lock, hygienic_prefix)             \
-	struct ck_spinlock_mcs hygienic_prefix##_node;                \
-	uint64_t               hygienic_prefix##_pre = __getcycles(); \
-	ck_spinlock_mcs_lock((lock), &(hygienic_prefix##_node));      \
-	worker_thread_lock_duration += (__getcycles() - hygienic_prefix##_pre)
+#define LOCK_LOCK_WITH_BOOKKEEPING(lock, hygienic_prefix)                          \
+	bool hygienic_prefix##_is_interruptable = software_interrupt_is_enabled(); \
+	if (hygienic_prefix##_is_interruptable) software_interrupt_disable();      \
+	struct ck_spinlock_mcs hygienic_prefix##_node;                             \
+	uint64_t               hygienic_prefix##_pre = __getcycles();              \
+	ck_spinlock_mcs_lock((lock), &(hygienic_prefix##_node));                   \
+	worker_thread_lock_duration += (__getcycles() - hygienic_prefix##_pre);
 
 /**
  * Unlocks a lock
  * @param lock - the address of the lock
  * @param hygienic_prefix - a unique prefix to hygienically namespace an associated lock/unlock pair
  */
-#define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, hygienic_prefix) ck_spinlock_mcs_unlock(lock, &(hygienic_prefix##_node))
+#define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, hygienic_prefix)      \
+	ck_spinlock_mcs_unlock(lock, &(hygienic_prefix##_node)); \
+	if (hygienic_prefix##_is_interruptable) software_interrupt_enable();
 
 /**
  * Locks a lock, keeping track of overhead
