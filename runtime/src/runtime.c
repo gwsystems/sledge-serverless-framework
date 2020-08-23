@@ -185,6 +185,12 @@ listener_thread_main(void *dummy)
 			struct module *module = (struct module *)epoll_events[i].data.ptr;
 			assert(module);
 
+			/*
+			 * I don't think we're responsible to cleanup epoll events, but clearing to trigger
+			 * the assertion just in case.
+			 */
+			epoll_events[i].data.ptr = NULL;
+
 			/* Accept Client Request as a nonblocking socket, saving address information */
 			struct sockaddr_in client_address;
 			socklen_t          address_length = sizeof(client_address);
@@ -239,9 +245,6 @@ listener_thread_main(void *dummy)
 				  sandbox_request_allocate(module, module->name, client_socket,
 				                           (const struct sockaddr *)&client_address,
 				                           request_arrival_timestamp, admissions_estimate);
-
-				/* Clear the  */
-				epoll_events[i].data.ptr = NULL;
 
 				/* Add to the Global Sandbox Request Scheduler */
 				global_request_scheduler_add(sandbox_request);
