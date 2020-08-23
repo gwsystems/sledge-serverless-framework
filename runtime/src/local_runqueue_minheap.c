@@ -84,7 +84,11 @@ local_runqueue_minheap_get_next()
 
 	if (sandbox_rc == -ENOENT && global_request_scheduler_peek() < ULONG_MAX) {
 		/* local runqueue empty, try to pull a sandbox request */
-		if (global_request_scheduler_remove(&sandbox_request) < 0) goto done;
+		if (global_request_scheduler_remove(&sandbox_request) < 0) {
+			/* Assumption: Sandbox request should not be set in case of an error */
+			assert(sandbox_request == NULL);
+			goto done;
+		}
 
 		/* Try to allocate a sandbox, returning the request on failure */
 		sandbox = sandbox_allocate(sandbox_request);
@@ -135,7 +139,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 	uint64_t global_deadline                  = global_request_scheduler_peek();
 
 	/* If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it */
-	struct sandbox_request *sandbox_request;
+	struct sandbox_request *sandbox_request = NULL;
 	if (global_deadline < local_deadline) {
 #ifdef LOG_PREEMPTION
 		debuglog("Sandbox %lu has deadline of %lu. Trying to preempt for request with %lu\n",
@@ -149,6 +153,8 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 #ifdef LOG_PREEMPTION
 			debuglog("Preemption aborted. Another thread took the request\n");
 #endif
+			/* Assumption: Sandbox request should not be set in case of an error */
+			assert(sandbox_request == NULL);
 			goto done;
 		}
 
