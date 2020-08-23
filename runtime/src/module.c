@@ -23,6 +23,7 @@ const int JSON_MAX_ELEMENT_SIZE  = 1024;
 /**
  * Start the module as a server listening at module->port
  * @param module
+ * @returns 0 on success, -1 on error
  */
 static inline int
 module_listen(struct module *module)
