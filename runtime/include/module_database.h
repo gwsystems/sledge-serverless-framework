@@ -17,19 +17,13 @@ extern int            module_database_free_offset;
 static inline int
 module_database_add(struct module *module)
 {
+	assert(module_database_free_offset >= 0);
+	assert(module_database_free_offset <= MODULE_MAX_MODULE_COUNT);
+
 	int rc;
 
-	if (module_database_free_offset >= MODULE_MAX_MODULE_COUNT) goto err_no_space;
-
-	int f = __sync_fetch_and_add(&module_database_free_offset, 1);
-	if (module_database_free_offset > MODULE_MAX_MODULE_COUNT) {
-		__sync_fetch_and_sub(&module_database_free_offset, 1);
-		goto err_no_space;
-	}
-
 	if (module_database_free_offset == MODULE_MAX_MODULE_COUNT) goto err_no_space;
-	assert(f < MODULE_MAX_MODULE_COUNT);
-	module_database[f] = module;
+	module_database[module_database_free_offset++] = module;
 
 	rc = 0;
 done:
