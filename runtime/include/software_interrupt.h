@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "debuglog.h"
+
 #define SOFTWARE_INTERRUPT_TIME_TO_START_IN_USEC     (10 * 1000) /* 10 ms */
 #define SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC (5 * 1000)  /* 5 ms */
 
@@ -69,8 +71,7 @@ software_interrupt_mask_signal(int signal)
 	sigaddset(&set, signal);
 	return_code = pthread_sigmask(SIG_BLOCK, &set, NULL);
 	if (return_code != 0) {
-		errno = return_code;
-		perror("pthread_sigmask");
+		debuglog("pthread_sigmask: %s", strerror(return_code));
 		exit(-1);
 	}
 
