@@ -373,22 +373,24 @@ err:
 	int to_send = strlen(HTTP_RESPONSE_400_BAD_REQUEST);
 	int sent    = 0;
 	while (sent < to_send) {
-		rc = write(sandbox->client_socket_descriptor, HTTP_RESPONSE_400_BAD_REQUEST,
-		           strlen(HTTP_RESPONSE_400_BAD_REQUEST));
+		rc = write(sandbox->client_socket_descriptor, &HTTP_RESPONSE_400_BAD_REQUEST[sent], to_send - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN) continue;
 
 			debuglog("Failed to send 400: %s", strerror(errno));
-			if (close(sandbox->client_socket_descriptor) < 0) panic("Failed to close socket!\n");
+			break;
 		}
 
 		sent += rc;
 	}
 
 #ifdef LOG_TOTAL_REQS_RESPS
-	runtime_total_4XX_responses++;
-	debuglog("At %llu, Sandbox %lu - 4XX\n", __getcycles(), sandbox->request_arrival_timestamp);
+	if (rc >= 0) {
+		runtime_total_4XX_responses++;
+		debuglog("At %llu, Sandbox %lu - 4XX\n", __getcycles(), sandbox->request_arrival_timestamp);
+	}
 #endif
+
 	software_interrupt_disable();
 	sandbox_close_http(sandbox);
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);
