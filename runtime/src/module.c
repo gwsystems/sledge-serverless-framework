@@ -33,8 +33,6 @@ module_listen(struct module *module)
 	int socket_descriptor = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	if (socket_descriptor < 0) goto err_create_socket;
 
-	module->socket_descriptor = socket_descriptor;
-
 
 	/* Configure the socket to allow multiple sockets to bind to the same host and port */
 	int optval = 1;
@@ -45,6 +43,7 @@ module_listen(struct module *module)
 	if (rc < 0) goto err_set_socket_option;
 
 	/* Bind name [all addresses]:[module->port] to socket */
+	module->socket_descriptor              = socket_descriptor;
 	module->socket_address.sin_family      = AF_INET;
 	module->socket_address.sin_addr.s_addr = htonl(INADDR_ANY);
 	module->socket_address.sin_port        = htons((unsigned short)module->port);
@@ -70,8 +69,9 @@ done:
 err_add_to_epoll:
 err_listen:
 err_bind_socket:
-err_set_socket_option:
 	module->socket_descriptor = -1;
+err_set_socket_option:
+	close(socket_descriptor);
 err_create_socket:
 err:
 	debuglog("Socket Error: %s", strerror(errno));
