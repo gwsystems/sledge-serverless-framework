@@ -217,7 +217,9 @@ void
 local_runqueue_minheap_initialize()
 {
 	/* Initialize local state */
+	software_interrupt_disable();
 	priority_queue_initialize(&local_runqueue_minheap, sandbox_get_priority);
+	software_interrupt_enable();
 
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,
