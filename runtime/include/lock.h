@@ -24,24 +24,23 @@ typedef ck_spinlock_mcs_t lock_t;
 /**
  * Locks a lock, keeping track of overhead
  * @param lock - the address of the lock
- * @param hygienic_prefix - a unique prefix to hygienically namespace an associated lock/unlock pair
+ * @param unique_variable_name - a unique prefix to hygienically namespace an associated lock/unlock pair
  */
-#define LOCK_LOCK_WITH_BOOKKEEPING(lock, hygienic_prefix)                          \
-	bool hygienic_prefix##_is_interruptable = software_interrupt_is_enabled(); \
-	if (hygienic_prefix##_is_interruptable) software_interrupt_disable();      \
-	struct ck_spinlock_mcs hygienic_prefix##_node;                             \
-	uint64_t               hygienic_prefix##_pre = __getcycles();              \
-	ck_spinlock_mcs_lock((lock), &(hygienic_prefix##_node));                   \
-	worker_thread_lock_duration += (__getcycles() - hygienic_prefix##_pre);
+#define LOCK_LOCK_WITH_BOOKKEEPING(lock, unique_variable_name)             \
+	assert(!runtime_is_worker() || !software_interrupt_is_enabled());  \
+	struct ck_spinlock_mcs unique_variable_name##_node;                \
+	uint64_t               unique_variable_name##_pre = __getcycles(); \
+	ck_spinlock_mcs_lock((lock), &(unique_variable_name##_node));      \
+	worker_thread_lock_duration += (__getcycles() - unique_variable_name##_pre);
 
 /**
  * Unlocks a lock
  * @param lock - the address of the lock
- * @param hygienic_prefix - a unique prefix to hygienically namespace an associated lock/unlock pair
+ * @param unique_variable_name - a unique prefix to hygienically namespace an associated lock/unlock pair
  */
-#define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, hygienic_prefix)      \
-	ck_spinlock_mcs_unlock(lock, &(hygienic_prefix##_node)); \
-	if (hygienic_prefix##_is_interruptable) software_interrupt_enable();
+#define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, unique_variable_name)          \
+	assert(!runtime_is_worker() || !software_interrupt_is_enabled()); \
+	ck_spinlock_mcs_unlock(lock, &(unique_variable_name##_node));
 
 /**
  * Locks a lock, keeping track of overhead

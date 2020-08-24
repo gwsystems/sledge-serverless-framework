@@ -22,6 +22,8 @@ static inline int
 priority_queue_append(struct priority_queue *self, void *new_item)
 {
 	assert(self != NULL);
+	assert(new_item != NULL);
+
 	assert(LOCK_IS_LOCKED(&self->lock));
 
 	int rc;
@@ -105,6 +107,8 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 	assert(self != NULL);
 	assert(self->get_priority_fn != NULL);
 	assert(LOCK_IS_LOCKED(&self->lock));
+	assert(runtime_is_worker());
+	assert(!software_interrupt_is_enabled());
 
 	int left_child_index = 2 * parent_index;
 	while (left_child_index >= 2 && left_child_index < self->first_free) {
@@ -133,6 +137,8 @@ priority_queue_is_empty_locked(struct priority_queue *self)
 {
 	assert(self != NULL);
 	assert(LOCK_IS_LOCKED(&self->lock));
+	assert(!runtime_is_worker() || !software_interrupt_is_enabled());
+
 	return self->first_free == 1;
 }
 
@@ -150,6 +156,7 @@ priority_queue_initialize(struct priority_queue *self, priority_queue_get_priori
 {
 	assert(self != NULL);
 	assert(get_priority_fn != NULL);
+	assert(!runtime_is_worker() || !software_interrupt_is_enabled());
 
 	memset(self->items, 0, sizeof(void *) * MAX);
 
@@ -169,6 +176,8 @@ int
 priority_queue_length(struct priority_queue *self)
 {
 	assert(self != NULL);
+	assert(runtime_is_worker());
+	assert(!software_interrupt_is_enabled());
 
 	LOCK_LOCK(&self->lock);
 	int length = self->first_free - 1;
@@ -185,6 +194,8 @@ int
 priority_queue_enqueue(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
+	assert(value != NULL);
+	assert(!runtime_is_worker() || !software_interrupt_is_enabled());
 
 	int rc;
 
@@ -218,6 +229,9 @@ int
 priority_queue_delete(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
+	assert(value != NULL);
+	assert(runtime_is_worker());
+	assert(!software_interrupt_is_enabled());
 
 	LOCK_LOCK(&self->lock);
 
@@ -260,6 +274,8 @@ priority_queue_dequeue_if_earlier(struct priority_queue *self, void **dequeued_e
 	assert(self != NULL);
 	assert(dequeued_element != NULL);
 	assert(self->get_priority_fn != NULL);
+	assert(runtime_is_worker());
+	assert(!software_interrupt_is_enabled());
 
 	int return_code;
 
@@ -303,6 +319,8 @@ priority_queue_top(struct priority_queue *self, void **dequeued_element)
 	assert(self != NULL);
 	assert(dequeued_element != NULL);
 	assert(self->get_priority_fn != NULL);
+	assert(runtime_is_worker());
+	assert(!software_interrupt_is_enabled());
 
 	int return_code;
 
