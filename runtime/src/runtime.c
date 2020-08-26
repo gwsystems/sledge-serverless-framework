@@ -162,7 +162,8 @@ listener_thread_main(void *dummy)
 
 			panic("epoll_wait: %s", strerror(errno));
 		}
-		if (descriptor_count == 0) panic("Unexpectedly returned with epoll_wait timeout not set\n");
+		/* Assumption: Because epoll_wait is set to not timeout, we should always have descriptors here */
+		assert(descriptor_count > 0);
 
 		/* Capture Start Time to calculate absolute deadline */
 		uint64_t request_arrival_timestamp = __getcycles();
