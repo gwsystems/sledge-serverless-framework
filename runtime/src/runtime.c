@@ -175,7 +175,7 @@ listener_thread_main(void *dummy)
 				    == 0) {
 					panic("epoll_wait: %s\n", strerror(error));
 				}
-				assert(0);
+				panic("epoll_wait");
 			};
 
 			/* Assumption: We have only registered EPOLLIN events, so we should see no others here */
