@@ -155,7 +155,7 @@ listener_thread_main(void *dummy)
 		 * Block indefinitely on the epoll file descriptor, waiting on up to a max number of events
 		 * TODO: Is LISTENER_THREAD_MAX_EPOLL_EVENTS actually limited to the max number of modules?
 		 */
-		int descriptor_count = epoll_wait(runtime_epoll_file_descriptor, (struct epoll_event *)&epoll_events,
+		int descriptor_count = epoll_wait(runtime_epoll_file_descriptor, epoll_events,
 		                                  LISTENER_THREAD_MAX_EPOLL_EVENTS, -1);
 		if (descriptor_count < 0) {
 			if (errno == EINTR) continue;
