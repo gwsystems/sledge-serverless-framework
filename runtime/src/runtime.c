@@ -18,8 +18,9 @@
  * Shared Process State    *
  **************************/
 
-int    runtime_epoll_file_descriptor;
-double runtime_admitted;
+int              runtime_epoll_file_descriptor;
+_Atomic uint64_t runtime_admitted;
+uint64_t         runtime_admissions_capacity;
 
 #ifdef LOG_TOTAL_REQS_RESPS
 _Atomic uint32_t runtime_total_requests      = 0;
@@ -93,7 +94,9 @@ runtime_initialize(void)
 	/* Initialize http_parser_settings global */
 	http_parser_settings_initialize();
 
-	runtime_admitted = 0;
+	/* Initialize admissions control state */
+	runtime_admissions_capacity = runtime_worker_threads_count * RUNTIME_GRANULARITY;
+	runtime_admitted            = 0;
 }
 
 /*************************
@@ -234,9 +237,10 @@ listener_thread_main(void *dummy)
 				 */
 				if (estimated_execution == -1) estimated_execution = 1000;
 
-				double admissions_estimate = (double)estimated_execution / module->relative_deadline;
+				uint64_t admissions_estimate = (((uint64_t)estimated_execution) * RUNTIME_GRANULARITY)
+				                               / module->relative_deadline;
 
-				if (runtime_admitted + admissions_estimate >= runtime_worker_threads_count) {
+				if (runtime_admitted + admissions_estimate >= runtime_admissions_capacity) {
 					listener_thread_reject(client_socket);
 					continue;
 				}
@@ -254,7 +258,8 @@ listener_thread_main(void *dummy)
 				runtime_admitted += admissions_estimate;
 
 #ifdef LOG_ADMISSIONS_CONTROL
-				debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
+				debuglog("Runtime Admitted: %lu / %lu\n", runtime_admitted,
+				         runtime_admissions_capacity);
 #endif
 			} /* while true */
 		}         /* for loop */

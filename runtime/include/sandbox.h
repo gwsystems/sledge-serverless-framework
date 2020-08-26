@@ -83,9 +83,9 @@ struct sandbox {
 
 	/*
 	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request
-	 * Calculated by estimated execution time (cycles) / relative deadline (cycles)
+	 * Calculated by estimated execution time (cycles) * runtime_admissions_granularity / relative deadline (cycles)
 	 */
-	double admissions_estimate;
+	uint64_t admissions_estimate;
 
 	struct module *module; /* the module this is an instance of */
 
