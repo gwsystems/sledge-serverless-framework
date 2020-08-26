@@ -62,7 +62,9 @@ sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 	if (length == 0) return 0;
 
 	/* Assumption: We shouldn't have anything left to parse if message was successfully parsed to completion */
-	assert(!sandbox->http_request.message_end);
+	if (unlikely(sandbox->http_request.message_end)) {
+		debuglog("Unexpectedly received client data after message was parsed to completion");
+	};
 
 	size_t length_parsed = http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
 	                                           sandbox->request_response_data

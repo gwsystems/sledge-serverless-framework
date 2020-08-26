@@ -15,6 +15,9 @@
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
 #define RUNTIME_GRANULARITY               100000
 
+#define likely(x)   __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
  * serverless modules. The listener cores listens for incoming client requests through this.
