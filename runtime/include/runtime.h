@@ -2,13 +2,10 @@
 
 #include <pthread.h>
 #include <sys/epoll.h> /* for epoll_create1(), epoll_ctl(), struct epoll_event */
+#include <stdatomic.h>
 #include <stdbool.h>
 
 #include "types.h"
-
-#if defined(LOG_TOTAL_REQS_RESPS) || defined(LOG_SANDBOX_TOTALS)
-#include <stdatomic.h>
-#endif
 
 #define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
 #define LISTENER_THREAD_MAX_EPOLL_EVENTS 128
@@ -16,6 +13,7 @@
 #define RUNTIME_LOG_FILE                  "awesome.log"
 #define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19) /* random! */
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
+#define RUNTIME_GRANULARITY               100000
 
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
@@ -32,6 +30,7 @@ extern float runtime_processor_speed_MHz;
 /* Count of worker threads and array of their pthread identifiers */
 extern pthread_t runtime_worker_threads[];
 extern uint32_t  runtime_worker_threads_count;
+extern uint64_t  runtime_admissions_capacity;
 
 #ifdef LOG_TOTAL_REQS_RESPS
 /* Counts to track requests and responses */
@@ -64,7 +63,7 @@ extern _Atomic uint32_t runtime_total_complete_sandboxes;
  * These estimates are incremented on request acceptance and decremented on request completion (either
  * success or failure)
  */
-extern double runtime_admitted;
+extern _Atomic uint64_t runtime_admitted;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);

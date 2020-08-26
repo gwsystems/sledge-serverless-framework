@@ -17,9 +17,9 @@ struct sandbox_request {
 
 	/*
 	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request
-	 * Calculated by estimated execution time (cycles) / relative deadline (cycles)
+	 * Calculated by estimated execution time (cycles) * runtime_admissions_granularity / relative deadline (cycles)
 	 */
-	double admissions_estimate;
+	uint64_t admissions_estimate;
 };
 
 DEQUE_PROTOTYPE(sandbox, struct sandbox_request *);
@@ -36,7 +36,7 @@ DEQUE_PROTOTYPE(sandbox, struct sandbox_request *);
 static inline struct sandbox_request *
 sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
                          const struct sockaddr *socket_address, uint64_t request_arrival_timestamp,
-                         double admissions_estimate)
+                         uint64_t admissions_estimate)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)malloc(sizeof(struct sandbox_request));
 	assert(sandbox_request);

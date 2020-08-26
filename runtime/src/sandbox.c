@@ -838,10 +838,13 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_print_perf(sandbox);
 #endif
 
+	/* Assumption: Should never underflow */
+	assert(runtime_admitted >= sandbox->admissions_estimate);
+
 	runtime_admitted -= sandbox->admissions_estimate;
 
 #ifdef LOG_ADMISSIONS_CONTROL
-	debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
+	debuglog("Runtime Admitted: %lu / %lu\n", runtime_admitted, runtime_admissions_capacity);
 #endif
 
 	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
@@ -893,10 +896,13 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	 */
 	perf_window_add(&sandbox->module->perf_window, sandbox->running_duration);
 
+	/* Assumption: Should never underflow */
+	assert(runtime_admitted >= sandbox->admissions_estimate);
+
 	runtime_admitted -= sandbox->admissions_estimate;
 
 #ifdef LOG_ADMISSIONS_CONTROL
-	debuglog("Runtime Admitted: %f / %u\n", runtime_admitted, runtime_worker_threads_count);
+	debuglog("Runtime Admitted: %lu / %lu\n", runtime_admitted, runtime_admissions_capacity);
 #endif
 
 #ifdef LOG_SANDBOX_PERF
