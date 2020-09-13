@@ -31,13 +31,16 @@ _Atomic uint32_t runtime_total_5XX_responses = 0;
 void
 runtime_log_requests_responses()
 {
-	int64_t total_responses = runtime_total_2XX_responses + runtime_total_4XX_responses
-	                          + runtime_total_5XX_responses;
-	int64_t outstanding_requests = (int64_t)runtime_total_requests - total_responses;
+	uint32_t total_reqs = atomic_load(&runtime_total_requests);
+	uint32_t total_2XX  = atomic_load(&runtime_total_2XX_responses);
+	uint32_t total_4XX  = atomic_load(&runtime_total_4XX_responses);
+	uint32_t total_5XX  = atomic_load(&runtime_total_5XX_responses);
+
+	int64_t total_responses      = total_2XX + total_4XX + total_5XX;
+	int64_t outstanding_requests = (int64_t)total_reqs - total_responses;
 
 	debuglog("Requests: %u (%ld outstanding)\n\tResponses: %ld\n\t\t2XX: %u\n\t\t4XX: %u\n\t\t5XX: %u\n",
-	         runtime_total_requests, outstanding_requests, total_responses, runtime_total_2XX_responses,
-	         runtime_total_4XX_responses, runtime_total_5XX_responses);
+	         total_reqs, outstanding_requests, total_responses, total_2XX, total_4XX, total_5XX);
 };
 #endif
 
@@ -59,11 +62,20 @@ _Atomic uint32_t runtime_total_complete_sandboxes    = 0;
 void
 runtime_log_sandbox_states()
 {
+	uint32_t total_initialized = atomic_load(&runtime_total_initialized_sandboxes);
+	uint32_t total_runnable    = atomic_load(&runtime_total_runnable_sandboxes);
+	uint32_t total_blocked     = atomic_load(&runtime_total_blocked_sandboxes);
+	uint32_t total_running     = atomic_load(&runtime_total_running_sandboxes);
+	uint32_t total_preempted   = atomic_load(&runtime_total_preempted_sandboxes);
+	uint32_t total_returned    = atomic_load(&runtime_total_returned_sandboxes);
+	uint32_t total_error       = atomic_load(&runtime_total_error_sandboxes);
+	uint32_t total_complete    = atomic_load(&runtime_total_complete_sandboxes);
+
+
 	debuglog("Initialized: %u\n\tRunnable: %u\n\tBlocked: %u\n\tRunning: %u\n\tPreempted: %u\n\tReturned: "
 	         "%u\n\tError: %u\n\tComplete: %u\n",
-	         runtime_total_initialized_sandboxes, runtime_total_runnable_sandboxes, runtime_total_blocked_sandboxes,
-	         runtime_total_running_sandboxes, runtime_total_preempted_sandboxes, runtime_total_returned_sandboxes,
-	         runtime_total_error_sandboxes, runtime_total_complete_sandboxes);
+	         total_initialized, total_runnable, total_blocked, total_running, total_preempted, total_returned,
+	         total_error, total_complete);
 };
 #endif
 
@@ -77,6 +89,24 @@ runtime_log_sandbox_states()
 void
 runtime_initialize(void)
 {
+#ifdef LOG_TOTAL_REQS_RESPS
+	atomic_init(&runtime_total_requests, 0);
+	atomic_init(&runtime_total_2XX_responses, 0);
+	atomic_init(&runtime_total_4XX_responses, 0);
+	atomic_init(&runtime_total_5XX_responses, 0);
+#endif
+#ifdef LOG_SANDBOX_TOTALS
+	atomic_init(&runtime_total_freed_requests, 0);
+	atomic_init(&runtime_total_initialized_sandboxes, 0);
+	atomic_init(&runtime_total_runnable_sandboxes, 0);
+	atomic_init(&runtime_total_blocked_sandboxes, 0);
+	atomic_init(&runtime_total_running_sandboxes, 0);
+	atomic_init(&runtime_total_preempted_sandboxes, 0);
+	atomic_init(&runtime_total_returned_sandboxes, 0);
+	atomic_init(&runtime_total_error_sandboxes, 0);
+	atomic_init(&runtime_total_complete_sandboxes, 0);
+#endif
+
 	/* Setup epoll */
 	runtime_epoll_file_descriptor = epoll_create1(0);
 	assert(runtime_epoll_file_descriptor >= 0);
@@ -127,7 +157,7 @@ listener_thread_reject(int client_socket)
 	};
 
 #ifdef LOG_TOTAL_REQS_RESPS
-	runtime_total_5XX_responses++;
+	atomic_fetch_add(&runtime_total_5XX_responses, 1);
 #endif
 
 close:
@@ -225,7 +255,7 @@ listener_thread_main(void *dummy)
 				}
 
 #ifdef LOG_TOTAL_REQS_RESPS
-				runtime_total_requests++;
+				atomic_fetch_add(&runtime_total_requests, 1);
 #endif
 
 				/* Perform Admission Control */
