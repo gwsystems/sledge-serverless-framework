@@ -12,7 +12,8 @@ CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 BINARY_NAME=sledgert
 
 # Number of Cores. Options: {2...N or TOTAL_CORES}
-NCORES = ${TOTAL_CORES}
+# NCORES = ${TOTAL_CORES}
+NCORES = 2
 
 # Options: {USE_MEM_GENERIC, USE_MEM_VM}
 USE_MEM = USE_MEM_VM

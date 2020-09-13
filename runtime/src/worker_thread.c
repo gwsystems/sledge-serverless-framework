@@ -24,11 +24,15 @@
 /* context of the runtime thread before running sandboxes or to resume its "main". */
 __thread struct arch_context worker_thread_base_context;
 
+#ifdef USE_HTTP_UVIO
 /* libuv i/o loop handle per sandboxing thread! */
 __thread uv_loop_t worker_thread_uvio_handle;
 
 /* Flag to signify if the thread is currently running callbacks in the libuv event loop */
 static __thread bool worker_thread_is_in_libuv_event_loop = false;
+#else
+__thread int worker_thread_epoll_file_descriptor;
+#endif /* USE_HTTP_UVIO */
 
 /* Total Lock Contention in Cycles */
 __thread uint64_t worker_thread_lock_duration;
@@ -71,6 +75,9 @@ worker_thread_transition_exiting_sandbox(struct sandbox *exiting_sandbox)
 		 * completion queue
 		 */
 		sandbox_set_as_complete(exiting_sandbox, SANDBOX_RETURNED);
+		break;
+	case SANDBOX_BLOCKED:
+		/* Cooperative yield, so just break */
 		break;
 	case SANDBOX_ERROR:
 		/* Terminal State, so just break */
@@ -178,12 +185,14 @@ worker_thread_wakeup_sandbox(struct sandbox *sandbox)
 
 /**
  * Mark the currently executing sandbox as blocked, remove it from the local runqueue,
- * and pull the sandbox at the head of the runqueue
+ * and switch to base context
  */
 void
 worker_thread_block_current_sandbox(void)
 {
+#ifdef USE_HTTP_UVIO
 	assert(worker_thread_is_in_libuv_event_loop == false);
+#endif
 	software_interrupt_disable();
 
 	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
@@ -192,21 +201,7 @@ worker_thread_block_current_sandbox(void)
 	assert(current_sandbox->state == SANDBOX_RUNNING);
 	sandbox_set_as_blocked(current_sandbox, SANDBOX_RUNNING);
 
-	current_sandbox_set(NULL);
-
-	/* Switch to the next sandbox */
-	struct sandbox *next_sandbox = local_runqueue_get_next();
-	debuglog("[%p: %p, %p: %p]\n", current_sandbox, current_sandbox->module->name, next_sandbox,
-	         next_sandbox ? next_sandbox->module->name : "");
-
-	/* If able to get one, switch to it. Otherwise, return to base context */
-	if (next_sandbox == NULL) {
-		worker_thread_switch_to_base_context();
-	} else {
-		debuglog("[%p: %p, %p: %p]\n", current_sandbox, current_sandbox->module->name, next_sandbox,
-		         next_sandbox ? next_sandbox->module->name : "");
-		worker_thread_switch_to_sandbox(next_sandbox);
-	}
+	worker_thread_switch_to_base_context();
 }
 
 
@@ -239,6 +234,7 @@ worker_thread_process_io(void)
 void
 worker_thread_execute_libuv_event_loop(void)
 {
+#ifdef USE_HTTP_UVIO
 	worker_thread_is_in_libuv_event_loop = true;
 	int n = uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT), i = 0;
 	while (n > 0) {
@@ -246,6 +242,91 @@ worker_thread_execute_libuv_event_loop(void)
 		uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT);
 	}
 	worker_thread_is_in_libuv_event_loop = false;
+#endif
+	return;
+}
+
+/**
+ * Run all outstanding events in the local thread's libuv event loop
+ */
+static inline void
+worker_thread_execute_epoll_loop(void)
+{
+	while (true) {
+		struct epoll_event epoll_events[LISTENER_THREAD_MAX_EPOLL_EVENTS];
+		int                descriptor_count = epoll_wait(worker_thread_epoll_file_descriptor, epoll_events,
+                                                  LISTENER_THREAD_MAX_EPOLL_EVENTS, 0);
+
+		if (descriptor_count < 0) {
+			if (errno == EINTR) continue;
+
+			panic_err();
+		}
+
+		if (descriptor_count == 0) break;
+
+		for (int i = 0; i < descriptor_count; i++) {
+			if (epoll_events[i].events & (EPOLLIN | EPOLLOUT)) {
+				/* Re-add to runqueue if blocked */
+				struct sandbox *sandbox = (struct sandbox *)epoll_events[i].data.ptr;
+				assert(sandbox);
+
+				if (sandbox->state == SANDBOX_BLOCKED) worker_thread_wakeup_sandbox(sandbox);
+			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
+				/* Close socket and set as error on socket error or unexpected client hangup */
+				struct sandbox *sandbox = (struct sandbox *)epoll_events[i].data.ptr;
+				int             error   = 0;
+				socklen_t       errlen  = sizeof(error);
+				getsockopt(epoll_events[i].data.fd, SOL_SOCKET, SO_ERROR, (void *)&error, &errlen);
+
+				if (error > 0) {
+					debuglog("Socket error: %s", strerror(error));
+				} else if (epoll_events[i].events & EPOLLHUP) {
+					debuglog("Client Hungup");
+				} else {
+					debuglog("Unknown Socket error");
+				}
+
+				switch (sandbox->state) {
+				case SANDBOX_SET_AS_RETURNED:
+				case SANDBOX_RETURNED:
+				case SANDBOX_SET_AS_COMPLETE:
+				case SANDBOX_COMPLETE:
+				case SANDBOX_SET_AS_ERROR:
+				case SANDBOX_ERROR:
+					panic("Expected to have closed socket");
+				default:
+					sandbox_close_http(sandbox);
+					sandbox_set_as_error(sandbox, sandbox->state);
+				}
+			};
+		}
+	}
+}
+
+static inline void
+worker_thread_initialize_async_io()
+{
+#ifdef USE_HTTP_UVIO
+	worker_thread_is_in_libuv_event_loop = false;
+	/* Initialize libuv event loop handle */
+	uv_loop_init(&worker_thread_uvio_handle);
+#else
+	/* Initialize epoll */
+	worker_thread_epoll_file_descriptor = epoll_create1(0);
+	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
+#endif
+}
+static inline void
+worker_thread_process_async_io()
+{
+#ifdef USE_HTTP_UVIO
+	/* Execute libuv event loop */
+	if (!worker_thread_is_in_libuv_event_loop) worker_thread_execute_libuv_event_loop();
+#else
+	/* Execute non-blocking epoll_wait to add sandboxes back on the runqueue */
+	worker_thread_execute_epoll_loop();
+#endif
 }
 
 /**
@@ -271,8 +352,8 @@ worker_thread_main(void *return_code)
 	local_completion_queue_initialize();
 
 	/* Initialize Flags */
-	software_interrupt_is_disabled       = false;
-	worker_thread_is_in_libuv_event_loop = false;
+	software_interrupt_is_disabled = false;
+
 
 	/* Unmask signals */
 #ifndef PREEMPT_DISABLE
@@ -280,8 +361,7 @@ worker_thread_main(void *return_code)
 	software_interrupt_unmask_signal(SIGUSR1);
 #endif
 
-	/* Initialize libuv event loop handle */
-	uv_loop_init(&worker_thread_uvio_handle);
+	worker_thread_initialize_async_io();
 
 	/* Begin Worker Execution Loop */
 	struct sandbox *next_sandbox;
@@ -289,8 +369,7 @@ worker_thread_main(void *return_code)
 		/* Assumption: current_sandbox should be unset at start of loop */
 		assert(current_sandbox_get() == NULL);
 
-		/* Execute libuv event loop */
-		if (!worker_thread_is_in_libuv_event_loop) worker_thread_execute_libuv_event_loop();
+		worker_thread_process_async_io();
 
 		/* Switch to a sandbox if one is ready to run */
 		software_interrupt_disable();
