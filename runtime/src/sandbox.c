@@ -343,7 +343,7 @@ current_sandbox_main(void)
 	};
 
 #ifdef LOG_TOTAL_REQS_RESPS
-	runtime_total_2XX_responses++;
+	atomic_fetch_add(&runtime_total_2XX_responses, 1);
 #endif
 
 	sandbox->response_timestamp = __getcycles();
@@ -385,7 +385,7 @@ err:
 
 #ifdef LOG_TOTAL_REQS_RESPS
 	if (rc >= 0) {
-		runtime_total_4XX_responses++;
+		atomic_fetch_add(&runtime_total_4XX_responses, 1);
 		debuglog("At %llu, Sandbox %lu - 4XX\n", __getcycles(), sandbox->request_arrival_timestamp);
 	}
 #endif
@@ -529,7 +529,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 
 	sandbox->state = SANDBOX_INITIALIZED;
 #ifdef LOG_SANDBOX_TOTALS
-	runtime_total_initialized_sandboxes++;
+	atomic_fetch_add(&runtime_total_initialized_sandboxes, 1);
 #endif
 }
 
@@ -564,16 +564,16 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_INITIALIZED: {
 		sandbox->initializing_duration += duration_of_last_state;
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_initialized_sandboxes--;
-		runtime_total_runnable_sandboxes++;
+		atomic_fetch_sub(&runtime_total_initialized_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_runnable_sandboxes, 1);
 #endif
 		break;
 	}
 	case SANDBOX_BLOCKED: {
 		sandbox->blocked_duration += duration_of_last_state;
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_blocked_sandboxes--;
-		runtime_total_runnable_sandboxes++;
+		atomic_fetch_sub(&runtime_total_blocked_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_runnable_sandboxes, 1);
 #endif
 		break;
 	}
@@ -620,16 +620,16 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_RUNNABLE: {
 		sandbox->runnable_duration += duration_of_last_state;
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_runnable_sandboxes--;
-		runtime_total_running_sandboxes++;
+		atomic_fetch_sub(&runtime_total_runnable_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_running_sandboxes, 1);
 #endif
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
 		sandbox->preempted_duration += duration_of_last_state;
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_preempted_sandboxes--;
-		runtime_total_running_sandboxes++;
+		atomic_fetch_sub(&runtime_total_preempted_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_running_sandboxes, 1);
 #endif
 		break;
 	}
@@ -673,8 +673,8 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_running_sandboxes--;
-		runtime_total_preempted_sandboxes++;
+		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_preempted_sandboxes, 1);
 #endif
 		break;
 	}
@@ -716,8 +716,8 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_running_sandboxes--;
-		runtime_total_blocked_sandboxes++;
+		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_blocked_sandboxes, 1);
 #endif
 		break;
 	}
@@ -763,8 +763,8 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_running_sandboxes--;
-		runtime_total_returned_sandboxes++;
+		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_returned_sandboxes, 1);
 #endif
 		break;
 	}
@@ -809,16 +809,16 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 		/* Technically, this is a degenerate sandbox that we generate by hand */
 		sandbox->initializing_duration += duration_of_last_state;
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_initialized_sandboxes--;
-		runtime_total_error_sandboxes++;
+		atomic_fetch_sub(&runtime_total_initialized_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_error_sandboxes, 1);
 #endif
 		break;
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_running_sandboxes--;
-		runtime_total_error_sandboxes++;
+		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_error_sandboxes, 1);
 #endif
 		break;
 	}
@@ -875,8 +875,8 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->completion_timestamp = now;
 		sandbox->returned_duration += duration_of_last_state;
 #ifdef LOG_SANDBOX_TOTALS
-		runtime_total_returned_sandboxes--;
-		runtime_total_complete_sandboxes++;
+		atomic_fetch_sub(&runtime_total_returned_sandboxes, 1);
+		atomic_fetch_add(&runtime_total_complete_sandboxes, 1);
 #endif
 		break;
 	}
@@ -950,7 +950,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	sandbox_set_as_initialized(sandbox, sandbox_request, now);
 
 #ifdef LOG_SANDBOX_TOTALS
-	runtime_total_freed_requests++;
+	atomic_fetch_add(&runtime_total_freed_requests, 1);
 #endif
 	free(sandbox_request);
 done:
