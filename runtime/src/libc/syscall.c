@@ -584,7 +584,7 @@ wasm_fcntl(uint32_t fd, uint32_t cmd, uint32_t arg_or_lock_ptr)
 	case WF_SETLK:
 		return 0;
 	default:
-		assert(0);
+		panic("Unexpected Command");
 	}
 }
 
