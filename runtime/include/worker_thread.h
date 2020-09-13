@@ -11,6 +11,7 @@ If there are fewer cores than this, main dynamically overrides this and uses all
 extern __thread uint64_t  worker_thread_lock_duration;
 extern __thread uint64_t  worker_thread_start_timestamp;
 extern __thread uv_loop_t worker_thread_uvio_handle;
+extern __thread int       worker_thread_epoll_file_descriptor;
 
 void *worker_thread_main(void *return_code);
 

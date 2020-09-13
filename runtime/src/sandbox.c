@@ -77,7 +77,7 @@ sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
 
 /**
  * Receive and Parse the Request for the current sandbox
- * @return 0 if message parsing complete, -EAGAIN if not yet complete, -1 on error
+ * @return 0 if message parsing complete, -1 on error
  */
 static inline int
 sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
@@ -90,27 +90,32 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 
 #ifndef USE_HTTP_UVIO
 
-	/* Read from the Socket */
-	int length_read = recv(sandbox->client_socket_descriptor,
-	                       &sandbox->request_response_data[sandbox->request_response_data_length],
-	                       sandbox->module->max_request_size - sandbox->request_response_data_length, 0);
-	if (length_read < 0) {
-		if (errno == EAGAIN) goto eagain;
+	while (!sandbox->http_request.message_end) {
+		/* Read from the Socket */
+		int length_read = recv(sandbox->client_socket_descriptor,
+		                       &sandbox->request_response_data[sandbox->request_response_data_length],
+		                       sandbox->module->max_request_size - sandbox->request_response_data_length, 0);
+		if (length_read < 0) {
+			if (errno == EAGAIN) {
+				worker_thread_block_current_sandbox();
+				continue;
+			} else {
+				/* All other errors */
+				debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor,
+				         strerror(errno));
+				goto err;
+			}
+		}
 
-		/* All other errors */
-		debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor, strerror(errno));
-		goto err;
+		/* Try to parse what we've read */
+		if (sandbox_parse_http_request(sandbox, length_read) < 0) {
+			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
+			goto err;
+		}
+
+		sandbox->request_response_data_length += length_read;
 	}
 
-	/* Try to parse what we've read */
-	if (sandbox_parse_http_request(sandbox, length_read) < 0) {
-		debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
-		goto err;
-	}
-
-	sandbox->request_response_data_length += length_read;
-
-	if (!sandbox->http_request.message_end) goto eagain;
 
 	sandbox->request_length = sandbox->request_response_data_length;
 
@@ -124,9 +129,6 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 	rc = 0;
 done:
 	return rc;
-eagain:
-	rc = -EAGAIN;
-	goto done;
 err:
 	rc = -1;
 	goto done;
@@ -219,10 +221,12 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 		rc = write(sandbox->client_socket_descriptor, sandbox->request_response_data + sent,
 		           response_cursor - sent);
 		if (rc < 0) {
-			if (errno == EAGAIN) continue;
-
-			perror("write");
-			return -1;
+			if (errno == EAGAIN)
+				worker_thread_block_current_sandbox();
+			else {
+				perror("write");
+				return -1;
+			}
 		}
 
 		sent += rc;
@@ -237,21 +241,6 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 	worker_thread_process_io();
 #endif
 	return 0;
-}
-
-static inline void
-sandbox_close_http(struct sandbox *sandbox)
-{
-	assert(sandbox != NULL);
-
-#ifdef USE_HTTP_UVIO
-	uv_close((uv_handle_t *)&sandbox->client_libuv_stream, libuv_callbacks_on_close_wakeup_sakebox);
-	worker_thread_process_io();
-#else
-	if (close(sandbox->client_socket_descriptor) < 0) {
-		panic("Error closing client socket - %s", strerror(errno));
-	}
-#endif
 }
 
 static inline void
@@ -276,6 +265,14 @@ sandbox_open_http(struct sandbox *sandbox)
 	/* Open the libuv TCP stream */
 	r = uv_tcp_open((uv_tcp_t *)&sandbox->client_libuv_stream, sandbox->client_socket_descriptor);
 	assert(r == 0);
+#else
+	/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
+	struct epoll_event accept_evt;
+	accept_evt.data.ptr = (void *)sandbox;
+	accept_evt.events   = EPOLLIN | EPOLLOUT | EPOLLET;
+	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_ADD, sandbox->client_socket_descriptor,
+	                   &accept_evt);
+	if (unlikely(rc < 0)) panic_err();
 #endif
 }
 
@@ -317,11 +314,8 @@ current_sandbox_main(void)
 
 	sandbox_open_http(sandbox);
 
-	/* Parse the request, polling until complete */
-	do {
-		rc = sandbox_receive_and_parse_client_request(sandbox);
-	} while (rc == -EAGAIN);
-
+	/* Parse the request */
+	rc = sandbox_receive_and_parse_client_request(sandbox);
 	if (rc < 0) {
 		error_message = "Unable to receive and parse client request\n";
 		goto err;
@@ -343,7 +337,7 @@ current_sandbox_main(void)
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
 	rc = sandbox_build_and_send_client_response(sandbox);
-	if (rc == -1) {
+	if (rc < 0) {
 		error_message = "Unable to build and send client response\n";
 		goto err;
 	};
@@ -372,15 +366,18 @@ err:
 	debuglog("%s", error_message);
 	assert(sandbox->state == SANDBOX_RUNNING);
 
-	int to_send = strlen(HTTP_RESPONSE_400_BAD_REQUEST);
+	/* Send a 400 error back to the client */
 	int sent    = 0;
+	int to_send = strlen(HTTP_RESPONSE_400_BAD_REQUEST);
 	while (sent < to_send) {
 		rc = write(sandbox->client_socket_descriptor, &HTTP_RESPONSE_400_BAD_REQUEST[sent], to_send - sent);
 		if (rc < 0) {
-			if (errno == EAGAIN) continue;
-
-			debuglog("Failed to send 400: %s", strerror(errno));
-			break;
+			if (errno == EAGAIN)
+				worker_thread_block_current_sandbox();
+			else {
+				debuglog("Failed to send 400: %s", strerror(errno));
+				break;
+			}
 		}
 
 		sent += rc;

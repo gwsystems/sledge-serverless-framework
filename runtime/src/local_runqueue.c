@@ -19,7 +19,7 @@ local_runqueue_initialize(struct local_runqueue_config *config)
 }
 
 /**
- * Adds a sandbox request to the run queue
+ * Adds a sandbox to the run queue
  * @param sandbox to add
  */
 void

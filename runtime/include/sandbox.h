@@ -335,6 +335,26 @@ sandbox_print_perf(struct sandbox *sandbox)
 	         queued_us, initializing_us, runnable_us, running_us, blocked_us, returned_us);
 }
 
+static inline void
+sandbox_close_http(struct sandbox *sandbox)
+{
+	assert(sandbox != NULL);
+
+#ifdef USE_HTTP_UVIO
+	uv_close((uv_handle_t *)&sandbox->client_libuv_stream, libuv_callbacks_on_close_wakeup_sakebox);
+	worker_thread_process_io();
+#else
+	/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
+	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, sandbox->client_socket_descriptor, NULL);
+	if (unlikely(rc < 0)) panic_err();
+
+	if (close(sandbox->client_socket_descriptor) < 0) {
+		panic("Error closing client socket - %s", strerror(errno));
+	}
+#endif
+}
+
+
 INLINE void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
                                        uint64_t allocation_timestamp);
 INLINE void sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state);

@@ -1,3 +1,5 @@
+#ifdef USE_HTTP_UVIO
+
 #include <stdlib.h>
 #include <uv.h>
 
@@ -1152,3 +1154,5 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 	panic("syscall %d (%d, %d, %d, %d, %d, %d)\n", n, a, b, c, d, e, f);
 	return 0;
 }
+
+#endif

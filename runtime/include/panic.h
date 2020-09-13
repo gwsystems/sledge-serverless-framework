@@ -11,3 +11,5 @@
 		        __func__, ##__VA_ARGS__);                                                                 \
 		exit(EXIT_FAILURE);                                                                               \
 	}
+
+#define panic_err() panic("%s", strerror(errno));
