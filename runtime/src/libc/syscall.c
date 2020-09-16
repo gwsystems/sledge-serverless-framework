@@ -721,17 +721,14 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 	case SYS_RT_SIGACTION:
 	case SYS_RT_SIGPROGMASK:
 	case SYS_MADVISE:
-		/* These calls are unimplemented but not believed to be used */
-		assert(0);
-		return 0;
 	default:
 		/* This is a general catch all for the other functions below */
-		debuglog("Unknown Syscall %d\n", n);
-		fflush(stderr);
-		assert(0);
+		debuglog("Call to unknown or implemented syscall %d\n", n);
+		errno = ENOSYS;
+		return -1;
 
 
-		/* The calls below this need to be validated / refactored to be non-blocking */
+		/* TODO: The calls below need to be validated / refactored to be non-blocking */
 		// case SYS_READV:
 		// 	return wasm_readv(a, b, c);
 		// case SYS_OPEN:
