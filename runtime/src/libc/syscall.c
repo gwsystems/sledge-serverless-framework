@@ -101,7 +101,6 @@ wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 		return bytes_to_read;
 	}
 
-
 	char *buf = worker_thread_get_memory_ptr_void(buf_offset, nbyte);
 
 	int32_t res = 0;
@@ -277,24 +276,6 @@ struct wasm_stat {
 };
 
 #define SYS_STAT 4
-// What the OSX stat structure looks like:
-//     struct stat { /* when _DARWIN_FEATURE_64_BIT_INODE is NOT defined */
-//         dev_t    st_dev;    /* device inode resides on */
-//         ino_t    st_ino;    /* inode's number */
-//         mode_t   st_mode;   /* inode protection mode */
-//         nlink_t  st_nlink;  /* number of hard links to the file */
-//         uid_t    st_uid;    /* user-id of owner */
-//         gid_t    st_gid;    /* group-id of owner */
-//         dev_t    st_rdev;   /* device type, for special file inode */
-//         struct timespec st_atimespec;  /* time of last access */
-//         struct timespec st_mtimespec;  /* time of last data modification */
-//         struct timespec st_ctimespec;  /* time of last file status change */
-//         off_t    st_size;   /* file size, in bytes */
-//         quad_t   st_blocks; /* blocks allocated for file */
-//         u_long   st_blksize;/* optimal file sys I/O ops blocksize */
-//         u_long   st_flags;  /* user defined flags for file */
-//         u_long   st_gen;    /* file generation number */
-//     };
 
 int32_t
 wasm_stat(uint32_t path_str_offset, int32_t stat_offset)
@@ -318,16 +299,7 @@ wasm_stat(uint32_t path_str_offset, int32_t stat_offset)
 		.st_blksize = stat.st_blksize,
 		.st_blocks  = stat.st_blocks,
 	};
-#ifdef __APPLE__
-	stat_ptr->st_atim.tv_sec  = stat.st_atimespec.tv_sec;
-	stat_ptr->st_atim.tv_nsec = stat.st_atimespec.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec  = stat.st_mtimespec.tv_sec;
-	stat_ptr->st_mtim.tv_nsec = stat.st_mtimespec.tv_nsec;
-
-	stat_ptr->st_ctim.tv_sec  = stat.st_ctimespec.tv_sec;
-	stat_ptr->st_ctim.tv_nsec = stat.st_ctimespec.tv_nsec;
-#else
 	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
@@ -336,7 +308,6 @@ wasm_stat(uint32_t path_str_offset, int32_t stat_offset)
 
 	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
-#endif
 
 	return res;
 }
@@ -363,17 +334,7 @@ wasm_fstat(int32_t filedes, int32_t stat_offset)
 		.st_blksize = stat.st_blksize,
 		.st_blocks  = stat.st_blocks,
 	};
-#ifdef __APPLE__
-	panic("We only support Linux!");
-	stat_ptr->st_atim.tv_sec  = stat.st_atimespec.tv_sec;
-	stat_ptr->st_atim.tv_nsec = stat.st_atimespec.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec  = stat.st_mtimespec.tv_sec;
-	stat_ptr->st_mtim.tv_nsec = stat.st_mtimespec.tv_nsec;
-
-	stat_ptr->st_ctim.tv_sec  = stat.st_ctimespec.tv_sec;
-	stat_ptr->st_ctim.tv_nsec = stat.st_ctimespec.tv_nsec;
-#else
 	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
@@ -382,7 +343,6 @@ wasm_fstat(int32_t filedes, int32_t stat_offset)
 
 	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
-#endif
 
 	return res;
 }
@@ -410,16 +370,7 @@ wasm_lstat(int32_t path_str_offset, int32_t stat_offset)
 		.st_blksize = stat.st_blksize,
 		.st_blocks  = stat.st_blocks,
 	};
-#ifdef __APPLE__
-	stat_ptr->st_atim.tv_sec  = stat.st_atimespec.tv_sec;
-	stat_ptr->st_atim.tv_nsec = stat.st_atimespec.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec  = stat.st_mtimespec.tv_sec;
-	stat_ptr->st_mtim.tv_nsec = stat.st_mtimespec.tv_nsec;
-
-	stat_ptr->st_ctim.tv_sec  = stat.st_ctimespec.tv_sec;
-	stat_ptr->st_ctim.tv_nsec = stat.st_ctimespec.tv_nsec;
-#else
 	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
@@ -428,7 +379,6 @@ wasm_lstat(int32_t path_str_offset, int32_t stat_offset)
 
 	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
-#endif
 
 	return res;
 }
@@ -527,7 +477,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	struct wasm_iovec *iov = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
 	// If we aren't on MUSL, pass writev to printf if possible
-#if defined(__APPLE__) || defined(__GLIBC__)
+#if defined(__GLIBC__)
 	if (fd == 1) {
 		int sum = 0;
 		for (int i = 0; i < iovcnt; i++) {
@@ -759,52 +709,57 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 		return wasm_read(a, b, c);
 	case SYS_WRITE:
 		return wasm_write(a, b, c);
-	// case SYS_OPEN:
-	// 	return wasm_open(a, b, c);
-	// case SYS_CLOSE:
-	// 	return wasm_close(a);
-	// case SYS_STAT:
-	// 	return wasm_stat(a, b);
-	// case SYS_FSTAT:
-	// 	return wasm_fstat(a, b);
-	// case SYS_LSTAT:
-	// 	return wasm_lstat(a, b);
-	// case SYS_LSEEK:
-	// 	return wasm_lseek(a, b, c);
-	// case SYS_MMAP:
-	// 	return wasm_mmap(a, b, c, d, e, f);
-	case SYS_MUNMAP:
-		return 0;
-	case SYS_BRK:
-		return 0;
-	case SYS_RT_SIGACTION:
-		return 0;
-	case SYS_RT_SIGPROGMASK:
-		return 0;
-	case SYS_IOCTL:
-		return wasm_ioctl(a, b, c);
-	// case SYS_READV:
-	// 	return wasm_readv(a, b, c);
 	case SYS_WRITEV:
 		return wasm_writev(a, b, c);
-	case SYS_MADVISE:
-		return 0;
-	// case SYS_GETPID:
-	// 	return wasm_getpid();
-	// case SYS_FCNTL:
-	// 	return wasm_fcntl(a, b, c);
-	// case SYS_FSYNC:
-	// 	return wasm_fsync(a);
-	// case SYS_UNLINK:
-	// 	return wasm_unlink(a);
-	// case SYS_GETCWD:
-	// 	return wasm_getcwd(a, b);
-	// case SYS_GETEUID:
-	// 	return wasm_geteuid();
+	case SYS_IOCTL:
 	case SYS_SET_THREAD_AREA:
-		return 0;
 	case SYS_SET_TID_ADDRESS:
+		/* Note: These are called, but are unimplemented and fail silently */
 		return 0;
+	case SYS_MUNMAP:
+	case SYS_BRK:
+	case SYS_RT_SIGACTION:
+	case SYS_RT_SIGPROGMASK:
+	case SYS_MADVISE:
+		/* These calls are unimplemented but not believed to be used */
+		assert(0);
+		return 0;
+	default:
+		/* This is a general catch all for the other functions below */
+		debuglog("Unknown Syscall %d\n", n);
+		fflush(stderr);
+		assert(0);
+
+
+		/* The calls below this need to be validated / refactored to be non-blocking */
+		// case SYS_READV:
+		// 	return wasm_readv(a, b, c);
+		// case SYS_OPEN:
+		// 	return wasm_open(a, b, c);
+		// case SYS_CLOSE:
+		// 	return wasm_close(a);
+		// case SYS_STAT:
+		// 	return wasm_stat(a, b);
+		// case SYS_FSTAT:
+		// 	return wasm_fstat(a, b);
+		// case SYS_LSTAT:
+		// 	return wasm_lstat(a, b);
+		// case SYS_LSEEK:
+		// 	return wasm_lseek(a, b, c);
+		// case SYS_MMAP:
+		// 	return wasm_mmap(a, b, c, d, e, f);
+		// case SYS_GETPID:
+		// 	return wasm_getpid();
+		// case SYS_FCNTL:
+		// 	return wasm_fcntl(a, b, c);
+		// case SYS_FSYNC:
+		// 	return wasm_fsync(a);
+		// case SYS_UNLINK:
+		// 	return wasm_unlink(a);
+		// case SYS_GETCWD:
+		// 	return wasm_getcwd(a, b);
+		// case SYS_GETEUID:
+		// 	return wasm_geteuid();
 		// case SYS_GET_TIME:
 		// 	return wasm_get_time(a, b);
 		// case SYS_EXIT_GROUP:
