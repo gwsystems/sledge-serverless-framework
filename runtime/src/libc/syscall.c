@@ -1,5 +1,11 @@
 #ifndef USE_HTTP_UVIO
 
+/*
+ * This code originally came from the aWsm compiler
+ * It has since been updated
+ * https://github.com/gwsystems/aWsm/blob/master/runtime/libc/libc_backing.c
+ */
+
 #include <current_sandbox.h>
 #include <sys/types.h>
 #include <sys/socket.h>
