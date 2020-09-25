@@ -345,7 +345,6 @@ sandbox_close_http(struct sandbox *sandbox)
 	uv_close((uv_handle_t *)&sandbox->client_libuv_stream, libuv_callbacks_on_close_wakeup_sakebox);
 	worker_thread_process_io();
 #else
-	/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
 	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, sandbox->client_socket_descriptor, NULL);
 	if (unlikely(rc < 0)) panic_err();
 
