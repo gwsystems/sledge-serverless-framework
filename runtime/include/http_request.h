@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include "http.h"
 
 /* all in-memory ptrs.. don't mess around with that! */
@@ -16,11 +17,11 @@ struct http_request {
 	int                body_read_length; /* How far we've read */
 
 	/* additional members for http-parser */
-	int last_was_value; /* http-parser flag used to help the http-parser callbacks differentiate between header
+	bool last_was_value; /* http-parser flag used to help the http-parser callbacks differentiate between header
 	                       fields and values to know when to allocate a new header */
-	int header_end;     /* boolean flag set when header processing is complete */
-	int message_begin;  /* boolean flag set when body processing begins */
-	int message_end;    /* boolean flag set when body processing is complete */
+	bool header_end;     /* boolean flag set when header processing is complete */
+	bool message_begin;  /* boolean flag set when body processing begins */
+	bool message_end;    /* boolean flag set when body processing is complete */
 };
 
 /***************************************************
