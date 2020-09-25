@@ -85,7 +85,10 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 		}
 
 
-		if (sandbox->http_request.message_end) break;
+		if (sandbox->http_request.message_end) {
+			sandbox->request_response_data_length += length_read;
+			break;
+		};
 
 #ifdef LOG_HTTP_PARSER
 		debuglog("http_parser_execute(%p, %p, %p, %lu)", &sandbox->http_parser, http_parser_settings_get(),
@@ -104,13 +107,21 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 		                      &sandbox->request_response_data[sandbox->request_response_data_length],
 		                      length_read);
 
+		if (sandbox->http_request.message_end) {
+			sandbox->request_response_data_length += length_read;
+			break;
+		};
+
 		// size_t length_parsed = sandbox_parse_http_request(sandbox, length_read);
 		if (length_parsed != length_read) {
+			debuglog("Error: %s, Description: %s\n", http_errno_name(sandbox->http_parser.status_code),
+			         http_errno_description(sandbox->http_parser.status_code));
+			debuglog("Length Parsed %zu, Length Read %zu\n", length_parsed, length_read);
 			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
 			goto err;
 		}
 
-		sandbox->request_response_data_length += length_parsed;
+		sandbox->request_response_data_length += length_read;
 
 		debuglog("After Read: %lu", sandbox->request_response_data_length);
 	}
@@ -201,7 +212,10 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 	 * actual data that the program appended to the HTTP Request. If proves to be a bad assumption,
 	 * we have to copy the STDOUT string to a temporary buffer before writing the header
 	 */
-	assert(response_cursor < sandbox->request_length);
+	if (unlikely(response_cursor >= sandbox->request_length)) {
+		panic("Response Cursor: %zd is less that Request Length: %zd\n", response_cursor,
+		      sandbox->request_length);
+	}
 
 	/* Move the Sandbox's Data after the HTTP Response Data */
 	memmove(sandbox->request_response_data + response_cursor,
