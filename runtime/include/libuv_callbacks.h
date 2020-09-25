@@ -25,6 +25,7 @@ libuv_callbacks_on_read_parse_http_request(uv_stream_t *stream, ssize_t number_r
 
 	/* Parse the chunks libuv has read on our behalf until we've parse to message end */
 	if (number_read > 0) {
+		// FIXME: Broken by refactor to sandbox_parse_http_request changes to return code
 		if (sandbox_parse_http_request(sandbox, number_read) != 0) return;
 		sandbox->request_response_data_length += number_read;
 		struct http_request *rh = &sandbox->http_request;

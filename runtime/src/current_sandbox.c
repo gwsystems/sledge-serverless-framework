@@ -54,7 +54,7 @@ current_sandbox_initialize_io_handle(void)
 	return sandbox_initialize_io_handle(current_sandbox_get());
 }
 
-int sandbox_parse_http_request(struct sandbox *sandbox, size_t l);
+size_t sandbox_parse_http_request(struct sandbox *sandbox, size_t l);
 
 /**
  * Sets the file descriptor of the sandbox's ith io_handle
