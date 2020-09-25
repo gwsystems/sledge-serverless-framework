@@ -53,6 +53,7 @@ http_parser_settings_on_message_begin(http_parser *parser)
 
 	http_request->message_begin  = true;
 	http_request->last_was_value = true; /* should always start with a header */
+	sandbox->is_repeat_header    = false;
 	return 0;
 }
 
@@ -73,7 +74,6 @@ http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t
 
 	if (sandbox->http_request.message_end || sandbox->http_request.header_end) return 0;
 
-// idef parser debug
 #ifdef LOG_HTTP_PARSER
 	debuglog("sandbox: %lu\n", sandbox->request_arrival_timestamp);
 #endif
@@ -104,8 +104,8 @@ http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t
 #endif
 
 	if (!sandbox->is_repeat_header) {
-		if (unlikely(http_request->header_count <= HTTP_MAX_HEADER_COUNT)) { return -1; }
-		if (unlikely(length < HTTP_MAX_HEADER_LENGTH)) { return -1; }
+		if (unlikely(http_request->header_count >= HTTP_MAX_HEADER_COUNT)) { return -1; }
+		if (unlikely(length > HTTP_MAX_HEADER_LENGTH)) { return -1; }
 		http_request->headers[http_request->header_count++].key = (char *)at;
 		http_request->last_was_value                            = false;
 		sandbox->is_repeat_header                               = false;
@@ -139,7 +139,7 @@ http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t
 
 	/* it is from the sandbox's request_response_data, should persist. */
 	if (!sandbox->is_repeat_header) {
-		if (unlikely(length < HTTP_MAX_HEADER_VALUE_LENGTH)) { return -1; }
+		if (unlikely(length >= HTTP_MAX_HEADER_VALUE_LENGTH)) return -1;
 		http_request->headers[http_request->header_count - 1].value = (char *)at;
 		http_request->last_was_value                                = true;
 	}
