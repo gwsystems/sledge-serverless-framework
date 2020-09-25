@@ -99,6 +99,7 @@ struct sandbox {
 	uv_tcp_t                 client_libuv_stream;
 	uv_shutdown_t            client_libuv_shutdown_request;
 
+	bool                 is_repeat_header;
 	http_parser          http_parser;
 	struct http_request  http_request;
 	struct http_response http_response;
@@ -137,7 +138,7 @@ struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_free_linear_memory(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
-int             sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
+size_t          sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
 static inline char *
 sandbox_state_stringify(sandbox_state_t state)

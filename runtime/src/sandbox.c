@@ -48,34 +48,6 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 }
 
 /**
- * Run the http-parser on the next N bytes of the sandbox's request_response_data buffer
- * Success means that a "chunk" was fully parsed, not that parsing of a full request is complete
- * @param sandbox the sandbox containing that we want to parse
- * @param length The size of the data that we want to parse
- * @returns 0 on success, -1 on failure
- */
-int
-sandbox_parse_http_request(struct sandbox *sandbox, size_t length)
-{
-	assert(sandbox != NULL);
-
-	if (length == 0) return 0;
-
-	/* Assumption: We shouldn't have anything left to parse if message was successfully parsed to completion */
-	if (unlikely(sandbox->http_request.message_end)) {
-		debuglog("Unexpectedly received client data after message was parsed to completion");
-	};
-
-	size_t length_parsed = http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
-	                                           sandbox->request_response_data
-	                                             + sandbox->request_response_data_length,
-	                                           length);
-
-	if (length_parsed != length) return -1;
-	return 0;
-}
-
-/**
  * Receive and Parse the Request for the current sandbox
  * @return 0 if message parsing complete, -1 on error
  */
@@ -92,9 +64,14 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 
 	while (!sandbox->http_request.message_end) {
 		/* Read from the Socket */
-		int length_read = recv(sandbox->client_socket_descriptor,
-		                       &sandbox->request_response_data[sandbox->request_response_data_length],
-		                       sandbox->module->max_request_size - sandbox->request_response_data_length, 0);
+		ssize_t length_read = recv(sandbox->client_socket_descriptor,
+		                           &sandbox->request_response_data[sandbox->request_response_data_length],
+		                           sandbox->module->max_request_size - sandbox->request_response_data_length,
+		                           0);
+
+		/* Unexpected client shutdown.. or is this just EOF */
+		if (length_read == 0 && !sandbox->http_request.message_end) goto err;
+
 		if (length_read < 0) {
 			if (errno == EAGAIN) {
 				worker_thread_block_current_sandbox();
@@ -107,13 +84,35 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 			}
 		}
 
+
+		if (sandbox->http_request.message_end) break;
+
+#ifdef LOG_HTTP_PARSER
+		debuglog("http_parser_execute(%p, %p, %p, %lu)", &sandbox->http_parser, http_parser_settings_get(),
+		         &sandbox->request_response_data[sandbox->request_response_data_length], length_read);
+#endif
+
+		http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
+		                    &sandbox->request_response_data[sandbox->request_response_data_length],
+		                    length_read);
+
+
 		/* Try to parse what we've read */
-		if (sandbox_parse_http_request(sandbox, length_read) < 0) {
+		/* TODO: Consider 0 as EOF? */
+		size_t length_parsed =
+		  http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
+		                      &sandbox->request_response_data[sandbox->request_response_data_length],
+		                      length_read);
+
+		// size_t length_parsed = sandbox_parse_http_request(sandbox, length_read);
+		if (length_parsed != length_read) {
 			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
 			goto err;
 		}
 
-		sandbox->request_response_data_length += length_read;
+		sandbox->request_response_data_length += length_parsed;
+
+		debuglog("After Read: %lu", sandbox->request_response_data_length);
 	}
 
 
