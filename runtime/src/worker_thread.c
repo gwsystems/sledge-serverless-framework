@@ -360,6 +360,7 @@ worker_thread_main(void *return_code)
 	software_interrupt_unmask_signal(SIGALRM);
 	software_interrupt_unmask_signal(SIGUSR1);
 #endif
+	signal(SIGPIPE, SIG_IGN);
 
 	worker_thread_initialize_async_io();
 
