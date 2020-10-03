@@ -120,6 +120,7 @@ runtime_initialize(void)
 	/* Mask Signals */
 	software_interrupt_mask_signal(SIGUSR1);
 	software_interrupt_mask_signal(SIGALRM);
+	signal(SIGPIPE, SIG_IGN);
 
 	/* Initialize http_parser_settings global */
 	http_parser_settings_initialize();
