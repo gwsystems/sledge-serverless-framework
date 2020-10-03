@@ -70,7 +70,10 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 		                           0);
 
 		/* Unexpected client shutdown.. or is this just EOF */
-		if (length_read == 0 && !sandbox->http_request.message_end) goto err;
+		if (length_read == 0 && !sandbox->http_request.message_end) {
+			debuglog("Client Shutdown Socket\n");
+			goto err;
+		}
 
 		if (length_read < 0) {
 			if (errno == EAGAIN) {
@@ -380,17 +383,20 @@ err:
 	assert(sandbox->state == SANDBOX_RUNNING);
 
 	/* Send a 400 error back to the client */
+	rc          = 0;
 	int sent    = 0;
 	int to_send = strlen(HTTP_RESPONSE_400_BAD_REQUEST);
 	while (sent < to_send) {
 		rc = write(sandbox->client_socket_descriptor, &HTTP_RESPONSE_400_BAD_REQUEST[sent], to_send - sent);
 		if (rc < 0) {
-			if (errno == EAGAIN)
+			if (errno == EAGAIN) {
+				debuglog("Unexpectedly blocking on write of 4XX error");
 				worker_thread_block_current_sandbox();
-			else {
-				debuglog("Failed to send 400: %s", strerror(errno));
-				break;
+				continue;
 			}
+
+			debuglog("Failed to send 400: %s", strerror(errno));
+			break;
 		}
 
 		sent += rc;
