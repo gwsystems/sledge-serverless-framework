@@ -624,6 +624,7 @@ wasm_get_time(int32_t clock_id, int32_t timespec_off)
 	return res;
 }
 
+#define SYS_EXIT       60
 #define SYS_EXIT_GROUP 231
 int32_t
 wasm_exit_group(int32_t status)
@@ -711,13 +712,24 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 		return wasm_write(a, b, c);
 	case SYS_WRITEV:
 		return wasm_writev(a, b, c);
+	case SYS_CLOSE:
+		return wasm_close(a);
+	case SYS_LSEEK:
+		return wasm_lseek(a, b, c);
+	case SYS_EXIT:
+	case SYS_EXIT_GROUP:
+		return wasm_exit_group(a);
+	case SYS_MMAP:
+		return wasm_mmap(a, b, c, d, e, f);
+	case SYS_GET_TIME:
+		return wasm_get_time(a, b);
+	case SYS_MUNMAP:
 	case SYS_IOCTL:
 	case SYS_SET_THREAD_AREA:
 	case SYS_SET_TID_ADDRESS:
+	case SYS_BRK:
 		/* Note: These are called, but are unimplemented and fail silently */
 		return 0;
-	case SYS_MUNMAP:
-	case SYS_BRK:
 	case SYS_RT_SIGACTION:
 	case SYS_RT_SIGPROGMASK:
 	case SYS_MADVISE:
@@ -727,14 +739,11 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 		errno = ENOSYS;
 		return -1;
 
-
 		/* TODO: The calls below need to be validated / refactored to be non-blocking */
 		// case SYS_READV:
 		// 	return wasm_readv(a, b, c);
 		// case SYS_OPEN:
 		// 	return wasm_open(a, b, c);
-		// case SYS_CLOSE:
-		// 	return wasm_close(a);
 		// case SYS_STAT:
 		// 	return wasm_stat(a, b);
 		// case SYS_FSTAT:
@@ -743,8 +752,6 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 		// 	return wasm_lstat(a, b);
 		// case SYS_LSEEK:
 		// 	return wasm_lseek(a, b, c);
-		// case SYS_MMAP:
-		// 	return wasm_mmap(a, b, c, d, e, f);
 		// case SYS_GETPID:
 		// 	return wasm_getpid();
 		// case SYS_FCNTL:
@@ -757,10 +764,6 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 		// 	return wasm_getcwd(a, b);
 		// case SYS_GETEUID:
 		// 	return wasm_geteuid();
-		// case SYS_GET_TIME:
-		// 	return wasm_get_time(a, b);
-		// case SYS_EXIT_GROUP:
-		// 	return wasm_exit_group(a);
 		// case SYS_FCHOWN:
 		// 	return wasm_fchown(a, b, c);
 		// case SYS_SOCKET:
