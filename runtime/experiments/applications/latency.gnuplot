@@ -3,8 +3,8 @@ reset
 set term jpeg 
 set output "latency.jpg"
 
-set xlabel "Connections"
-set xrange [-5:105]
+set xlabel "Payload (bytes)"
+set xrange [-5:1050000]
 
 set ylabel "Latency (ms)"
 set yrange [0:]
