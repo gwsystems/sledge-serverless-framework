@@ -51,9 +51,11 @@ else
   echo "Running under gdb" >>"$results_directory/$log"
 fi
 
+iterations=10000
+
 # Execute workloads long enough for runtime to learn excepted execution time
 echo -n "Running Samples: "
-hey -n 10000 -c 3 -q 200 -o csv -m GET http://localhost:10000
+hey -n "$iterations" -c 3 -q 200 -o csv -m GET http://localhost:10000
 sleep 5
 echo "[DONE]"
 
@@ -62,7 +64,7 @@ concurrency=(1 20 40 60 80 100)
 echo "Running Experiments"
 for conn in ${concurrency[*]}; do
   printf "\t%d Concurrency: " "$conn"
-  hey -n 10000 -c "$conn" -cpus 2 -o csv -m GET http://localhost:10000 >"$results_directory/con$conn.csv"
+  hey -n "$iterations" -c "$conn" -cpus 2 -o csv -m GET http://localhost:10000 >"$results_directory/con$conn.csv"
   echo "[DONE]"
 done
 
@@ -87,7 +89,7 @@ for conn in ${concurrency[*]}; do
   # Calculate Success Rate for csv
   awk -F, '
     $7 == 200 {ok++}
-    END{printf "'"$conn"',%3.5f\n", (ok / (NR - 1) * 100)}
+    END{printf "'"$conn"',%3.5f\n", (ok / '"$iterations"' * 100)}
   ' <"$results_directory/con$conn.csv" >>"$results_directory/success.csv"
 
   # Filter on 200s, convery from s to ms, and sort
@@ -96,6 +98,7 @@ for conn in ${concurrency[*]}; do
 
   # Get Number of 200s
   oks=$(wc -l <"$results_directory/con$conn-response.csv")
+  ((oks == 0)) && continue # If all errors, skip line
 
   # Get Latest Timestamp
   duration=$(tail -n1 "$results_directory/con$conn.csv" | cut -d, -f8)

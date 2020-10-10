@@ -51,18 +51,24 @@ else
   echo "Running under gdb" >>"$results_directory/$log"
 fi
 
+payloads=(fivebyeight/5x8 handwriting/handwrt1 hyde/hyde)
+ports=(10000 10001 10002)
+iterations=1000
+
 # Execute workloads long enough for runtime to learn excepted execution time
-echo -n "Running Samples: "
-hey -n 10000 -c 3 -q 200 -o csv -m GET http://localhost:10000
-sleep 5
-echo "[DONE]"
+# echo -n "Running Samples: "
+# for i in {0..2}; do
+#   hey -n 200 -c 3 -q 200 -o csv -m GET -D "$experiment_directory/${payloads[$i]}.pnm" "http://localhost:${ports[$i]}"
+# done
+# sleep 1
+# echo "[DONE]"
 
 # Execute the experiments
-concurrency=(1 20 40 60 80 100)
 echo "Running Experiments"
-for conn in ${concurrency[*]}; do
-  printf "\t%d Concurrency: " "$conn"
-  hey -n 10000 -c "$conn" -cpus 2 -o csv -m GET http://localhost:10000 >"$results_directory/con$conn.csv"
+for i in {0..2}; do
+  printf "\t%s Payload: " "${payloads[$i]}"
+  file=$(echo "${payloads[$i]}" | awk -F/ '{print $2}').csv
+  hey -n "$iterations" -c 3 -cpus 2 -o csv -m GET -D "$experiment_directory/${payloads[$i]}.pnm" "http://localhost:${ports[$i]}" >"$results_directory/$file"
   echo "[DONE]"
 done
 
@@ -83,24 +89,26 @@ printf "Concurrency,Success_Rate\n" >>"$results_directory/success.csv"
 printf "Concurrency,Throughput\n" >>"$results_directory/throughput.csv"
 printf "Con,p50,p90,p99,p100\n" >>"$results_directory/latency.csv"
 
-for conn in ${concurrency[*]}; do
+for payload in ${payloads[*]}; do
   # Calculate Success Rate for csv
+  file=$(echo "$payload" | awk -F/ '{print $2}')
   awk -F, '
     $7 == 200 {ok++}
-    END{printf "'"$conn"',%3.5f\n", (ok / (NR - 1) * 100)}
-  ' <"$results_directory/con$conn.csv" >>"$results_directory/success.csv"
+    END{printf "'"$file"',%3.5f\n", (ok / '"$iterations"' * 100)}
+  ' <"$results_directory/$file.csv" >>"$results_directory/success.csv"
 
   # Filter on 200s, convery from s to ms, and sort
-  awk -F, '$7 == 200 {print ($1 * 1000)}' <"$results_directory/con$conn.csv" |
-    sort -g >"$results_directory/con$conn-response.csv"
+  awk -F, '$7 == 200 {print ($1 * 1000)}' <"$results_directory/$file.csv" |
+    sort -g >"$results_directory/$file-response.csv"
 
   # Get Number of 200s
-  oks=$(wc -l <"$results_directory/con$conn-response.csv")
+  oks=$(wc -l <"$results_directory/$file-response.csv")
+  ((oks == 0)) && continue # If all errors, skip line
 
   # Get Latest Timestamp
-  duration=$(tail -n1 "$results_directory/con$conn.csv" | cut -d, -f8)
+  duration=$(tail -n1 "$results_directory/$file.csv" | cut -d, -f8)
   throughput=$(echo "$oks/$duration" | bc)
-  printf "%d,%f\n" "$conn" "$throughput" >>"$results_directory/throughput.csv"
+  printf "%s,%f\n" "$file" "$throughput" >>"$results_directory/throughput.csv"
 
   # Generate Latency Data for csv
   awk '
@@ -110,16 +118,16 @@ for conn in ${concurrency[*]}; do
       p90 = int('"$oks"' * 0.9)
       p99 = int('"$oks"' * 0.99)
       p100 = '"$oks"'
-      printf "'"$conn"',"
+      printf "'"$file"',"
     }   
     NR==p50 {printf "%1.4f,", $0}
     NR==p90 {printf "%1.4f,", $0}
     NR==p99 {printf "%1.4f,", $0}
     NR==p100 {printf "%1.4f\n", $0}
-  ' <"$results_directory/con$conn-response.csv" >>"$results_directory/latency.csv"
+  ' <"$results_directory/$file-response.csv" >>"$results_directory/latency.csv"
 
   # Delete scratch file used for sorting/counting
-  rm -rf "$results_directory/con$conn-response.csv"
+  rm -rf "$results_directory/$file-response.csv"
 done
 
 # Transform csvs to dat files for gnuplot

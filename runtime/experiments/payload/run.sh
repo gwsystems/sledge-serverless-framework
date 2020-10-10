@@ -53,6 +53,8 @@ fi
 
 payloads=(1024 10240 102400 1048576)
 ports=(10000 10001 10002 10003)
+iterations=10000
+
 # If the one of the expected body files doesn't exist, trigger the generation script.
 for payload in ${payloads[*]}; do
   if test -f "$experiment_directory/body/$payload.txt"; then
@@ -68,10 +70,10 @@ done
 
 # Execute workloads long enough for runtime to learn excepted execution time
 echo -n "Running Samples: "
-hey -n 10000 -c 3 -q 200 -o csv -m GET -D "$experiment_directory/body/1024.txt" http://localhost:10000
-hey -n 10000 -c 3 -q 200 -o csv -m GET -D "$experiment_directory/body/10240.txt" http://localhost:10001
-hey -n 10000 -c 3 -q 200 -o csv -m GET -D "$experiment_directory/body/102400.txt" http://localhost:10002
-hey -n 10000 -c 3 -q 200 -o csv -m GET -D "$experiment_directory/body/1048576.txt" http://localhost:10003
+hey -n "$iterations" -c 3 -q 200 -o csv -m GET -D "$experiment_directory/body/1024.txt" http://localhost:10000
+hey -n "$iterations" -c 3 -q 200 -o csv -m GET -D "$experiment_directory/body/10240.txt" http://localhost:10001
+hey -n "$iterations" -c 3 -q 200 -o csv -m GET -D "$experiment_directory/body/102400.txt" http://localhost:10002
+hey -n "$iterations" -c 3 -q 200 -o csv -m GET -D "$experiment_directory/body/1048576.txt" http://localhost:10003
 sleep 5
 echo "[DONE]"
 
@@ -79,11 +81,11 @@ echo "[DONE]"
 echo "Running Experiments"
 for i in {0..3}; do
   printf "\t%d Payload: " "${payloads[$i]}"
-  hey -n 10000 -c 1 -cpus 2 -o csv -m GET -D "$experiment_directory/body/${payloads[$i]}.txt" http://localhost:"${ports[$i]}" >"$results_directory/${payloads[$i]}.csv"
+  hey -n "$iterations" -c 1 -cpus 2 -o csv -m GET -D "$experiment_directory/body/${payloads[$i]}.txt" http://localhost:"${ports[$i]}" >"$results_directory/${payloads[$i]}.csv"
   echo "[DONE]"
 done
-# Stop the runtime
 
+# Stop the runtime
 if [ "$1" != "-d" ]; then
   sleep 5
   echo -n "Running Cleanup: "
@@ -103,7 +105,7 @@ for payload in ${payloads[*]}; do
   # Calculate Success Rate for csv
   awk -F, '
     $7 == 200 {ok++}
-    END{printf "'"$payload"',%3.5f\n", (ok / (NR - 1) * 100)}
+    END{printf "'"$payload"',%3.5f\n", (ok / '"$iterations"' * 100)}
   ' <"$results_directory/$payload.csv" >>"$results_directory/success.csv"
 
   # Filter on 200s, convery from s to ms, and sort
@@ -112,6 +114,7 @@ for payload in ${payloads[*]}; do
 
   # Get Number of 200s
   oks=$(wc -l <"$results_directory/$payload-response.csv")
+  ((oks == 0)) && continue # If all errors, skip line
 
   # Get Latest Timestamp
   duration=$(tail -n1 "$results_directory/$payload.csv" | cut -d, -f8)

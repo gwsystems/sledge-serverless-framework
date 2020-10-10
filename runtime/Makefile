@@ -20,10 +20,10 @@ USE_MEM = USE_MEM_VM
 # Debugging Flags
 
 # Strips out calls to assert()
-CFLAGS += -DNDEBUG
+# CFLAGS += -DNDEBUG
 
 # Turns on debuglog and other assorted printfs in third party libs
-# CFLAGS += -DDEBUG
+CFLAGS += -DDEBUG
 
 # Redirects debuglogs to /runtime/bin/awesome.log 
 #FIXME This log should be changed to sledge.log (and likely to a user defined path)
