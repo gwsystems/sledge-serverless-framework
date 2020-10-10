@@ -35,12 +35,15 @@ extern pthread_t runtime_worker_threads[];
 extern uint32_t  runtime_worker_threads_count;
 extern uint64_t  runtime_admissions_capacity;
 
+/* Listener Core Counts */
+extern _Atomic uint32_t runtime_total_requests;
+extern _Atomic uint32_t runtime_total_sandbox_requests;
+extern _Atomic uint32_t runtime_total_5XX_responses;
+
 #ifdef LOG_TOTAL_REQS_RESPS
 /* Counts to track requests and responses */
-extern _Atomic uint32_t runtime_total_requests;
 extern _Atomic uint32_t runtime_total_2XX_responses;
 extern _Atomic uint32_t runtime_total_4XX_responses;
-extern _Atomic uint32_t runtime_total_5XX_responses;
 #endif
 
 #ifdef LOG_SANDBOX_TOTALS

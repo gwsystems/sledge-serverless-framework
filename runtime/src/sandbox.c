@@ -64,18 +64,18 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 
 	while (!sandbox->http_request.message_end) {
 		/* Read from the Socket */
-		ssize_t length_read = recv(sandbox->client_socket_descriptor,
-		                           &sandbox->request_response_data[sandbox->request_response_data_length],
-		                           sandbox->module->max_request_size - sandbox->request_response_data_length,
-		                           0);
 
-		/* Unexpected client shutdown.. or is this just EOF */
-		if (length_read == 0 && !sandbox->http_request.message_end) {
-			debuglog("Client Shutdown Socket\n");
-			goto err;
-		}
+		/* Structured to closely follow usage example at https://github.com/nodejs/http-parser */
+		http_parser *               parser   = &sandbox->http_parser;
+		const http_parser_settings *settings = http_parser_settings_get();
 
-		if (length_read < 0) {
+		int    fd  = sandbox->client_socket_descriptor;
+		char * buf = &sandbox->request_response_data[sandbox->request_response_data_length];
+		size_t len = sandbox->module->max_request_size - sandbox->request_response_data_length;
+
+		ssize_t recved = recv(fd, buf, len, 0);
+
+		if (recved < 0) {
 			if (errno == EAGAIN) {
 				worker_thread_block_current_sandbox();
 				continue;
@@ -87,46 +87,20 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 			}
 		}
 
-
-		if (sandbox->http_request.message_end) {
-			sandbox->request_response_data_length += length_read;
-			break;
-		};
-
 #ifdef LOG_HTTP_PARSER
-		debuglog("http_parser_execute(%p, %p, %p, %lu)", &sandbox->http_parser, http_parser_settings_get(),
-		         &sandbox->request_response_data[sandbox->request_response_data_length], length_read);
+		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %lu)", sandbox->id, parser, settings, buf, len);
 #endif
+		size_t nparsed = http_parser_execute(parser, settings, buf, recved);
 
-		http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
-		                    &sandbox->request_response_data[sandbox->request_response_data_length],
-		                    length_read);
-
-
-		/* Try to parse what we've read */
-		/* TODO: Consider 0 as EOF? */
-		size_t length_parsed =
-		  http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
-		                      &sandbox->request_response_data[sandbox->request_response_data_length],
-		                      length_read);
-
-		if (sandbox->http_request.message_end) {
-			sandbox->request_response_data_length += length_read;
-			break;
-		};
-
-		// size_t length_parsed = sandbox_parse_http_request(sandbox, length_read);
-		if (length_parsed != length_read) {
+		if (nparsed != recved) {
 			debuglog("Error: %s, Description: %s\n", http_errno_name(sandbox->http_parser.status_code),
 			         http_errno_description(sandbox->http_parser.status_code));
-			debuglog("Length Parsed %zu, Length Read %zu\n", length_parsed, length_read);
+			debuglog("Length Parsed %zu, Length Read %zu\n", nparsed, recved);
 			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
 			goto err;
 		}
 
-		sandbox->request_response_data_length += length_read;
-
-		debuglog("After Read: %lu", sandbox->request_response_data_length);
+		sandbox->request_response_data_length += nparsed;
 	}
 
 
@@ -405,7 +379,7 @@ err:
 #ifdef LOG_TOTAL_REQS_RESPS
 	if (rc >= 0) {
 		atomic_fetch_add(&runtime_total_4XX_responses, 1);
-		debuglog("At %llu, Sandbox %lu - 4XX\n", __getcycles(), sandbox->request_arrival_timestamp);
+		debuglog("At %llu, Sandbox %lu - 4XX\n", __getcycles(), sandbox->id);
 	}
 #endif
 
@@ -523,6 +497,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 #ifdef LOG_STATE_CHANGES
 	debuglog("Sandbox %lu | Uninitialized => Initialized\n", sandbox_request->request_arrival_timestamp);
 #endif
+	sandbox->id                  = sandbox_request->id;
 	sandbox->admissions_estimate = sandbox_request->admissions_estimate;
 
 	sandbox->request_arrival_timestamp   = sandbox_request->request_arrival_timestamp;
@@ -575,8 +550,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
 
 #ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Runnable\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Runnable\n", sandbox->id, sandbox_state_stringify(last_state));
 #endif
 
 	switch (last_state) {
@@ -597,7 +571,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Runnable\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Runnable\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -631,8 +605,7 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
 #ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Running\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Running\n", sandbox->id, sandbox_state_stringify(last_state));
 #endif
 
 	switch (last_state) {
@@ -653,7 +626,7 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Running\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Running\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -684,8 +657,7 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->state = SANDBOX_SET_AS_PREEMPTED;
 #ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Preempted\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Preempted\n", sandbox->id, sandbox_state_stringify(last_state));
 #endif
 
 	switch (last_state) {
@@ -698,7 +670,7 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Preempted\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Preempted\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -726,8 +698,7 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->state = SANDBOX_SET_AS_BLOCKED;
 #ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->id, sandbox_state_stringify(last_state));
 #endif
 
 	switch (last_state) {
@@ -741,7 +712,7 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Blocked\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Blocked\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -770,8 +741,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->state = SANDBOX_SET_AS_RETURNED;
 #ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Returned\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Returned\n", sandbox->id, sandbox_state_stringify(last_state));
 #endif
 
 	switch (last_state) {
@@ -788,7 +758,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Returned\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Returned\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -819,8 +789,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->state = SANDBOX_SET_AS_ERROR;
 #ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Error\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Error\n", sandbox->id, sandbox_state_stringify(last_state));
 #endif
 
 	switch (last_state) {
@@ -842,7 +811,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -885,8 +854,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->state = SANDBOX_SET_AS_COMPLETE;
 #ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Complete\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
+	debuglog("Sandbox %lu | %s => Complete\n", sandbox->id, sandbox_state_stringify(last_state));
 #endif
 
 	switch (last_state) {
@@ -900,7 +868,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -1025,7 +993,7 @@ sandbox_free(struct sandbox *sandbox)
 	errno = 0;
 	rc    = munmap(stkaddr, stksz);
 	if (rc == -1) {
-		debuglog("Failed to unmap stack of Sandbox %lu\n", sandbox->request_arrival_timestamp);
+		debuglog("Failed to unmap stack of Sandbox %lu\n", sandbox->id);
 		goto err_free_stack_failed;
 	};
 
@@ -1039,7 +1007,7 @@ sandbox_free(struct sandbox *sandbox)
 	errno = 0;
 	rc    = munmap(sandbox, sandbox_address_space_size);
 	if (rc == -1) {
-		debuglog("Failed to unmap Sandbox %lu\n", sandbox->request_arrival_timestamp);
+		debuglog("Failed to unmap Sandbox %lu\n", sandbox->id);
 		goto err_free_sandbox_failed;
 	};
 
@@ -1049,5 +1017,5 @@ err_free_sandbox_failed:
 err_free_stack_failed:
 err:
 	/* Errors freeing memory is a fatal error */
-	panic("Failed to free Sandbox %lu\n", sandbox->request_arrival_timestamp);
+	panic("Failed to free Sandbox %lu\n", sandbox->id);
 }

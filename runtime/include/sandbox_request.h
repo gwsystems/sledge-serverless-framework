@@ -8,6 +8,7 @@
 #include "runtime.h"
 
 struct sandbox_request {
+	uint64_t         id;
 	struct module *  module;
 	char *           arguments;
 	int              socket_descriptor;
@@ -40,6 +41,11 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)malloc(sizeof(struct sandbox_request));
 	assert(sandbox_request);
+
+	/* Sets the ID to the value before the increment */
+	sandbox_request->id = atomic_fetch_add(&runtime_total_sandbox_requests, 1);
+	assert(runtime_total_sandbox_requests + runtime_total_5XX_responses <= runtime_total_requests);
+
 	sandbox_request->module                    = module;
 	sandbox_request->arguments                 = arguments;
 	sandbox_request->socket_descriptor         = socket_descriptor;

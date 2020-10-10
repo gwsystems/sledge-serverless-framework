@@ -111,8 +111,8 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 #ifdef LOG_CONTEXT_SWITCHES
 		debuglog("Base Context (%s) > Sandbox %lu (%s)\n",
-		         arch_context_variant_print(worker_thread_base_context.variant),
-		         next_sandbox->request_arrival_timestamp, arch_context_variant_print(next_context->variant));
+		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id,
+		         arch_context_variant_print(next_context->variant));
 #endif
 
 		arch_context_switch(NULL, next_context);
@@ -127,8 +127,7 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 		struct arch_context *current_context = &current_sandbox->ctxt;
 
 #ifdef LOG_CONTEXT_SWITCHES
-		debuglog("Sandbox %lu > Sandbox %lu\n", current_sandbox->request_arrival_timestamp,
-		         next_sandbox->request_arrival_timestamp);
+		debuglog("Sandbox %lu > Sandbox %lu\n", current_sandbox->id, next_sandbox->id);
 #endif
 
 		/* Switch to the associated context. */
@@ -157,7 +156,7 @@ worker_thread_switch_to_base_context()
 	current_sandbox_set(NULL);
 
 #ifdef LOG_CONTEXT_SWITCHES
-	debuglog("Sandbox %lu (%s) > Base Context (%s)\n", current_sandbox->request_arrival_timestamp,
+	debuglog("Sandbox %lu (%s) > Base Context (%s)\n", current_sandbox->id,
 	         arch_context_variant_print(current_sandbox->ctxt.variant),
 	         arch_context_variant_print(worker_thread_base_context.variant));
 #endif
