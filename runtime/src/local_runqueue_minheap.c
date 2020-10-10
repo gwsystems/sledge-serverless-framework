@@ -59,10 +59,7 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 	assert(sandbox != NULL);
 
 	int rc = priority_queue_delete(&local_runqueue_minheap, sandbox);
-	if (rc == -1) {
-		panic("Tried to delete sandbox %lu from runqueue, but was not present\n",
-		      sandbox->request_arrival_timestamp);
-	}
+	if (rc == -1) panic("Tried to delete sandbox %lu from runqueue, but was not present\n", sandbox->id);
 }
 
 /**
@@ -143,7 +140,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 	if (global_deadline < local_deadline) {
 #ifdef LOG_PREEMPTION
 		debuglog("Sandbox %lu has deadline of %lu. Trying to preempt for request with %lu\n",
-		         current_sandbox->request_arrival_timestamp, local_deadline, global_deadline);
+		         current_sandbox->id, local_deadline, global_deadline);
 #endif
 
 		int return_code = global_request_scheduler_remove_if_earlier(&sandbox_request, local_deadline);

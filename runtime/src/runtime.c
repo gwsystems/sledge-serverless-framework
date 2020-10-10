@@ -22,11 +22,17 @@ int              runtime_epoll_file_descriptor;
 _Atomic uint64_t runtime_admitted;
 uint64_t         runtime_admissions_capacity;
 
+/* Listener Core Bookkeeping */
+_Atomic uint32_t runtime_total_requests = 0;
+
+/* Sandbox Requests + 5XX Responses (Rejections) should always equal total requests */
+_Atomic uint32_t runtime_total_sandbox_requests = 0;
+_Atomic uint32_t runtime_total_5XX_responses    = 0;
+
 #ifdef LOG_TOTAL_REQS_RESPS
-_Atomic uint32_t runtime_total_requests      = 0;
+/* 2XX + 4XX should equal sandboxes */
 _Atomic uint32_t runtime_total_2XX_responses = 0;
 _Atomic uint32_t runtime_total_4XX_responses = 0;
-_Atomic uint32_t runtime_total_5XX_responses = 0;
 
 void
 runtime_log_requests_responses()
@@ -89,11 +95,13 @@ runtime_log_sandbox_states()
 void
 runtime_initialize(void)
 {
-#ifdef LOG_TOTAL_REQS_RESPS
 	atomic_init(&runtime_total_requests, 0);
+	atomic_init(&runtime_total_sandbox_requests, 0);
+	atomic_init(&runtime_total_5XX_responses, 0);
+
+#ifdef LOG_TOTAL_REQS_RESPS
 	atomic_init(&runtime_total_2XX_responses, 0);
 	atomic_init(&runtime_total_4XX_responses, 0);
-	atomic_init(&runtime_total_5XX_responses, 0);
 #endif
 #ifdef LOG_SANDBOX_TOTALS
 	atomic_init(&runtime_total_freed_requests, 0);
@@ -157,9 +165,7 @@ listener_thread_reject(int client_socket)
 		sent += rc;
 	};
 
-#ifdef LOG_TOTAL_REQS_RESPS
 	atomic_fetch_add(&runtime_total_5XX_responses, 1);
-#endif
 
 close:
 	if (close(client_socket) < 0) panic("Error closing client socket - %s", strerror(errno));
@@ -255,9 +261,7 @@ listener_thread_main(void *dummy)
 					         module->name);
 				}
 
-#ifdef LOG_TOTAL_REQS_RESPS
 				atomic_fetch_add(&runtime_total_requests, 1);
-#endif
 
 				/* Perform Admission Control */
 

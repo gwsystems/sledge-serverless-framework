@@ -51,6 +51,7 @@ typedef enum
 } sandbox_state_t;
 
 struct sandbox {
+	uint64_t        id;
 	sandbox_state_t state;
 
 	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
@@ -331,9 +332,9 @@ sandbox_print_perf(struct sandbox *sandbox)
 	         "running: %u, "
 	         "blocked: %u, "
 	         "returned: %u\n",
-	         sandbox->request_arrival_timestamp, sandbox->module->name, sandbox->module->port,
-	         sandbox_state_stringify(sandbox->state), sandbox->module->relative_deadline_us, total_time_us,
-	         queued_us, initializing_us, runnable_us, running_us, blocked_us, returned_us);
+	         sandbox->id, sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
+	         sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
+	         running_us, blocked_us, returned_us);
 }
 
 static inline void

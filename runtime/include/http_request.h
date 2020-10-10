@@ -6,7 +6,9 @@
 /* all in-memory ptrs.. don't mess around with that! */
 struct http_header {
 	char *key;
+	int   key_length;
 	char *value;
+	int   value_length;
 };
 
 struct http_request {
