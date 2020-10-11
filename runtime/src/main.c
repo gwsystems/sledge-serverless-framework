@@ -28,6 +28,7 @@ uint32_t runtime_first_worker_processor                       = 0;
 int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; /* The worker sets its argument to -1 on error */
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
+enum RUNTIME_SCHEDULER runtime_scheduler = RUNTIME_SCHEDULER_FIFO;
 
 /**
  * Returns instructions on use of CLI if used incorrectly
@@ -183,6 +184,22 @@ runtime_start_runtime_worker_threads()
 	exit(-1);
 }
 
+void
+runtime_configure()
+{
+	/* Scheduler Policy */
+	char *scheduler_policy = getenv("SLEDGE_SCHEDULER");
+	if (scheduler_policy == NULL) scheduler_policy = "FIFO";
+
+	if (strcmp(scheduler_policy, "EDF") == 0) {
+		runtime_scheduler = RUNTIME_SCHEDULER_EDF;
+	} else if (strcmp(scheduler_policy, "FIFO") == 0) {
+		runtime_scheduler = RUNTIME_SCHEDULER_FIFO;
+	} else {
+		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
+	}
+}
+
 int
 main(int argc, char **argv)
 {
@@ -209,12 +226,14 @@ main(int argc, char **argv)
 
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();
+	runtime_configure();
 	runtime_initialize();
 #ifdef LOG_MODULE_LOADING
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 #endif
 	if (module_new_from_json(argv[1])) panic("failed to parse modules file[%s]\n", argv[1]);
 
+	debuglog("Scheduler Policy: %s\n", print_runtime_scheduler(runtime_scheduler));
 	debuglog("Starting listener thread\n");
 	listener_thread_initialize();
 	debuglog("Starting worker threads\n");
