@@ -11,9 +11,6 @@ CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 
 BINARY_NAME=sledgert
 
-# Number of Cores. Options: {2...N or TOTAL_CORES}
-NCORES = ${TOTAL_CORES}
-
 # Options: {USE_MEM_GENERIC, USE_MEM_VM}
 USE_MEM = USE_MEM_VM
 
@@ -54,11 +51,11 @@ CFLAGS += -DDEBUG
 # Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue
 # CFLAGS += -DLOG_LOCAL_RUNQUEUE
 
-# System Configuraiton Flags
+# System Configuration Flags
 
 # Sets a flag equal to the processor architecture
 CFLAGS += -D${ARCH}
-CFLAGS += -DNCORES=${NCORES}
+CFLAGS += -DNCORES=${TOTAL_CORES}
 CFLAGS += -DPAGE_SIZE=$(PAGE_SIZE)
 #CFLAGS += -DPREEMPT_DISABLE
 #CFLAGS += -DUSE_HTTP_UVIO #-DUSE_HTTP_SYNC
