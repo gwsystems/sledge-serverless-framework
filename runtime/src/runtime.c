@@ -162,10 +162,10 @@ listener_thread_reject(int client_socket)
 
 	int rc;
 	int sent    = 0;
-	int to_send = strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE);
+	int to_send = strlen(HTTP_RESPONSE_503_SERVICE_UNAVAILABLE);
 
 	while (sent < to_send) {
-		rc = write(client_socket, &HTTP_RESPONSE_504_SERVICE_UNAVAILABLE[sent], to_send - sent);
+		rc = write(client_socket, &HTTP_RESPONSE_503_SERVICE_UNAVAILABLE[sent], to_send - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN) continue;
 
