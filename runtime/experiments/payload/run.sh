@@ -1,4 +1,5 @@
 #!/bin/bash
+source ../common.sh
 
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
 # Use -d flag if running under gdb
@@ -11,36 +12,7 @@ log=log.txt
 
 mkdir -p "$results_directory"
 
-{
-  echo "*******"
-  echo "* Git *"
-  echo "*******"
-  git log | head -n 1 | cut -d' ' -f2
-  git status
-  echo ""
-
-  echo "************"
-  echo "* Makefile *"
-  echo "************"
-  cat ../../Makefile
-  echo ""
-
-  echo "**********"
-  echo "* Run.sh *"
-  echo "**********"
-  cat run.sh
-  echo ""
-
-  echo "************"
-  echo "* Hardware *"
-  echo "************"
-  lscpu
-  echo ""
-
-  echo "*************"
-  echo "* Execution *"
-  echo "*************"
-} >>"$results_directory/$log"
+log_environment >>"$results_directory/$log"
 
 # Start the runtime
 if [ "$1" != "-d" ]; then
@@ -88,10 +60,7 @@ done
 # Stop the runtime
 if [ "$1" != "-d" ]; then
   sleep 5
-  echo -n "Running Cleanup: "
-  pkill sledgert >/dev/null 2>/dev/null
-  pkill wrk >/dev/null 2>/dev/null
-  echo "[DONE]"
+  kill_runtime
 fi
 
 # Generate *.csv and *.dat results
@@ -148,11 +117,7 @@ for file in success latency throughput; do
 done
 
 # Generate gnuplots
-cd "$results_directory" || exit
-gnuplot ../../latency.gnuplot
-gnuplot ../../success.gnuplot
-gnuplot ../../throughput.gnuplot
-cd "$experiment_directory" || exit
+generate_gnuplots
 
 # Cleanup, if requires
 echo "[DONE]"
