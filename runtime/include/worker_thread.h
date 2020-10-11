@@ -4,8 +4,10 @@
 
 #include "runtime.h"
 
-/* If multicore, use all but the dedicated listener core
-If there are fewer cores than this, main dynamically overrides this and uses all available */
+#if NCORES == 1
+#error "RUNTIME MINIMUM REQUIREMENT IS 2 CORES"
+#endif
+
 #define WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
 
 extern __thread uint64_t  worker_thread_lock_duration;

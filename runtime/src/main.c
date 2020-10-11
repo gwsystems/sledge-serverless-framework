@@ -29,6 +29,7 @@ int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; /* The wo
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
 enum RUNTIME_SCHEDULER runtime_scheduler = RUNTIME_SCHEDULER_FIFO;
+int                    runtime_worker_core_count;
 
 /**
  * Returns instructions on use of CLI if used incorrectly
@@ -76,17 +77,23 @@ runtime_allocate_available_cores()
 {
 	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
+	uint32_t max_possible_workers   = runtime_total_online_processors - 1;
 
 	if (runtime_total_online_processors < 2) panic("Runtime requires at least two cores!");
 
 	runtime_first_worker_processor = 1;
-	/* WORKER_THREAD_CORE_COUNT can be used as a cap on the number of cores to use, but if there are few
-	 * cores that WORKER_THREAD_CORE_COUNT, just use what is available */
-	uint32_t max_possible_workers = runtime_total_online_processors - 1;
-	runtime_worker_threads_count  = max_possible_workers;
-	if (max_possible_workers >= WORKER_THREAD_CORE_COUNT) runtime_worker_threads_count = WORKER_THREAD_CORE_COUNT;
 
-	assert(runtime_worker_threads_count == WORKER_THREAD_CORE_COUNT);
+	/* Number of Workers */
+	char *worker_count_raw = getenv("SLEDGE_NWORKERS");
+	if (worker_count_raw != NULL) {
+		int worker_count = atoi(worker_count_raw);
+		if (worker_count < 0 || worker_count > max_possible_workers) {
+			panic("Invalid Worker Count. Was %d. Must be {1..%d}\n", worker_count, max_possible_workers);
+		}
+		runtime_worker_threads_count = worker_count;
+	} else {
+		runtime_worker_threads_count = max_possible_workers;
+	}
 
 	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
 	         runtime_total_online_processors, runtime_worker_threads_count, runtime_first_worker_processor,
@@ -207,10 +214,6 @@ main(int argc, char **argv)
 	runtime_process_debug_log_behavior();
 #endif
 
-#if NCORES == 1
-#error "RUNTIME MINIMUM REQUIREMENT IS 2 CORES"
-#endif
-
 	debuglog("Initializing the runtime\n");
 	if (argc != 2) {
 		runtime_usage(argv[0]);
@@ -236,6 +239,6 @@ main(int argc, char **argv)
 	debuglog("Scheduler Policy: %s\n", print_runtime_scheduler(runtime_scheduler));
 	debuglog("Starting listener thread\n");
 	listener_thread_initialize();
-	debuglog("Starting worker threads\n");
+	debuglog("Starting %d worker thread(s)\n", runtime_worker_threads_count);
 	runtime_start_runtime_worker_threads();
 }
