@@ -344,8 +344,16 @@ worker_thread_main(void *return_code)
 	arch_context_init(&worker_thread_base_context, 0, 0);
 
 	/* Initialize Runqueue Variant */
-	// local_runqueue_list_initialize();
-	local_runqueue_minheap_initialize();
+	switch (runtime_scheduler) {
+	case RUNTIME_SCHEDULER_EDF:
+		local_runqueue_minheap_initialize();
+		break;
+	case RUNTIME_SCHEDULER_FIFO:
+		local_runqueue_list_initialize();
+		break;
+	default:
+		panic("Invalid scheduler policy set: %u\n", runtime_scheduler);
+	}
 
 	/* Initialize Completion Queue */
 	local_completion_queue_initialize();

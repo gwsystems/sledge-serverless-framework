@@ -122,8 +122,17 @@ runtime_initialize(void)
 	/* Allocate and Initialize the global deque
 	TODO: Improve to expose variant as a config #Issue 93
 	*/
-	// global_request_scheduler_deque_initialize();
-	global_request_scheduler_minheap_initialize();
+
+	switch (runtime_scheduler) {
+	case RUNTIME_SCHEDULER_EDF:
+		global_request_scheduler_minheap_initialize();
+		break;
+	case RUNTIME_SCHEDULER_FIFO:
+		global_request_scheduler_deque_initialize();
+		break;
+	default:
+		panic("Invalid scheduler policy set: %u\n", runtime_scheduler);
+	}
 
 	/* Mask Signals */
 	software_interrupt_mask_signal(SIGUSR1);

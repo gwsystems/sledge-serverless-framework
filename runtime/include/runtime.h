@@ -95,3 +95,22 @@ runtime_is_worker()
 
 	return false;
 }
+
+enum RUNTIME_SCHEDULER
+{
+	RUNTIME_SCHEDULER_FIFO = 0,
+	RUNTIME_SCHEDULER_EDF  = 1
+};
+
+static inline char *
+print_runtime_scheduler(enum RUNTIME_SCHEDULER variant)
+{
+	switch (variant) {
+	case RUNTIME_SCHEDULER_FIFO:
+		return "RUNTIME_SCHEDULER_FIFO";
+	case RUNTIME_SCHEDULER_EDF:
+		return "RUNTIME_SCHEDULER_EDF";
+	}
+};
+
+extern enum RUNTIME_SCHEDULER runtime_scheduler;
