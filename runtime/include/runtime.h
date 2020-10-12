@@ -24,6 +24,9 @@
  */
 extern int runtime_epoll_file_descriptor;
 
+/* Optional path to a file to log sandbox perf metrics */
+extern FILE *runtime_sandbox_perf_log;
+
 /*
  * Assumption: All cores are the same speed
  * See runtime_get_processor_speed_MHz for further details

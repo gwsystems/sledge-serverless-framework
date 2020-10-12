@@ -310,6 +310,10 @@ listener_thread_main(void *dummy)
 	}                 /* while true */
 
 	panic("Listener thread unexpectedly broke loop\n");
+
+
+	/* Cleanup Tasks... These won't run, but placed here to keep track */
+	fclose(runtime_sandbox_perf_log);
 }
 
 /**

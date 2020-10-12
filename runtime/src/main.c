@@ -28,6 +28,9 @@ uint32_t runtime_first_worker_processor                       = 0;
 int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; /* The worker sets its argument to -1 on error */
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
+
+FILE *runtime_sandbox_perf_log = NULL;
+
 enum RUNTIME_SCHEDULER runtime_scheduler = RUNTIME_SCHEDULER_FIFO;
 int                    runtime_worker_core_count;
 
@@ -204,6 +207,15 @@ runtime_configure()
 		runtime_scheduler = RUNTIME_SCHEDULER_FIFO;
 	} else {
 		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
+	}
+
+	/* Runtime Perf Log */
+	char *runtime_sandbox_perf_log_path = getenv("SLEDGE_SANDBOX_PERF_LOG");
+	if (runtime_sandbox_perf_log_path != NULL) {
+		runtime_sandbox_perf_log = fopen(runtime_sandbox_perf_log_path, "w");
+		if (runtime_sandbox_perf_log == NULL) { perror("sandbox perf log"); }
+		fprintf(runtime_sandbox_perf_log,
+		        "id,function,state,deadline,actual,queued,initializing,runnable,running,blocked,returned\n");
 	}
 }
 

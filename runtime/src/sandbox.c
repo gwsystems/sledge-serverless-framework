@@ -821,9 +821,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_ERROR;
 
-#ifdef LOG_SANDBOX_PERF
-	sandbox_print_perf(sandbox);
-#endif
+	if (runtime_sandbox_perf_log != NULL) sandbox_print_perf(sandbox);
 
 	/* Assumption: Should never underflow */
 	assert(runtime_admitted >= sandbox->admissions_estimate);
@@ -891,9 +889,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	debuglog("Runtime Admitted: %lu / %lu\n", runtime_admitted, runtime_admissions_capacity);
 #endif
 
-#ifdef LOG_SANDBOX_PERF
-	sandbox_print_perf(sandbox);
-#endif
+	if (runtime_sandbox_perf_log != NULL) sandbox_print_perf(sandbox);
 
 	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
