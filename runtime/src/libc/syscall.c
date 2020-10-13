@@ -1,14 +1,14 @@
-#ifndef USE_HTTP_UVIO
-
 /*
  * This code originally came from the aWsm compiler
  * It has since been updated
  * https://github.com/gwsystems/aWsm/blob/master/runtime/libc/libc_backing.c
  */
-
-#include <current_sandbox.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+
+#include "current_sandbox.h"
 
 // What should we tell the child program its UID and GID are?
 #define UID 0xFF
@@ -786,5 +786,3 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 
 	return 0;
 }
-
-#endif

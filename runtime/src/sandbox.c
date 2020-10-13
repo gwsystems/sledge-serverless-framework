@@ -2,12 +2,10 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
-#include <uv.h>
 
 #include "current_sandbox.h"
 #include "debuglog.h"
 #include "http_parser_settings.h"
-#include "libuv_callbacks.h"
 #include "local_completion_queue.h"
 #include "local_runqueue.h"
 #include "panic.h"
@@ -60,8 +58,6 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 
 	int rc = 0;
 
-#ifndef USE_HTTP_UVIO
-
 	while (!sandbox->http_request.message_end) {
 		/* Read from the Socket */
 
@@ -105,13 +101,6 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 
 
 	sandbox->request_length = sandbox->request_response_data_length;
-
-#else
-	rc = uv_read_start((uv_stream_t *)&sandbox->client_libuv_stream,
-	                   libuv_callbacks_on_allocate_setup_request_response_data,
-	                   libuv_callbacks_on_read_parse_http_request);
-	worker_thread_process_io();
-#endif
 
 	rc = 0;
 done:
@@ -204,11 +193,10 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 	sandbox->total_time    = end_time - sandbox->request_arrival_timestamp;
 	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 
-#ifndef USE_HTTP_UVIO
 	int rc;
 	int sent = 0;
 	while (sent < response_cursor) {
-		rc = write(sandbox->client_socket_descriptor, sandbox->request_response_data + sent,
+		rc = write(sandbox->client_socket_descriptor, &sandbox->request_response_data[sent],
 		           response_cursor - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN)
@@ -221,15 +209,6 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 
 		sent += rc;
 	}
-#else
-	uv_write_t req = {
-		.data = sandbox,
-	};
-	uv_buf_t bufv = uv_buf_init(sandbox->request_response_data, response_cursor);
-	int      r    = uv_write(&req, (uv_stream_t *)&sandbox->client_libuv_stream, &bufv, 1,
-                         libuv_callbacks_on_write_wakeup_sandbox);
-	worker_thread_process_io();
-#endif
 	return 0;
 }
 
@@ -243,19 +222,6 @@ sandbox_open_http(struct sandbox *sandbox)
 	/* Set the sandbox as the data the http-parser has access to */
 	sandbox->http_parser.data = sandbox;
 
-#ifdef USE_HTTP_UVIO
-
-	/* Initialize libuv TCP stream */
-	int r = uv_tcp_init(worker_thread_get_libuv_handle(), (uv_tcp_t *)&sandbox->client_libuv_stream);
-	assert(r == 0);
-
-	/* Set the current sandbox as the data the libuv callbacks have access to */
-	sandbox->client_libuv_stream.data = sandbox;
-
-	/* Open the libuv TCP stream */
-	r = uv_tcp_open((uv_tcp_t *)&sandbox->client_libuv_stream, sandbox->client_socket_descriptor);
-	assert(r == 0);
-#else
 	/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)sandbox;
@@ -263,7 +229,6 @@ sandbox_open_http(struct sandbox *sandbox)
 	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_ADD, sandbox->client_socket_descriptor,
 	                   &accept_evt);
 	if (unlikely(rc < 0)) panic_err();
-#endif
 }
 
 /**
@@ -357,24 +322,7 @@ err:
 	assert(sandbox->state == SANDBOX_RUNNING);
 
 	/* Send a 400 error back to the client */
-	rc          = 0;
-	int sent    = 0;
-	int to_send = strlen(HTTP_RESPONSE_400_BAD_REQUEST);
-	while (sent < to_send) {
-		rc = write(sandbox->client_socket_descriptor, &HTTP_RESPONSE_400_BAD_REQUEST[sent], to_send - sent);
-		if (rc < 0) {
-			if (errno == EAGAIN) {
-				debuglog("Unexpectedly blocking on write of 4XX error");
-				worker_thread_block_current_sandbox();
-				continue;
-			}
-
-			debuglog("Failed to send 400: %s", strerror(errno));
-			break;
-		}
-
-		sent += rc;
-	}
+	client_socket_send(sandbox->client_socket_descriptor, 400);
 
 #ifdef LOG_TOTAL_REQS_RESPS
 	if (rc >= 0) {
@@ -384,7 +332,7 @@ err:
 #endif
 
 	software_interrupt_disable();
-	sandbox_close_http(sandbox);
+	client_socket_close(sandbox->client_socket_descriptor);
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);
 	goto done;
 }
@@ -876,7 +824,6 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	/*
 	 * TODO: Enhance to include "spinning" or better "local|global scheduling latency" as well.
-	 * Given the async I/O model of libuv, it is ambiguous how to model "spinning"
 	 */
 	perf_window_add(&sandbox->module->perf_window, sandbox->running_duration);
 
@@ -946,9 +893,9 @@ err_stack_allocation_failed:
 	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
 	sandbox->last_state_change_timestamp = now;
 	ps_list_init_d(sandbox);
-	sandbox_set_as_error(sandbox, SANDBOX_SET_AS_INITIALIZED);
 err_memory_allocation_failed:
 err:
+	sandbox_set_as_error(sandbox, SANDBOX_SET_AS_INITIALIZED);
 	perror(error_message);
 	sandbox = NULL;
 	goto done;

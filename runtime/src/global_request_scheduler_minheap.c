@@ -5,7 +5,7 @@
 #include "priority_queue.h"
 #include "runtime.h"
 
-static struct priority_queue global_request_scheduler_minheap;
+static struct priority_queue *global_request_scheduler_minheap;
 
 /**
  * Pushes a sandbox request to the global deque
@@ -15,12 +15,11 @@ static struct priority_queue global_request_scheduler_minheap;
 static struct sandbox_request *
 global_request_scheduler_minheap_add(void *sandbox_request)
 {
-/* This function is called by both the listener core and workers */
-#ifndef NDEBUG
-	if (runtime_is_worker()) assert(!software_interrupt_is_enabled());
-#endif
+	assert(sandbox_request);
+	assert(global_request_scheduler_minheap);
+	if (unlikely(runtime_is_worker())) panic("%s is only callable by the listener thread\n", __func__);
 
-	int return_code = priority_queue_enqueue(&global_request_scheduler_minheap, sandbox_request);
+	int return_code = priority_queue_enqueue(global_request_scheduler_minheap, sandbox_request);
 	/* TODO: Propagate -1 to caller. Issue #91 */
 	if (return_code == -ENOSPC) panic("Request Queue is full\n");
 	return sandbox_request;
@@ -34,7 +33,7 @@ int
 global_request_scheduler_minheap_remove(struct sandbox_request **removed_sandbox_request)
 {
 	assert(!software_interrupt_is_enabled());
-	return priority_queue_dequeue(&global_request_scheduler_minheap, (void **)removed_sandbox_request);
+	return priority_queue_dequeue(global_request_scheduler_minheap, (void **)removed_sandbox_request);
 }
 
 /**
@@ -47,7 +46,7 @@ global_request_scheduler_minheap_remove_if_earlier(struct sandbox_request **remo
                                                    uint64_t                 target_deadline)
 {
 	assert(!software_interrupt_is_enabled());
-	return priority_queue_dequeue_if_earlier(&global_request_scheduler_minheap, (void **)removed_sandbox_request,
+	return priority_queue_dequeue_if_earlier(global_request_scheduler_minheap, (void **)removed_sandbox_request,
 	                                         target_deadline);
 }
 
@@ -60,7 +59,7 @@ global_request_scheduler_minheap_remove_if_earlier(struct sandbox_request **remo
 static uint64_t
 global_request_scheduler_minheap_peek(void)
 {
-	return priority_queue_peek(&global_request_scheduler_minheap);
+	return priority_queue_peek(global_request_scheduler_minheap);
 }
 
 uint64_t
@@ -77,7 +76,7 @@ sandbox_request_get_priority_fn(void *element)
 void
 global_request_scheduler_minheap_initialize()
 {
-	priority_queue_initialize(&global_request_scheduler_minheap, sandbox_request_get_priority_fn);
+	global_request_scheduler_minheap = priority_queue_initialize(1000, true, sandbox_request_get_priority_fn);
 
 	struct global_request_scheduler_config config = {
 		.add_fn               = global_request_scheduler_minheap_add,
@@ -87,4 +86,10 @@ global_request_scheduler_minheap_initialize()
 	};
 
 	global_request_scheduler_initialize(&config);
+}
+
+void
+global_request_scheduler_minheap_free()
+{
+	priority_queue_free(global_request_scheduler_minheap);
 }

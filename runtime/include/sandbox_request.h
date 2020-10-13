@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <sys/socket.h>
 
 #include "debuglog.h"
 #include "deque.h"

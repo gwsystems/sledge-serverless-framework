@@ -1,7 +1,9 @@
 #pragma once
 
 #include <string.h>
-#include <uv.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
 
 #include "http.h"
 #include "panic.h"

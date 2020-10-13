@@ -1,3 +1,4 @@
+#include "client_socket.h"
 #include "debuglog.h"
 #include "local_runqueue_list.h"
 #include "local_runqueue.h"
@@ -51,18 +52,17 @@ local_runqueue_list_get_next()
 		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
 
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
-		if (!sandbox) goto sandbox_allocate_err;
+		if (!sandbox) goto err;
 
 		sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_add(sandbox);
 
 	done:
 		return sandbox;
-	sandbox_allocate_err:
-		debuglog("local_runqueue_list_get_next failed to allocate sandbox, returning request to global request "
-		         "scheduler\n");
-		global_request_scheduler_add(sandbox_request);
 	err:
+		client_socket_send(sandbox_request->socket_descriptor, 503);
+		client_socket_close(sandbox_request->socket_descriptor);
+		free(sandbox_request);
 		sandbox = NULL;
 		goto done;
 	}

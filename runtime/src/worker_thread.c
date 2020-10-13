@@ -4,8 +4,8 @@
 #include <sched.h>
 #include <stdlib.h>
 #include <sys/mman.h>
-#include <uv.h>
 
+#include "client_socket.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
 #include "global_request_scheduler.h"
@@ -24,15 +24,7 @@
 /* context of the runtime thread before running sandboxes or to resume its "main". */
 __thread struct arch_context worker_thread_base_context;
 
-#ifdef USE_HTTP_UVIO
-/* libuv i/o loop handle per sandboxing thread! */
-__thread uv_loop_t worker_thread_uvio_handle;
-
-/* Flag to signify if the thread is currently running callbacks in the libuv event loop */
-static __thread bool worker_thread_is_in_libuv_event_loop = false;
-#else
 __thread int worker_thread_epoll_file_descriptor;
-#endif /* USE_HTTP_UVIO */
 
 /* Total Lock Contention in Cycles */
 __thread uint64_t worker_thread_lock_duration;
@@ -189,9 +181,6 @@ worker_thread_wakeup_sandbox(struct sandbox *sandbox)
 void
 worker_thread_block_current_sandbox(void)
 {
-#ifdef USE_HTTP_UVIO
-	assert(worker_thread_is_in_libuv_event_loop == false);
-#endif
 	software_interrupt_disable();
 
 	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
@@ -200,53 +189,19 @@ worker_thread_block_current_sandbox(void)
 	assert(current_sandbox->state == SANDBOX_RUNNING);
 	sandbox_set_as_blocked(current_sandbox, SANDBOX_RUNNING);
 
-	worker_thread_switch_to_base_context();
+	/* The worker thread seems to "spin" on a blocked sandbox, so try to execute another sandbox for one quantum
+	 * after blocking to give time for the action to resolve */
+	struct sandbox *next_sandbox = local_runqueue_get_next();
+	if (next_sandbox != NULL) {
+		worker_thread_switch_to_sandbox(next_sandbox);
+	} else {
+		worker_thread_switch_to_base_context();
+	};
 }
 
 
 /**
- * Execute I/O
- */
-void
-worker_thread_process_io(void)
-{
-#ifdef USE_HTTP_UVIO
-#ifdef USE_HTTP_SYNC
-	/*
-	 * TODO: realistically, we're processing all async I/O on this core when a sandbox blocks on http processing,
-	 * not great! if there is a way, perhaps RUN_ONCE and check if your I/O is processed, if yes,
-	 * return else do async block! Issue #98
-	 */
-	uv_run(worker_thread_get_libuv_handle(), UV_RUN_DEFAULT);
-#else  /* USE_HTTP_SYNC */
-	worker_thread_block_current_sandbox();
-#endif /* USE_HTTP_UVIO */
-#else
-	assert(false);
-	/* it should not be called if not using uvio for http */
-#endif
-}
-
-/**
- * Run all outstanding events in the local thread's libuv event loop
- */
-void
-worker_thread_execute_libuv_event_loop(void)
-{
-#ifdef USE_HTTP_UVIO
-	worker_thread_is_in_libuv_event_loop = true;
-	int n = uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT), i = 0;
-	while (n > 0) {
-		n--;
-		uv_run(worker_thread_get_libuv_handle(), UV_RUN_NOWAIT);
-	}
-	worker_thread_is_in_libuv_event_loop = false;
-#endif
-	return;
-}
-
-/**
- * Run all outstanding events in the local thread's libuv event loop
+ * Run all outstanding events in the local thread's epoll loop
  */
 static inline void
 worker_thread_execute_epoll_loop(void)
@@ -295,7 +250,8 @@ worker_thread_execute_epoll_loop(void)
 				case SANDBOX_ERROR:
 					panic("Expected to have closed socket");
 				default:
-					sandbox_close_http(sandbox);
+					client_socket_send(sandbox->client_socket_descriptor, 503);
+					client_socket_close(sandbox->client_socket_descriptor);
 					sandbox_set_as_error(sandbox, sandbox->state);
 				}
 			};
@@ -303,34 +259,9 @@ worker_thread_execute_epoll_loop(void)
 	}
 }
 
-static inline void
-worker_thread_initialize_async_io()
-{
-#ifdef USE_HTTP_UVIO
-	worker_thread_is_in_libuv_event_loop = false;
-	/* Initialize libuv event loop handle */
-	uv_loop_init(&worker_thread_uvio_handle);
-#else
-	/* Initialize epoll */
-	worker_thread_epoll_file_descriptor = epoll_create1(0);
-	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
-#endif
-}
-static inline void
-worker_thread_process_async_io()
-{
-#ifdef USE_HTTP_UVIO
-	/* Execute libuv event loop */
-	if (!worker_thread_is_in_libuv_event_loop) worker_thread_execute_libuv_event_loop();
-#else
-	/* Execute non-blocking epoll_wait to add sandboxes back on the runqueue */
-	worker_thread_execute_epoll_loop();
-#endif
-}
-
 /**
  * The entry function for sandbox worker threads
- * Initializes thread-local state, unmasks signals, sets up libuv loop and
+ * Initializes thread-local state, unmasks signals, sets up epoll loop and
  * @param return_code - argument provided by pthread API. We set to -1 on error
  */
 void *
@@ -369,7 +300,9 @@ worker_thread_main(void *return_code)
 #endif
 	signal(SIGPIPE, SIG_IGN);
 
-	worker_thread_initialize_async_io();
+	/* Initialize epoll */
+	worker_thread_epoll_file_descriptor = epoll_create1(0);
+	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
 
 	/* Begin Worker Execution Loop */
 	struct sandbox *next_sandbox;
@@ -377,7 +310,7 @@ worker_thread_main(void *return_code)
 		/* Assumption: current_sandbox should be unset at start of loop */
 		assert(current_sandbox_get() == NULL);
 
-		worker_thread_process_async_io();
+		worker_thread_execute_epoll_loop();
 
 		/* Switch to a sandbox if one is ready to run */
 		software_interrupt_disable();

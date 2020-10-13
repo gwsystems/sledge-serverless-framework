@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "client_socket.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
 #include "global_request_scheduler.h"
@@ -9,7 +10,7 @@
 #include "priority_queue.h"
 #include "software_interrupt.h"
 
-__thread static struct priority_queue local_runqueue_minheap;
+__thread static struct priority_queue *local_runqueue_minheap;
 
 /**
  * Checks if the run queue is empty
@@ -18,7 +19,7 @@ __thread static struct priority_queue local_runqueue_minheap;
 bool
 local_runqueue_minheap_is_empty()
 {
-	return priority_queue_is_empty(&local_runqueue_minheap);
+	return priority_queue_length_nolock(local_runqueue_minheap) == 0;
 }
 
 /**
@@ -31,7 +32,7 @@ local_runqueue_minheap_add(struct sandbox *sandbox)
 {
 	assert(!software_interrupt_is_enabled());
 
-	int return_code = priority_queue_enqueue(&local_runqueue_minheap, sandbox);
+	int return_code = priority_queue_enqueue_nolock(local_runqueue_minheap, sandbox);
 	/* TODO: propagate RC to caller. Issue #92 */
 	if (return_code == -ENOSPC) panic("Thread Runqueue is full!\n");
 }
@@ -45,7 +46,7 @@ static int
 local_runqueue_minheap_remove(struct sandbox **to_remove)
 {
 	assert(!software_interrupt_is_enabled());
-	return priority_queue_dequeue(&local_runqueue_minheap, (void **)to_remove);
+	return priority_queue_dequeue_nolock(local_runqueue_minheap, (void **)to_remove);
 }
 
 /**
@@ -58,7 +59,7 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 	assert(!software_interrupt_is_enabled());
 	assert(sandbox != NULL);
 
-	int rc = priority_queue_delete(&local_runqueue_minheap, sandbox);
+	int rc = priority_queue_delete_nolock(local_runqueue_minheap, sandbox);
 	if (rc == -1) panic("Tried to delete sandbox %lu from runqueue, but was not present\n", sandbox->id);
 }
 
@@ -77,9 +78,9 @@ local_runqueue_minheap_get_next()
 
 	struct sandbox *        sandbox         = NULL;
 	struct sandbox_request *sandbox_request = NULL;
-	int                     sandbox_rc      = priority_queue_top(&local_runqueue_minheap, (void **)&sandbox);
+	int                     sandbox_rc      = priority_queue_top_nolock(local_runqueue_minheap, (void **)&sandbox);
 
-	if (sandbox_rc == -ENOENT && global_request_scheduler_peek() < ULONG_MAX) {
+	while (sandbox_rc == -ENOENT && global_request_scheduler_peek() < ULONG_MAX && sandbox == NULL) {
 		/* local runqueue empty, try to pull a sandbox request */
 		if (global_request_scheduler_remove(&sandbox_request) < 0) {
 			/* Assumption: Sandbox request should not be set in case of an error */
@@ -87,9 +88,14 @@ local_runqueue_minheap_get_next()
 			goto done;
 		}
 
-		/* Try to allocate a sandbox, returning the request on failure */
+		/* Try to allocate a sandbox. Try again on failure */
 		sandbox = sandbox_allocate(sandbox_request);
-		if (!sandbox) goto sandbox_allocate_err;
+		if (!sandbox) {
+			client_socket_send(sandbox_request->socket_descriptor, 503);
+			client_socket_close(sandbox_request->socket_descriptor);
+			free(sandbox_request);
+			continue;
+		};
 
 		assert(sandbox->state == SANDBOX_INITIALIZED);
 		sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
@@ -97,10 +103,6 @@ local_runqueue_minheap_get_next()
 
 done:
 	return sandbox;
-sandbox_allocate_err:
-	debuglog("local_runqueue_minheap_get_next failed to allocate sandbox. Adding request back to global "
-	         "request scheduler\n");
-	global_request_scheduler_add(sandbox_request);
 err:
 	sandbox = NULL;
 	goto done;
@@ -132,9 +134,8 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 	assert(local_runqueue_minheap_is_empty() == false);
 
 	bool     should_enable_software_interrupt = true;
-	uint64_t local_deadline                   = priority_queue_peek(&local_runqueue_minheap);
+	uint64_t local_deadline                   = priority_queue_peek(local_runqueue_minheap);
 	uint64_t global_deadline                  = global_request_scheduler_peek();
-
 	/* If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it */
 	struct sandbox_request *sandbox_request = NULL;
 	if (global_deadline < local_deadline) {
@@ -191,10 +192,9 @@ done:
 	if (should_enable_software_interrupt) software_interrupt_enable();
 	return;
 err_sandbox_allocate:
-	assert(sandbox_request);
-	debuglog("local_runqueue_minheap_preempt failed to allocate sandbox, returning request to global request "
-	         "scheduler\n");
-	global_request_scheduler_add(sandbox_request);
+	client_socket_send(sandbox_request->socket_descriptor, 503);
+	client_socket_close(sandbox_request->socket_descriptor);
+	debuglog("local_runqueue_minheap_preempt failed to allocate sandbox\n");
 err:
 	goto done;
 }
@@ -215,7 +215,7 @@ local_runqueue_minheap_initialize()
 {
 	/* Initialize local state */
 	software_interrupt_disable();
-	priority_queue_initialize(&local_runqueue_minheap, sandbox_get_priority);
+	local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_priority);
 	software_interrupt_enable();
 
 	/* Register Function Pointers for Abstract Scheduling API */
