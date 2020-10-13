@@ -82,9 +82,9 @@ sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 	if (!software_interrupt_is_enabled()) return;
 
 	/*
-	 * if a SIGALRM fires while the worker thread is between sandboxes, executing libuv, completion queue
-	 * cleanup, etc. current_sandbox might be NULL. In this case, we should just allow return to allow the
-	 * worker thread to run the main loop until it loads a new sandbox.
+	 * if a SIGALRM fires while the worker thread is between sandboxes doing runtime tasks such as processing
+	 * the epoll loop, performing completion queue cleanup, etc. current_sandbox might be NULL. In this case,
+	 * we should just allow return to allow the worker thread to run the main loop until it loads a new sandbox.
 	 *
 	 * TODO: Consider if this should be an invarient and the worker thread should disable software
 	 * interrupts when doing this work. Issue #95

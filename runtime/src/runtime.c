@@ -1,9 +1,9 @@
 #include <signal.h>
 #include <sched.h>
 #include <sys/mman.h>
-#include <uv.h>
 
 #include "arch/context.h"
+#include "client_socket.h"
 #include "debuglog.h"
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
@@ -152,39 +152,6 @@ runtime_initialize(void)
  ************************/
 
 /**
- * Rejects Requests as determined by admissions control
- * @param client_socket - the client we are rejecting
- */
-static inline void
-listener_thread_reject(int client_socket)
-{
-	assert(client_socket >= 0);
-
-	int rc;
-	int sent    = 0;
-	int to_send = strlen(HTTP_RESPONSE_503_SERVICE_UNAVAILABLE);
-
-	while (sent < to_send) {
-		rc = write(client_socket, &HTTP_RESPONSE_503_SERVICE_UNAVAILABLE[sent], to_send - sent);
-		if (rc < 0) {
-			if (errno == EAGAIN) continue;
-
-			goto send_504_err;
-		}
-		sent += rc;
-	};
-
-	atomic_fetch_add(&runtime_total_5XX_responses, 1);
-
-close:
-	if (close(client_socket) < 0) panic("Error closing client socket - %s", strerror(errno));
-	return;
-send_504_err:
-	debuglog("Error sending 504: %s", strerror(errno));
-	goto close;
-}
-
-/**
  * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and pushes
  * the sandbox object to the global dequeue
  * @param dummy data pointer provided by pthreads API. Unused in this function
@@ -285,7 +252,9 @@ listener_thread_main(void *dummy)
 				                               / module->relative_deadline;
 
 				if (runtime_admitted + admissions_estimate >= runtime_admissions_capacity) {
-					listener_thread_reject(client_socket);
+					client_socket_send(client_socket, 503);
+					if (close(client_socket) < 0)
+						debuglog("Error closing client socket - %s", strerror(errno));
 					continue;
 				}
 
