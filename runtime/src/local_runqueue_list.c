@@ -52,17 +52,18 @@ local_runqueue_list_get_next()
 		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
 
 		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
-		if (!sandbox) goto err;
+		if (!sandbox) goto err_allocate;
 
 		sandbox->state = SANDBOX_RUNNABLE;
 		local_runqueue_add(sandbox);
 
 	done:
 		return sandbox;
-	err:
+	err_allocate:
 		client_socket_send(sandbox_request->socket_descriptor, 503);
 		client_socket_close(sandbox_request->socket_descriptor);
 		free(sandbox_request);
+	err:
 		sandbox = NULL;
 		goto done;
 	}
