@@ -56,7 +56,7 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->admissions_estimate       = admissions_estimate;
 
 #ifdef LOG_REQUEST_ALLOCATION
-	debuglog("Allocating %lu of %s:%d\n", sandbox_request->request_arrival_timestamp, sandbox_request->module->name,
+	debuglog("Sandbox Request %lu: of %s:%d\n", sandbox_request->id, sandbox_request->module->name,
 	         sandbox_request->module->port);
 #endif
 	return sandbox_request;

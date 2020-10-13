@@ -14,9 +14,7 @@
 static inline void
 client_socket_close(int client_socket)
 {
-	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, client_socket, NULL);
-	if (unlikely(rc < 0)) panic_err();
-
+	// debuglog("Closing Socket\n");
 	if (close(client_socket) < 0) debuglog("Error closing client socket - %s", strerror(errno));
 }
 
@@ -26,10 +24,11 @@ client_socket_close(int client_socket)
  * @param client_socket - the client we are rejecting
  * @param status_code - either 503 or 400
  */
-static inline void
+static inline int
 client_socket_send(int client_socket, int status_code)
 {
 	const char *response;
+	int         rc;
 	switch (status_code) {
 	case 503:
 		response = HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
@@ -37,12 +36,15 @@ client_socket_send(int client_socket, int status_code)
 		break;
 	case 400:
 		response = HTTP_RESPONSE_400_BAD_REQUEST;
+#ifdef LOG_TOTAL_REQS_RESPS
+		atomic_fetch_add(&runtime_total_4XX_responses, 1);
+#endif
+
 		break;
 	default:
 		panic("%d is not a valid status code\n", status_code);
 	}
 
-	int rc;
 	int sent    = 0;
 	int to_send = strlen(response);
 
@@ -56,9 +58,11 @@ client_socket_send(int client_socket, int status_code)
 		sent += rc;
 	};
 
+	rc = 0;
 done:
-	return;
+	return rc;
 send_err:
 	debuglog("Error sending to client: %s", strerror(errno));
+	rc = -1;
 	goto done;
 }
