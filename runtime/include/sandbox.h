@@ -321,6 +321,9 @@ sandbox_close_http(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
+	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, sandbox->client_socket_descriptor, NULL);
+	if (unlikely(rc < 0)) panic_err();
+
 	client_socket_close(sandbox->client_socket_descriptor);
 }
 

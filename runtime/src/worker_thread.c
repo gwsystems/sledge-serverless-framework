@@ -227,6 +227,8 @@ worker_thread_execute_epoll_loop(void)
 
 				if (sandbox->state == SANDBOX_BLOCKED) worker_thread_wakeup_sandbox(sandbox);
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
+				/* Mystery: This seems to never fire. Why? */
+
 				/* Close socket and set as error on socket error or unexpected client hangup */
 				struct sandbox *sandbox = (struct sandbox *)epoll_events[i].data.ptr;
 				int             error   = 0;
@@ -251,9 +253,11 @@ worker_thread_execute_epoll_loop(void)
 					panic("Expected to have closed socket");
 				default:
 					client_socket_send(sandbox->client_socket_descriptor, 503);
-					client_socket_close(sandbox->client_socket_descriptor);
+					sandbox_close_http(sandbox);
 					sandbox_set_as_error(sandbox, sandbox->state);
 				}
+			} else {
+				panic("Mystery epoll event!\n");
 			};
 		}
 	}

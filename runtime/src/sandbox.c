@@ -84,7 +84,8 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 		}
 
 #ifdef LOG_HTTP_PARSER
-		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %lu)", sandbox->id, parser, settings, buf, len);
+		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings, buf,
+		         recved);
 #endif
 		size_t nparsed = http_parser_execute(parser, settings, buf, recved);
 
@@ -93,6 +94,14 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 			         http_errno_description(sandbox->http_parser.status_code));
 			debuglog("Length Parsed %zu, Length Read %zu\n", nparsed, recved);
 			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
+			goto err;
+		}
+
+		if (recved == 0 && !sandbox->http_request.message_end) {
+#ifdef LOG_HTTP_PARSER
+			debuglog("Sandbox %lu: Received 0, but parsing was incomplete\n", sandbox->id);
+			http_request_print(&sandbox->http_request);
+#endif
 			goto err;
 		}
 
@@ -324,15 +333,8 @@ err:
 	/* Send a 400 error back to the client */
 	client_socket_send(sandbox->client_socket_descriptor, 400);
 
-#ifdef LOG_TOTAL_REQS_RESPS
-	if (rc >= 0) {
-		atomic_fetch_add(&runtime_total_4XX_responses, 1);
-		debuglog("At %llu, Sandbox %lu - 4XX\n", __getcycles(), sandbox->id);
-	}
-#endif
-
 	software_interrupt_disable();
-	client_socket_close(sandbox->client_socket_descriptor);
+	sandbox_close_http(sandbox);
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);
 	goto done;
 }
