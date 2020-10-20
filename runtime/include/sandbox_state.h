@@ -2,6 +2,7 @@
 
 #include <stdatomic.h>
 
+#include "debuglog.h"
 #include "likely.h"
 #include "panic.h"
 

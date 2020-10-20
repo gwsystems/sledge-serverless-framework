@@ -16,10 +16,8 @@
 #include "software_interrupt.h"
 #include "worker_thread.h"
 
-/* Conditionally used by debuglog when DEBUG is set */
-#ifdef DEBUG
+/* Conditionally used by debuglog when NDEBUG is not set */
 int32_t debuglog_file_descriptor = -1;
-#endif
 
 float    runtime_processor_speed_MHz                          = 0;
 uint32_t runtime_total_online_processors                      = 0;
@@ -41,7 +39,7 @@ int                    runtime_worker_core_count;
 static void
 runtime_usage(char *cmd)
 {
-	debuglog("%s <modules_file>\n", cmd);
+	printf("%s <modules_file>\n", cmd);
 }
 
 /**
@@ -80,7 +78,8 @@ runtime_allocate_available_cores()
 {
 	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
-	uint32_t max_possible_workers   = runtime_total_online_processors - 1;
+	printf("Detected %u cores\n", runtime_total_online_processors);
+	uint32_t max_possible_workers = runtime_total_online_processors - 1;
 
 	if (runtime_total_online_processors < 2) panic("Runtime requires at least two cores!");
 
@@ -98,9 +97,8 @@ runtime_allocate_available_cores()
 		runtime_worker_threads_count = max_possible_workers;
 	}
 
-	debuglog("Number of cores %u, sandboxing cores %u (start: %u) and module reqs %u\n",
-	         runtime_total_online_processors, runtime_worker_threads_count, runtime_first_worker_processor,
-	         LISTENER_THREAD_CORE_ID);
+	printf("Running one listener core at ID %u and %u worker core(s) starting at ID %u\n", LISTENER_THREAD_CORE_ID,
+	       runtime_worker_threads_count, runtime_first_worker_processor);
 }
 
 /**
@@ -136,7 +134,6 @@ err:
 	goto done;
 }
 
-#ifdef DEBUG
 /**
  * Controls the behavior of the debuglog macro defined in types.h
  * If LOG_TO_FILE is defined, close stdin, stdout, stderr, and debuglog writes to a logfile named awesome.log.
@@ -157,7 +154,6 @@ runtime_process_debug_log_behavior()
 	debuglog_file_descriptor = STDOUT_FILENO;
 #endif /* LOG_TO_FILE */
 }
-#endif /* DEBUG */
 
 /**
  * Starts all worker threads and sleeps forever on pthread_join, which should never return
@@ -165,6 +161,7 @@ runtime_process_debug_log_behavior()
 void
 runtime_start_runtime_worker_threads()
 {
+	printf("Starting %d worker thread(s)\n", runtime_worker_threads_count);
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_create(&runtime_worker_threads[i], NULL, worker_thread_main,
 		                         (void *)&runtime_worker_threads_argument[i]);
@@ -208,10 +205,12 @@ runtime_configure()
 	} else {
 		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
 	}
+	printf("Scheduler Policy: %s\n", print_runtime_scheduler(runtime_scheduler));
 
 	/* Runtime Perf Log */
 	char *runtime_sandbox_perf_log_path = getenv("SLEDGE_SANDBOX_PERF_LOG");
 	if (runtime_sandbox_perf_log_path != NULL) {
+		printf("Logging Sandbox Performance to: %s\n", runtime_sandbox_perf_log_path);
 		runtime_sandbox_perf_log = fopen(runtime_sandbox_perf_log_path, "w");
 		if (runtime_sandbox_perf_log == NULL) { perror("sandbox perf log"); }
 		fprintf(runtime_sandbox_perf_log,
@@ -222,11 +221,9 @@ runtime_configure()
 int
 main(int argc, char **argv)
 {
-#ifdef DEBUG
 	runtime_process_debug_log_behavior();
-#endif
 
-	debuglog("Initializing the runtime\n");
+	printf("Starting the Sledge runtime\n");
 	if (argc != 2) {
 		runtime_usage(argv[0]);
 		exit(-1);
@@ -237,7 +234,7 @@ main(int argc, char **argv)
 	runtime_processor_speed_MHz                    = runtime_get_processor_speed_MHz();
 	software_interrupt_interval_duration_in_cycles = (uint64_t)SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC
 	                                                 * runtime_processor_speed_MHz;
-	debuglog("Detected processor speed of %f MHz\n", runtime_processor_speed_MHz);
+	printf("Detected processor speed of %f MHz\n", runtime_processor_speed_MHz);
 
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();
@@ -248,9 +245,6 @@ main(int argc, char **argv)
 #endif
 	if (module_new_from_json(argv[1])) panic("failed to parse modules file[%s]\n", argv[1]);
 
-	debuglog("Scheduler Policy: %s\n", print_runtime_scheduler(runtime_scheduler));
-	debuglog("Starting listener thread\n");
 	listener_thread_initialize();
-	debuglog("Starting %d worker thread(s)\n", runtime_worker_threads_count);
 	runtime_start_runtime_worker_threads();
 }

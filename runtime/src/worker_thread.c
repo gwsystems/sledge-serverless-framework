@@ -42,7 +42,7 @@ __thread uint64_t worker_thread_start_timestamp;
 static inline void
 worker_thread_dump_lock_overhead()
 {
-#ifdef DEBUG
+#ifndef NDEBUG
 #ifdef LOG_LOCK_OVERHEAD
 	uint64_t worker_duration = __getcycles() - worker_thread_start_timestamp;
 	debuglog("Locks consumed %lu / %lu cycles, or %f%%\n", worker_thread_lock_duration, worker_duration,

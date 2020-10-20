@@ -2,7 +2,7 @@
 
 #include <errno.h>
 
-#include "debuglog.h"
+#include "panic.h"
 #include "module.h"
 
 struct module *module_database_find_by_name(char *name);
@@ -30,7 +30,7 @@ module_database_add(struct module *module)
 done:
 	return rc;
 err_no_space:
-	debuglog("Cannot add module. Database is full.\n");
+	panic("Cannot add module. Database is full.\n");
 	rc = -ENOSPC;
 	goto done;
 }

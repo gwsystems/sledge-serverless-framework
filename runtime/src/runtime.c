@@ -190,6 +190,7 @@ listener_thread_main(void *dummy)
 void
 listener_thread_initialize(void)
 {
+	printf("Starting listener thread\n");
 	cpu_set_t cs;
 
 	CPU_ZERO(&cs);
