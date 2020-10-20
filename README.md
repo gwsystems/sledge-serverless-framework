@@ -1,17 +1,10 @@
 # SLEdge
 
-**SLEdge** is a lightweight serverless solution suitable for edge computing. It combines WebAssembly sandboxing provided by the [aWsm compiler](https://github.com/gwsystems/aWsm) with asynchronous I/O provided by [libuv](https://github.com/libuv/libuv).
+**SLEdge** is a lightweight serverless solution suitable for edge computing. It builds on WebAssembly sandboxing provided by the [aWsm compiler](https://github.com/gwsystems/aWsm).
 
 ## Host Dependencies
 
 - Docker - [Installation Instructions](https://docs.docker.com/install/)
-- libuv
-
-If on Debian, you can install libuv with the following:
-
-```bash
-sudo apt-get install libuv1-dev
-```
 
 ## Setting up the environment
 
