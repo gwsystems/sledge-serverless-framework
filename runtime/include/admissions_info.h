@@ -1,5 +1,6 @@
 #pragma once
 
+#include "debuglog.h"
 #include "perf_window.h"
 
 struct admissions_info {

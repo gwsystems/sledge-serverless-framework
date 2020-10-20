@@ -5,7 +5,6 @@
 
 #include "arch/context.h"
 #include "client_socket.h"
-#include "debuglog.h"
 #include "deque.h"
 #include "http_request.h"
 #include "http_response.h"

@@ -15,7 +15,6 @@
 static inline void
 client_socket_close(int client_socket)
 {
-	// debuglog("Closing Socket\n");
 	if (close(client_socket) < 0) debuglog("Error closing client socket - %s", strerror(errno));
 }
 

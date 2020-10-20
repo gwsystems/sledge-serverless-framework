@@ -2,6 +2,11 @@
 
 #include "runtime.h"
 
+#ifndef NCORES
+#warning "NCORES not defined in Makefile. Defaulting to 2"
+#define NCORES 2
+#endif
+
 #if NCORES == 1
 #error "RUNTIME MINIMUM REQUIREMENT IS 2 CORES"
 #endif
