@@ -3,9 +3,11 @@
 #include <signal.h>
 #include <sys/mman.h>
 
+#include "admissions_control.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
 #include "http_parser_settings.h"
+#include "http_total.h"
 #include "local_completion_queue.h"
 #include "local_runqueue.h"
 #include "panic.h"
@@ -218,6 +220,9 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 
 		sent += rc;
 	}
+
+	http_total_increment_2xx();
+
 	return 0;
 }
 
@@ -257,8 +262,8 @@ sandbox_initialize_io_handles_and_file_descriptors(struct sandbox *sandbox)
 
 /**
  * Sandbox execution logic
- * Handles setup, request parsing, WebAssembly initialization, function execution, response building and sending, and
- * cleanup
+ * Handles setup, request parsing, WebAssembly initialization, function execution, response building and
+ * sending, and cleanup
  */
 void
 current_sandbox_main(void)
@@ -306,9 +311,7 @@ current_sandbox_main(void)
 		goto err;
 	};
 
-#ifdef LOG_TOTAL_REQS_RESPS
-	atomic_fetch_add(&runtime_total_2XX_responses, 1);
-#endif
+	http_total_increment_2xx();
 
 	sandbox->response_timestamp = __getcycles();
 
@@ -436,24 +439,15 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	assert(!software_interrupt_is_enabled());
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_ALLOCATED);
-
 	assert(sandbox_request != NULL);
-	assert(sandbox_request->arguments != NULL);
-	assert(sandbox_request->request_arrival_timestamp > 0);
-	assert(sandbox_request->socket_address != NULL);
-	assert(sandbox_request->socket_descriptor > 0);
-
 	assert(allocation_timestamp > 0);
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | Uninitialized => Initialized\n", sandbox_request->request_arrival_timestamp);
-#endif
+
 	sandbox->id                  = sandbox_request->id;
 	sandbox->admissions_estimate = sandbox_request->admissions_estimate;
 
-	sandbox->request_arrival_timestamp   = sandbox_request->request_arrival_timestamp;
-	sandbox->allocation_timestamp        = allocation_timestamp;
-	sandbox->last_state_change_timestamp = allocation_timestamp;
-	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
+	sandbox->request_arrival_timestamp = sandbox_request->request_arrival_timestamp;
+	sandbox->allocation_timestamp      = allocation_timestamp;
+	sandbox->state                     = SANDBOX_SET_AS_INITIALIZED;
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
@@ -471,10 +465,12 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
 	memcpy(&sandbox->client_address, sandbox_request->socket_address, sizeof(struct sockaddr));
 
-	sandbox->state = SANDBOX_INITIALIZED;
-#ifdef LOG_SANDBOX_TOTALS
-	atomic_fetch_add(&runtime_total_initialized_sandboxes, 1);
-#endif
+	sandbox->last_state_change_timestamp = allocation_timestamp; /* We use arg to include alloc */
+	sandbox->state                       = SANDBOX_INITIALIZED;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, SANDBOX_UNINITIALIZED, SANDBOX_INITIALIZED);
+	runtime_sandbox_total_increment(SANDBOX_INITIALIZED);
 }
 
 /**
@@ -499,25 +495,13 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
 
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Runnable\n", sandbox->id, sandbox_state_stringify(last_state));
-#endif
-
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
 		sandbox->initializing_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_initialized_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_runnable_sandboxes, 1);
-#endif
 		break;
 	}
 	case SANDBOX_BLOCKED: {
 		sandbox->blocked_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_blocked_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_runnable_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
@@ -529,6 +513,11 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	local_runqueue_add(sandbox);
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RUNNABLE;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RUNNABLE);
+	runtime_sandbox_total_increment(SANDBOX_RUNNABLE);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -554,25 +543,14 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Running\n", sandbox->id, sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
 		sandbox->runnable_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_runnable_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_running_sandboxes, 1);
-#endif
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
 		sandbox->preempted_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_preempted_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_running_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
@@ -584,6 +562,11 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	current_sandbox_set(sandbox);
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RUNNING;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RUNNING);
+	runtime_sandbox_total_increment(SANDBOX_RUNNING);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -606,17 +589,10 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_PREEMPTED;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Preempted\n", sandbox->id, sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_preempted_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
@@ -627,6 +603,11 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_PREEMPTED;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_PREEMPTED);
+	runtime_sandbox_total_increment(SANDBOX_PREEMPTED);
+	runtime_sandbox_total_decrement(SANDBOX_RUNNING);
 }
 
 /**
@@ -647,18 +628,11 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_BLOCKED;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->id, sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_blocked_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
@@ -669,6 +643,11 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_BLOCKED;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_BLOCKED);
+	runtime_sandbox_total_increment(SANDBOX_BLOCKED);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -690,9 +669,6 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RETURNED;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Returned\n", sandbox->id, sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -701,10 +677,6 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_returned_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
@@ -715,6 +687,11 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RETURNED;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RETURNED);
+	runtime_sandbox_total_increment(SANDBOX_RETURNED);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -733,31 +710,21 @@ void
 sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
+	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_ERROR;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Error\n", sandbox->id, sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_SET_AS_INITIALIZED:
 		/* Technically, this is a degenerate sandbox that we generate by hand */
 		sandbox->initializing_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_initialized_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_error_sandboxes, 1);
-#endif
 		break;
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_error_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
@@ -766,24 +733,18 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
+	uint64_t sandbox_id = sandbox->id;
+	sandbox->state      = SANDBOX_ERROR;
+	sandbox_print_perf(sandbox);
 	sandbox_free_linear_memory(sandbox);
-
-	sandbox->last_state_change_timestamp = now;
-	sandbox->state                       = SANDBOX_ERROR;
-
-	if (runtime_sandbox_perf_log != NULL) sandbox_print_perf(sandbox);
-
-	/* Assumption: Should never underflow */
-	assert(runtime_admitted >= sandbox->admissions_estimate);
-
-	runtime_admitted -= sandbox->admissions_estimate;
-
-#ifdef LOG_ADMISSIONS_CONTROL
-	debuglog("Runtime Admitted: %lu / %lu\n", runtime_admitted, runtime_admissions_capacity);
-#endif
-
-	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
+	admissions_control_substract(sandbox->admissions_estimate);
+	/* Do not touch sandbox after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox_id, last_state, SANDBOX_ERROR);
+	runtime_sandbox_total_increment(SANDBOX_ERROR);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -797,22 +758,17 @@ void
 sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
+	assert(!software_interrupt_is_enabled());
+
 	uint64_t now                    = __getcycles();
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_COMPLETE;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Complete\n", sandbox->id, sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RETURNED: {
 		sandbox->completion_timestamp = now;
 		sandbox->returned_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_returned_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_complete_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
@@ -821,27 +777,19 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	sandbox->last_state_change_timestamp = now;
-	sandbox->state                       = SANDBOX_COMPLETE;
-
-	/*
-	 * TODO: Enhance to include "spinning" or better "local|global scheduling latency" as well.
-	 */
-	perf_window_add(&sandbox->module->perf_window, sandbox->running_duration);
-
-	/* Assumption: Should never underflow */
-	assert(runtime_admitted >= sandbox->admissions_estimate);
-
-	runtime_admitted -= sandbox->admissions_estimate;
-
-#ifdef LOG_ADMISSIONS_CONTROL
-	debuglog("Runtime Admitted: %lu / %lu\n", runtime_admitted, runtime_admissions_capacity);
-#endif
-
-	if (runtime_sandbox_perf_log != NULL) sandbox_print_perf(sandbox);
-
-	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
+	uint64_t sandbox_id = sandbox->id;
+	sandbox->state      = SANDBOX_COMPLETE;
+	sandbox_print_perf(sandbox);
+	/* Admissions Control Post Processing */
+	admissions_info_update(&sandbox->module->admissions_info, sandbox->running_duration);
+	admissions_control_substract(sandbox->admissions_estimate);
+	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox_id, last_state, SANDBOX_COMPLETE);
+	runtime_sandbox_total_increment(SANDBOX_COMPLETE);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -881,9 +829,6 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	/* Set state to initializing */
 	sandbox_set_as_initialized(sandbox, sandbox_request, now);
 
-#ifdef LOG_SANDBOX_TOTALS
-	atomic_fetch_add(&runtime_total_freed_requests, 1);
-#endif
 	free(sandbox_request);
 done:
 	return sandbox;

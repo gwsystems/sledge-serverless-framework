@@ -12,6 +12,7 @@
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_request.h"
+#include "sandbox_state.h"
 #include "software_interrupt.h"
 
 #define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) /* upside down LOLLOLLOL 🤣😂🤣*/
@@ -25,29 +26,6 @@
 struct sandbox_io_handle {
 	int file_descriptor;
 };
-
-typedef enum
-{
-	SANDBOX_UNINITIALIZED = 0, /* Assumption: mmap zeros out structure */
-	SANDBOX_ALLOCATED,
-	SANDBOX_SET_AS_INITIALIZED,
-	SANDBOX_INITIALIZED,
-	SANDBOX_SET_AS_RUNNABLE,
-	SANDBOX_RUNNABLE,
-	SANDBOX_SET_AS_RUNNING,
-	SANDBOX_RUNNING,
-	SANDBOX_SET_AS_PREEMPTED,
-	SANDBOX_PREEMPTED,
-	SANDBOX_SET_AS_BLOCKED,
-	SANDBOX_BLOCKED,
-	SANDBOX_SET_AS_RETURNED,
-	SANDBOX_RETURNED,
-	SANDBOX_SET_AS_COMPLETE,
-	SANDBOX_COMPLETE,
-	SANDBOX_SET_AS_ERROR,
-	SANDBOX_ERROR,
-	SANDBOX_STATE_COUNT
-} sandbox_state_t;
 
 struct sandbox {
 	uint64_t        id;
@@ -71,12 +49,12 @@ struct sandbox {
 	uint64_t last_state_change_timestamp; /* Used for bookkeeping of actual execution time */
 
 	/* Duration of time (in cycles) that the sandbox is in each state */
-	uint32_t initializing_duration;
-	uint32_t runnable_duration;
-	uint32_t preempted_duration;
-	uint32_t running_duration;
-	uint32_t blocked_duration;
-	uint32_t returned_duration;
+	uint64_t initializing_duration;
+	uint64_t runnable_duration;
+	uint64_t preempted_duration;
+	uint64_t running_duration;
+	uint64_t blocked_duration;
+	uint64_t returned_duration;
 
 	uint64_t absolute_deadline;
 	uint64_t total_time; /* From Request to Response */
@@ -137,52 +115,6 @@ void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_free_linear_memory(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 size_t          sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
-
-static inline char *
-sandbox_state_stringify(sandbox_state_t state)
-{
-	switch (state) {
-	case SANDBOX_UNINITIALIZED:
-		return "Uninitialized";
-	case SANDBOX_ALLOCATED:
-		return "Allocated";
-	case SANDBOX_SET_AS_INITIALIZED:
-		return "Set As Initialized";
-	case SANDBOX_INITIALIZED:
-		return "Initialized";
-	case SANDBOX_SET_AS_RUNNABLE:
-		return "Set As Runnable";
-	case SANDBOX_RUNNABLE:
-		return "Runnable";
-	case SANDBOX_SET_AS_RUNNING:
-		return "Set As Running";
-	case SANDBOX_RUNNING:
-		return "Running";
-	case SANDBOX_SET_AS_PREEMPTED:
-		return "Set As Preempted";
-	case SANDBOX_PREEMPTED:
-		return "Preempted";
-	case SANDBOX_SET_AS_BLOCKED:
-		return "Set As Blocked";
-	case SANDBOX_BLOCKED:
-		return "Blocked";
-	case SANDBOX_SET_AS_RETURNED:
-		return "Set As Returned";
-	case SANDBOX_RETURNED:
-		return "Returned";
-	case SANDBOX_SET_AS_COMPLETE:
-		return "Set As Complete";
-	case SANDBOX_COMPLETE:
-		return "Complete";
-	case SANDBOX_SET_AS_ERROR:
-		return "Set As Error";
-	case SANDBOX_ERROR:
-		return "Error";
-	default:
-		/* Crash, as this should be exclusive */
-		panic("%d is an unrecognized sandbox state\n", state);
-	}
-}
 
 
 /**
@@ -295,12 +227,16 @@ sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
 }
 
 /**
- * Prints key performance metrics for a sandbox to STDOUT
+ * Prints key performance metrics for a sandbox to runtime_sandbox_perf_log
+ * This is defined by an environment variable
  * @param sandbox
  */
 static inline void
 sandbox_print_perf(struct sandbox *sandbox)
 {
+	/* If the log was not defined by an environment variable, early out */
+	if (runtime_sandbox_perf_log == NULL) return;
+
 	uint32_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 	uint32_t queued_us     = (sandbox->allocation_timestamp - sandbox->request_arrival_timestamp)
 	                     / runtime_processor_speed_MHz;
