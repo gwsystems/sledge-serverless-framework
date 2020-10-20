@@ -1,4 +1,5 @@
 #!/bin/bash
+source ../common.sh
 
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
 # Use -d flag if running under gdb
@@ -14,41 +15,11 @@ for scheduler in ${schedulers[*]}; do
   log=log.txt
 
   mkdir -p "$results_directory"
-
-  {
-    echo "*******"
-    echo "* Git *"
-    echo "*******"
-    git log | head -n 1 | cut -d' ' -f2
-    git status
-    echo ""
-
-    echo "************"
-    echo "* Makefile *"
-    echo "************"
-    cat ../../Makefile
-    echo ""
-
-    echo "**********"
-    echo "* Run.sh *"
-    echo "**********"
-    cat run.sh
-    echo ""
-
-    echo "************"
-    echo "* Hardware *"
-    echo "************"
-    lscpu
-    echo ""
-
-    echo "*************"
-    echo "* Execution *"
-    echo "*************"
-  } >>"$results_directory/$log"
+  log_environment >>"$results_directory/$log"
 
   # Start the runtime
   if [ "$1" != "-d" ]; then
-    SLEDGE_SCHEDULER=$scheduler PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" >>"$results_directory/$log" 2>>"$results_directory/$log" &
+    SLEDGE_NWORKERS=5 SLEDGE_SCHEDULER=$scheduler PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" >>"$results_directory/$log" 2>>"$results_directory/$log" &
     sleep 1
   else
     echo "Running under gdb"
@@ -62,32 +33,26 @@ for scheduler in ${schedulers[*]}; do
   # Execute workloads long enough for runtime to learn excepted execution time
   echo -n "Running Samples: "
   for input in ${inputs[*]}; do
-    hey -z ${duration_sec}s -c 3 -q 1000 -o csv -m GET -d "$input\n" http://localhost:$((10000 + input))
+    hey -z ${duration_sec}s -c 3 -o csv -m GET -d "$input\n" http://localhost:$((10000 + input))
   done
   echo "[DONE]"
   sleep 5
 
   echo "Running Experiments"
   # Run each separately
-  hey -z ${duration_sec}s -cpus 3 -c 3 -q 1000 -o csv -m GET -d "40\n" http://localhost:10040 >"$results_directory/fib40.csv"
-  hey -z ${duration_sec}s -cpus 3 -c 3 -q 1000 -o csv -m GET -d "10\n" http://localhost:10010 >"$results_directory/fib10.csv"
+  hey -z ${duration_sec}s -cpus 3 -c 3 -o csv -m GET -d "40\n" http://localhost:10040 >"$results_directory/fib40.csv"
+  hey -z ${duration_sec}s -cpus 3 -c 3 -o csv -m GET -d "10\n" http://localhost:10010 >"$results_directory/fib10.csv"
 
   # Run lower priority first, then higher priority. The lower priority has offsets to ensure it runs the entire time the high priority is trying to run
-  hey -z $((duration_sec + 2 * offset))s -cpus 2 -c 3 -q 1000 -o csv -m GET -d "40\n" http://localhost:10040 >"$results_directory/fib40-con.csv" &
+  hey -z $((duration_sec + 2 * offset))s -cpus 3 -c 3 -o csv -m GET -d "40\n" http://localhost:10040 >"$results_directory/fib40-con.csv" &
   sleep $offset
-  hey -z ${duration_sec}s -cpus 3 -c 3 -q 1000 -o csv -m GET -d "10\n" http://localhost:10010 >"$results_directory/fib10-con.csv" &
-  sleep $((duration_sec + offset))
+  hey -z ${duration_sec}s -cpus 3 -c 3 -o csv -m GET -d "10\n" http://localhost:10010 >"$results_directory/fib10-con.csv" &
+  sleep $((duration_sec + offset + 5))
 
-  # Stop the runtime
-  if [ "$1" != "-d" ]; then
-    sleep $offset
-    echo -n "Running Cleanup: "
-    pkill sledgert >/dev/null 2>/dev/null
-    pkill wrk >/dev/null 2>/dev/null
-    echo "[DONE]"
-  fi
+  # Stop the runtime if not in debug mode
+  [ "$1" != "-d" ] && kill_runtime
 
-  # # Generate *.csv and *.dat results
+  # Generate *.csv and *.dat results
   echo -n "Parsing Results: "
 
   printf "Payload,Success_Rate\n" >>"$results_directory/success.csv"
@@ -151,12 +116,8 @@ for scheduler in ${schedulers[*]}; do
     tr ',' ' ' <"$results_directory/$file.csv" | column -t >>"$results_directory/$file.dat"
   done
 
-  # Generate gnuplots
-  cd "$results_directory" || exit
-  gnuplot ../../latency.gnuplot
-  gnuplot ../../success.gnuplot
-  gnuplot ../../throughput.gnuplot
-  cd "$experiment_directory" || exit
+  # Generate gnuplots. Commented out because we don't have *.gnuplots defined
+  # generate_gnuplots
 
   # Cleanup, if requires
   echo "[DONE]"
