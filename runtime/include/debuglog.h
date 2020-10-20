@@ -1,6 +1,8 @@
 #pragma once
 
+#include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
 
 extern int32_t debuglog_file_descriptor;
 

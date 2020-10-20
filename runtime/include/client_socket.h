@@ -7,6 +7,7 @@
 #include "panic.h"
 #include "debuglog.h"
 #include "http_response.h"
+#include "http_total.h"
 #include "runtime.h"
 #include "worker_thread.h"
 
@@ -32,14 +33,11 @@ client_socket_send(int client_socket, int status_code)
 	switch (status_code) {
 	case 503:
 		response = HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
-		atomic_fetch_add(&runtime_total_5XX_responses, 1);
+		http_total_increment_5XX();
 		break;
 	case 400:
 		response = HTTP_RESPONSE_400_BAD_REQUEST;
-#ifdef LOG_TOTAL_REQS_RESPS
-		atomic_fetch_add(&runtime_total_4XX_responses, 1);
-#endif
-
+		http_total_increment_4XX();
 		break;
 	default:
 		panic("%d is not a valid status code\n", status_code);

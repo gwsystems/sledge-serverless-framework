@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <dlfcn.h>
 #include <jsmn.h>
 #include <stdio.h>
@@ -8,6 +9,7 @@
 
 #include "debuglog.h"
 #include "http.h"
+#include "likely.h"
 #include "module.h"
 #include "module_database.h"
 #include "panic.h"
@@ -127,7 +129,8 @@ module_free(struct module *module)
 
 struct module *
 module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, uint32_t max_memory,
-           uint32_t relative_deadline_us, int port, int request_size, int response_size)
+           uint32_t relative_deadline_us, int port, int request_size, int response_size, int admissions_percentile,
+           uint32_t expected_execution_us)
 {
 	int rc = 0;
 
@@ -182,14 +185,22 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
 	strncpy(module->path, path, MODULE_MAX_PATH_LENGTH);
 
-	module->argument_count       = argument_count;
-	module->stack_size           = round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size);
-	module->max_memory           = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
+	module->argument_count    = argument_count;
+	module->stack_size        = round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size);
+	module->max_memory        = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
+	module->socket_descriptor = -1;
+	module->port              = port;
+
+	/* Deadlines */
 	module->relative_deadline_us = relative_deadline_us;
 	module->relative_deadline    = relative_deadline_us * runtime_processor_speed_MHz;
-	module->socket_descriptor    = -1;
-	module->port                 = port;
 
+	/* Admissions Control */
+	uint64_t expected_execution = expected_execution_us * runtime_processor_speed_MHz;
+	admissions_info_initialize(&module->admissions_info, admissions_percentile, expected_execution,
+	                           module->relative_deadline);
+
+	/* Request Response Buffer */
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
 	if (response_size == 0) response_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
 	module->max_request_size  = request_size;
@@ -217,9 +228,6 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	local_sandbox_context_cache.module_indirect_table = module->indirect_table;
 	module_initialize_table(module);
 	local_sandbox_context_cache.module_indirect_table = NULL;
-
-	/* Initialize Perf Window */
-	perf_window_initialize(&module->perf_window);
 
 	/* Start listening for requests */
 	rc = module_listen(module);
@@ -350,6 +358,8 @@ module_new_from_json(char *file_name)
 		int32_t  argument_count                                      = 0;
 		uint32_t port                                                = 0;
 		uint32_t relative_deadline_us                                = 0;
+		uint32_t expected_execution_us                               = 0;
+		int      admissions_percentile                               = 50;
 		bool     is_active                                           = false;
 		int32_t  request_count                                       = 0;
 		int32_t  response_count                                      = 0;
@@ -378,7 +388,24 @@ module_new_from_json(char *file_name)
 			} else if (strcmp(key, "active") == 0) {
 				is_active = (strcmp(val, "yes") == 0);
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
-				relative_deadline_us = atoi(val);
+				unsigned long long buffer = strtoull(val, NULL, 10);
+				if (buffer > UINT32_MAX)
+					panic("Max relative-deadline-us is %u, but entry was %llu\n", UINT32_MAX,
+					      buffer);
+				relative_deadline_us = (uint32_t)buffer;
+			} else if (strcmp(key, "expected-execution-us") == 0) {
+				unsigned long long buffer = strtoull(val, NULL, 10);
+				if (buffer > UINT32_MAX)
+					panic("Max expected-execution-us is %u, but entry was %llu\n", UINT32_MAX,
+					      buffer);
+
+				expected_execution_us = (uint32_t)buffer;
+			} else if (strcmp(key, "admissions-percentile") == 0) {
+				unsigned long long buffer = strtoull(val, NULL, 10);
+				if (buffer > 99 || buffer < 50)
+					panic("admissions-percentile must be > 50 and <= 99 but was %llu\n", buffer);
+
+				admissions_percentile = (int)buffer;
 			} else if (strcmp(key, "http-req-headers") == 0) {
 				assert(tokens[i + j + 1].type == JSMN_ARRAY);
 				assert(tokens[i + j + 1].size <= HTTP_MAX_HEADER_COUNT);
@@ -414,16 +441,24 @@ module_new_from_json(char *file_name)
 			} else if (strcmp(key, "http-resp-content-type") == 0) {
 				strcpy(response_content_type, val);
 			} else {
+#ifdef LOG_MODULE_LOADING
 				debuglog("Invalid (%s,%s)\n", key, val);
+#endif
 			}
 			j += ntks;
 		}
 		i += ntoks;
 
+/* Validate presence of required fields */
+#ifdef ADMISSIONS_CONTROL
+		if (expected_execution_us == 0) panic("expected-execution-us is required for EDF\n");
+#endif
+
 		if (is_active) {
 			/* Allocate a module based on the values from the JSON */
 			struct module *module = module_new(module_name, module_path, argument_count, 0, 0,
-			                                   relative_deadline_us, port, request_size, response_size);
+			                                   relative_deadline_us, port, request_size, response_size,
+			                                   admissions_percentile, expected_execution_us);
 			if (module == NULL) goto module_new_err;
 
 			assert(module);
