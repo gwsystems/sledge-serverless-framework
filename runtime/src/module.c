@@ -193,7 +193,12 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 
 	/* Deadlines */
 	module->relative_deadline_us = relative_deadline_us;
-	module->relative_deadline    = relative_deadline_us * runtime_processor_speed_MHz;
+
+	/* This should have been handled when a module was loaded */
+	assert(relative_deadline_us < runtime_relative_deadline_us_max);
+
+	/* This can overflow a uint32_t, so be sure to cast appropriately */
+	module->relative_deadline = (uint64_t)relative_deadline_us * runtime_processor_speed_MHz;
 
 	/* Admissions Control */
 	uint64_t expected_execution = expected_execution_us * runtime_processor_speed_MHz;
@@ -389,7 +394,7 @@ module_new_from_json(char *file_name)
 				is_active = (strcmp(val, "yes") == 0);
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
 				unsigned long long buffer = strtoull(val, NULL, 10);
-				if (buffer > UINT32_MAX)
+				if (buffer > runtime_relative_deadline_us_max)
 					panic("Max relative-deadline-us is %u, but entry was %llu\n", UINT32_MAX,
 					      buffer);
 				relative_deadline_us = (uint32_t)buffer;

@@ -29,6 +29,7 @@ extern FILE *runtime_sandbox_perf_log;
  * See runtime_get_processor_speed_MHz for further details
  */
 extern uint32_t runtime_processor_speed_MHz;
+extern uint64_t runtime_relative_deadline_us_max;
 
 /* Count of worker threads and array of their pthread identifiers */
 extern pthread_t runtime_worker_threads[];

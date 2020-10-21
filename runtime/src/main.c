@@ -20,10 +20,11 @@
 /* Conditionally used by debuglog when NDEBUG is not set */
 int32_t debuglog_file_descriptor = -1;
 
-uint32_t runtime_processor_speed_MHz                          = 0;
-uint32_t runtime_total_online_processors                      = 0;
-uint32_t runtime_worker_threads_count                         = 0;
-uint32_t runtime_first_worker_processor                       = 0;
+uint32_t runtime_processor_speed_MHz      = 0;
+uint64_t runtime_relative_deadline_us_max = 0; /* a value higher than this will cause overflow on a uint64_t */
+uint32_t runtime_total_online_processors  = 0;
+uint32_t runtime_worker_threads_count     = 0;
+uint32_t runtime_first_worker_processor   = 0;
 int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; /* The worker sets its argument to -1 on error */
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
@@ -90,7 +91,7 @@ runtime_allocate_available_cores()
 	char *worker_count_raw = getenv("SLEDGE_NWORKERS");
 	if (worker_count_raw != NULL) {
 		int worker_count = atoi(worker_count_raw);
-		if (worker_count < 0 || worker_count > max_possible_workers) {
+		if (worker_count <= 0 || worker_count > max_possible_workers) {
 			panic("Invalid Worker Count. Was %d. Must be {1..%d}\n", worker_count, max_possible_workers);
 		}
 		runtime_worker_threads_count = worker_count;
@@ -236,6 +237,7 @@ main(int argc, char **argv)
 	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
 
+	runtime_relative_deadline_us_max               = UINT64_MAX / runtime_processor_speed_MHz;
 	software_interrupt_interval_duration_in_cycles = (uint64_t)SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC
 	                                                 * runtime_processor_speed_MHz;
 	printf("Detected processor speed of %u MHz\n", runtime_processor_speed_MHz);
