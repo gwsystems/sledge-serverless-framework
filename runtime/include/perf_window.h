@@ -155,8 +155,8 @@ done:
 /**
  * Returns pXX execution time
  * @param self
- * @param percentile represented by double between 50 and 99
- * @param percentile represented by double between 0 and 1
+ * @param percentile represented by int between 50 and 99
+ * @param precomputed_index memoized index for quick lookup when by_duration is full
  * @returns execution time
  */
 static inline uint64_t
