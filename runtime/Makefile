@@ -14,22 +14,22 @@ BINARY_NAME=sledgert
 # Options: {USE_MEM_GENERIC, USE_MEM_VM}
 USE_MEM = USE_MEM_VM
 
+# Feature Toggles
+# CFLAGS += -DADMISSIONS_CONTROL
+
 # Debugging Flags
 
-# Strips out calls to assert()
+# Strips out calls to assert() and disables debuglog
 # CFLAGS += -DNDEBUG
 
-# Turns on debuglog and other assorted printfs in third party libs
-CFLAGS += -DDEBUG
-
-# Redirects debuglogs to /runtime/bin/awesome.log 
-#FIXME This log should be changed to sledge.log (and likely to a user defined path)
+# Redirects debuglogs to /runtime/bin/sledge.log 
 # CFLAGS += -DLOG_TO_FILE
 
 # Various Informational Logs for Debugging
 # CFLAGS += -DLOG_HTTP_PARSER
 # CFLAGS += -DLOG_STATE_CHANGES
 # CFLAGS += -DLOG_LOCK_OVERHEAD
+# CFLAGS += -DLOG_LISTENER_LOCK_OVERHEAD
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_REQUEST_ALLOCATION
@@ -38,13 +38,13 @@ CFLAGS += -DDEBUG
 
 # This flag dumps totals of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX. It is useful to debug clients hanging waiting for a response.
-# To log, run `call runtime_log_requests_responses()` while in GDB
+# To log, run `call http_total_log()` while in GDB
 # CFLAGS += -DLOG_TOTAL_REQS_RESPS
 
 # This flag logs the total number of sandboxes in the various states
 # It is useful to debug if sandboxes are "getting caught" in a particular state
 # To log, run `call runtime_log_sandbox_states()` while in GDB
-# CFLAGS += -DLOG_SANDBOX_TOTALS
+# CFLAGS += -DLOG_SANDBOX_COUNT
 
 # This flag enables an per-worker atomic count of sandbox's local runqueue count in thread local storage
 # Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue

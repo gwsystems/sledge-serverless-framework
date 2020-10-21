@@ -64,6 +64,25 @@ runtime_initialize(void)
  * Listener Thread Logic *
  ************************/
 
+static inline void
+listener_thread_start_lock_overhead_measurement(uint64_t request_arrival_timestamp)
+{
+#ifdef LOG_LISTENER_LOCK_OVERHEAD
+	worker_thread_start_timestamp = request_arrival_timestamp;
+	worker_thread_lock_duration   = 0;
+#endif
+}
+
+static inline void
+listener_thread_stop_lock_overhead_measurement()
+{
+#ifdef LOG_LISTENER_LOCK_OVERHEAD
+	uint64_t worker_duration = __getcycles() - worker_thread_start_timestamp;
+	debuglog("Locks consumed %lu / %lu cycles, or %f%%\n", worker_thread_lock_duration, worker_duration,
+	         (double)worker_thread_lock_duration / worker_duration * 100);
+#endif
+}
+
 /**
  * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and pushes
  * the sandbox object to the global dequeue
@@ -95,6 +114,7 @@ listener_thread_main(void *dummy)
 		assert(descriptor_count > 0);
 
 		uint64_t request_arrival_timestamp = __getcycles();
+		listener_thread_start_lock_overhead_measurement(request_arrival_timestamp);
 		for (int i = 0; i < descriptor_count; i++) {
 			/* Check Event to determine if epoll returned an error */
 			if ((epoll_events[i].events & EPOLLERR) == EPOLLERR) {
@@ -175,7 +195,8 @@ listener_thread_main(void *dummy)
 
 			} /* while true */
 		}         /* for loop */
-	}                 /* while true */
+		listener_thread_stop_lock_overhead_measurement();
+	} /* while true */
 
 	panic("Listener thread unexpectedly broke loop\n");
 
