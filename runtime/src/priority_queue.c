@@ -12,6 +12,12 @@
  * Private Helper Functions *
  ***************************/
 
+static inline void
+priority_queue_update_highest_priority(struct priority_queue *self, const uint64_t priority)
+{
+	self->highest_priority = priority;
+}
+
 /**
  * Adds a value to the end of the binary heap
  * @param self the priority queue
@@ -27,7 +33,7 @@ priority_queue_append(struct priority_queue *self, void *new_item)
 
 	int rc;
 
-	/* Add one and prefix because we use 1-based indices in our backing array */
+	if (unlikely(self->size + 1 > self->capacity)) panic("PQ overflow");
 	if (self->size + 1 == self->capacity) goto err_enospc;
 	self->items[++self->size] = new_item;
 
@@ -67,7 +73,7 @@ priority_queue_percolate_up(struct priority_queue *self)
 
 	/* If there's only one element, set memoized lookup and early out */
 	if (self->size == 1) {
-		self->highest_priority = self->get_priority_fn(self->items[1]);
+		priority_queue_update_highest_priority(self, self->get_priority_fn(self->items[1]));
 		return;
 	}
 
@@ -78,7 +84,7 @@ priority_queue_percolate_up(struct priority_queue *self)
 		self->items[i / 2] = self->items[i];
 		self->items[i]     = temp;
 		/* If percolated to highest priority, update highest priority */
-		if (i / 2 == 1) self->highest_priority = self->get_priority_fn(self->items[1]);
+		if (i / 2 == 1) priority_queue_update_highest_priority(self, self->get_priority_fn(self->items[1]));
 	}
 }
 
@@ -89,7 +95,7 @@ priority_queue_percolate_up(struct priority_queue *self)
  * @returns the index of the smallest child
  */
 static inline int
-priority_queue_find_smallest_child(struct priority_queue *self, int parent_index)
+priority_queue_find_smallest_child(struct priority_queue *self, const int parent_index)
 {
 	assert(self != NULL);
 	assert(parent_index >= 1 && parent_index <= self->size);
@@ -130,6 +136,8 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 	assert(runtime_is_worker());
 	assert(!software_interrupt_is_enabled());
 
+	bool update_highest_value = parent_index == 1;
+
 	int left_child_index = 2 * parent_index;
 	while (left_child_index >= 2 && left_child_index <= self->size) {
 		int smallest_child_index = priority_queue_find_smallest_child(self, parent_index);
@@ -147,11 +155,11 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 	}
 
 	/* Update memoized value if we touched the head */
-	if (parent_index == 1) {
+	if (update_highest_value) {
 		if (!priority_queue_is_empty(self)) {
-			self->highest_priority = self->get_priority_fn(self->items[1]);
+			priority_queue_update_highest_priority(self, self->get_priority_fn(self->items[1]));
 		} else {
-			self->highest_priority = ULONG_MAX;
+			priority_queue_update_highest_priority(self, ULONG_MAX);
 		}
 	}
 }
@@ -174,15 +182,17 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
 	assert(!runtime_is_worker() || !software_interrupt_is_enabled());
 
 	/* Add one to capacity because this data structure ignores the element at 0 */
-	struct priority_queue *self = calloc(sizeof(struct priority_queue) + sizeof(void *) * (capacity + 1), 1);
+	size_t one_based_capacity = capacity + 1;
+
+	struct priority_queue *self = calloc(sizeof(struct priority_queue) + sizeof(void *) * one_based_capacity, 1);
 
 
 	/* We're assuming a min-heap implementation, so set to larget possible value */
-	self->highest_priority = ULONG_MAX;
-	self->size             = 0;
-	self->capacity         = capacity;
-	self->get_priority_fn  = get_priority_fn;
-	self->use_lock         = use_lock;
+	priority_queue_update_highest_priority(self, ULONG_MAX);
+	self->size            = 0;
+	self->capacity        = one_based_capacity; // Add one because we skip element 0
+	self->get_priority_fn = get_priority_fn;
+	self->use_lock        = use_lock;
 
 	if (use_lock) LOCK_INIT(&self->lock);
 
@@ -368,9 +378,9 @@ priority_queue_dequeue_if_earlier_nolock(struct priority_queue *self, void **deq
 
 	/* Update the highest priority */
 	if (!priority_queue_is_empty(self)) {
-		self->highest_priority = self->get_priority_fn(self->items[1]);
+		priority_queue_update_highest_priority(self, self->get_priority_fn(self->items[1]));
 	} else {
-		self->highest_priority = ULONG_MAX;
+		priority_queue_update_highest_priority(self, ULONG_MAX);
 	}
 	return_code = 0;
 
