@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <dlfcn.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -19,7 +20,7 @@
 /* Conditionally used by debuglog when NDEBUG is not set */
 int32_t debuglog_file_descriptor = -1;
 
-float    runtime_processor_speed_MHz                          = 0;
+uint32_t runtime_processor_speed_MHz                          = 0;
 uint32_t runtime_total_online_processors                      = 0;
 uint32_t runtime_worker_threads_count                         = 0;
 uint32_t runtime_first_worker_processor                       = 0;
@@ -102,35 +103,36 @@ runtime_allocate_available_cores()
 }
 
 /**
- * Returns a float of the cpu MHz entry for CPU0 in /proc/cpuinfo
+ * Returns the cpu MHz entry for CPU0 in /proc/cpuinfo, rounded to the nearest MHz
  * We are assuming all cores are the same clock speed, which is not true of many systems
  * We are also assuming this value is static
  * @return proceccor speed in MHz
  */
-static inline float
+static inline uint32_t
 runtime_get_processor_speed_MHz(void)
 {
-	float return_value;
+	uint32_t return_value;
 
 	FILE *cmd = popen("grep '^cpu MHz' /proc/cpuinfo | head -n 1 | awk '{print $4}'", "r");
-	if (cmd == NULL) goto err;
+	if (unlikely(cmd == NULL)) goto err;
 
-	float  processor_speed_MHz;
-	size_t n;
 	char   buff[16];
-
-	if ((n = fread(buff, 1, sizeof(buff) - 1, cmd)) <= 0) goto err;
-
+	size_t n = fread(buff, 1, sizeof(buff) - 1, cmd);
+	if (unlikely(n <= 0)) goto err;
 	buff[n] = '\0';
-	if (sscanf(buff, "%f", &processor_speed_MHz) != 1) goto err;
 
-	return_value = processor_speed_MHz;
+	float processor_speed_MHz;
+	n = sscanf(buff, "%f", &processor_speed_MHz);
+	if (unlikely(n != 1)) goto err;
+	if (unlikely(processor_speed_MHz < 0)) goto err;
+
+	return_value = (uint32_t)nearbyintf(processor_speed_MHz);
 
 done:
 	pclose(cmd);
 	return return_value;
 err:
-	return_value = -1;
+	return_value = 0;
 	goto done;
 }
 
@@ -231,10 +233,12 @@ main(int argc, char **argv)
 
 	memset(runtime_worker_threads, 0, sizeof(pthread_t) * WORKER_THREAD_CORE_COUNT);
 
-	runtime_processor_speed_MHz                    = runtime_get_processor_speed_MHz();
+	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
+	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
+
 	software_interrupt_interval_duration_in_cycles = (uint64_t)SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC
 	                                                 * runtime_processor_speed_MHz;
-	printf("Detected processor speed of %f MHz\n", runtime_processor_speed_MHz);
+	printf("Detected processor speed of %u MHz\n", runtime_processor_speed_MHz);
 
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();
