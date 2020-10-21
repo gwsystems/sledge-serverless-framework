@@ -374,14 +374,7 @@ priority_queue_dequeue_if_earlier_nolock(struct priority_queue *self, void **deq
 	self->items[1]            = self->items[self->size];
 	self->items[self->size--] = NULL;
 
-	if (self->size > 1) priority_queue_percolate_down(self, 1);
-
-	/* Update the highest priority */
-	if (!priority_queue_is_empty(self)) {
-		priority_queue_update_highest_priority(self, self->get_priority_fn(self->items[1]));
-	} else {
-		priority_queue_update_highest_priority(self, ULONG_MAX);
-	}
+	priority_queue_percolate_down(self, 1);
 	return_code = 0;
 
 done:
