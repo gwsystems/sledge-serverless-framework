@@ -100,10 +100,10 @@ for scheduler in ${schedulers[*]}; do
         p100 = '"$oks"'
         printf "'"$payload"',"
       }
-      NR==p50  {printf "%1.4f,",  $0}
-      NR==p90  {printf "%1.4f,",  $0}
-      NR==p99  {printf "%1.4f,",  $0}
-      NR==p100 {printf "%1.4f\n", $0}
+      NR==p50  {printf "%1.4f%,",  $0 / '"$deadline"' * 100}
+      NR==p90  {printf "%1.4f%,",  $0 / '"$deadline"' * 100}
+      NR==p99  {printf "%1.4f%,",  $0 / '"$deadline"' * 100}
+      NR==p100 {printf "%1.4f%\n", $0 / '"$deadline"' * 100}
     ' <"$results_directory/$payload-response.csv" >>"$results_directory/latency.csv"
 
     # Delete scratch file used for sorting/counting
