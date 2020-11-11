@@ -1,0 +1,5 @@
+
+
+hey -n 200 -c 200 -t 0 -m GET -d "40\n" http://localhost:10040
+
+hey -n 500 -c 500 -t 0 -m GET -d "10\n" http://localhost:10010
