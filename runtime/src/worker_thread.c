@@ -139,6 +139,13 @@ worker_thread_switch_to_base_context()
 	assert(!software_interrupt_is_enabled());
 
 	struct sandbox *current_sandbox = current_sandbox_get();
+#ifndef NDEBUG
+	if (current_sandbox != NULL) {
+		assert(current_sandbox->state < SANDBOX_STATE_COUNT);
+		assert(current_sandbox->stack_size == current_sandbox->module->stack_size);
+	}
+#endif
+
 	worker_thread_transition_exiting_sandbox(current_sandbox);
 
 	/* Assumption: Base Context should never switch to Base Context */
