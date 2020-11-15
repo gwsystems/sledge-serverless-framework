@@ -5,18 +5,15 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 
+#include "likely.h"
 #include "types.h"
 
 #define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
 #define LISTENER_THREAD_MAX_EPOLL_EVENTS 128
 
-#define RUNTIME_LOG_FILE                  "awesome.log"
+#define RUNTIME_LOG_FILE                  "sledge.log"
 #define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19) /* random! */
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
-#define RUNTIME_GRANULARITY               100000
-
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
 
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
@@ -24,49 +21,19 @@
  */
 extern int runtime_epoll_file_descriptor;
 
+/* Optional path to a file to log sandbox perf metrics */
+extern FILE *runtime_sandbox_perf_log;
+
 /*
  * Assumption: All cores are the same speed
  * See runtime_get_processor_speed_MHz for further details
  */
-extern float runtime_processor_speed_MHz;
+extern uint32_t runtime_processor_speed_MHz;
+extern uint64_t runtime_relative_deadline_us_max;
 
 /* Count of worker threads and array of their pthread identifiers */
 extern pthread_t runtime_worker_threads[];
 extern uint32_t  runtime_worker_threads_count;
-extern uint64_t  runtime_admissions_capacity;
-
-#ifdef LOG_TOTAL_REQS_RESPS
-/* Counts to track requests and responses */
-extern _Atomic uint32_t runtime_total_requests;
-extern _Atomic uint32_t runtime_total_2XX_responses;
-extern _Atomic uint32_t runtime_total_4XX_responses;
-extern _Atomic uint32_t runtime_total_5XX_responses;
-#endif
-
-#ifdef LOG_SANDBOX_TOTALS
-/* Counts to track sanboxes running through state transitions */
-extern _Atomic uint32_t runtime_total_freed_requests;
-extern _Atomic uint32_t runtime_total_initialized_sandboxes;
-extern _Atomic uint32_t runtime_total_runnable_sandboxes;
-extern _Atomic uint32_t runtime_total_blocked_sandboxes;
-extern _Atomic uint32_t runtime_total_running_sandboxes;
-extern _Atomic uint32_t runtime_total_preempted_sandboxes;
-extern _Atomic uint32_t runtime_total_returned_sandboxes;
-extern _Atomic uint32_t runtime_total_error_sandboxes;
-extern _Atomic uint32_t runtime_total_complete_sandboxes;
-#endif
-
-/*
- * Unitless estimate of the instantaneous fraction of system capacity required to complete all previously
- * admitted work. This is used to calculate free capacity as part of admissions control
- *
- * The estimated requirements of a single admitted request is calculated as
- * estimated execution time (cycles) / relative deadline (cycles)
- *
- * These estimates are incremented on request acceptance and decremented on request completion (either
- * success or failure)
- */
-extern _Atomic uint64_t runtime_admitted;
 
 void         alloc_linear_memory(void);
 void         expand_memory(void);
@@ -92,3 +59,22 @@ runtime_is_worker()
 
 	return false;
 }
+
+enum RUNTIME_SCHEDULER
+{
+	RUNTIME_SCHEDULER_FIFO = 0,
+	RUNTIME_SCHEDULER_EDF  = 1
+};
+
+static inline char *
+print_runtime_scheduler(enum RUNTIME_SCHEDULER variant)
+{
+	switch (variant) {
+	case RUNTIME_SCHEDULER_FIFO:
+		return "RUNTIME_SCHEDULER_FIFO";
+	case RUNTIME_SCHEDULER_EDF:
+		return "RUNTIME_SCHEDULER_EDF";
+	}
+};
+
+extern enum RUNTIME_SCHEDULER runtime_scheduler;

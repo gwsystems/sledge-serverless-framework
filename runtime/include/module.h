@@ -1,11 +1,14 @@
 #pragma once
 
 #include <string.h>
-#include <uv.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
 
+#include "admissions_control.h"
+#include "admissions_info.h"
 #include "http.h"
 #include "panic.h"
-#include "perf_window.h"
 #include "software_interrupt.h"
 #include "types.h"
 
@@ -52,7 +55,7 @@ struct module {
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
 	struct sockaddr_in          socket_address;
 	int                         socket_descriptor;
-	struct perf_window          perf_window;
+	struct admissions_info      admissions_info;
 	int                         port;
 
 	/*
@@ -229,5 +232,6 @@ module_set_http_info(struct module *module, int request_count, char *request_hea
 
 void           module_free(struct module *module);
 struct module *module_new(char *mod_name, char *mod_path, int32_t argument_count, uint32_t stack_sz, uint32_t max_heap,
-                          uint32_t relative_deadline_us, int port, int req_sz, int resp_sz);
+                          uint32_t relative_deadline_us, int port, int req_sz, int resp_sz, int admissions_percentile,
+                          uint32_t expected_execution_us);
 int            module_new_from_json(char *filename);

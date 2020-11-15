@@ -26,12 +26,12 @@ typedef ck_spinlock_mcs_t lock_t;
  * @param lock - the address of the lock
  * @param unique_variable_name - a unique prefix to hygienically namespace an associated lock/unlock pair
  */
-#define LOCK_LOCK_WITH_BOOKKEEPING(lock, unique_variable_name)             \
-	assert(!runtime_is_worker() || !software_interrupt_is_enabled());  \
-	struct ck_spinlock_mcs unique_variable_name##_node;                \
-	uint64_t               unique_variable_name##_pre = __getcycles(); \
-	ck_spinlock_mcs_lock((lock), &(unique_variable_name##_node));      \
-	worker_thread_lock_duration += (__getcycles() - unique_variable_name##_pre);
+#define LOCK_LOCK_WITH_BOOKKEEPING(lock, unique_variable_name)                        \
+	assert(!runtime_is_worker() || !software_interrupt_is_enabled());             \
+	struct ck_spinlock_mcs _hygiene_##unique_variable_name##_node;                \
+	uint64_t               _hygiene_##unique_variable_name##_pre = __getcycles(); \
+	ck_spinlock_mcs_lock((lock), &(_hygiene_##unique_variable_name##_node));      \
+	worker_thread_lock_duration += (__getcycles() - _hygiene_##unique_variable_name##_pre);
 
 /**
  * Unlocks a lock
@@ -40,7 +40,7 @@ typedef ck_spinlock_mcs_t lock_t;
  */
 #define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, unique_variable_name)          \
 	assert(!runtime_is_worker() || !software_interrupt_is_enabled()); \
-	ck_spinlock_mcs_unlock(lock, &(unique_variable_name##_node));
+	ck_spinlock_mcs_unlock(lock, &(_hygiene_##unique_variable_name##_node));
 
 /**
  * Locks a lock, keeping track of overhead

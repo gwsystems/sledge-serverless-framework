@@ -2,15 +2,11 @@
 
 #include <http_parser.h>
 #include <sys/uio.h>
-/* Conditionally load libuv */
-#ifdef USE_HTTP_UVIO
-#include <uv.h>
-#endif
 
 #include "http.h"
 
 #define HTTP_RESPONSE_200_OK                    "HTTP/1.1 200 OK\r\n"
-#define HTTP_RESPONSE_504_SERVICE_UNAVAILABLE   "HTTP/1.1 504 Service Unavailable\r\n\r\n"
+#define HTTP_RESPONSE_503_SERVICE_UNAVAILABLE   "HTTP/1.1 503 Service Unavailable\r\n\r\n"
 #define HTTP_RESPONSE_400_BAD_REQUEST           "HTTP/1.1 400 Bad Request\r\n\r\n"
 #define HTTP_RESPONSE_CONTENT_LENGTH            "Content-Length: "
 #define HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR "\r\n\r\n" /* content body follows this */
@@ -30,11 +26,7 @@ struct http_response {
 	int                         body_length;
 	char *                      status;
 	int                         status_length;
-#ifdef USE_HTTP_UVIO
-	uv_buf_t bufs[HTTP_MAX_HEADER_COUNT * 2 + 3]; /* max headers, one line for status code, remaining for body! */
-#else
-	struct iovec bufs[HTTP_MAX_HEADER_COUNT * 2 + 3];
-#endif
+	struct iovec                bufs[HTTP_MAX_HEADER_COUNT * 2 + 3];
 };
 
 /***************************************************

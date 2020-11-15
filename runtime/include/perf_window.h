@@ -21,7 +21,7 @@
  * overwritten, providing a sorted circular buffer
  */
 struct execution_node {
-	uint32_t execution_time;
+	uint64_t execution_time;
 	uint16_t by_termination_idx; /* Reverse idx of the associated by_termination bin. Used for swaps! */
 };
 
@@ -70,8 +70,8 @@ perf_window_swap(struct perf_window *self, uint16_t first_by_duration_idx, uint1
 	assert(self->by_termination[first_by_termination_idx] == first_by_duration_idx);
 	assert(self->by_termination[second_by_termination_idx] == second_by_duration_idx);
 
-	uint32_t first_execution_time  = self->by_duration[first_by_duration_idx].execution_time;
-	uint32_t second_execution_time = self->by_duration[second_by_duration_idx].execution_time;
+	uint64_t first_execution_time  = self->by_duration[first_by_duration_idx].execution_time;
+	uint64_t second_execution_time = self->by_duration[second_by_duration_idx].execution_time;
 
 	/* Swap Indices in Buffer*/
 	self->by_termination[first_by_termination_idx]  = second_by_duration_idx;
@@ -96,14 +96,14 @@ perf_window_swap(struct perf_window *self, uint16_t first_by_duration_idx, uint1
  * @param value
  */
 static inline void
-perf_window_add(struct perf_window *self, uint32_t value)
+perf_window_add(struct perf_window *self, uint64_t value)
 {
 	assert(self != NULL);
 
+	if (unlikely(!LOCK_IS_LOCKED(&self->lock))) panic("lock not held when calling perf_window_add\n");
+
 	/* A successful invocation should run for a non-zero amount of time */
 	assert(value > 0);
-
-	LOCK_LOCK(&self->lock);
 
 	/* If count is 0, then fill entire array with initial execution times */
 	if (self->count == 0) {
@@ -149,24 +149,27 @@ perf_window_add(struct perf_window *self, uint32_t value)
 	self->count++;
 
 done:
-	LOCK_UNLOCK(&self->lock);
+	return;
 }
 
 /**
  * Returns pXX execution time
  * @param self
- * @param percentile represented by double between 0 and 1
- * @returns execution time or -1 if by_termination is empty
+ * @param percentile represented by int between 50 and 99
+ * @param precomputed_index memoized index for quick lookup when by_duration is full
+ * @returns execution time
  */
-static inline uint32_t
-perf_window_get_percentile(struct perf_window *self, double percentile)
+static inline uint64_t
+perf_window_get_percentile(struct perf_window *self, int percentile, int precomputed_index)
 {
 	assert(self != NULL);
-	assert(percentile > 0 && percentile < 1);
+	assert(percentile >= 50 && percentile <= 99);
+	int size = self->count;
+	assert(size > 0);
 
-	if (self->count == 0) return -1;
+	if (likely(size >= PERF_WINDOW_BUFFER_SIZE)) return self->by_duration[precomputed_index].execution_time;
 
-	return self->by_duration[(int)(PERF_WINDOW_BUFFER_SIZE * percentile)].execution_time;
+	return self->by_duration[size * percentile / 100].execution_time;
 }
 
 /**

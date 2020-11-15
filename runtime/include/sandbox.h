@@ -1,17 +1,17 @@
 #pragma once
 
 #include <ucontext.h>
-#include <uv.h>
 #include <stdbool.h>
 
 #include "arch/context.h"
-#include "debuglog.h"
+#include "client_socket.h"
 #include "deque.h"
 #include "http_request.h"
 #include "http_response.h"
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_request.h"
+#include "sandbox_state.h"
 #include "software_interrupt.h"
 
 #define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) /* upside down LOLLOLLOL 🤣😂🤣*/
@@ -23,34 +23,11 @@
  ********************/
 
 struct sandbox_io_handle {
-	int                 file_descriptor;
-	union uv_any_handle libuv_handle;
+	int file_descriptor;
 };
 
-typedef enum
-{
-	SANDBOX_UNINITIALIZED = 0, /* Assumption: mmap zeros out structure */
-	SANDBOX_ALLOCATED,
-	SANDBOX_SET_AS_INITIALIZED,
-	SANDBOX_INITIALIZED,
-	SANDBOX_SET_AS_RUNNABLE,
-	SANDBOX_RUNNABLE,
-	SANDBOX_SET_AS_RUNNING,
-	SANDBOX_RUNNING,
-	SANDBOX_SET_AS_PREEMPTED,
-	SANDBOX_PREEMPTED,
-	SANDBOX_SET_AS_BLOCKED,
-	SANDBOX_BLOCKED,
-	SANDBOX_SET_AS_RETURNED,
-	SANDBOX_RETURNED,
-	SANDBOX_SET_AS_COMPLETE,
-	SANDBOX_COMPLETE,
-	SANDBOX_SET_AS_ERROR,
-	SANDBOX_ERROR,
-	SANDBOX_STATE_COUNT
-} sandbox_state_t;
-
 struct sandbox {
+	uint64_t        id;
 	sandbox_state_t state;
 
 	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
@@ -71,12 +48,12 @@ struct sandbox {
 	uint64_t last_state_change_timestamp; /* Used for bookkeeping of actual execution time */
 
 	/* Duration of time (in cycles) that the sandbox is in each state */
-	uint32_t initializing_duration;
-	uint32_t runnable_duration;
-	uint32_t preempted_duration;
-	uint32_t running_duration;
-	uint32_t blocked_duration;
-	uint32_t returned_duration;
+	uint64_t initializing_duration;
+	uint64_t runnable_duration;
+	uint64_t preempted_duration;
+	uint64_t running_duration;
+	uint64_t blocked_duration;
+	uint64_t returned_duration;
 
 	uint64_t absolute_deadline;
 	uint64_t total_time; /* From Request to Response */
@@ -96,8 +73,6 @@ struct sandbox {
 	struct sandbox_io_handle io_handles[SANDBOX_MAX_IO_HANDLE_COUNT];
 	struct sockaddr          client_address; /* client requesting connection! */
 	int                      client_socket_descriptor;
-	uv_tcp_t                 client_libuv_stream;
-	uv_shutdown_t            client_libuv_shutdown_request;
 
 	bool                 is_repeat_header;
 	http_parser          http_parser;
@@ -140,52 +115,6 @@ void            sandbox_free_linear_memory(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 size_t          sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
-static inline char *
-sandbox_state_stringify(sandbox_state_t state)
-{
-	switch (state) {
-	case SANDBOX_UNINITIALIZED:
-		return "Uninitialized";
-	case SANDBOX_ALLOCATED:
-		return "Allocated";
-	case SANDBOX_SET_AS_INITIALIZED:
-		return "Set As Initialized";
-	case SANDBOX_INITIALIZED:
-		return "Initialized";
-	case SANDBOX_SET_AS_RUNNABLE:
-		return "Set As Runnable";
-	case SANDBOX_RUNNABLE:
-		return "Runnable";
-	case SANDBOX_SET_AS_RUNNING:
-		return "Set As Running";
-	case SANDBOX_RUNNING:
-		return "Running";
-	case SANDBOX_SET_AS_PREEMPTED:
-		return "Set As Preempted";
-	case SANDBOX_PREEMPTED:
-		return "Preempted";
-	case SANDBOX_SET_AS_BLOCKED:
-		return "Set As Blocked";
-	case SANDBOX_BLOCKED:
-		return "Blocked";
-	case SANDBOX_SET_AS_RETURNED:
-		return "Set As Returned";
-	case SANDBOX_RETURNED:
-		return "Returned";
-	case SANDBOX_SET_AS_COMPLETE:
-		return "Set As Complete";
-	case SANDBOX_COMPLETE:
-		return "Complete";
-	case SANDBOX_SET_AS_ERROR:
-		return "Set As Error";
-	case SANDBOX_ERROR:
-		return "Error";
-	default:
-		/* Crash, as this should be exclusive */
-		panic("%d is an unrecognized sandbox state\n", state);
-	}
-}
-
 
 /**
  * Given a sandbox, returns the module that sandbox is executing
@@ -226,7 +155,6 @@ sandbox_initialize_io_handle(struct sandbox *sandbox)
 	}
 	if (io_handle_index == SANDBOX_MAX_IO_HANDLE_COUNT) return -1;
 	sandbox->io_handles[io_handle_index].file_descriptor = SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC;
-	memset(&sandbox->io_handles[io_handle_index].libuv_handle, 0, sizeof(union uv_any_handle));
 	return io_handle_index;
 }
 
@@ -298,26 +226,16 @@ sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
 }
 
 /**
- * Get the Libuv handle located at idx of the sandbox ith io_handle
- * @param sandbox
- * @param io_handle_index index of the handle containing libuv_handle???
- * @returns any libuv handle or a NULL pointer in case of error
- */
-static inline union uv_any_handle *
-sandbox_get_libuv_handle(struct sandbox *sandbox, int io_handle_index)
-{
-	if (!sandbox) return NULL;
-	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return NULL;
-	return &sandbox->io_handles[io_handle_index].libuv_handle;
-}
-
-/**
- * Prints key performance metrics for a sandbox to STDOUT
+ * Prints key performance metrics for a sandbox to runtime_sandbox_perf_log
+ * This is defined by an environment variable
  * @param sandbox
  */
 static inline void
 sandbox_print_perf(struct sandbox *sandbox)
 {
+	/* If the log was not defined by an environment variable, early out */
+	if (runtime_sandbox_perf_log == NULL) return;
+
 	uint32_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 	uint32_t queued_us     = (sandbox->allocation_timestamp - sandbox->request_arrival_timestamp)
 	                     / runtime_processor_speed_MHz;
@@ -326,14 +244,11 @@ sandbox_print_perf(struct sandbox *sandbox)
 	uint32_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
 	uint32_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
 	uint32_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
-	debuglog("%lu, %s():%d, state: %s, deadline: %u, actual: %u, queued: %u, initializing: %u, "
-	         "runnable: %u, "
-	         "running: %u, "
-	         "blocked: %u, "
-	         "returned: %u\n",
-	         sandbox->request_arrival_timestamp, sandbox->module->name, sandbox->module->port,
-	         sandbox_state_stringify(sandbox->state), sandbox->module->relative_deadline_us, total_time_us,
-	         queued_us, initializing_us, runnable_us, running_us, blocked_us, returned_us);
+
+	fprintf(runtime_sandbox_perf_log, "%lu,%s():%d,%s,%u,%u,%u,%u,%u,%u,%u,%u\n", sandbox->id,
+	        sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
+	        sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
+	        running_us, blocked_us, returned_us);
 }
 
 static inline void
@@ -341,17 +256,10 @@ sandbox_close_http(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
-#ifdef USE_HTTP_UVIO
-	uv_close((uv_handle_t *)&sandbox->client_libuv_stream, libuv_callbacks_on_close_wakeup_sakebox);
-	worker_thread_process_io();
-#else
 	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, sandbox->client_socket_descriptor, NULL);
 	if (unlikely(rc < 0)) panic_err();
 
-	if (close(sandbox->client_socket_descriptor) < 0) {
-		panic("Error closing client socket - %s", strerror(errno));
-	}
-#endif
+	client_socket_close(sandbox->client_socket_descriptor);
 }
 
 

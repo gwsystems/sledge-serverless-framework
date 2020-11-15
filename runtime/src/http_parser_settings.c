@@ -1,5 +1,4 @@
-#include <uv.h>
-
+#include "debuglog.h"
 #include "http.h"
 #include "http_request.h"
 #include "http_response.h"
@@ -24,10 +23,12 @@ int
 http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 {
 	struct sandbox *sandbox = (struct sandbox *)parser->data;
-	if (sandbox->http_request.message_end || sandbox->http_request.header_end) return 0;
+
+	assert(!sandbox->http_request.message_end);
+	assert(!sandbox->http_request.header_end);
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->request_arrival_timestamp);
+	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
 	assert(strncmp(sandbox->module->name, (at + 1), length - 1) == 0);
 #endif
 
@@ -45,15 +46,16 @@ http_parser_settings_on_message_begin(http_parser *parser)
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
-	if (sandbox->http_request.message_end || sandbox->http_request.header_end) return 0;
+	assert(!sandbox->http_request.message_end);
+	assert(!sandbox->http_request.header_end);
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->request_arrival_timestamp);
+	debuglog("sandbox: %lu\n", sandbox->id);
 #endif
 
 	http_request->message_begin  = true;
 	http_request->last_was_value = true; /* should always start with a header */
-	sandbox->is_repeat_header    = false;
+
 	return 0;
 }
 
@@ -72,43 +74,30 @@ http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
-	if (sandbox->http_request.message_end || sandbox->http_request.header_end) return 0;
-
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->request_arrival_timestamp);
+	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
 #endif
 
-	/* Previous name continues */
+	assert(!sandbox->http_request.message_end);
+	assert(!sandbox->http_request.header_end);
+
 	if (http_request->last_was_value == false) {
+		/* Previous key continues */
 		assert(http_request->header_count > 0);
-		strncat(http_request->headers[http_request->header_count].key, at, length);
-		return 0;
-	}
-
-	/*
-	 * We receive repeat headers for an unknown reason, so we need to ignore repeat headers
-	 * This probably means that the headers are getting reparsed, so for the sake of performance
-	 * this should be fixed upstream
-	 */
-
-
-#ifdef LOG_HTTP_PARSER
-	for (int i = 0; i < http_request->header_count; i++) {
-		if (strncmp(http_request->headers[i].key, at, length) == 0) {
-			debuglog("Repeat header!\n");
-			assert(0);
-			sandbox->is_repeat_header = true;
-			break;
+		if (unlikely(http_request->headers[http_request->header_count].key_length + length
+		             > HTTP_MAX_HEADER_LENGTH)) {
+			return -1;
 		}
-	}
-#endif
-
-	if (!sandbox->is_repeat_header) {
-		if (unlikely(http_request->header_count >= HTTP_MAX_HEADER_COUNT)) { return -1; }
-		if (unlikely(length > HTTP_MAX_HEADER_LENGTH)) { return -1; }
-		http_request->headers[http_request->header_count++].key = (char *)at;
-		http_request->last_was_value                            = false;
-		sandbox->is_repeat_header                               = false;
+		http_request->headers[http_request->header_count].key_length += length;
+		return 0;
+	} else {
+		/* Start of new key */
+		if (unlikely(http_request->header_count >= HTTP_MAX_HEADER_COUNT)) return -1;
+		if (unlikely(length > HTTP_MAX_HEADER_LENGTH)) return -1;
+		http_request->header_count++;
+		http_request->headers[http_request->header_count - 1].key        = (char *)at;
+		http_request->headers[http_request->header_count - 1].key_length = length;
+		http_request->last_was_value                                     = false;
 	}
 
 	return 0;
@@ -128,21 +117,24 @@ http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
-	if (http_request->message_end || http_request->header_end) return 0;
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->request_arrival_timestamp);
+	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
 #endif
 
-	// TODO: If last_was_value is already true, we might need to append to value
+	assert(!sandbox->http_request.message_end);
+	assert(!sandbox->http_request.header_end);
 
-
-	/* it is from the sandbox's request_response_data, should persist. */
-	if (!sandbox->is_repeat_header) {
+	if (!http_request->last_was_value) {
 		if (unlikely(length >= HTTP_MAX_HEADER_VALUE_LENGTH)) return -1;
-		http_request->headers[http_request->header_count - 1].value = (char *)at;
-		http_request->last_was_value                                = true;
+		http_request->headers[http_request->header_count - 1].value        = (char *)at;
+		http_request->headers[http_request->header_count - 1].value_length = length;
+	} else {
+		assert(http_request->headers[http_request->header_count - 1].value_length > 0);
+		http_request->headers[http_request->header_count - 1].value_length += length;
 	}
+
+	http_request->last_was_value = true;
 	return 0;
 }
 
@@ -156,15 +148,20 @@ http_parser_settings_on_header_end(http_parser *parser)
 {
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
-	if (http_request->message_end || http_request->header_end) return 0;
+
+	assert(!sandbox->http_request.message_end);
+	assert(!sandbox->http_request.header_end);
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->request_arrival_timestamp);
+	debuglog("sandbox: %lu\n", sandbox->id);
 #endif
 
 	http_request->header_end = true;
 	return 0;
 }
+
+const size_t http_methods_len               = 8;
+const char * http_methods[http_methods_len] = { "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT" };
 
 /**
  * http-parser callback called for HTTP Bodies
@@ -181,37 +178,33 @@ http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
-	if (http_request->message_end) return 0;
+	assert(sandbox->http_request.header_end);
+	assert(!sandbox->http_request.message_end);
 
-#ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->request_arrival_timestamp);
-#endif
 
 	/* Assumption: We should never exceed the buffer we're reusing */
 	assert(http_request->body_length + length <= sandbox->module->max_request_size);
 
 
 	if (!http_request->body) {
+#ifdef LOG_HTTP_PARSER
+		debuglog("Setting start of body!\n");
+#endif
 		/* If this is the first invocation of the callback, just set */
 		http_request->body        = (char *)at;
 		http_request->body_length = length;
 	} else {
 #ifdef LOG_HTTP_PARSER
-		debuglog("Body: %p, Existing Length: %d\n", http_request->body, http_request->body_length);
-
-		debuglog("Expected Offset %d, Actual Offset: %lu\n", http_request->body_length,
-		         at - http_request->body);
-
-		/* Attempt to copy and print the entire body */
-		uint64_t possible_body_len = at - http_request->body;
-		char     test_buffer[possible_body_len + length + 1];
-		strncpy(test_buffer, http_request->body, possible_body_len);
-		test_buffer[length] = '\0';
-		debuglog("http_parser_settings_on_body: len %lu, content: %s\n", possible_body_len, test_buffer);
+		debuglog("Appending to existing body!\n");
 #endif
-
 		http_request->body_length += length;
 	}
+
+#ifdef LOG_HTTP_PARSER
+	int capped_len = length > 1000 ? 1000 : length;
+	debuglog("sandbox: %lu, length: %zu, Content(up to 1000 chars) \"%.*s\"\n", sandbox->id, length,
+	         (int)capped_len, at);
+#endif
 
 	return 0;
 }
@@ -227,12 +220,15 @@ http_parser_settings_on_msg_end(http_parser *parser)
 	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
-	if (http_request->message_end) return 0;
+	assert(sandbox->http_request.header_end);
+	assert(!sandbox->http_request.message_end);
+
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->request_arrival_timestamp);
+	debuglog("sandbox: %lu\n", sandbox->id);
 #endif
 
 	http_request->message_end = true;
+
 	return 0;
 }
 

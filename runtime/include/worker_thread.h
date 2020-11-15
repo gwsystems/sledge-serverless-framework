@@ -1,17 +1,21 @@
 #pragma once
 
-#include <uv.h>
-
 #include "runtime.h"
 
-/* If multicore, use all but the dedicated listener core
-If there are fewer cores than this, main dynamically overrides this and uses all available */
+#ifndef NCORES
+#warning "NCORES not defined in Makefile. Defaulting to 2"
+#define NCORES 2
+#endif
+
+#if NCORES == 1
+#error "RUNTIME MINIMUM REQUIREMENT IS 2 CORES"
+#endif
+
 #define WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
 
-extern __thread uint64_t  worker_thread_lock_duration;
-extern __thread uint64_t  worker_thread_start_timestamp;
-extern __thread uv_loop_t worker_thread_uvio_handle;
-extern __thread int       worker_thread_epoll_file_descriptor;
+extern __thread uint64_t worker_thread_lock_duration;
+extern __thread uint64_t worker_thread_start_timestamp;
+extern __thread int      worker_thread_epoll_file_descriptor;
 
 void *worker_thread_main(void *return_code);
 
@@ -53,13 +57,4 @@ worker_thread_get_memory_string(uint32_t offset, uint32_t max_length)
 		}
 	}
 	return NULL;
-}
-
-/**
- * Get global libuv handle
- */
-static inline uv_loop_t *
-worker_thread_get_libuv_handle(void)
-{
-	return &worker_thread_uvio_handle;
 }

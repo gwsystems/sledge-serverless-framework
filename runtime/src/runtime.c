@@ -1,9 +1,10 @@
 #include <signal.h>
 #include <sched.h>
 #include <sys/mman.h>
-#include <uv.h>
 
+#include "admissions_control.h"
 #include "arch/context.h"
+#include "client_socket.h"
 #include "debuglog.h"
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
@@ -18,66 +19,7 @@
  * Shared Process State    *
  **************************/
 
-int              runtime_epoll_file_descriptor;
-_Atomic uint64_t runtime_admitted;
-uint64_t         runtime_admissions_capacity;
-
-#ifdef LOG_TOTAL_REQS_RESPS
-_Atomic uint32_t runtime_total_requests      = 0;
-_Atomic uint32_t runtime_total_2XX_responses = 0;
-_Atomic uint32_t runtime_total_4XX_responses = 0;
-_Atomic uint32_t runtime_total_5XX_responses = 0;
-
-void
-runtime_log_requests_responses()
-{
-	uint32_t total_reqs = atomic_load(&runtime_total_requests);
-	uint32_t total_2XX  = atomic_load(&runtime_total_2XX_responses);
-	uint32_t total_4XX  = atomic_load(&runtime_total_4XX_responses);
-	uint32_t total_5XX  = atomic_load(&runtime_total_5XX_responses);
-
-	int64_t total_responses      = total_2XX + total_4XX + total_5XX;
-	int64_t outstanding_requests = (int64_t)total_reqs - total_responses;
-
-	debuglog("Requests: %u (%ld outstanding)\n\tResponses: %ld\n\t\t2XX: %u\n\t\t4XX: %u\n\t\t5XX: %u\n",
-	         total_reqs, outstanding_requests, total_responses, total_2XX, total_4XX, total_5XX);
-};
-#endif
-
-#ifdef LOG_SANDBOX_TOTALS
-_Atomic uint32_t runtime_total_freed_requests        = 0;
-_Atomic uint32_t runtime_total_initialized_sandboxes = 0;
-_Atomic uint32_t runtime_total_runnable_sandboxes    = 0;
-_Atomic uint32_t runtime_total_blocked_sandboxes     = 0;
-_Atomic uint32_t runtime_total_running_sandboxes     = 0;
-_Atomic uint32_t runtime_total_preempted_sandboxes   = 0;
-_Atomic uint32_t runtime_total_returned_sandboxes    = 0;
-_Atomic uint32_t runtime_total_error_sandboxes       = 0;
-_Atomic uint32_t runtime_total_complete_sandboxes    = 0;
-
-/*
- * Function intended to be interactively run in a debugger to look at sandbox totals
- * via `call runtime_log_sandbox_states()`
- */
-void
-runtime_log_sandbox_states()
-{
-	uint32_t total_initialized = atomic_load(&runtime_total_initialized_sandboxes);
-	uint32_t total_runnable    = atomic_load(&runtime_total_runnable_sandboxes);
-	uint32_t total_blocked     = atomic_load(&runtime_total_blocked_sandboxes);
-	uint32_t total_running     = atomic_load(&runtime_total_running_sandboxes);
-	uint32_t total_preempted   = atomic_load(&runtime_total_preempted_sandboxes);
-	uint32_t total_returned    = atomic_load(&runtime_total_returned_sandboxes);
-	uint32_t total_error       = atomic_load(&runtime_total_error_sandboxes);
-	uint32_t total_complete    = atomic_load(&runtime_total_complete_sandboxes);
-
-
-	debuglog("Initialized: %u\n\tRunnable: %u\n\tBlocked: %u\n\tRunning: %u\n\tPreempted: %u\n\tReturned: "
-	         "%u\n\tError: %u\n\tComplete: %u\n",
-	         total_initialized, total_runnable, total_blocked, total_running, total_preempted, total_returned,
-	         total_error, total_complete);
-};
-#endif
+int runtime_epoll_file_descriptor;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -89,83 +31,56 @@ runtime_log_sandbox_states()
 void
 runtime_initialize(void)
 {
-#ifdef LOG_TOTAL_REQS_RESPS
-	atomic_init(&runtime_total_requests, 0);
-	atomic_init(&runtime_total_2XX_responses, 0);
-	atomic_init(&runtime_total_4XX_responses, 0);
-	atomic_init(&runtime_total_5XX_responses, 0);
-#endif
-#ifdef LOG_SANDBOX_TOTALS
-	atomic_init(&runtime_total_freed_requests, 0);
-	atomic_init(&runtime_total_initialized_sandboxes, 0);
-	atomic_init(&runtime_total_runnable_sandboxes, 0);
-	atomic_init(&runtime_total_blocked_sandboxes, 0);
-	atomic_init(&runtime_total_running_sandboxes, 0);
-	atomic_init(&runtime_total_preempted_sandboxes, 0);
-	atomic_init(&runtime_total_returned_sandboxes, 0);
-	atomic_init(&runtime_total_error_sandboxes, 0);
-	atomic_init(&runtime_total_complete_sandboxes, 0);
-#endif
+	http_total_init();
+	sandbox_request_count_initialize();
+	sandbox_count_initialize();
 
 	/* Setup epoll */
 	runtime_epoll_file_descriptor = epoll_create1(0);
 	assert(runtime_epoll_file_descriptor >= 0);
 
-	/* Allocate and Initialize the global deque
-	TODO: Improve to expose variant as a config #Issue 93
-	*/
-	// global_request_scheduler_deque_initialize();
-	global_request_scheduler_minheap_initialize();
+	/* Setup Scheduler */
+	switch (runtime_scheduler) {
+	case RUNTIME_SCHEDULER_EDF:
+		global_request_scheduler_minheap_initialize();
+		break;
+	case RUNTIME_SCHEDULER_FIFO:
+		global_request_scheduler_deque_initialize();
+		break;
+	default:
+		panic("Invalid scheduler policy set: %u\n", runtime_scheduler);
+	}
 
 	/* Mask Signals */
 	software_interrupt_mask_signal(SIGUSR1);
 	software_interrupt_mask_signal(SIGALRM);
+	signal(SIGPIPE, SIG_IGN);
 
-	/* Initialize http_parser_settings global */
 	http_parser_settings_initialize();
-
-	/* Initialize admissions control state */
-	runtime_admissions_capacity = runtime_worker_threads_count * RUNTIME_GRANULARITY;
-	runtime_admitted            = 0;
+	admissions_control_initialize();
 }
 
 /*************************
  * Listener Thread Logic *
  ************************/
 
-/**
- * Rejects Requests as determined by admissions control
- * @param client_socket - the client we are rejecting
- */
 static inline void
-listener_thread_reject(int client_socket)
+listener_thread_start_lock_overhead_measurement(uint64_t request_arrival_timestamp)
 {
-	assert(client_socket >= 0);
-
-	int rc;
-	int sent    = 0;
-	int to_send = strlen(HTTP_RESPONSE_504_SERVICE_UNAVAILABLE);
-
-	while (sent < to_send) {
-		rc = write(client_socket, &HTTP_RESPONSE_504_SERVICE_UNAVAILABLE[sent], to_send - sent);
-		if (rc < 0) {
-			if (errno == EAGAIN) continue;
-
-			goto send_504_err;
-		}
-		sent += rc;
-	};
-
-#ifdef LOG_TOTAL_REQS_RESPS
-	atomic_fetch_add(&runtime_total_5XX_responses, 1);
+#ifdef LOG_LISTENER_LOCK_OVERHEAD
+	worker_thread_start_timestamp = request_arrival_timestamp;
+	worker_thread_lock_duration   = 0;
 #endif
+}
 
-close:
-	if (close(client_socket) < 0) panic("Error closing client socket - %s", strerror(errno));
-	return;
-send_504_err:
-	debuglog("Error sending 504: %s", strerror(errno));
-	goto close;
+static inline void
+listener_thread_stop_lock_overhead_measurement()
+{
+#ifdef LOG_LISTENER_LOCK_OVERHEAD
+	uint64_t worker_duration = __getcycles() - worker_thread_start_timestamp;
+	debuglog("Locks consumed %lu / %lu cycles, or %f%%\n", worker_thread_lock_duration, worker_duration,
+	         (double)worker_thread_lock_duration / worker_duration * 100);
+#endif
 }
 
 /**
@@ -198,8 +113,8 @@ listener_thread_main(void *dummy)
 		/* Assumption: Because epoll_wait is set to not timeout, we should always have descriptors here */
 		assert(descriptor_count > 0);
 
-		/* Capture Start Time to calculate absolute deadline */
 		uint64_t request_arrival_timestamp = __getcycles();
+		listener_thread_start_lock_overhead_measurement(request_arrival_timestamp);
 		for (int i = 0; i < descriptor_count; i++) {
 			/* Check Event to determine if epoll returned an error */
 			if ((epoll_events[i].events & EPOLLERR) == EPOLLERR) {
@@ -254,24 +169,18 @@ listener_thread_main(void *dummy)
 					         module->name);
 				}
 
-#ifdef LOG_TOTAL_REQS_RESPS
-				atomic_fetch_add(&runtime_total_requests, 1);
-#endif
+				http_total_increment_request();
 
-				/* Perform Admission Control */
-
-				uint32_t estimated_execution = perf_window_get_percentile(&module->perf_window, 0.5);
 				/*
-				 * If this is the first execution, assume a default execution
-				 * TODO: Enhance module specification to provide "seed" value of estimated duration
+				 * Perform admissions control.
+				 * If 0, workload was rejected, so close with 503 and continue
 				 */
-				if (estimated_execution == -1) estimated_execution = 1000;
+				uint64_t work_admitted = admissions_control_decide(module->admissions_info.estimate);
+				if (work_admitted == 0) {
+					client_socket_send(client_socket, 503);
+					if (unlikely(close(client_socket) < 0))
+						debuglog("Error closing client socket - %s", strerror(errno));
 
-				uint64_t admissions_estimate = (((uint64_t)estimated_execution) * RUNTIME_GRANULARITY)
-				                               / module->relative_deadline;
-
-				if (runtime_admitted + admissions_estimate >= runtime_admissions_capacity) {
-					listener_thread_reject(client_socket);
 					continue;
 				}
 
@@ -279,23 +188,21 @@ listener_thread_main(void *dummy)
 				struct sandbox_request *sandbox_request =
 				  sandbox_request_allocate(module, module->name, client_socket,
 				                           (const struct sockaddr *)&client_address,
-				                           request_arrival_timestamp, admissions_estimate);
+				                           request_arrival_timestamp, work_admitted);
 
 				/* Add to the Global Sandbox Request Scheduler */
 				global_request_scheduler_add(sandbox_request);
 
-				/* Add to work accepted by the runtime */
-				runtime_admitted += admissions_estimate;
-
-#ifdef LOG_ADMISSIONS_CONTROL
-				debuglog("Runtime Admitted: %lu / %lu\n", runtime_admitted,
-				         runtime_admissions_capacity);
-#endif
 			} /* while true */
 		}         /* for loop */
-	}                 /* while true */
+		listener_thread_stop_lock_overhead_measurement();
+	} /* while true */
 
 	panic("Listener thread unexpectedly broke loop\n");
+
+
+	/* Cleanup Tasks... These won't run, but placed here to keep track */
+	fclose(runtime_sandbox_perf_log);
 }
 
 /**
@@ -304,6 +211,7 @@ listener_thread_main(void *dummy)
 void
 listener_thread_initialize(void)
 {
+	printf("Starting listener thread\n");
 	cpu_set_t cs;
 
 	CPU_ZERO(&cs);

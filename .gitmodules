@@ -11,3 +11,6 @@ url = https://github.com/gwsystems/ck.git
 [submodule "jsmn"]
 path = runtime/thirdparty/jsmn
 url = https://github.com/gwsystems/jsmn.git
+[submodule "runtime/tests/gocr"]
+	path = runtime/tests/gocr
+	url = https://github.com/gwsystems/gocr

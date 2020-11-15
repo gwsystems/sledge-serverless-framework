@@ -1,0 +1,30 @@
+{
+  "active": "yes",
+  "name": "fibonacci_10",
+  "path": "fibonacci_wasm.so",
+  "port": 10010,
+  "expected-execution-us": 600,
+  "relative-deadline-us": 2000,
+  "argsize": 1,
+  "http-req-headers": [],
+  "http-req-content-type": "text/plain",
+  "http-req-size": 1024,
+  "http-resp-headers": [],
+  "http-resp-size": 1024,
+  "http-resp-content-type": "text/plain"
+},
+{
+  "active": "yes",
+  "name": "fibonacci_40",
+  "path": "fibonacci_wasm.so",
+  "port": 10040,
+  "expected-execution-us": 550000,
+  "relative-deadline-us": 300000000,
+  "argsize": 1,
+  "http-req-headers": [],
+  "http-req-content-type": "text/plain",
+  "http-req-size": 1024,
+  "http-resp-headers": [],
+  "http-resp-size": 1024,
+  "http-resp-content-type": "text/plain"
+}

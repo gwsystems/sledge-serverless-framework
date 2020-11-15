@@ -2,12 +2,12 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
-#include <uv.h>
 
+#include "admissions_control.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
 #include "http_parser_settings.h"
-#include "libuv_callbacks.h"
+#include "http_total.h"
 #include "local_completion_queue.h"
 #include "local_runqueue.h"
 #include "panic.h"
@@ -60,19 +60,20 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 
 	int rc = 0;
 
-#ifndef USE_HTTP_UVIO
-
 	while (!sandbox->http_request.message_end) {
 		/* Read from the Socket */
-		ssize_t length_read = recv(sandbox->client_socket_descriptor,
-		                           &sandbox->request_response_data[sandbox->request_response_data_length],
-		                           sandbox->module->max_request_size - sandbox->request_response_data_length,
-		                           0);
 
-		/* Unexpected client shutdown.. or is this just EOF */
-		if (length_read == 0 && !sandbox->http_request.message_end) goto err;
+		/* Structured to closely follow usage example at https://github.com/nodejs/http-parser */
+		http_parser *               parser   = &sandbox->http_parser;
+		const http_parser_settings *settings = http_parser_settings_get();
 
-		if (length_read < 0) {
+		int    fd  = sandbox->client_socket_descriptor;
+		char * buf = &sandbox->request_response_data[sandbox->request_response_data_length];
+		size_t len = sandbox->module->max_request_size - sandbox->request_response_data_length;
+
+		ssize_t recved = recv(fd, buf, len, 0);
+
+		if (recved < 0) {
 			if (errno == EAGAIN) {
 				worker_thread_block_current_sandbox();
 				continue;
@@ -84,57 +85,33 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 			}
 		}
 
-
-		if (sandbox->http_request.message_end) {
-			sandbox->request_response_data_length += length_read;
-			break;
-		};
-
 #ifdef LOG_HTTP_PARSER
-		debuglog("http_parser_execute(%p, %p, %p, %lu)", &sandbox->http_parser, http_parser_settings_get(),
-		         &sandbox->request_response_data[sandbox->request_response_data_length], length_read);
+		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings, buf,
+		         recved);
 #endif
+		size_t nparsed = http_parser_execute(parser, settings, buf, recved);
 
-		http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
-		                    &sandbox->request_response_data[sandbox->request_response_data_length],
-		                    length_read);
-
-
-		/* Try to parse what we've read */
-		/* TODO: Consider 0 as EOF? */
-		size_t length_parsed =
-		  http_parser_execute(&sandbox->http_parser, http_parser_settings_get(),
-		                      &sandbox->request_response_data[sandbox->request_response_data_length],
-		                      length_read);
-
-		if (sandbox->http_request.message_end) {
-			sandbox->request_response_data_length += length_read;
-			break;
-		};
-
-		// size_t length_parsed = sandbox_parse_http_request(sandbox, length_read);
-		if (length_parsed != length_read) {
+		if (nparsed != recved) {
 			debuglog("Error: %s, Description: %s\n", http_errno_name(sandbox->http_parser.status_code),
 			         http_errno_description(sandbox->http_parser.status_code));
-			debuglog("Length Parsed %zu, Length Read %zu\n", length_parsed, length_read);
+			debuglog("Length Parsed %zu, Length Read %zu\n", nparsed, recved);
 			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
 			goto err;
 		}
 
-		sandbox->request_response_data_length += length_read;
+		if (recved == 0 && !sandbox->http_request.message_end) {
+#ifdef LOG_HTTP_PARSER
+			debuglog("Sandbox %lu: Received 0, but parsing was incomplete\n", sandbox->id);
+			http_request_print(&sandbox->http_request);
+#endif
+			goto err;
+		}
 
-		debuglog("After Read: %lu", sandbox->request_response_data_length);
+		sandbox->request_response_data_length += nparsed;
 	}
 
 
 	sandbox->request_length = sandbox->request_response_data_length;
-
-#else
-	rc = uv_read_start((uv_stream_t *)&sandbox->client_libuv_stream,
-	                   libuv_callbacks_on_allocate_setup_request_response_data,
-	                   libuv_callbacks_on_read_parse_http_request);
-	worker_thread_process_io();
-#endif
 
 	rc = 0;
 done:
@@ -227,11 +204,10 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 	sandbox->total_time    = end_time - sandbox->request_arrival_timestamp;
 	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
 
-#ifndef USE_HTTP_UVIO
 	int rc;
 	int sent = 0;
 	while (sent < response_cursor) {
-		rc = write(sandbox->client_socket_descriptor, sandbox->request_response_data + sent,
+		rc = write(sandbox->client_socket_descriptor, &sandbox->request_response_data[sent],
 		           response_cursor - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN)
@@ -244,15 +220,9 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 
 		sent += rc;
 	}
-#else
-	uv_write_t req = {
-		.data = sandbox,
-	};
-	uv_buf_t bufv = uv_buf_init(sandbox->request_response_data, response_cursor);
-	int      r    = uv_write(&req, (uv_stream_t *)&sandbox->client_libuv_stream, &bufv, 1,
-                         libuv_callbacks_on_write_wakeup_sandbox);
-	worker_thread_process_io();
-#endif
+
+	http_total_increment_2xx();
+
 	return 0;
 }
 
@@ -266,19 +236,6 @@ sandbox_open_http(struct sandbox *sandbox)
 	/* Set the sandbox as the data the http-parser has access to */
 	sandbox->http_parser.data = sandbox;
 
-#ifdef USE_HTTP_UVIO
-
-	/* Initialize libuv TCP stream */
-	int r = uv_tcp_init(worker_thread_get_libuv_handle(), (uv_tcp_t *)&sandbox->client_libuv_stream);
-	assert(r == 0);
-
-	/* Set the current sandbox as the data the libuv callbacks have access to */
-	sandbox->client_libuv_stream.data = sandbox;
-
-	/* Open the libuv TCP stream */
-	r = uv_tcp_open((uv_tcp_t *)&sandbox->client_libuv_stream, sandbox->client_socket_descriptor);
-	assert(r == 0);
-#else
 	/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)sandbox;
@@ -286,7 +243,6 @@ sandbox_open_http(struct sandbox *sandbox)
 	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_ADD, sandbox->client_socket_descriptor,
 	                   &accept_evt);
 	if (unlikely(rc < 0)) panic_err();
-#endif
 }
 
 /**
@@ -306,8 +262,8 @@ sandbox_initialize_io_handles_and_file_descriptors(struct sandbox *sandbox)
 
 /**
  * Sandbox execution logic
- * Handles setup, request parsing, WebAssembly initialization, function execution, response building and sending, and
- * cleanup
+ * Handles setup, request parsing, WebAssembly initialization, function execution, response building and
+ * sending, and cleanup
  */
 void
 current_sandbox_main(void)
@@ -355,9 +311,7 @@ current_sandbox_main(void)
 		goto err;
 	};
 
-#ifdef LOG_TOTAL_REQS_RESPS
-	atomic_fetch_add(&runtime_total_2XX_responses, 1);
-#endif
+	http_total_increment_2xx();
 
 	sandbox->response_timestamp = __getcycles();
 
@@ -380,28 +334,7 @@ err:
 	assert(sandbox->state == SANDBOX_RUNNING);
 
 	/* Send a 400 error back to the client */
-	int sent    = 0;
-	int to_send = strlen(HTTP_RESPONSE_400_BAD_REQUEST);
-	while (sent < to_send) {
-		rc = write(sandbox->client_socket_descriptor, &HTTP_RESPONSE_400_BAD_REQUEST[sent], to_send - sent);
-		if (rc < 0) {
-			if (errno == EAGAIN)
-				worker_thread_block_current_sandbox();
-			else {
-				debuglog("Failed to send 400: %s", strerror(errno));
-				break;
-			}
-		}
-
-		sent += rc;
-	}
-
-#ifdef LOG_TOTAL_REQS_RESPS
-	if (rc >= 0) {
-		atomic_fetch_add(&runtime_total_4XX_responses, 1);
-		debuglog("At %llu, Sandbox %lu - 4XX\n", __getcycles(), sandbox->request_arrival_timestamp);
-	}
-#endif
+	client_socket_send(sandbox->client_socket_descriptor, 400);
 
 	software_interrupt_disable();
 	sandbox_close_http(sandbox);
@@ -506,23 +439,15 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	assert(!software_interrupt_is_enabled());
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_ALLOCATED);
-
 	assert(sandbox_request != NULL);
-	assert(sandbox_request->arguments != NULL);
-	assert(sandbox_request->request_arrival_timestamp > 0);
-	assert(sandbox_request->socket_address != NULL);
-	assert(sandbox_request->socket_descriptor > 0);
-
 	assert(allocation_timestamp > 0);
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | Uninitialized => Initialized\n", sandbox_request->request_arrival_timestamp);
-#endif
+
+	sandbox->id                  = sandbox_request->id;
 	sandbox->admissions_estimate = sandbox_request->admissions_estimate;
 
-	sandbox->request_arrival_timestamp   = sandbox_request->request_arrival_timestamp;
-	sandbox->allocation_timestamp        = allocation_timestamp;
-	sandbox->last_state_change_timestamp = allocation_timestamp;
-	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
+	sandbox->request_arrival_timestamp = sandbox_request->request_arrival_timestamp;
+	sandbox->allocation_timestamp      = allocation_timestamp;
+	sandbox->state                     = SANDBOX_SET_AS_INITIALIZED;
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
@@ -540,10 +465,12 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
 	memcpy(&sandbox->client_address, sandbox_request->socket_address, sizeof(struct sockaddr));
 
-	sandbox->state = SANDBOX_INITIALIZED;
-#ifdef LOG_SANDBOX_TOTALS
-	atomic_fetch_add(&runtime_total_initialized_sandboxes, 1);
-#endif
+	sandbox->last_state_change_timestamp = allocation_timestamp; /* We use arg to include alloc */
+	sandbox->state                       = SANDBOX_INITIALIZED;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, SANDBOX_UNINITIALIZED, SANDBOX_INITIALIZED);
+	runtime_sandbox_total_increment(SANDBOX_INITIALIZED);
 }
 
 /**
@@ -568,30 +495,17 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
 
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Runnable\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
-#endif
-
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
 		sandbox->initializing_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_initialized_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_runnable_sandboxes, 1);
-#endif
 		break;
 	}
 	case SANDBOX_BLOCKED: {
 		sandbox->blocked_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_blocked_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_runnable_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Runnable\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Runnable\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -599,6 +513,11 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	local_runqueue_add(sandbox);
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RUNNABLE;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RUNNABLE);
+	runtime_sandbox_total_increment(SANDBOX_RUNNABLE);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -624,30 +543,18 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Running\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
 		sandbox->runnable_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_runnable_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_running_sandboxes, 1);
-#endif
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
 		sandbox->preempted_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_preempted_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_running_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Running\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Running\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -655,6 +562,11 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	current_sandbox_set(sandbox);
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RUNNING;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RUNNING);
+	runtime_sandbox_total_increment(SANDBOX_RUNNING);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -677,28 +589,25 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_PREEMPTED;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Preempted\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_preempted_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Preempted\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Preempted\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
 
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_PREEMPTED;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_PREEMPTED);
+	runtime_sandbox_total_increment(SANDBOX_PREEMPTED);
+	runtime_sandbox_total_decrement(SANDBOX_RUNNING);
 }
 
 /**
@@ -719,29 +628,26 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_BLOCKED;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Blocked\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_blocked_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Blocked\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Blocked\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
 
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_BLOCKED;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_BLOCKED);
+	runtime_sandbox_total_increment(SANDBOX_BLOCKED);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -763,10 +669,6 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RETURNED;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Returned\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
@@ -775,20 +677,21 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_returned_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Returned\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Returned\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
 
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RETURNED;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RETURNED);
+	runtime_sandbox_total_increment(SANDBOX_RETURNED);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -807,60 +710,41 @@ void
 sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
+	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_ERROR;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Error\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_SET_AS_INITIALIZED:
 		/* Technically, this is a degenerate sandbox that we generate by hand */
 		sandbox->initializing_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_initialized_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_error_sandboxes, 1);
-#endif
 		break;
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_running_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_error_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
 
-	sandbox_free_linear_memory(sandbox);
-
-	sandbox->last_state_change_timestamp = now;
-	sandbox->state                       = SANDBOX_ERROR;
-
-#ifdef LOG_SANDBOX_PERF
+	uint64_t sandbox_id = sandbox->id;
+	sandbox->state      = SANDBOX_ERROR;
 	sandbox_print_perf(sandbox);
-#endif
-
-	/* Assumption: Should never underflow */
-	assert(runtime_admitted >= sandbox->admissions_estimate);
-
-	runtime_admitted -= sandbox->admissions_estimate;
-
-#ifdef LOG_ADMISSIONS_CONTROL
-	debuglog("Runtime Admitted: %lu / %lu\n", runtime_admitted, runtime_admissions_capacity);
-#endif
-
-	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
+	sandbox_free_linear_memory(sandbox);
+	admissions_control_substract(sandbox->admissions_estimate);
+	/* Do not touch sandbox after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox_id, last_state, SANDBOX_ERROR);
+	runtime_sandbox_total_increment(SANDBOX_ERROR);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -874,55 +758,38 @@ void
 sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
+	assert(!software_interrupt_is_enabled());
+
 	uint64_t now                    = __getcycles();
 	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_COMPLETE;
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => Complete\n", sandbox->request_arrival_timestamp,
-	         sandbox_state_stringify(last_state));
-#endif
 
 	switch (last_state) {
 	case SANDBOX_RETURNED: {
 		sandbox->completion_timestamp = now;
 		sandbox->returned_duration += duration_of_last_state;
-#ifdef LOG_SANDBOX_TOTALS
-		atomic_fetch_sub(&runtime_total_returned_sandboxes, 1);
-		atomic_fetch_add(&runtime_total_complete_sandboxes, 1);
-#endif
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->request_arrival_timestamp,
+		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
 
-	sandbox->last_state_change_timestamp = now;
-	sandbox->state                       = SANDBOX_COMPLETE;
-
-	/*
-	 * TODO: Enhance to include "spinning" or better "local|global scheduling latency" as well.
-	 * Given the async I/O model of libuv, it is ambiguous how to model "spinning"
-	 */
-	perf_window_add(&sandbox->module->perf_window, sandbox->running_duration);
-
-	/* Assumption: Should never underflow */
-	assert(runtime_admitted >= sandbox->admissions_estimate);
-
-	runtime_admitted -= sandbox->admissions_estimate;
-
-#ifdef LOG_ADMISSIONS_CONTROL
-	debuglog("Runtime Admitted: %lu / %lu\n", runtime_admitted, runtime_admissions_capacity);
-#endif
-
-#ifdef LOG_SANDBOX_PERF
+	uint64_t sandbox_id = sandbox->id;
+	sandbox->state      = SANDBOX_COMPLETE;
 	sandbox_print_perf(sandbox);
-#endif
-
-	/* Do not touch sandbox state after adding to the completion queue to avoid use-after-free bugs */
+	/* Admissions Control Post Processing */
+	admissions_info_update(&sandbox->module->admissions_info, sandbox->running_duration);
+	admissions_control_substract(sandbox->admissions_estimate);
+	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox_id, last_state, SANDBOX_COMPLETE);
+	runtime_sandbox_total_increment(SANDBOX_COMPLETE);
+	runtime_sandbox_total_decrement(last_state);
 }
 
 /**
@@ -962,9 +829,6 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	/* Set state to initializing */
 	sandbox_set_as_initialized(sandbox, sandbox_request, now);
 
-#ifdef LOG_SANDBOX_TOTALS
-	atomic_fetch_add(&runtime_total_freed_requests, 1);
-#endif
 	free(sandbox_request);
 done:
 	return sandbox;
@@ -976,9 +840,9 @@ err_stack_allocation_failed:
 	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
 	sandbox->last_state_change_timestamp = now;
 	ps_list_init_d(sandbox);
-	sandbox_set_as_error(sandbox, SANDBOX_SET_AS_INITIALIZED);
 err_memory_allocation_failed:
 err:
+	sandbox_set_as_error(sandbox, SANDBOX_SET_AS_INITIALIZED);
 	perror(error_message);
 	sandbox = NULL;
 	goto done;
@@ -1019,7 +883,7 @@ sandbox_free(struct sandbox *sandbox)
 	errno = 0;
 	rc    = munmap(stkaddr, stksz);
 	if (rc == -1) {
-		debuglog("Failed to unmap stack of Sandbox %lu\n", sandbox->request_arrival_timestamp);
+		debuglog("Failed to unmap stack of Sandbox %lu\n", sandbox->id);
 		goto err_free_stack_failed;
 	};
 
@@ -1033,7 +897,7 @@ sandbox_free(struct sandbox *sandbox)
 	errno = 0;
 	rc    = munmap(sandbox, sandbox_address_space_size);
 	if (rc == -1) {
-		debuglog("Failed to unmap Sandbox %lu\n", sandbox->request_arrival_timestamp);
+		debuglog("Failed to unmap Sandbox %lu\n", sandbox->id);
 		goto err_free_sandbox_failed;
 	};
 
@@ -1043,5 +907,5 @@ err_free_sandbox_failed:
 err_free_stack_failed:
 err:
 	/* Errors freeing memory is a fatal error */
-	panic("Failed to free Sandbox %lu\n", sandbox->request_arrival_timestamp);
+	panic("Failed to free Sandbox %lu\n", sandbox->id);
 }
