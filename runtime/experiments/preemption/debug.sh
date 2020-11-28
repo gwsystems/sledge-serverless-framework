@@ -10,6 +10,7 @@ binary_directory=$(cd "$project_directory"/bin && pwd)
 
 export LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH"
 export PATH="$binary_directory:$PATH"
+export SLEDGE_SCHEDULER="EDF"
 
 gdb --eval-command="handle SIGUSR1 nostop" \
   --eval-command="handle SIGPIPE nostop" \
