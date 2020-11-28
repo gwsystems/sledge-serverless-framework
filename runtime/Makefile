@@ -56,7 +56,10 @@ USE_MEM = USE_MEM_VM
 CFLAGS += -D${ARCH}
 CFLAGS += -DNCORES=${TOTAL_CORES}
 CFLAGS += -DPAGE_SIZE=$(PAGE_SIZE)
-#CFLAGS += -DPREEMPT_DISABLE
+
+# Optionally Disable preemption
+# CFLAGS += -DPREEMPT_DISABLE
+
 CFLAGS += -D${USE_MEM}
 
 # Preprocessor
