@@ -129,6 +129,8 @@ sigusr1_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 
 #ifdef LOG_PREEMPTION
 	debuglog("Total SIGUSR1 Received: %d\n", software_interrupt_SIGUSR_count);
+	debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
+	         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
 #endif
 
 	arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
@@ -176,13 +178,14 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	case SIGUSR1: {
 		return sigusr1_handler(signal_info, user_context, current_sandbox);
 	}
-	default:
+	default: {
 		if (signal_info->si_code == SI_TKILL) {
 			panic("Unexpectedly received signal %d from a thread kill, but we have no handler\n",
 			      signal_type);
 		} else if (signal_info->si_code == SI_KERNEL) {
 			panic("Unexpectedly received signal %d from the kernel, but we have no handler\n", signal_type);
 		}
+	}
 	}
 #endif
 }

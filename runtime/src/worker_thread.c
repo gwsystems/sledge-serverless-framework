@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -102,24 +103,34 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 		sandbox_set_as_running(next_sandbox, next_sandbox->state);
 
 #ifdef LOG_CONTEXT_SWITCHES
-		debuglog("Base Context (%s) > Sandbox %lu (%s)\n",
-		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id,
+		debuglog("Base Context (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", &worker_thread_base_context,
+		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id, next_context,
 		         arch_context_variant_print(next_context->variant));
 #endif
+		/* Assumption: If a slow context switch, current sandbox should be set to the target */
+		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
+		       || &current_sandbox_get()->ctxt == next_context);
 
 		arch_context_switch(NULL, next_context);
 	} else {
 		/* Set the current sandbox to the next */
 		assert(next_sandbox != current_sandbox);
 
+		struct arch_context *current_context = &current_sandbox->ctxt;
+
+#ifdef LOG_CONTEXT_SWITCHES
+		debuglog("Sandbox %lu (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", current_sandbox->id,
+		         &current_sandbox->ctxt, arch_context_variant_print(current_sandbox->ctxt.variant),
+		         next_sandbox->id, &next_sandbox->ctxt, arch_context_variant_print(next_context->variant));
+#endif
+
 		worker_thread_transition_exiting_sandbox(current_sandbox);
 
 		sandbox_set_as_running(next_sandbox, next_sandbox->state);
 
-		struct arch_context *current_context = &current_sandbox->ctxt;
-
-#ifdef LOG_CONTEXT_SWITCHES
-		debuglog("Sandbox %lu > Sandbox %lu\n", current_sandbox->id, next_sandbox->id);
+#ifndef NDEBUG
+		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
+		       || &current_sandbox_get()->ctxt == next_context);
 #endif
 
 		/* Switch to the associated context. */
@@ -146,22 +157,21 @@ worker_thread_switch_to_base_context()
 	}
 #endif
 
-	worker_thread_transition_exiting_sandbox(current_sandbox);
-
 	/* Assumption: Base Context should never switch to Base Context */
 	assert(current_sandbox != NULL);
-	assert(&current_sandbox->ctxt != &worker_thread_base_context);
-
-	current_sandbox_set(NULL);
+	struct arch_context *current_context = &current_sandbox->ctxt;
+	assert(current_context != &worker_thread_base_context);
 
 #ifdef LOG_CONTEXT_SWITCHES
-	debuglog("Sandbox %lu (%s) > Base Context (%s)\n", current_sandbox->id,
-	         arch_context_variant_print(current_sandbox->ctxt.variant),
+	debuglog("Sandbox %lu (@%p) (%s)> Base Context (@%p) (%s)\n", current_sandbox->id, current_context,
+	         arch_context_variant_print(current_sandbox->ctxt.variant), &worker_thread_base_context,
 	         arch_context_variant_print(worker_thread_base_context.variant));
 #endif
 
-	arch_context_switch(&current_sandbox->ctxt, &worker_thread_base_context);
-
+	worker_thread_transition_exiting_sandbox(current_sandbox);
+	current_sandbox_set(NULL);
+	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
+	arch_context_switch(current_context, &worker_thread_base_context);
 	software_interrupt_enable();
 }
 
@@ -282,7 +292,9 @@ worker_thread_main(void *return_code)
 	worker_thread_start_timestamp = __getcycles();
 	worker_thread_lock_duration   = 0;
 
-	/* Initialize Base Context */
+	/* Initialize Base Context as unused
+	 * The SP and IP are populated during the first FAST switch away
+	 */
 	arch_context_init(&worker_thread_base_context, 0, 0);
 
 	/* Initialize Runqueue Variant */
