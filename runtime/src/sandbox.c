@@ -424,7 +424,7 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 	char *addr_rw = mmap(addr + /* guard page */ PAGE_SIZE, sandbox->module->stack_size, PROT_READ | PROT_WRITE,
 	                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 
-	/* TODO: Fix leak here */
+	/* TODO: Fix leak here. Issue #132 */
 	if (addr_rw == MAP_FAILED) goto err_stack_allocation_failed;
 
 	sandbox->stack_start = addr_rw;
