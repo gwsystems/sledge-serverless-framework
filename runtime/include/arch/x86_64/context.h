@@ -39,7 +39,7 @@ static void __attribute__((noinline)) arch_context_init(struct arch_context *act
 		             : "a"(sp)
 		             : "memory", "cc", "rbx");
 	}
-	// FIXME: Is the klobber list correct?
+	// FIXME: Is the klobber list correct? Issue #129
 	//   : "memory", "cc", "rbx", "rsi", "rdi");
 
 	actx->regs[UREG_SP] = sp;
