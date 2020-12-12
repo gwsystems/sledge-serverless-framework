@@ -76,7 +76,7 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 /**
  * Load a new sandbox that preempted an existing sandbox, restoring only the
  * instruction pointer and stack pointer registers.
- * I am unclear about setting the BP
+ * I am unclear about setting the BP. Issue #131
  * @param active_context - the context of the current worker thread
  * @param sandbox_context - the context that we want to restore
  */
