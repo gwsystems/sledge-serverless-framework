@@ -22,13 +22,15 @@
  */
 extern _Atomic uint64_t admissions_control_admitted;
 extern uint64_t         admissions_control_capacity;
+extern const double     admissions_control_overhead;
 
 static inline void
 admissions_control_initialize()
 {
 #ifdef ADMISSIONS_CONTROL
 	atomic_init(&admissions_control_admitted, 0);
-	admissions_control_capacity = runtime_worker_threads_count * ADMISSIONS_CONTROL_GRANULARITY;
+	admissions_control_capacity = runtime_worker_threads_count * ADMISSIONS_CONTROL_GRANULARITY
+	                              * ((double)1.0 - admissions_control_overhead);
 #endif
 }
 
