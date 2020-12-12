@@ -4,7 +4,8 @@ source ../common.sh
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
 # Use -d flag if running under gdb
 
-host=localhost
+host=192.168.1.13
+# host=localhost
 timestamp=$(date +%s)
 experiment_directory=$(pwd)
 binary_directory=$(cd ../../bin && pwd)
@@ -15,25 +16,24 @@ log=log.txt
 mkdir -p "$results_directory"
 log_environment >>"$results_directory/$log"
 
-inputs=(40 10)
-duration_sec=60
+inputs=(10)
+duration_sec=30
 offset=5
 
 # Execute workloads long enough for runtime to learn excepted execution time
 echo -n "Running Samples: "
-for input in ${inputs[*]}; do
-  hey -n 16 -c 4 -t 0 -o csv -m GET -d "$input\n" http://${host}:$((10000 + input))
-done
+hey -n 16 -c 4 -t 0 -o csv -m GET -d "10\n" http://${host}:10010
 echo "[DONE]"
 sleep 5
 
 echo "Running Experiments"
 
 # Run lower priority first, then higher priority. The lower priority has offsets to ensure it runs the entire time the high priority is trying to run
-hey -n 1000 -c 1000 -cpus 6 -t 0 -o csv -m GET -d "40\n" http://${host}:10040 >"$results_directory/fib40-con.csv"
+# hey -z $((duration_sec + 2 * offset))s -cpus 3 -c 200 -t 0 -o csv -m GET -d "40\n" http://${host}:10040 >"$results_directory/fib40-con.csv" &
 # sleep $offset
-# hey -n 25000 -c 1000000 -t 0 -o csv -m GET -d "10\n" http://${host}:10010 >"$results_directory/fib10-con.csv" &
-# sleep $((duration_sec + offset + 45))
+hey -z ${duration_sec}s -cpus 6 -c 400 -t 0 -o csv -m GET -d "10\n" http://${host}:10010 >"$results_directory/fib10-con.csv"
+# sleep $((duration_sec + offset + 15))
+# sleep 30
 
 # Generate *.csv and *.dat results
 echo -n "Parsing Results: "
@@ -43,13 +43,13 @@ printf "Payload,Throughput\n" >>"$results_directory/throughput.csv"
 printf "Payload,p50,p90,p99,p100\n" >>"$results_directory/latency.csv"
 
 deadlines_ms=(20 20000)
-# durations_s=(60 70)
 payloads=(fib10-con fib40-con)
+durations_s=(30 40)
 
-for ((i = 1; i < 2; i++)); do
+for ((i = 0; i < 1; i++)); do
   payload=${payloads[$i]}
   deadline=${deadlines_ms[$i]}
-  # duration=${durations_s[$i]}
+  duration=${durations_s[$i]}
 
   # Get Number of Requests
   requests=$(($(wc -l <"$results_directory/$payload.csv") - 1))
@@ -57,8 +57,9 @@ for ((i = 1; i < 2; i++)); do
 
   # Calculate Success Rate for csv
   awk -F, '
+      $7 == 200 {denom++}
       $7 == 200 && ($1 * 1000) <= '"$deadline"' {ok++}
-      END{printf "'"$payload"',%3.5f%\n", (ok / (NR - 1) * 100)}
+      END{printf "'"$payload"',%3.5f%\n", (ok / denom * 100)}
     ' <"$results_directory/$payload.csv" >>"$results_directory/success.csv"
 
   # Filter on 200s, convery from s to ms, and sort
@@ -70,8 +71,9 @@ for ((i = 1; i < 2; i++)); do
   ((oks == 0)) && continue # If all errors, skip line
 
   # Get Latest Timestamp
-  # throughput=$(echo "$oks/$duration" | bc)
-  # printf "%s,%f\n" "$payload" "$throughput" >>"$results_directory/throughput.csv"
+  duration=$(tail -n1 "$results_directory/$payload.csv" | cut -d, -f8)
+  throughput=$(echo "$oks/$duration" | bc)
+  printf "%s,%f\n" "$payload" "$throughput" >>"$results_directory/throughput.csv"
 
   # Generate Latency Data for csv
   awk '
@@ -94,7 +96,7 @@ for ((i = 1; i < 2; i++)); do
 done
 
 # Transform csvs to dat files for gnuplot
-for file in success latency; do
+for file in success latency throughput; do
   echo -n "#" >"$results_directory/$file.dat"
   tr ',' ' ' <"$results_directory/$file.csv" | column -t >>"$results_directory/$file.dat"
 done
