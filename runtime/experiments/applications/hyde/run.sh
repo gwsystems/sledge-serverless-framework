@@ -41,6 +41,5 @@ if [ "$1" != "-d" ]; then
   sleep 5
   echo -n "Running Cleanup: "
   pkill sledgert >/dev/null 2>/dev/null
-  pkill wrk >/dev/null 2>/dev/null
   echo "[DONE]"
 fi
