@@ -32,13 +32,15 @@ static void __attribute__((noinline)) arch_context_init(struct arch_context *act
 		 */
 		asm volatile("movq %%rsp, %%rbx\n\t" /* Temporarily save pointer of active stack to B */
 		             "movq %%rax, %%rsp\n\t" /* Set active stack to stack pointer in A(C variable sp) */
-		             "pushq %%rax\n\t"       /* Push A(C variable sp) onto the stack at sp */
+		             "pushq %%rax\n\t"       /* Push A register (C variable sp) onto the stack at sp */
 		             "movq %%rsp, %%rax\n\t" /* Write the incremented stack pointer to A(C variable sp) */
 		             "movq %%rbx, %%rsp\n\t" /* Restore original stack saved in B */
 		             : "=a"(sp)
 		             : "a"(sp)
 		             : "memory", "cc", "rbx");
 	}
+	// FIXME: Is the klobber list correct? Issue #129
+	//   : "memory", "cc", "rbx", "rsi", "rdi");
 
 	actx->regs[UREG_SP] = sp;
 	actx->regs[UREG_IP] = ip;
@@ -69,6 +71,33 @@ arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_co
 
 	active_context->gregs[REG_RSP] = sandbox_context->regs[UREG_SP];
 	active_context->gregs[REG_RIP] = sandbox_context->regs[UREG_IP] + ARCH_SIG_JMP_OFF;
+}
+
+/**
+ * Load a new sandbox that preempted an existing sandbox, restoring only the
+ * instruction pointer and stack pointer registers.
+ * I am unclear about setting the BP. Issue #131
+ * @param active_context - the context of the current worker thread
+ * @param sandbox_context - the context that we want to restore
+ */
+static inline void
+arch_context_restore_new(mcontext_t *active_context, struct arch_context *sandbox_context)
+{
+	assert(active_context != NULL);
+	assert(sandbox_context != NULL);
+
+	/* Assumption: Base Context is only ever used by arch_context_switch */
+	assert(sandbox_context != &worker_thread_base_context);
+
+	assert(sandbox_context->regs[UREG_SP]);
+	assert(sandbox_context->regs[UREG_IP]);
+
+	/* Transitioning from Fast -> Running */
+	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_FAST);
+	sandbox_context->variant = ARCH_CONTEXT_VARIANT_RUNNING;
+
+	active_context->gregs[REG_RSP] = sandbox_context->regs[UREG_SP];
+	active_context->gregs[REG_RIP] = sandbox_context->regs[UREG_IP];
 }
 
 /**

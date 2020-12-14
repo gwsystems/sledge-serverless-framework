@@ -1,6 +1,8 @@
 #pragma once
 
+#include <assert.h>
 #include "arch/common.h"
+#include "current_sandbox.h"
 
 #define ARCH_SIG_JMP_OFF 0x100 /* Based on code generated! */
 
@@ -16,6 +18,7 @@ static inline void
 arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
 	assert(actx != NULL);
+	assert(!software_interrupt_is_enabled());
 
 	if (ip == 0 && sp == 0) {
 		actx->variant = ARCH_CONTEXT_VARIANT_UNUSED;
@@ -67,6 +70,17 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 {
 	/* Assumption: Software Interrupts are disabled by caller */
 	assert(!software_interrupt_is_enabled());
+
+#ifndef NDEBUG
+	/*
+	 * Assumption: In the case of a slow context switch, the caller
+	 * set current_sandbox to the sandbox containing the target context
+	 */
+	if (b->variant == ARCH_CONTEXT_VARIANT_SLOW) {
+		struct sandbox *current = current_sandbox_get();
+		assert(current != NULL && b == &current->ctxt);
+	}
+#endif
 
 	/* if both a and b are NULL, there is no state change */
 	assert(a != NULL || b != NULL);

@@ -373,7 +373,6 @@ sandbox_allocate_memory(struct module *module)
 		error_message = "sandbox_allocate_memory - memory allocation failed";
 		goto alloc_failed;
 	}
-	sandbox = (struct sandbox *)addr;
 
 	/* Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write */
 	errno         = 0;
@@ -383,6 +382,8 @@ sandbox_allocate_memory(struct module *module)
 		error_message = "set to r/w";
 		goto set_rw_failed;
 	}
+
+	sandbox = (struct sandbox *)addr_rw;
 
 	/* Populate Sandbox members */
 	sandbox->state                  = SANDBOX_UNINITIALIZED;
@@ -411,12 +412,23 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 {
 	assert(sandbox);
 	assert(sandbox->module);
+	assert(!software_interrupt_is_enabled());
 
-	errno                = 0;
+	errno      = 0;
+	char *addr = mmap(NULL, sandbox->module->stack_size + /* guard page */ PAGE_SIZE, PROT_NONE,
+	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (addr == MAP_FAILED) goto err_stack_allocation_failed;
+
+	/* Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write */
+	errno         = 0;
+	char *addr_rw = mmap(addr + /* guard page */ PAGE_SIZE, sandbox->module->stack_size, PROT_READ | PROT_WRITE,
+	                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+
+	/* TODO: Fix leak here. Issue #132 */
+	if (addr_rw == MAP_FAILED) goto err_stack_allocation_failed;
+
+	sandbox->stack_start = addr_rw;
 	sandbox->stack_size  = sandbox->module->stack_size;
-	sandbox->stack_start = mmap(NULL, sandbox->stack_size, PROT_READ | PROT_WRITE,
-	                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN, -1, 0);
-	if (sandbox->stack_start == MAP_FAILED) goto err_stack_allocation_failed;
 
 done:
 	return 0;
@@ -450,8 +462,9 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->state                     = SANDBOX_SET_AS_INITIALIZED;
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
+	/* stack_start points to the bottom of the usable stack, so add stack_size to get to top */
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
-	                  (reg_t)(sandbox->stack_start + sandbox->stack_size));
+	                  (reg_t)sandbox->stack_start + sandbox->stack_size);
 
 	/* Initialize file descriptors to -1 */
 	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
@@ -875,13 +888,11 @@ sandbox_free(struct sandbox *sandbox)
 
 	module_release(sandbox->module);
 
-	void * stkaddr = sandbox->stack_start;
-	size_t stksz   = sandbox->stack_size;
-
-
 	/* Free Sandbox Stack */
 	errno = 0;
-	rc    = munmap(stkaddr, stksz);
+
+	/* The stack start is the bottom of the usable stack, but we allocated a guard page below this */
+	rc = munmap((char *)sandbox->stack_start - PAGE_SIZE, sandbox->stack_size + PAGE_SIZE);
 	if (rc == -1) {
 		debuglog("Failed to unmap stack of Sandbox %lu\n", sandbox->id);
 		goto err_free_stack_failed;

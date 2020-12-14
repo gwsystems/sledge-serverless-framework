@@ -185,7 +185,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		 * user-level context switch state, so do not enable software interrupts.
 		 * TODO: Review the interrupt logic here. Issue #63
 		 */
-		arch_context_restore(&user_context->uc_mcontext, &next_sandbox->ctxt);
+		arch_context_restore_new(&user_context->uc_mcontext, &next_sandbox->ctxt);
 		should_enable_software_interrupt = false;
 	}
 done:

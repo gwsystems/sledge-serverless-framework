@@ -32,6 +32,10 @@ admissions_info_initialize(struct admissions_info *self, int percentile, uint64_
 	self->percentile = percentile;
 
 	self->control_index = PERF_WINDOW_BUFFER_SIZE * percentile / 100;
+#ifdef LOG_ADMISSIONS_CONTROL
+	debuglog("Percentile: %d\n", self->percentile);
+	debuglog("Control Index: %d\n", self->control_index);
+#endif
 #endif
 }
 

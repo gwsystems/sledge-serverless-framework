@@ -49,7 +49,7 @@ arch_context_variant_print(arch_context_variant_t context)
 	case ARCH_CONTEXT_VARIANT_RUNNING:
 		return "Running";
 	default:
-		panic("Encountered unexpected arch_context variant\n");
+		panic("Encountered unexpected arch_context variant: %u\n", context);
 	}
 }
 
