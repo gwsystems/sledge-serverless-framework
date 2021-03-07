@@ -24,10 +24,15 @@ fi
 success_count=0
 total_count=50
 
+# We are currently unclear why the image classifier isn't working properly
+# Both bmp and png formats are added to the repo while debugging
+# file_type=bmp
+file_type=png
+
 for class in airplane automobile bird cat deer dog frog horse ship truck; do
   for instance in 1 2 3 4 5 6 7 8 9 10; do
-    echo "Classifying $class$instance.png"
-    curl -H 'Expect:' -H "Content-Type: image/png" --data-binary "@images/$class$instance.png" localhost:10000 2>/dev/null
+    echo "Classifying $class$instance.$file_type"
+    curl -H 'Expect:' -H "Content-Type: Image/$file_type" --data-binary "@images/$file_type/$class$instance.$file_type" localhost:10000 2>/dev/null
   done
 done
 
