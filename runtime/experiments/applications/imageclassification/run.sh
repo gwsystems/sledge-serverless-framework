@@ -26,8 +26,8 @@ total_count=50
 
 # We are currently unclear why the image classifier isn't working properly
 # Both bmp and png formats are added to the repo while debugging
-# file_type=bmp
-file_type=png
+file_type=bmp
+# file_type=png
 
 for class in airplane automobile bird cat deer dog frog horse ship truck; do
   for instance in 1 2 3 4 5 6 7 8 9 10; do
