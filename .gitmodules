@@ -13,4 +13,17 @@ path = runtime/thirdparty/jsmn
 url = https://github.com/gwsystems/jsmn.git
 [submodule "runtime/tests/gocr"]
 	path = runtime/tests/gocr
-	url = https://github.com/gwsystems/gocr
+	url = https://github.com/gwsystems/gocr.git
+	branch = sledge
+[submodule "runtime/tests/TinyEKF"]
+	path = runtime/tests/TinyEKF
+	url = https://github.com/gwsystems/TinyEKF.git
+	branch = sledge
+[submodule "runtime/tests/CMSIS_5_NN"]
+	path = runtime/tests/CMSIS_5_NN
+	url = https://github.com/gwsystems/CMSIS_5_NN.git
+	branch = sledge
+[submodule "runtime/tests/sod"]
+	path = runtime/tests/sod
+	url = https://github.com/gwsystems/sod.git
+	branch = sledge

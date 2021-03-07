@@ -1,7 +1,7 @@
 {
   "active": "yes",
   "name": "gocr",
-  "path": "gocr.aso",
+  "path": "gocr_wasm.so",
   "port": 10000,
   "relative-deadline-us": 50000000000,
   "argsize": 1,

@@ -116,6 +116,10 @@ Content-type: text/plain
 
 When done, terminal the SLEdge runtime with `Ctrl+c`
 
+## Running Test Workloads
+
+Various synthetic and real-world tests can be found in `runtime/experiments`. Generally, each experiment can be run be executing the `run.sh` script.
+
 ## Removing the SLEdge Runtime
 
 If you are finished working with the SLEdge runtime and wish to remove it, run the following command to delete our Docker build and runtime images.

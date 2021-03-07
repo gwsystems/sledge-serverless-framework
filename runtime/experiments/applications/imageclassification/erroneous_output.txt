@@ -1,0 +1,200 @@
+Classifying airplane1.png
+1
+Classifying airplane2.png
+1
+Classifying airplane3.png
+9
+Classifying airplane4.png
+1
+Classifying airplane5.png
+1
+Classifying airplane6.png
+1
+Classifying airplane7.png
+8
+Classifying airplane8.png
+9
+Classifying airplane9.png
+1
+Classifying airplane10.png
+1
+Classifying automobile1.png
+1
+Classifying automobile2.png
+9
+Classifying automobile3.png
+9
+Classifying automobile4.png
+1
+Classifying automobile5.png
+1
+Classifying automobile6.png
+9
+Classifying automobile7.png
+9
+Classifying automobile8.png
+1
+Classifying automobile9.png
+1
+Classifying automobile10.png
+9
+Classifying bird1.png
+1
+Classifying bird2.png
+1
+Classifying bird3.png
+8
+Classifying bird4.png
+1
+Classifying bird5.png
+1
+Classifying bird6.png
+8
+Classifying bird7.png
+1
+Classifying bird8.png
+9
+Classifying bird9.png
+1
+Classifying bird10.png
+9
+Classifying cat1.png
+1
+Classifying cat2.png
+9
+Classifying cat3.png
+9
+Classifying cat4.png
+9
+Classifying cat5.png
+9
+Classifying cat6.png
+1
+Classifying cat7.png
+9
+Classifying cat8.png
+1
+Classifying cat9.png
+1
+Classifying cat10.png
+9
+Classifying deer1.png
+9
+Classifying deer2.png
+9
+Classifying deer3.png
+1
+Classifying deer4.png
+1
+Classifying deer5.png
+9
+Classifying deer6.png
+9
+Classifying deer7.png
+9
+Classifying deer8.png
+9
+Classifying deer9.png
+9
+Classifying deer10.png
+6
+Classifying dog1.png
+9
+Classifying dog2.png
+1
+Classifying dog3.png
+9
+Classifying dog4.png
+9
+Classifying dog5.png
+9
+Classifying dog6.png
+9
+Classifying dog7.png
+1
+Classifying dog8.png
+9
+Classifying dog9.png
+9
+Classifying dog10.png
+9
+Classifying frog1.png
+1
+Classifying frog2.png
+1
+Classifying frog3.png
+9
+Classifying frog4.png
+9
+Classifying frog5.png
+9
+Classifying frog6.png
+9
+Classifying frog7.png
+9
+Classifying frog8.png
+9
+Classifying frog9.png
+9
+Classifying frog10.png
+9
+Classifying horse1.png
+1
+Classifying horse2.png
+9
+Classifying horse3.png
+9
+Classifying horse4.png
+9
+Classifying horse5.png
+9
+Classifying horse6.png
+9
+Classifying horse7.png
+1
+Classifying horse8.png
+9
+Classifying horse9.png
+9
+Classifying horse10.png
+1
+Classifying ship1.png
+9
+Classifying ship2.png
+9
+Classifying ship3.png
+1
+Classifying ship4.png
+8
+Classifying ship5.png
+1
+Classifying ship6.png
+8
+Classifying ship7.png
+9
+Classifying ship8.png
+1
+Classifying ship9.png
+9
+Classifying ship10.png
+1
+Classifying truck1.png
+9
+Classifying truck2.png
+9
+Classifying truck3.png
+9
+Classifying truck4.png
+9
+Classifying truck5.png
+9
+Classifying truck6.png
+1
+Classifying truck7.png
+9
+Classifying truck8.png
+9
+Classifying truck9.png
+1
+Classifying truck10.png
+9
