@@ -20,11 +20,12 @@
 /* Conditionally used by debuglog when NDEBUG is not set */
 int32_t debuglog_file_descriptor = -1;
 
-uint32_t runtime_processor_speed_MHz      = 0;
-uint64_t runtime_relative_deadline_us_max = 0; /* a value higher than this will cause overflow on a uint64_t */
-uint32_t runtime_total_online_processors  = 0;
-uint32_t runtime_worker_threads_count     = 0;
-uint32_t runtime_first_worker_processor   = 0;
+uint32_t       runtime_processor_speed_MHz      = 0;
+uint64_t       runtime_relative_deadline_us_max = 0; /* a value higher than this will cause overflow on a uint64_t */
+uint32_t       runtime_total_online_processors  = 0;
+uint32_t       runtime_worker_threads_count     = 0;
+const uint32_t runtime_first_worker_processor   = 1;
+/* TODO: the worker never actually records state here */
 int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; /* The worker sets its argument to -1 on error */
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
@@ -84,8 +85,6 @@ runtime_allocate_available_cores()
 	uint32_t max_possible_workers = runtime_total_online_processors - 1;
 
 	if (runtime_total_online_processors < 2) panic("Runtime requires at least two cores!");
-
-	runtime_first_worker_processor = 1;
 
 	/* Number of Workers */
 	char *worker_count_raw = getenv("SLEDGE_NWORKERS");
@@ -181,17 +180,6 @@ runtime_start_runtime_worker_threads()
 		assert(ret == 0);
 	}
 	debuglog("Sandboxing environment ready!\n");
-
-	for (int i = 0; i < runtime_worker_threads_count; i++) {
-		int ret = pthread_join(runtime_worker_threads[i], NULL);
-		if (ret) {
-			errno = ret;
-			perror("pthread_join");
-			exit(-1);
-		}
-	}
-
-	exit(-1);
 }
 
 void
@@ -251,6 +239,17 @@ main(int argc, char **argv)
 #endif
 	if (module_new_from_json(argv[1])) panic("failed to parse modules file[%s]\n", argv[1]);
 
-	listener_thread_initialize();
 	runtime_start_runtime_worker_threads();
+	listener_thread_initialize();
+
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
+		int ret = pthread_join(runtime_worker_threads[i], NULL);
+		if (ret) {
+			errno = ret;
+			perror("pthread_join");
+			exit(-1);
+		}
+	}
+
+	exit(-1);
 }
