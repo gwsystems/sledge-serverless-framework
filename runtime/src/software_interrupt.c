@@ -57,6 +57,9 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
+			/* All threads should have been initialized */
+			assert(runtime_worker_threads[i] != 0);
+
 			pthread_kill(runtime_worker_threads[i], SIGALRM);
 		}
 	} else {
