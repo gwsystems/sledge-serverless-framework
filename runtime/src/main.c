@@ -183,8 +183,17 @@ runtime_start_runtime_worker_threads()
 }
 
 void
+runtime_cleanup()
+{
+	if (runtime_sandbox_perf_log != NULL) fflush(runtime_sandbox_perf_log);
+
+	exit(EXIT_SUCCESS);
+}
+
+void
 runtime_configure()
 {
+	signal(SIGTERM, runtime_cleanup);
 	/* Scheduler Policy */
 	char *scheduler_policy = getenv("SLEDGE_SCHEDULER");
 	if (scheduler_policy == NULL) scheduler_policy = "FIFO";
