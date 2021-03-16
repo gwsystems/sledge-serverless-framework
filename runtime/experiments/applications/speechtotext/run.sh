@@ -20,32 +20,26 @@ else
   echo "Running under gdb"
 fi
 
-curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@samples/goforward.raw" localhost:10000 2>/dev/null
-
-exit
-# WIP - Need to cleanup below
-
-expected_size="$(find expected_result.jpg -printf "%s")"
+# expected_size="$(find expected_result.jpg -printf "%s")"
 success_count=0
 total_count=50
 
 for ((i = 0; i < total_count; i++)); do
   echo "$i"
-  ext="$RANDOM"
-  curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@plate.jpg" --output "result_$ext.jpg" localhost:10000 2>/dev/null
-  actual_size="$(find result_"$ext".jpg -printf "%s")"
+  # ext="$RANDOM"
+  curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@goforward.raw" localhost:10000 2>/dev/null
 
-  # echo "$result"
-  if [[ "$expected_size" == "$actual_size" ]]; then
-    echo "SUCCESS $success_count"
-  else
-    echo "FAIL"
-    echo "Expected Size:"
-    echo "$expected_size"
-    echo "==============================================="
-    echo "Actual Size:"
-    echo "$actual_size"
-  fi
+  # # echo "$result"
+  # if [[ "$expected_size" == "$actual_size" ]]; then
+  #   echo "SUCCESS $success_count"
+  # else
+  #   echo "FAIL"
+  #   echo "Expected Size:"
+  #   echo "$expected_size"
+  #   echo "==============================================="
+  #   echo "Actual Size:"
+  #   echo "$actual_size"
+  # fi
 done
 
 echo "$success_count / $total_count"
