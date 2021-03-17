@@ -5,13 +5,8 @@
 # Also disables pagination and stopping on SIGUSR1
 
 experiment_directory=$(pwd)
-project_directory=$(cd ../../.. && pwd)
+project_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$project_directory"/bin && pwd)
-
-# Copy data if not here
-if [[ ! -f "./ekf_raw.dat" ]]; then
-  cp ../../../tests/TinyEKF/extras/c/ekf_raw.dat ./ekf_raw.dat
-fi
 
 if [ "$1" != "-d" ]; then
   PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
@@ -20,18 +15,24 @@ else
   echo "Running under gdb"
 fi
 
-expected_result="$(tr -d '\0' <./expected_result.dat)"
+expected_result="$(cat ./expected_result.txt)"
 
 success_count=0
 total_count=50
 
 for ((i = 0; i < total_count; i++)); do
   echo "$i"
-  result="$(curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@ekf_raw.dat" localhost:10000 2>/dev/null | tr -d '\0')"
-  if [[ "$expected_result" == "$result" ]]; then
+  result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@5x8.pnm" localhost:10000 2>/dev/null)
+  # echo "$result"
+  if [[ "$result" == "$expected_result" ]]; then
     success_count=$((success_count + 1))
   else
     echo "FAIL"
+    echo "Expected:"
+    echo "$expected_result"
+    echo "==============================================="
+    echo "Was:"
+    echo "$result"
   fi
 done
 
