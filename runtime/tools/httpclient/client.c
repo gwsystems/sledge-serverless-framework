@@ -169,10 +169,15 @@ connect_n_send(void)
 {
 	int socket_descriptor;
 
-	if ((socket_descriptor = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+	if (unlikely((socket_descriptor = socket(AF_INET, SOCK_STREAM, 0)) < 0)) {
 		perror("socket");
 		return -1;
 	}
+
+	/* Should never receive sockets 0, 1, or 2 */
+	assert(socket_descriptor != STDIN_FILENO);
+	assert(socket_descriptor != STDOUT_FILENO);
+	assert(socket_descriptor != STDERR_FILENO);
 
 	struct sockaddr_in socket_address;
 	socket_address.sin_family = AF_INET;

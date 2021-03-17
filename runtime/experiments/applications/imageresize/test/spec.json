@@ -7,8 +7,8 @@
   "argsize": 1,
   "http-req-headers": [],
   "http-req-content-type": "image/jpeg",
-  "http-req-size": 102400,
+  "http-req-size": 1024000,
   "http-resp-headers": [],
-  "http-resp-size": 102400,
+  "http-resp-size": 1024000,
   "http-resp-content-type": "image/png"
 }

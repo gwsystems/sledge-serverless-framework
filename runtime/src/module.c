@@ -34,16 +34,20 @@ module_listen(struct module *module)
 
 	/* Allocate a new TCP/IP socket, setting it to be non-blocking */
 	int socket_descriptor = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-	if (socket_descriptor < 0) goto err_create_socket;
+	if (unlikely(socket_descriptor < 0)) goto err_create_socket;
 
+	/* Socket should never have returned on fd 0, 1, or 2 */
+	assert(socket_descriptor != STDIN_FILENO);
+	assert(socket_descriptor != STDOUT_FILENO);
+	assert(socket_descriptor != STDERR_FILENO);
 
 	/* Configure the socket to allow multiple sockets to bind to the same host and port */
 	int optval = 1;
 	rc         = setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
-	if (rc < 0) goto err_set_socket_option;
+	if (unlikely(rc < 0)) goto err_set_socket_option;
 	optval = 1;
 	rc     = setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-	if (rc < 0) goto err_set_socket_option;
+	if (unlikely(rc < 0)) goto err_set_socket_option;
 
 	/* Bind name [all addresses]:[module->port] to socket */
 	module->socket_descriptor              = socket_descriptor;
@@ -51,11 +55,11 @@ module_listen(struct module *module)
 	module->socket_address.sin_addr.s_addr = htonl(INADDR_ANY);
 	module->socket_address.sin_port        = htons((unsigned short)module->port);
 	rc = bind(socket_descriptor, (struct sockaddr *)&module->socket_address, sizeof(module->socket_address));
-	if (rc < 0) goto err_bind_socket;
+	if (unlikely(rc < 0)) goto err_bind_socket;
 
 	/* Listen to the interface */
 	rc = listen(socket_descriptor, MODULE_MAX_PENDING_CLIENT_REQUESTS);
-	if (rc < 0) goto err_listen;
+	if (unlikely(rc < 0)) goto err_listen;
 
 
 	/* Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP
@@ -64,7 +68,7 @@ module_listen(struct module *module)
 	accept_evt.data.ptr = (void *)module;
 	accept_evt.events   = EPOLLIN;
 	rc = epoll_ctl(runtime_epoll_file_descriptor, EPOLL_CTL_ADD, module->socket_descriptor, &accept_evt);
-	if (rc < 0) goto err_add_to_epoll;
+	if (unlikely(rc < 0)) goto err_add_to_epoll;
 
 	rc = 0;
 done:
