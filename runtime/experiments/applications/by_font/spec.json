@@ -1,0 +1,42 @@
+{
+  "active": "yes",
+  "name": "gocr_mono",
+  "path": "gocr_wasm.so",
+  "port": 10000,
+  "relative-deadline-us": 50000000000,
+  "argsize": 1,
+  "http-req-headers": [],
+  "http-req-content-type": "text/plain",
+  "http-req-size": 5335057,
+  "http-resp-headers": [],
+  "http-resp-size": 5335057,
+  "http-resp-content-type": "text/plain"
+},
+{
+  "active": "yes",
+  "name": "gocr_urw_gothic",
+  "path": "gocr_wasm.so",
+  "port": 10001,
+  "relative-deadline-us": 50000000000,
+  "argsize": 1,
+  "http-req-headers": [],
+  "http-req-content-type": "text/plain",
+  "http-req-size": 5335057,
+  "http-resp-headers": [],
+  "http-resp-size": 5335057,
+  "http-resp-content-type": "text/plain"
+},
+{
+  "active": "yes",
+  "name": "gocr_lobster_2",
+  "path": "gocr_wasm.so",
+  "port": 10002,
+  "relative-deadline-us": 50000000000,
+  "argsize": 1,
+  "http-req-headers": [],
+  "http-req-content-type": "text/plain",
+  "http-req-size": 5335057,
+  "http-resp-headers": [],
+  "http-resp-size": 5335057,
+  "http-resp-content-type": "text/plain"
+}
