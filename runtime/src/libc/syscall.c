@@ -237,7 +237,11 @@ wasm_open(int32_t path_off, int32_t flags, int32_t mode)
 int32_t
 wasm_close(int32_t io_handle_index)
 {
-	int     fd  = current_sandbox_get_file_descriptor(io_handle_index);
+	int fd = current_sandbox_get_file_descriptor(io_handle_index);
+
+	// Silently disregard client requests to close STDIN, STDOUT, or STDERR
+	if (fd <= STDERR_FILENO) return 0;
+
 	int32_t res = (int32_t)close(fd);
 
 	if (res == -1) return -errno;
@@ -504,6 +508,26 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	return res;
 }
 
+#define SYS_MREMAP     25
+#define MREMAP_MAYMOVE 1
+#define MREMAP_FIXED   2
+int32_t
+wasm_mremap(int32_t offset, int32_t old_size, int32_t new_size, int32_t flags)
+{
+	/* Should fit within the 32-bit linear address space */
+	/* TODO: Improve with errno */
+	assert(offset + old_size < INT32_MAX);
+	assert(new_size < INT32_MAX);
+
+	/* Not really implemented, so dump out usage to understand requirements */
+	debuglog("Offset: %d, Old Size: %d, New Size: %d, May Move: %s, Fixed: %s\n", offset, old_size, new_size,
+	         (flags & MREMAP_MAYMOVE) == MREMAP_MAYMOVE ? "true" : "false",
+	         (flags & MREMAP_FIXED) == MREMAP_FIXED ? "true" : "false");
+
+	/* Return the current offset, hoping for the best */
+	return offset;
+}
+
 #define SYS_MADVISE 28
 
 #define SYS_GETPID 39
@@ -730,6 +754,8 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 	case SYS_SET_THREAD_AREA:
 	case SYS_SET_TID_ADDRESS:
 	case SYS_BRK:
+	case SYS_MREMAP:
+		return wasm_mremap(a, b, c, b);
 	case SYS_MADVISE:
 		/* Note: These are called, but are unimplemented and fail silently */
 		return 0;

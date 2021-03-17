@@ -152,11 +152,16 @@ listener_thread_main(void *dummy)
 				int client_socket = accept4(module->socket_descriptor,
 				                            (struct sockaddr *)&client_address, &address_length,
 				                            SOCK_NONBLOCK);
-				if (client_socket < 0) {
+				if (unlikely(client_socket < 0)) {
 					if (errno == EWOULDBLOCK || errno == EAGAIN) break;
 
 					panic("accept4: %s", strerror(errno));
 				}
+
+				/* We should never have accepted on fd 0, 1, or 2 */
+				assert(client_socket != STDIN_FILENO);
+				assert(client_socket != STDOUT_FILENO);
+				assert(client_socket != STDERR_FILENO);
 
 				/*
 				 * According to accept(2), it is possible that the the sockaddr structure client_address

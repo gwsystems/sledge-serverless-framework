@@ -15,7 +15,12 @@
 static inline void
 client_socket_close(int client_socket)
 {
-	if (close(client_socket) < 0) debuglog("Error closing client socket - %s", strerror(errno));
+	/* Should never close 0, 1, or 2 */
+	assert(client_socket != STDIN_FILENO);
+	assert(client_socket != STDOUT_FILENO);
+	assert(client_socket != STDERR_FILENO);
+
+	if (unlikely(close(client_socket) < 0)) debuglog("Error closing client socket - %s", strerror(errno));
 }
 
 
@@ -49,6 +54,8 @@ client_socket_send(int client_socket, int status_code)
 		rc = write(client_socket, &response[sent], to_send - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN) { debuglog("Unexpectedly blocking on write of %s\n", response); }
+
+			debuglog("Error with %s\n", strerror(errno));
 
 			goto send_err;
 		}
