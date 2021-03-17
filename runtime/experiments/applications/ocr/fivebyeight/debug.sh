@@ -5,7 +5,7 @@
 # Also disables pagination and stopping on SIGUSR1
 
 experiment_directory=$(pwd)
-project_directory=$(cd ../../.. && pwd)
+project_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$project_directory"/bin && pwd)
 
 export LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH"
