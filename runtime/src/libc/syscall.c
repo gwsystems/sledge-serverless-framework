@@ -515,17 +515,42 @@ int32_t
 wasm_mremap(int32_t offset, int32_t old_size, int32_t new_size, int32_t flags)
 {
 	/* Should fit within the 32-bit linear address space */
-	/* TODO: Improve with errno */
-	assert(offset + old_size < INT32_MAX);
-	assert(new_size < INT32_MAX);
+	/* TODO: Improve with errno and handle flags properly */
+	// debuglog("Offset: %d, Old Size: %d, New Size: %d, May Move: %s, Fixed: %s\n", offset, old_size, new_size,
+	//          (flags & MREMAP_MAYMOVE) == MREMAP_MAYMOVE ? "true" : "false",
+	//          (flags & MREMAP_FIXED) == MREMAP_FIXED ? "true" : "false");
 
-	/* Not really implemented, so dump out usage to understand requirements */
-	debuglog("Offset: %d, Old Size: %d, New Size: %d, May Move: %s, Fixed: %s\n", offset, old_size, new_size,
-	         (flags & MREMAP_MAYMOVE) == MREMAP_MAYMOVE ? "true" : "false",
-	         (flags & MREMAP_FIXED) == MREMAP_FIXED ? "true" : "false");
+	assert(offset >= 0);
+	assert(offset + old_size <= INT32_MAX);
 
-	/* Return the current offset, hoping for the best */
-	return offset;
+	// We do not implement compaction yet, so just return immediately if shrinking
+	if (new_size <= old_size) return offset;
+
+	// If at end of linear memory, just expand and return same address
+	if (offset + old_size == local_sandbox_context_cache.linear_memory_size) {
+		int32_t amount_to_expand  = new_size - old_size;
+		int32_t pages_to_allocate = amount_to_expand / WASM_PAGE_SIZE;
+		if (amount_to_expand % WASM_PAGE_SIZE > 0) pages_to_allocate++;
+		for (int i = 0; i < pages_to_allocate; i++) expand_memory();
+
+		return offset;
+	}
+
+	// Otherwise allocate at end of address space and copy
+	int32_t pages_to_allocate = new_size / WASM_PAGE_SIZE;
+	if (new_size % WASM_PAGE_SIZE > 0) pages_to_allocate++;
+	int32_t new_offset = local_sandbox_context_cache.linear_memory_size;
+	for (int i = 0; i < pages_to_allocate; i++) expand_memory();
+
+	// Get pointer of old offset and pointer of new offset
+	char *linear_mem = local_sandbox_context_cache.linear_memory_start;
+	char *src        = &linear_mem[offset];
+	char *dest       = &linear_mem[new_offset];
+
+	// Copy Values. We can use memcpy because we don't overlap
+	memcpy((void *)dest, (void *)src, old_size);
+
+	return new_offset;
 }
 
 #define SYS_MADVISE 28
