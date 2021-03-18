@@ -7,21 +7,17 @@
 experiment_directory=$(pwd)
 project_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$project_directory"/bin && pwd)
-
-# Copy Flower Image if not here
-if [[ ! -f "./flower.jpg" ]]; then
-  cp ../../../../tests/sod/bin/flower.jpg ./flower.jpg
-fi
+log="$experiment_directory/log.csv"
 
 if [ "$1" != "-d" ]; then
-  PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
+  SLEDGE_SANDBOX_PERF_LOG=$log PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
   sleep 1
 else
   echo "Running under gdb"
 fi
 
 success_count=0
-total_count=10
+total_count=100
 
 for ((i = 0; i < total_count; i++)); do
   echo "$i"

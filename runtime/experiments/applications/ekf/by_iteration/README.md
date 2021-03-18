@@ -9,3 +9,8 @@ The `rust.sh` script stores per-run results to temporary files suffixed with `*.
 In order to be compatible with the stdin/stdout model of serverless, the input and output files are binary concatenations of various C structs.
 
 See `main()` in `runtime/tests/TinyEKF/extras/c/gps_ekf_fn.c` for specifics.
+
+## Useful parsing of the log
+
+_What is the average execution time of the first iteration?_
+cat log.csv | grep ekf_first_iter | awk -F , '{ sum+=$5 } END{ print sum/NR }'

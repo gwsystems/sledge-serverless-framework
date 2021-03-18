@@ -21,10 +21,6 @@ else
   echo "Running under gdb"
 fi
 
-one_iteration_expected_result="$(tr -d '\0' <./one_iteration.dat)"
-two_iterations_expected_result="$(tr -d '\0' <./two_iterations.dat)"
-three_iterations_expected_result="$(tr -d '\0' <./three_iterations.dat)"
-
 success_count=0
 total_count=50
 
