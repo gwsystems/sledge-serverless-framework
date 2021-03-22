@@ -32,9 +32,9 @@ struct sandbox {
 
 	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
 
-	void *   linear_memory_start; /* after sandbox struct */
-	uint32_t linear_memory_size;  /* from after sandbox struct */
-	uint64_t linear_memory_max_size;
+	void *   linear_memory_start;    /* after sandbox struct */
+	uint32_t linear_memory_size;     /* from after sandbox struct */
+	uint64_t linear_memory_max_size; /* 4GB */
 
 	void *   stack_start;
 	uint32_t stack_size;
@@ -245,10 +245,15 @@ sandbox_print_perf(struct sandbox *sandbox)
 	uint32_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
 	uint32_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
 
-	fprintf(runtime_sandbox_perf_log, "%lu,%s():%d,%s,%u,%u,%u,%u,%u,%u,%u,%u\n", sandbox->id,
+	/*
+	 * Assumption: A sandbox is never able to free pages. If linear memory management
+	 * becomes more intelligent, then peak linear memory size needs to be tracked
+	 * seperately from current linear memory size.
+	 */
+	fprintf(runtime_sandbox_perf_log, "%lu,%s():%d,%s,%u,%u,%u,%u,%u,%u,%u,%u,%u\n", sandbox->id,
 	        sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
 	        sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
-	        running_us, blocked_us, returned_us);
+	        running_us, blocked_us, returned_us, sandbox->linear_memory_size);
 }
 
 static inline void
