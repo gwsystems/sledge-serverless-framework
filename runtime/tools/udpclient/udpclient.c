@@ -42,8 +42,8 @@ send_fn(void *d)
 {
 	struct request *r = (struct request *)d;
 
-	char               resp[STR_MAX] = { 0 };
-	int                file_descriptor            = -1;
+	char               resp[STR_MAX]   = { 0 };
+	int                file_descriptor = -1;
 	struct sockaddr_in sa;
 
 	sa.sin_family      = AF_INET;
@@ -54,7 +54,8 @@ send_fn(void *d)
 		return NULL;
 	}
 
-	if (sendto(file_descriptor, r->msg, strlen(r->msg), 0, (struct sockaddr *)&sa, sizeof(sa)) < 0 && errno != EINTR) {
+	if (sendto(file_descriptor, r->msg, strlen(r->msg), 0, (struct sockaddr *)&sa, sizeof(sa)) < 0
+	    && errno != EINTR) {
 		perror("sendto");
 		return NULL;
 	}

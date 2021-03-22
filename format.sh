@@ -25,6 +25,6 @@ if ((major < required_major)) || ((minor < required_minor)) || ((patch < require
   exit 1
 fi
 
-find ./runtime -type f -path "./*.[ch]" |                             # Match all *.c and *.h files in ./runtime
-  grep --invert-match -E "./runtime/jsmn/*|./runtime/http-parser/*" | # Excluding those in the jsmn or http-parser submodules
-  xargs clang-format -i                                               # And format them with clang-format
+find ./runtime -type f -path "./*.[ch]" |                                                                                                               # Match all *.c and *.h files in ./runtime
+  grep --invert-match -E "./runtime/thirdparty/*|./runtime/tests/gocr/*|./runtime/tests/TinyEKF/*|./runtime/tests/CMSIS_5_NN/*|./runtime/tests/sod/*" | # Excluding those in the jsmn or http-parser submodules
+  xargs clang-format -i                                                                                                                                 # And format them with clang-format
