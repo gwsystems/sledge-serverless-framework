@@ -89,7 +89,7 @@ all: clean runtime
 runtime:
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	@${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ -luv $^ -o bin/${BINARY_NAME}
+	@${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/${BINARY_NAME}
 
 thirdparty:
 	@echo "Compiling thirdparty"
