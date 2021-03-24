@@ -1,5 +1,5 @@
-{
-  "active": "yes",
+({
+  "active": true,
   "name": "gocr_1_word",
   "path": "gocr_wasm.so",
   "port": 10000,
@@ -13,7 +13,7 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr_10_words",
   "path": "gocr_wasm.so",
   "port": 10001,
@@ -27,7 +27,7 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr_100_words",
   "path": "gocr_wasm.so",
   "port": 10002,
@@ -39,4 +39,4 @@
   "http-resp-headers": [],
   "http-resp-size": 5335057,
   "http-resp-content-type": "text/plain"
-}
+})

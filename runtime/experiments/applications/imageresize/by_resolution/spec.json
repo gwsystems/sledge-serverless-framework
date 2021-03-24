@@ -1,5 +1,5 @@
 {
-  "active": "yes",
+  "active": true,
   "name": "resize_small",
   "path": "resize_wasm.so",
   "port": 10000,
@@ -11,9 +11,9 @@
   "http-resp-headers": [],
   "http-resp-size": 1024000,
   "http-resp-content-type": "image/png"
-}
+},
 {
-  "active": "yes",
+  "active": true,
   "name": "resize_medium",
   "path": "resize_wasm.so",
   "port": 10001,
@@ -25,9 +25,9 @@
   "http-resp-headers": [],
   "http-resp-size": 1024000,
   "http-resp-content-type": "image/png"
-}
+},
 {
-  "active": "yes",
+  "active": true,
   "name": "resize_large",
   "path": "resize_wasm.so",
   "port": 10002,

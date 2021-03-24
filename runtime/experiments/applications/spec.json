@@ -1,5 +1,5 @@
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr",
   "path": "gocr.aso",
   "port": 10000,
@@ -13,7 +13,7 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr",
   "path": "gocr.aso",
   "port": 10001,
@@ -27,7 +27,7 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr",
   "path": "gocr.aso",
   "port": 10002,
@@ -40,4 +40,3 @@
   "http-resp-size": 5335057,
   "http-resp-content-type": "text/plain"
 }
-

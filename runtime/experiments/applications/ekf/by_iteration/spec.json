@@ -1,5 +1,5 @@
 {
-  "active": "yes",
+  "active": true,
   "name": "ekf_first_iter",
   "path": "ekf_wasm.so",
   "port": 10000,
@@ -13,7 +13,7 @@
   "http-resp-content-type": "application/octet-stream"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "ekf_second_iter",
   "path": "ekf_wasm.so",
   "port": 10001,
@@ -27,7 +27,7 @@
   "http-resp-content-type": "application/octet-stream"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "ekf_third_iter",
   "path": "ekf_wasm.so",
   "port": 10002,

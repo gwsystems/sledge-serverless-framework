@@ -26,11 +26,10 @@
 /* Conditionally used by debuglog when NDEBUG is not set */
 int32_t debuglog_file_descriptor = -1;
 
-uint32_t       runtime_processor_speed_MHz      = 0;
-uint64_t       runtime_relative_deadline_us_max = 0; /* a value higher than this will cause overflow on a uint64_t */
-uint32_t       runtime_total_online_processors  = 0;
-uint32_t       runtime_worker_threads_count     = 0;
-const uint32_t runtime_first_worker_processor   = 1;
+uint32_t       runtime_processor_speed_MHz     = 0;
+uint32_t       runtime_total_online_processors = 0;
+uint32_t       runtime_worker_threads_count    = 0;
+const uint32_t runtime_first_worker_processor  = 1;
 /* TODO: the worker never actually records state here */
 int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; /* The worker sets its argument to -1 on error */
 pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
@@ -255,7 +254,6 @@ log_compiletime_config()
 	printf("\tArchitecture: %s\n", "x86_64");
 #endif
 
-	// TODO: Static assertion of define
 	int ncores = NCORES;
 	printf("\tTotal Cores: %d\n", ncores);
 	int page_size = PAGE_SIZE;
@@ -354,10 +352,6 @@ main(int argc, char **argv)
 	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
 
-	runtime_relative_deadline_us_max = UINT64_MAX / runtime_processor_speed_MHz;
-	// TODO: Just here for troubleshooting. Delete me later
-	printf("Runtime Relative Deadline Max: %lu\n", runtime_relative_deadline_us_max);
-	printf("UINT32_MAX: %u\n", UINT32_MAX);
 	software_interrupt_interval_duration_in_cycles = (uint64_t)SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC
 	                                                 * runtime_processor_speed_MHz;
 	printf("\tProcessor Speed: %u MHz\n", runtime_processor_speed_MHz);

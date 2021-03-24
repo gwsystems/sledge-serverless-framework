@@ -199,7 +199,7 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	module->relative_deadline_us = relative_deadline_us;
 
 	/* This should have been handled when a module was loaded */
-	assert(relative_deadline_us < runtime_relative_deadline_us_max);
+	assert(relative_deadline_us < RUNTIME_RELATIVE_DEADLINE_US_MAX);
 
 	/* This can overflow a uint32_t, so be sure to cast appropriately */
 	module->relative_deadline = (uint64_t)relative_deadline_us * runtime_processor_speed_MHz;
@@ -410,36 +410,30 @@ module_new_from_json(char *file_name)
 				if (argument_count < 0 || argument_count > 127)
 					panic("Expected argument count between 0 and 127, saw %d\n", argument_count);
 			} else if (strcmp(key, "active") == 0) {
-				if (strcmp(val, "yes") == 0) {
+				assert(tokens[i + j + 1].type == JSMN_PRIMITIVE);
+				if (val[0] == 't') {
 					is_active = true;
-				} else if (strcmp(val, "no") == 0) {
+				} else if (val[0] == 'f') {
 					is_active = false;
 				} else {
-					panic("Expected active key to have value of yes or no, was %s\n", val);
+					panic("Expected active key to be a JSON boolean, was %s\n", val);
 				}
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
-				// Panic on overflow
-				// TODO: Consider underflow
 				int64_t buffer = strtoll(val, NULL, 10);
-				if (buffer < 0 || buffer > (int64_t)runtime_relative_deadline_us_max)
-					panic("Relative-deadline-us must be between 0 and %lu, was %ld\n",
-					      runtime_relative_deadline_us_max, buffer);
+				if (buffer < 0 || buffer > (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
+					panic("Relative-deadline-us must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, buffer);
 				relative_deadline_us = (uint32_t)buffer;
 			} else if (strcmp(key, "expected-execution-us") == 0) {
-				// Panic on overflow
-				// TODO: Consider underflow
-				debuglog("expected-execution-us: %s\n", val);
-				unsigned long long buffer = strtoull(val, NULL, 10);
-				if (buffer > UINT32_MAX)
-					panic("Max expected-execution-us is %u, but entry was %llu\n", UINT32_MAX,
-					      buffer);
-
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX)
+					panic("Relative-deadline-us must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX, buffer);
 				expected_execution_us = (uint32_t)buffer;
 			} else if (strcmp(key, "admissions-percentile") == 0) {
-				unsigned long long buffer = strtoull(val, NULL, 10);
+				int32_t buffer = strtol(val, NULL, 10);
 				if (buffer > 99 || buffer < 50)
-					panic("admissions-percentile must be > 50 and <= 99 but was %llu\n", buffer);
-
+					panic("admissions-percentile must be > 50 and <= 99 but was %d\n", buffer);
 				admissions_percentile = (int)buffer;
 			} else if (strcmp(key, "http-req-headers") == 0) {
 				assert(tokens[i + j + 1].type == JSMN_ARRAY);
@@ -468,12 +462,22 @@ module_new_from_json(char *file_name)
 					strncpy(r, file_buffer + g->start, g->end - g->start);
 				}
 			} else if (strcmp(key, "http-req-size") == 0) {
-				request_size = atoi(val);
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
+					panic("http-req-size must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
+				request_size = (int32_t)buffer;
 			} else if (strcmp(key, "http-resp-size") == 0) {
-				response_size = atoi(val);
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
+					panic("http-resp-size must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
+				response_size = (int32_t)buffer;
 			} else if (strcmp(key, "http-req-content-type") == 0) {
+				if (strlen(val) == 0) panic("http-req-content-type was unexpectedly an empty string");
 				strcpy(request_content_type, val);
 			} else if (strcmp(key, "http-resp-content-type") == 0) {
+				if (strlen(val) == 0) panic("http-resp-content-type was unexpectedly an empty string");
 				strcpy(response_content_type, val);
 			} else {
 #ifdef LOG_MODULE_LOADING
@@ -521,7 +525,7 @@ module_new_from_json(char *file_name)
 		free(reponse_headers);
 	}
 
-	if (module_count == 0) fprintf(stderr, "%s contained no active modules\n", file_name);
+	if (module_count == 0) panic("%s contained no active modules\n", file_name);
 #ifdef LOG_MODULE_LOADING
 	debuglog("Loaded %d module%s!\n", module_count, module_count > 1 ? "s" : "");
 #endif

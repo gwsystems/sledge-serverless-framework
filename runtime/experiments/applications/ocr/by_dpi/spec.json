@@ -1,5 +1,5 @@
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr_72_dpi",
   "path": "gocr_wasm.so",
   "port": 10000,
@@ -13,7 +13,7 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr_108_dpi",
   "path": "gocr_wasm.so",
   "port": 10001,
@@ -27,7 +27,7 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr_144_dpi",
   "path": "gocr_wasm.so",
   "port": 10002,

@@ -8,12 +8,25 @@
 #include "likely.h"
 #include "types.h"
 
-#define LISTENER_THREAD_CORE_ID          0 /* Dedicated Listener Core */
+/* Dedicated Listener Core */
+#define LISTENER_THREAD_CORE_ID          0
 #define LISTENER_THREAD_MAX_EPOLL_EVENTS 128
 
-#define RUNTIME_LOG_FILE                  "sledge.log"
-#define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19) /* random! */
+#define RUNTIME_LOG_FILE "sledge.log"
+/* random! */
+#define RUNTIME_MAX_SANDBOX_REQUEST_COUNT (1 << 19)
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
+
+/* One Hour. Fits in a uint32_t or an int64_t */
+#define RUNTIME_RELATIVE_DEADLINE_US_MAX 3600000000
+
+/* One Hour. Fits in a uint32_t or an int64_t */
+#define RUNTIME_EXPECTED_EXECUTION_US_MAX 3600000000
+
+/* 100 MB */
+#define RUNTIME_HTTP_REQUEST_SIZE_MAX 100000000
+/* 100 MB */
+#define RUNTIME_HTTP_RESPONSE_SIZE_MAX 100000000
 
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
@@ -29,7 +42,6 @@ extern FILE *runtime_sandbox_perf_log;
  * See runtime_get_processor_speed_MHz for further details
  */
 extern uint32_t runtime_processor_speed_MHz;
-extern uint64_t runtime_relative_deadline_us_max;
 
 /* Count of worker threads and array of their pthread identifiers */
 extern pthread_t runtime_worker_threads[];
