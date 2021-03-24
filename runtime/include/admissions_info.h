@@ -20,7 +20,8 @@ admissions_info_initialize(struct admissions_info *self, int percentile, uint64_
                            uint64_t relative_deadline)
 {
 #ifdef ADMISSIONS_CONTROL
-
+	assert(relative_deadline > 0);
+	assert(expected_execution > 0);
 	self->relative_deadline = relative_deadline;
 	self->estimate          = admissions_control_calculate_estimate(expected_execution, relative_deadline);
 	debuglog("Initial Estimate: %lu\n", self->estimate);

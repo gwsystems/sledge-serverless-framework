@@ -386,23 +386,49 @@ module_new_from_json(char *file_name)
 			        file_buffer + tokens[j + i + 1].start);
 			sprintf(key, "%.*s", tokens[j + i].end - tokens[j + i].start,
 			        file_buffer + tokens[j + i].start);
+
+			if (strlen(key) == 0) panic("Unexpected encountered empty key\n");
+			if (strlen(val) == 0) panic("%s field contained empty string\n", key);
+
 			if (strcmp(key, "name") == 0) {
+				// TODO: Currently, multiple modules can have identical names. Ports are the true unique
+				// identifiers. Consider enforcing unique names in future
 				strcpy(module_name, val);
 			} else if (strcmp(key, "path") == 0) {
+				// Invalid path will crash on dlopen
 				strcpy(module_path, val);
 			} else if (strcmp(key, "port") == 0) {
-				port = atoi(val);
+				// Validate sane port
+				// If already taken, will error on bind call in module_listen
+				int buffer = atoi(val);
+				if (buffer < 0 || buffer > 65535)
+					panic("Expected port between 0 and 65535, saw %d\n", buffer);
+				port = buffer;
 			} else if (strcmp(key, "argsize") == 0) {
+				// Validate in expected range 0..127. Unclear if 127 is an actual hard limit
 				argument_count = atoi(val);
+				if (argument_count < 0 || argument_count > 127)
+					panic("Expected argument count between 0 and 127, saw %d\n", argument_count);
 			} else if (strcmp(key, "active") == 0) {
-				is_active = (strcmp(val, "yes") == 0);
+				if (strcmp(val, "yes") == 0) {
+					is_active = true;
+				} else if (strcmp(val, "no") == 0) {
+					is_active = false;
+				} else {
+					panic("Expected active key to have value of yes or no, was %s\n", val);
+				}
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
-				unsigned long long buffer = strtoull(val, NULL, 10);
-				if (buffer > runtime_relative_deadline_us_max)
-					panic("Max relative-deadline-us is %u, but entry was %llu\n", UINT32_MAX,
-					      buffer);
+				// Panic on overflow
+				// TODO: Consider underflow
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > (int64_t)runtime_relative_deadline_us_max)
+					panic("Relative-deadline-us must be between 0 and %lu, was %ld\n",
+					      runtime_relative_deadline_us_max, buffer);
 				relative_deadline_us = (uint32_t)buffer;
 			} else if (strcmp(key, "expected-execution-us") == 0) {
+				// Panic on overflow
+				// TODO: Consider underflow
+				debuglog("expected-execution-us: %s\n", val);
 				unsigned long long buffer = strtoull(val, NULL, 10);
 				if (buffer > UINT32_MAX)
 					panic("Max expected-execution-us is %u, but entry was %llu\n", UINT32_MAX,
@@ -458,10 +484,25 @@ module_new_from_json(char *file_name)
 		}
 		i += ntoks;
 
-/* Validate presence of required fields */
+		/* Validate presence of required fields */
+
+		if (strlen(module_name) == 0) panic("name field is required\n");
+		if (strlen(module_path) == 0) panic("path field is required\n");
+		if (port == 0) panic("port field is required\n");
+
 #ifdef ADMISSIONS_CONTROL
-		if (expected_execution_us == 0) panic("expected-execution-us is required for EDF\n");
+		/* expected-execution-us and relative-deadline-us are required in case of admissions control */
+		if (expected_execution_us == 0) panic("expected-execution-us is required\n");
+		if (relative_deadline_us == 0) panic("relative_deadline_us is required\n");
+#else
+		/* relative-deadline-us is required if scheduler is EDF */
+		if (runtime_scheduler == RUNTIME_SCHEDULER_EDF && relative_deadline_us == 0)
+			panic("relative_deadline_us is required\n");
 #endif
+
+		/* argsize defaults to 0 if absent */
+		/* http-req-headers defaults to empty if absent */
+		/* http-req-headers defaults to empty if absent */
 
 		if (is_active) {
 			/* Allocate a module based on the values from the JSON */
