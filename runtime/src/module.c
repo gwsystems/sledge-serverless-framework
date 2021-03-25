@@ -488,8 +488,11 @@ module_new_from_json(char *file_name)
 		}
 		i += ntoks;
 
-		/* Validate presence of required fields */
+		/* If the ratio is too big, admissions control is too coarse */
+		uint32_t ratio = relative_deadline_us / expected_execution_us;
+		if (ratio > 1000000) panic("Ratio of Deadline to Execution time cannot exceed 1000000");
 
+		/* Validate presence of required fields */
 		if (strlen(module_name) == 0) panic("name field is required\n");
 		if (strlen(module_path) == 0) panic("path field is required\n");
 		if (port == 0) panic("port field is required\n");
