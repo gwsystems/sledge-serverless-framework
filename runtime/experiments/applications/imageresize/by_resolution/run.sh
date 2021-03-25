@@ -51,7 +51,7 @@ for ((i = 0; i < total_count; i++)); do
 done
 
 echo "$success_count / $total_count"
-rm result_*.png
+rm -f result_*.png
 
 if [ "$1" != "-d" ]; then
   sleep 5

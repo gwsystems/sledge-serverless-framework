@@ -73,7 +73,7 @@ admissions_control_calculate_estimate(uint64_t estimated_execution, uint64_t rel
 	uint64_t admissions_estimate = (estimated_execution * (uint64_t)ADMISSIONS_CONTROL_GRANULARITY)
 	                               / relative_deadline;
 	if (admissions_estimate == 0)
-		panic("Ration of Deadline to Execution time cannot exceed %d\n", ADMISSIONS_CONTROL_GRANULARITY);
+		panic("Ratio of Deadline to Execution time cannot exceed %d\n", ADMISSIONS_CONTROL_GRANULARITY);
 
 	return admissions_estimate;
 #else

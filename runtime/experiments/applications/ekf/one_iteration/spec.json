@@ -1,8 +1,9 @@
 {
-  "active": "yes",
+  "active": true,
   "name": "resize",
   "path": "ekf_wasm.so",
   "port": 10000,
+  "expected-execution-us": 5000,
   "relative-deadline-us": 50000,
   "argsize": 1,
   "http-req-headers": [],

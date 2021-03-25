@@ -1,8 +1,9 @@
 {
-  "active": "yes",
+  "active": true,
   "name": "lpd1",
   "path": "lpd_wasm.so",
   "port": 10000,
+  "expected-execution-us": 5000,
   "relative-deadline-us": 50000,
   "argsize": 1,
   "http-req-headers": [],
@@ -13,10 +14,11 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "lpd2",
   "path": "lpd_wasm.so",
   "port": 10001,
+  "expected-execution-us": 5000,
   "relative-deadline-us": 50000,
   "argsize": 1,
   "http-req-headers": [],
@@ -27,10 +29,11 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "lpd4",
   "path": "lpd_wasm.so",
   "port": 10002,
+  "expected-execution-us": 5000,
   "relative-deadline-us": 50000,
   "argsize": 1,
   "http-req-headers": [],

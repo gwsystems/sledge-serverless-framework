@@ -1,4 +1,10 @@
 ARCH := $(shell uname -m)
+ifneq ($(ARCH),x86_64)
+ifneq ($(ARCH),aarch64)
+$(error Unsupported Architecture. Supports x86_64 and aarch64, found $(ARCH))
+endif
+endif
+
 TOTAL_CORES := $(shell getconf _NPROCESSORS_CONF)
 PAGE_SIZE=$(shell getconf PAGESIZE)
 
@@ -11,16 +17,14 @@ CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 
 BINARY_NAME=sledgert
 
-# Options: {USE_MEM_GENERIC, USE_MEM_VM}
-USE_MEM = USE_MEM_VM
 
 # Feature Toggles
-# CFLAGS += -DADMISSIONS_CONTROL
+CFLAGS += -DADMISSIONS_CONTROL
 
 # Debugging Flags
 
 # Strips out calls to assert() and disables debuglog
-# CFLAGS += -DNDEBUG
+CFLAGS += -DNDEBUG
 
 # Redirects debuglogs to /runtime/bin/sledge.log 
 # CFLAGS += -DLOG_TO_FILE
@@ -60,7 +64,8 @@ CFLAGS += -DPAGE_SIZE=$(PAGE_SIZE)
 # Optionally Disable preemption
 # CFLAGS += -DPREEMPT_DISABLE
 
-CFLAGS += -D${USE_MEM}
+# Sandboxes running on Sledge always use WebAssembly linear memory
+CFLAGS += -DUSE_MEM_VM
 
 # Preprocessor
 LDFLAGS += -Wl,--export-dynamic -ldl -lm
@@ -72,14 +77,8 @@ CFILES += src/*.c
 CFILES += src/arch/${ARCH}/*.c
 CFILES += src/libc/*.c
 CFILES += src/memory/common.c
-CFILES += thirdparty/dist/lib/http_parser.o
-# TODO: Is USE_MEM_GENERIC out of date? I do not see that file.
-# Does that mean we can make USE_MEM_VM an invariant?
-ifeq ($(USE_MEM),USE_MEM_GENERIC)
-CFILES += src/memory/generic.c
-else ifeq ($(USE_MEM),USE_MEM_VM)
 CFILES += src/memory/64bit_nix.c
-endif
+CFILES += thirdparty/dist/lib/http_parser.o
 
 # Configuring Jasmine
 JSMNCFLAGS += -DJSMN_STATIC

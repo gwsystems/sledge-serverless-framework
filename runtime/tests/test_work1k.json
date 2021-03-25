@@ -1,14 +1,14 @@
 {
-	"active": "yes",
-	"name": "work1k",
-	"path": "work1k_wasm.so",
-	"port": 10000,
-	"relative-deadline-us": 50000,
-	"argsize": 1,
-	"http-req-headers": [],
-	"http-req-content-type": "text/plain",
-	"http-req-size": 1200,
-	"http-resp-headers": [],
-	"http-resp-size": 1200,
-	"http-resp-content-type": "text/plain"
+  "active": true,
+  "name": "work1k",
+  "path": "work1k_wasm.so",
+  "port": 10000,
+  "relative-deadline-us": 50000,
+  "argsize": 1,
+  "http-req-headers": [],
+  "http-req-content-type": "text/plain",
+  "http-req-size": 1200,
+  "http-resp-headers": [],
+  "http-resp-size": 1200,
+  "http-resp-content-type": "text/plain"
 }

@@ -199,7 +199,7 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	module->relative_deadline_us = relative_deadline_us;
 
 	/* This should have been handled when a module was loaded */
-	assert(relative_deadline_us < runtime_relative_deadline_us_max);
+	assert(relative_deadline_us < RUNTIME_RELATIVE_DEADLINE_US_MAX);
 
 	/* This can overflow a uint32_t, so be sure to cast appropriately */
 	module->relative_deadline = (uint64_t)relative_deadline_us * runtime_processor_speed_MHz;
@@ -386,34 +386,54 @@ module_new_from_json(char *file_name)
 			        file_buffer + tokens[j + i + 1].start);
 			sprintf(key, "%.*s", tokens[j + i].end - tokens[j + i].start,
 			        file_buffer + tokens[j + i].start);
+
+			if (strlen(key) == 0) panic("Unexpected encountered empty key\n");
+			if (strlen(val) == 0) panic("%s field contained empty string\n", key);
+
 			if (strcmp(key, "name") == 0) {
+				// TODO: Currently, multiple modules can have identical names. Ports are the true unique
+				// identifiers. Consider enforcing unique names in future
 				strcpy(module_name, val);
 			} else if (strcmp(key, "path") == 0) {
+				// Invalid path will crash on dlopen
 				strcpy(module_path, val);
 			} else if (strcmp(key, "port") == 0) {
-				port = atoi(val);
+				// Validate sane port
+				// If already taken, will error on bind call in module_listen
+				int buffer = atoi(val);
+				if (buffer < 0 || buffer > 65535)
+					panic("Expected port between 0 and 65535, saw %d\n", buffer);
+				port = buffer;
 			} else if (strcmp(key, "argsize") == 0) {
+				// Validate in expected range 0..127. Unclear if 127 is an actual hard limit
 				argument_count = atoi(val);
+				if (argument_count < 0 || argument_count > 127)
+					panic("Expected argument count between 0 and 127, saw %d\n", argument_count);
 			} else if (strcmp(key, "active") == 0) {
-				is_active = (strcmp(val, "yes") == 0);
+				assert(tokens[i + j + 1].type == JSMN_PRIMITIVE);
+				if (val[0] == 't') {
+					is_active = true;
+				} else if (val[0] == 'f') {
+					is_active = false;
+				} else {
+					panic("Expected active key to be a JSON boolean, was %s\n", val);
+				}
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
-				unsigned long long buffer = strtoull(val, NULL, 10);
-				if (buffer > runtime_relative_deadline_us_max)
-					panic("Max relative-deadline-us is %u, but entry was %llu\n", UINT32_MAX,
-					      buffer);
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
+					panic("Relative-deadline-us must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, buffer);
 				relative_deadline_us = (uint32_t)buffer;
 			} else if (strcmp(key, "expected-execution-us") == 0) {
-				unsigned long long buffer = strtoull(val, NULL, 10);
-				if (buffer > UINT32_MAX)
-					panic("Max expected-execution-us is %u, but entry was %llu\n", UINT32_MAX,
-					      buffer);
-
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX)
+					panic("Relative-deadline-us must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX, buffer);
 				expected_execution_us = (uint32_t)buffer;
 			} else if (strcmp(key, "admissions-percentile") == 0) {
-				unsigned long long buffer = strtoull(val, NULL, 10);
+				int32_t buffer = strtol(val, NULL, 10);
 				if (buffer > 99 || buffer < 50)
-					panic("admissions-percentile must be > 50 and <= 99 but was %llu\n", buffer);
-
+					panic("admissions-percentile must be > 50 and <= 99 but was %d\n", buffer);
 				admissions_percentile = (int)buffer;
 			} else if (strcmp(key, "http-req-headers") == 0) {
 				assert(tokens[i + j + 1].type == JSMN_ARRAY);
@@ -442,12 +462,22 @@ module_new_from_json(char *file_name)
 					strncpy(r, file_buffer + g->start, g->end - g->start);
 				}
 			} else if (strcmp(key, "http-req-size") == 0) {
-				request_size = atoi(val);
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
+					panic("http-req-size must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
+				request_size = (int32_t)buffer;
 			} else if (strcmp(key, "http-resp-size") == 0) {
-				response_size = atoi(val);
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
+					panic("http-resp-size must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
+				response_size = (int32_t)buffer;
 			} else if (strcmp(key, "http-req-content-type") == 0) {
+				if (strlen(val) == 0) panic("http-req-content-type was unexpectedly an empty string");
 				strcpy(request_content_type, val);
 			} else if (strcmp(key, "http-resp-content-type") == 0) {
+				if (strlen(val) == 0) panic("http-resp-content-type was unexpectedly an empty string");
 				strcpy(response_content_type, val);
 			} else {
 #ifdef LOG_MODULE_LOADING
@@ -458,10 +488,28 @@ module_new_from_json(char *file_name)
 		}
 		i += ntoks;
 
-/* Validate presence of required fields */
+		/* If the ratio is too big, admissions control is too coarse */
+		uint32_t ratio = relative_deadline_us / expected_execution_us;
+		if (ratio > 1000000) panic("Ratio of Deadline to Execution time cannot exceed 1000000");
+
+		/* Validate presence of required fields */
+		if (strlen(module_name) == 0) panic("name field is required\n");
+		if (strlen(module_path) == 0) panic("path field is required\n");
+		if (port == 0) panic("port field is required\n");
+
 #ifdef ADMISSIONS_CONTROL
-		if (expected_execution_us == 0) panic("expected-execution-us is required for EDF\n");
+		/* expected-execution-us and relative-deadline-us are required in case of admissions control */
+		if (expected_execution_us == 0) panic("expected-execution-us is required\n");
+		if (relative_deadline_us == 0) panic("relative_deadline_us is required\n");
+#else
+		/* relative-deadline-us is required if scheduler is EDF */
+		if (runtime_scheduler == RUNTIME_SCHEDULER_EDF && relative_deadline_us == 0)
+			panic("relative_deadline_us is required\n");
 #endif
+
+		/* argsize defaults to 0 if absent */
+		/* http-req-headers defaults to empty if absent */
+		/* http-req-headers defaults to empty if absent */
 
 		if (is_active) {
 			/* Allocate a module based on the values from the JSON */
@@ -480,7 +528,7 @@ module_new_from_json(char *file_name)
 		free(reponse_headers);
 	}
 
-	if (module_count == 0) fprintf(stderr, "%s contained no active modules\n", file_name);
+	if (module_count == 0) panic("%s contained no active modules\n", file_name);
 #ifdef LOG_MODULE_LOADING
 	debuglog("Loaded %d module%s!\n", module_count, module_count > 1 ? "s" : "");
 #endif

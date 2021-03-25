@@ -1,9 +1,10 @@
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr_1_word",
   "path": "gocr_wasm.so",
   "port": 10000,
-  "relative-deadline-us": 50000000000,
+  "expected-execution-us": 5000,
+  "relative-deadline-us": 36000,
   "argsize": 1,
   "http-req-headers": [],
   "http-req-content-type": "text/plain",
@@ -13,11 +14,12 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr_10_words",
   "path": "gocr_wasm.so",
   "port": 10001,
-  "relative-deadline-us": 50000000000,
+  "expected-execution-us": 5000,
+  "relative-deadline-us": 36000,
   "argsize": 1,
   "http-req-headers": [],
   "http-req-content-type": "text/plain",
@@ -27,11 +29,12 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "gocr_100_words",
   "path": "gocr_wasm.so",
   "port": 10002,
-  "relative-deadline-us": 50000000000,
+  "expected-execution-us": 5000,
+  "relative-deadline-us": 36000,
   "argsize": 1,
   "http-req-headers": [],
   "http-req-content-type": "text/plain",

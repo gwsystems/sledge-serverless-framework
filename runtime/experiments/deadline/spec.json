@@ -1,5 +1,5 @@
 {
-  "active": "yes",
+  "active": true,
   "name": "fibonacci_10",
   "path": "fibonacci_wasm.so",
   "port": 10010,
@@ -15,7 +15,7 @@
   "http-resp-content-type": "text/plain"
 },
 {
-  "active": "yes",
+  "active": true,
   "name": "fibonacci_40",
   "path": "fibonacci_wasm.so",
   "port": 10040,
