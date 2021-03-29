@@ -1,0 +1,12 @@
+# CI workflow
+name: sledge
+on: [push, pull_request]
+
+# job control
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Clang Format
+        run: ./format.sh -d
