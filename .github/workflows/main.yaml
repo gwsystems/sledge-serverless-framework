@@ -28,6 +28,10 @@ jobs:
           PATH=/usr/bin:$PATH
           llvm-config --version
 
+      - name: Init Submodules
+        run: |
+          git submodule update --init --recursive
+
       - name: Get wasmception
         run: |
           wget $WASMCEPTION_URL -O wasmception.tar.gz
