@@ -5,6 +5,7 @@ on: [push, pull_request]
 # job control
 jobs:
   build:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/build_container
       - name: Install
