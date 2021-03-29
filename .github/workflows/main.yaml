@@ -4,6 +4,12 @@ on: [push, pull_request]
 
 # job control
 jobs:
+  build:
+    using: "docker"
+    image: "Dockerfile.x86_64"
+    steps:
+      - name: Install
+        run: make clean install
   format:
     runs-on: ubuntu-latest
     steps:
