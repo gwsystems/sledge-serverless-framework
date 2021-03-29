@@ -44,6 +44,9 @@ jobs:
       - name: Compile sledge
         run: |
           make rtinit
+      - name: Compile test workloads
+        run: |
+          cd runtime/tests && make gocr && cd ../..
       - name: Hyde
         run: |
           cd runtime/experiments/applications/ocr/hyde && ./run.sh
