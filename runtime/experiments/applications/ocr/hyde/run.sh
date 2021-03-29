@@ -10,6 +10,8 @@ project_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$project_directory"/bin && pwd)
 did_pass=true
 
+did_pass=true
+
 if [ "$1" != "-d" ]; then
   PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
   sleep 1
