@@ -31,8 +31,8 @@ jobs:
       - name: Get wasmception
         run: |
           wget $WASMCEPTION_URL -O wasmception.tar.gz
-          mkdir -p wasmception
-          tar xvfz wasmception.tar.gz -C wasmception
+          mkdir -p awsm/wasmception
+          tar xvfz wasmception.tar.gz -C awsm/wasmception
 
       - name: Compile
         run: |
