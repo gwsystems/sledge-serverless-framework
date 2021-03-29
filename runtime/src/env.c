@@ -10,7 +10,6 @@ extern int32_t inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c,
 int32_t
 env_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f)
 {
-	
 	int32_t i = inner_syscall_handler(n, a, b, c, d, e, f);
 
 	return i;
