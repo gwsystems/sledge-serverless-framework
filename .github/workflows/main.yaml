@@ -43,11 +43,7 @@ jobs:
           cd awsm && cargo build --release && cd ..
       - name: Compile sledge
         run: |
-          make runtime
-      - name: Compile sledge
-        run: |
-          make runtime
-          cd runtime/experiments/applications/ocr/hyde && ./run.sh
+          make rtinit
       - name: Hyde
         run: |
           cd runtime/experiments/applications/ocr/hyde && ./run.sh
