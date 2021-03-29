@@ -46,7 +46,7 @@ jobs:
           make rtinit
       - name: Compile test workloads
         run: |
-          cd runtime/tests && make gocr && cd ../..
+          cd runtime/tests && make -B gocr && cd ../..
       - name: Hyde
         run: |
           cd runtime/experiments/applications/ocr/hyde && ./run.sh
