@@ -28,6 +28,38 @@ fi
 # Match all *.c and *.h files in ./runtime
 # Excluding those in the jsmn or http-parser submodules
 # And format them with clang-format
-find ./runtime -type f -path "./*.[ch]" |
-  grep --invert-match -E "./runtime/thirdparty/*|./runtime/tests/gocr/*|./runtime/tests/TinyEKF/*|./runtime/tests/CMSIS_5_NN/*|./runtime/tests/sod/*|**/thirdparty/*" |
-  xargs clang-format -i
+# find ./runtime -type f -path "./*.[ch]" |
+#   grep --invert-match -E "./runtime/thirdparty/*|./runtime/tests/gocr/*|./runtime/tests/TinyEKF/*|./runtime/tests/CMSIS_5_NN/*|./runtime/tests/sod/*|**/thirdparty/*" |
+#   xargs clang-format -i
+
+help() {
+  echo "Usage: $0 [OPTION]..."
+  echo "Formats source code in the repository, applying formatting in place by default"
+  echo ""
+  echo "-h, --help        Print Help"
+  echo "-d, --dry-run     Dry run formatters, returning 0 when code passes, 1 otherwise"
+  echo ""
+  echo "Exit status:"
+  echo "0 if code required no formatting"
+  echo "non-zero exit status otherwise"
+}
+
+dry_run() {
+  find runtime \
+    \( -path "runtime/thirdparty" -o -path "runtime/tests/gocr" -o -path "runtime/tests/TinyEKF" -o -path "runtime/tests/CMSIS_5_NN" -o -path "runtime/tests/sod" -o -path "runtime/tests/**/thirdparty" \) -prune -false -o \
+    -type f \( -iname \*.h -o -iname \*.c -o -iname \*.s \) -print |
+    xargs clang-format -Werror -n -ferror-limit=0
+}
+
+format() {
+  find runtime \
+    \( -path "runtime/thirdparty" -o -path "runtime/tests/gocr" -o -path "runtime/tests/TinyEKF" -o -path "runtime/tests/CMSIS_5_NN" -o -path "runtime/tests/sod" -o -path "runtime/tests/**/thirdparty" \) -prune -false -o \
+    -type f \( -iname \*.h -o -iname \*.c -o -iname \*.s \) -print |
+    xargs clang-format -i
+}
+
+case $1 in
+  "-h" | "--help") help ;;
+  "-d" | "--dry-run") dry_run ;;
+  "") format ;;
+esac
