@@ -2,14 +2,11 @@
 name: sledge
 on: [push, pull_request]
 
-runs:
-  using: "docker"
-  image: "Dockerfile.x86_64"
-
 # job control
 jobs:
   build:
     steps:
+      - uses: actions/build_container
       - name: Install
         run: make clean install
   format:

@@ -1,0 +1,6 @@
+# action.yml
+name: "Build Container"
+description: "Greet someone and record the time"
+runs:
+  using: "docker"
+  image: "Dockerfile.x86_64"
