@@ -34,6 +34,16 @@ jobs:
           mkdir -p awsm/wasmception
           tar xvfz wasmception.tar.gz -C awsm/wasmception
 
-      - name: Compile
+      - name: Compile awsm
         run: |
-          make install
+          cd awsm && cargo build --release && cd ..
+      - name: Compile sledge
+        run: |
+          make runtime
+      - name: Compile sledge
+        run: |
+          make runtime
+          cd runtime/experiments/applications/ocr/hyde && ./run.sh
+      - name: Hyde
+        run: |
+          cd runtime/experiments/applications/ocr/hyde && ./run.sh
