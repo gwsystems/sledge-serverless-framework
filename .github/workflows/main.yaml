@@ -9,4 +9,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Clang Format
-        run: ./format -d
+        run: ./format.sh -d
