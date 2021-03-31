@@ -21,16 +21,19 @@ RUN apt-get install -y --no-install-recommends \
 
 # LLVM Tools
 RUN apt-get install -y --no-install-recommends \
-  clang-8 \
-  clang-tools-8 \
-  llvm-8 \
-  llvm-8-dev \
+  clang-11 \
+  clang-format-11 \
+  clang-tools-11 \
+  libclang-11-dev \
+  libclang-common-11-dev \
   libc++abi-dev \
-  lld-8 \
-  libclang-8-dev \
-  libclang-common-8-dev
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100
-RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-8 100
+  lld-11 \
+  llvm-11 \
+  llvm-11-dev
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-11 100
+RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-11 100
+RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-11 100
+RUN update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-11 100
 
 # Needed to install from http endpoints via curl
 RUN apt-get install -y --no-install-recommends \
