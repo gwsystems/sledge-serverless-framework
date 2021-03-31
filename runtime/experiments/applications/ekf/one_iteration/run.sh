@@ -7,6 +7,7 @@
 experiment_directory=$(pwd)
 project_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$project_directory"/bin && pwd)
+did_pass=true
 
 # Copy data if not here
 if [[ ! -f "./ekf_raw.dat" ]]; then
@@ -32,6 +33,8 @@ for ((i = 0; i < total_count; i++)); do
     success_count=$((success_count + 1))
   else
     echo "FAIL"
+    did_pass=false
+    break
   fi
 done
 
@@ -42,4 +45,10 @@ if [ "$1" != "-d" ]; then
   echo -n "Running Cleanup: "
   pkill sledgert >/dev/null 2>/dev/null
   echo "[DONE]"
+fi
+
+if $did_pass; then
+  exit 0
+else
+  exit 1
 fi
