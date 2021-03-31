@@ -1,55 +1,74 @@
-# Inspired by lucet's Dockerfile.
+# using ubuntu 20 docker image
+FROM ubuntu:focal
 
-# using ubuntu 18 docker image
-FROM ubuntu:bionic
+ARG DEBIAN_FRONTEND=noninteractive
 
-# install some basic packages
 RUN apt-get update
+
+# General GCC C/C++ Build toolchain
+# pkg-config, libtool - used by PocketSphinx
+# cmake - used by cmsis
 RUN apt-get install -y --no-install-recommends \
+  automake \
   build-essential \
-  curl \
-  git \
+  binutils-dev \
   cmake \
-  ca-certificates \
-  libssl-dev \
-  pkg-config \
-  gcc \
-  g++ \
+  git \
+  libc++-dev \
+  libtinfo5 \
+  libtool \
+  pkg-config
+
+# LLVM Tools
+RUN apt-get install -y --no-install-recommends \
   clang-8 \
   clang-tools-8 \
   llvm-8 \
   llvm-8-dev \
-  libc++-dev \
   libc++abi-dev \
   lld-8 \
-  lldb-8 \
   libclang-8-dev \
-  libclang-common-8-dev \
-  vim \
-  binutils-dev \
-  build-essential \
-  automake \
-  libtool \
-  strace \
-  less
-RUN rm -rf /var/lib/apt/lists/*
-
-# set to use our installed clang version
+  libclang-common-8-dev
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100
 RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-8 100
 
-# set LD_LIBRARY_PATH
-ENV LD_LIBRARY_PATH=/usr/local/lib
+# Needed to install from http endpoints via curl
+RUN apt-get install -y --no-install-recommends \
+  curl \
+  ca-certificates \
+  libssl-dev
 
-RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain stable -y
+# Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
 ENV PATH=/root/.cargo/bin:$PATH
-
-RUN rustup component add rustfmt
-RUN rustup target add wasm32-wasi
-
 RUN cargo install --debug cargo-audit cargo-watch rsign2
 
-RUN curl -sS -L -O https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-7/wasi-sdk_7.0_amd64.deb && dpkg -i wasi-sdk_7.0_amd64.deb && rm -f wasi-sdk_7.0_amd64.deb
-
+# WASI-SDK
+RUN curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
 ENV WASI_SDK=/opt/wasi-sdk
+
+# Test Script Stuff
+RUN apt-get install -y --no-install-recommends \
+  fonts-dejavu \
+  fonts-cascadia-code \
+  fonts-roboto \
+  imagemagick \
+  netpbm \
+  pango1.0-tools \
+  wamerican \
+  wget
+
+# Interactive Tools
+RUN apt-get install -y --no-install-recommends \
+  less \
+  gdb \
+  strace \
+  vim
+
+# We need to set the locale for pango-view
+ENV LANG C.UTF-8
+ENV LANGUAGE C.UTF-8
+ENV LC_ALL C.UTF-8
+
 ENV PATH=/opt/sledge/bin:$PATH
+ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH

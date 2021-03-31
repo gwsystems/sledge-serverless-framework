@@ -5,6 +5,7 @@
 # Also disables pagination and stopping on SIGUSR1
 
 experiment_directory=$(pwd)
+echo "$experiment_directory"
 runtime_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$runtime_directory"/bin && pwd)
 log="$experiment_directory/log.csv"

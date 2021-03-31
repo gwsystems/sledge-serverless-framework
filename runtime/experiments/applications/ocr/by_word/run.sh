@@ -5,6 +5,7 @@
 # Also disables pagination and stopping on SIGUSR1
 
 experiment_directory=$(pwd)
+echo "$experiment_directory"
 project_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$project_directory"/bin && pwd)
 log="$experiment_directory/log.csv"
@@ -31,8 +32,8 @@ for ((i = 0; i < total_count; i++)); do
   for word_count in "${word_counts[@]}"; do
     echo "${word_count}"_words.pnm
     words="$(shuf -n"$word_count" /usr/share/dict/american-english)"
-    pango-view --font=mono -qo "$word_count"_words.png -t "$words"
-    pngtopnm "$word_count"_words.png >"$word_count"_words.pnm
+    pango-view --font=mono -qo "$word_count"_words.png -t "$words" || exit 1
+    pngtopnm "$word_count"_words.png >"$word_count"_words.pnm || exit 1
 
     result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"${word_count}"_words.pnm localhost:${word_count_to_port["$word_count"_words.pnm]} 2>/dev/null)
 
