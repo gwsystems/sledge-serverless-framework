@@ -1,53 +1,54 @@
 #!/bin/bash
 # Test Driver Script
 
+if [[ $0 != "./test.sh" ]]; then
+  echo "Must run in same directory as ./test.sh"
+  exit 1
+fi
+
+base_dir=$(pwd)
+
 # Awsm
-cd awsm && cargo build --release && cd ..
+cd "$base_dir/awsm" && cargo build --release || exit 1
 
 # Sledge
-cd runtime && make clean all && cd ..
+cd "$base_dir/runtime" && make clean all || exit 1
 
 # OCR Build
 # FIXME: gocr incorectly reports up to date
-cd runtime/tests && make -B clean gocr && cd ../..
+cd "$base_dir/runtime/tests" && make -B clean gocr || exit 1
 
 # OCR Tests
-cd runtime/experiments/applications/ocr/hyde && ./run.sh && cd ../../../../..
-cd runtime/experiments/applications/ocr/handwriting && ./run.sh && cd ../../../../..
-cd runtime/experiments/applications/ocr/fivebyeight && ./run.sh && cd ../../../../..
-
-# FIXME: Install scripts will only work after on Ubuntu 20 LTS
-# cd runtime/experiments/applications/ocr/by_word && ./install.sh && cd ../../../../..
-# cd runtime/experiments/applications/ocr/by_word && ./run.sh && cd ../../../../..
-
-# cd runtime/experiments/applications/ocr/by_font && ./install.sh && cd ../../../../..
-# cd runtime/experiments/applications/ocr/by_font && ./run.sh && cd ../../../../..
-
-# cd runtime/experiments/applications/ocr/by_dpi && ./install.sh && cd ../../../../..
-# cd runtime/experiments/applications/ocr/by_dpi && ./run.sh && cd ../../../../..
+cd "$base_dir/runtime/experiments/applications/ocr/hyde" && ./run.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/ocr/handwriting" && ./run.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/ocr/fivebyeight" && ./run.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/ocr/by_word" && ./install.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/ocr/by_word" && ./run.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/ocr/by_font" && ./install.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/ocr/by_font" && ./run.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/ocr/by_dpi" && ./install.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/ocr/by_dpi" && ./run.sh || exit 1
 
 # EKF Build
-cd runtime/tests && make -B clean tinyekf && cd ../..
+cd "$base_dir/runtime/tests" && make -B clean tinyekf || exit 1
 
 # EKF Tests
-cd runtime/experiments/applications/ekf/by_iteration && ./run.sh && cd ../../../../..
-cd runtime/experiments/applications/ekf/one_iteration && ./run.sh && cd ../../../../..
+cd "$base_dir/runtime/experiments/applications/ekf/by_iteration" && ./run.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/ekf/one_iteration" && ./run.sh || exit 1
 
 # cifar10 Build
-cd runtime/tests && make -B clean cifar10 && cd ../..
+cd "$base_dir/runtime/tests" && make -B clean cifar10 || exit 1
 
 # cifar10 Tests
-cd runtime/experiments/applications/imageclassification && ./run.sh && cd ../../../..
+cd "$base_dir/runtime/experiments/applications/imageclassification" && ./run.sh || exit 1
 
 # sod Build
-cd runtime/tests && make -B clean sod && cd ../..
+cd "$base_dir/runtime/tests" && make -B clean sod || exit 1
 
 # sod Tests
-cd runtime/experiments/applications/imageresize/test && ./install.sh && cd ../../../../..
-cd runtime/experiments/applications/imageresize/test && ./run.sh && cd ../../../../..
-cd runtime/experiments/applications/imageresize/by_resolution && ./install.sh && cd ../../../../..
-cd runtime/experiments/applications/imageresize/by_resolution && ./run.sh && cd ../../../../..
-cd runtime/experiments/applications/licenseplace/1 && ./run.sh && cd ../../../../..
-cd runtime/experiments/applications/licenseplace/2 && ./run.sh && cd ../../../../..
-cd runtime/experiments/applications/licenseplace/4 && ./run.sh && cd ../../../../..
-cd runtime/experiments/applications/licenseplace && ./run.sh && cd ../../../..
+cd "$base_dir/runtime/experiments/applications/imageresize/test" && ./install.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/imageresize/test" && ./run.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/imageresize/by_resolution" && ./install.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/imageresize/by_resolution" && ./run.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/licenseplate/by_plate_count" && ./run.sh || exit 1
+cd "$base_dir/runtime/experiments/applications/licenseplate" && ./run.sh || exit 1

@@ -5,6 +5,7 @@
 # Also disables pagination and stopping on SIGUSR1
 
 experiment_directory=$(pwd)
+echo "$experiment_directory"
 project_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$project_directory"/bin && pwd)
 
@@ -26,7 +27,7 @@ total_count=10
 for ((i = 0; i < total_count; i++)); do
   echo "$i"
   ext="$RANDOM"
-  curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "result_$ext.png" localhost:10000 2>/dev/null 1>/dev/null
+  curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "result_$ext.png" localhost:10000 2>/dev/null 1>/dev/null || exit 1
 
   pixel_differences="$(compare -identify -metric AE "result_$ext.png" expected_result.png null: 2>&1 >/dev/null)"
 

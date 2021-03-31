@@ -5,6 +5,7 @@
 # Also disables pagination and stopping on SIGUSR1
 
 experiment_directory=$(pwd)
+echo "$experiment_directory"
 project_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$project_directory"/bin && pwd)
 log="$experiment_directory/log.csv"
@@ -17,8 +18,8 @@ else
 fi
 
 word_count=100
-fonts=("mono" "URW Gothic" "Lobster Two")
-total_count=100
+fonts=("DejaVu Sans Mono" "Roboto" "Cascadia Code")
+total_count=10
 
 for ((i = 1; i <= total_count; i++)); do
   echo "Test $i"
@@ -27,25 +28,25 @@ for ((i = 1; i <= total_count; i++)); do
   for font in "${fonts[@]}"; do
     # For whatever reason, templating in multiple word strips was a pain, so brute forcing
     case "$font" in
-      "mono")
-        echo "Mono"
-        pango-view --font="mono" -qo mono_words.png -t "$words"
-        pngtopnm mono_words.png >mono_words.pnm
+      "DejaVu Sans Mono")
+        echo "DejaVu Sans Mono"
+        pango-view --font="DejaVu Sans Mono" -qo mono_words.png -t "$words" || exit 1
+        pngtopnm mono_words.png >mono_words.pnm || exit 1
         result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @mono_words.pnm localhost:10000 2>/dev/null)
         diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
         ;;
-      "URW Gothic")
-        echo "URW Gothic"
-        pango-view --font="URW Gothic" -qo URW_Gothic_words.png -t "$words"
-        pngtopnm URW_Gothic_words.png >URW_Gothic_words.pnm
-        result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @URW_Gothic_words.pnm localhost:10002 2>/dev/null)
+      "Roboto")
+        echo "Roboto"
+        pango-view --font="Roboto" -qo Roboto_words.png -t "$words" || exit 1
+        pngtopnm Roboto_words.png >Roboto_words.pnm || exit 1
+        result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @Roboto_words.pnm localhost:10002 2>/dev/null)
         diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
         ;;
-      "Lobster Two")
-        echo "Lobster Two"
-        pango-view --font="Lobster Two" -qo Lobster_Two_words.png -t "$words"
-        pngtopnm Lobster_Two_words.png >Lobster_Two_words.pnm
-        result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @Lobster_Two_words.pnm localhost:10001 2>/dev/null)
+      "Cascadia Code")
+        echo "Cascadia Code"
+        pango-view --font="Cascadia Code" -qo Cascadia_Code_words.png -t "$words" || exit 1
+        pngtopnm Cascadia_Code_words.png >Cascadia_Code_words.pnm || exit 1
+        result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @Cascadia_Code_words.pnm localhost:10001 2>/dev/null)
         diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
         ;;
     esac
