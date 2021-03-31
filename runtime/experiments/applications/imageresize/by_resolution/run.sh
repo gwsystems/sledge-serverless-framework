@@ -28,7 +28,7 @@ for ((i = 0; i < total_count; i++)); do
   if [[ "$pixel_differences" != "0" ]]; then
     echo "Small FAIL"
     echo "$pixel_differences pixel differences detected"
-    exit
+    exit 1
   fi
 
   curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "result_${ext}_medium.png" localhost:10001 2>/dev/null 1>/dev/null
@@ -36,7 +36,7 @@ for ((i = 0; i < total_count; i++)); do
   if [[ "$pixel_differences" != "0" ]]; then
     echo "Small FAIL"
     echo "$pixel_differences pixel differences detected"
-    exit
+    exit 1
   fi
 
   curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "result_${ext}_large.png" localhost:10002 2>/dev/null 1>/dev/null
@@ -44,7 +44,7 @@ for ((i = 0; i < total_count; i++)); do
   if [[ "$pixel_differences" != "0" ]]; then
     echo "Small FAIL"
     echo "$pixel_differences pixel differences detected"
-    exit
+    exit 1
   fi
 
   success_count=$((success_count + 1))
@@ -59,3 +59,5 @@ if [ "$1" != "-d" ]; then
   pkill sledgert >/dev/null 2>/dev/null
   echo "[DONE]"
 fi
+
+exit 0

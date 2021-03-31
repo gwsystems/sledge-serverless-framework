@@ -8,6 +8,8 @@ experiment_directory=$(pwd)
 project_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$project_directory"/bin && pwd)
 
+did_pass=true
+
 if [ "$1" != "-d" ]; then
   PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
   sleep 1
@@ -33,6 +35,9 @@ for ((i = 0; i < total_count; i++)); do
     echo "==============================================="
     echo "Was:"
     echo "$result"
+
+    did_pass=false
+    break
   fi
 done
 
@@ -43,4 +48,10 @@ if [ "$1" != "-d" ]; then
   echo -n "Running Cleanup: "
   pkill sledgert >/dev/null 2>/dev/null
   echo "[DONE]"
+fi
+
+if $did_pass; then
+  exit 0
+else
+  exit 1
 fi

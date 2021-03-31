@@ -9,6 +9,8 @@ runtime_directory=$(cd ../../../.. && pwd)
 binary_directory=$(cd "$runtime_directory"/bin && pwd)
 log="$experiment_directory/log.csv"
 
+did_pass=true
+
 # Copy data if not here
 if [[ ! -f "./initial_state.dat" ]]; then
   cp $runtime_directory/tests/TinyEKF/extras/c/ekf_raw.dat ./initial_state.dat
@@ -31,12 +33,13 @@ for ((i = 0; i < total_count; i++)); do
   curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@two_iterations_res.dat" localhost:10002 2>/dev/null >./three_iterations_res.dat
   if diff -s one_iteration_res.dat one_iteration.dat && diff -s two_iterations_res.dat two_iterations.dat && diff -s three_iterations_res.dat three_iterations.dat; then
     success_count=$((success_count + 1))
+    rm *_res.dat
   else
     echo "FAIL"
-    exit
+    did_pass=false
+    rm *_res.dat
+    break
   fi
-
-  rm *_res.dat
 done
 
 echo "$success_count / $total_count"
@@ -46,4 +49,10 @@ if [ "$1" != "-d" ]; then
   echo -n "Running Cleanup: "
   pkill sledgert >/dev/null 2>/dev/null
   echo "[DONE]"
+fi
+
+if $did_pass; then
+  exit 0
+else
+  exit 1
 fi
