@@ -1,6 +1,4 @@
-# Inspired by lucet's Dockerfile.
-
-# using ubuntu 18 docker image
+# using ubuntu 20 docker image
 FROM ubuntu:focal
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -34,24 +32,9 @@ RUN apt-get install -y --no-install-recommends \
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100
 RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-8 100
 
-# Test Script Stuff
+# Needed to install from http endpoints via curl
 RUN apt-get install -y --no-install-recommends \
   curl \
-  imagemagick \
-  netpbm \
-  pango1.0-tools \
-  wamerican \
-  wget
-
-# Interactive Tools
-RUN apt-get install -y --no-install-recommends \
-  less \
-  lldb-8 \
-  strace \
-  vim
-
-# SSL Stuff - What is this used for?
-RUN apt-get install -y --no-install-recommends \
   ca-certificates \
   libssl-dev
 
@@ -63,6 +46,29 @@ RUN cargo install --debug cargo-audit cargo-watch rsign2
 # WASI-SDK
 RUN curl -sS -L -O https://github.com/CraneStation/wasi-sdk/releases/download/wasi-sdk-7/wasi-sdk_7.0_amd64.deb && dpkg -i wasi-sdk_7.0_amd64.deb && rm -f wasi-sdk_7.0_amd64.deb
 ENV WASI_SDK=/opt/wasi-sdk
+
+# Test Script Stuff
+RUN apt-get install -y --no-install-recommends \
+  fonts-dejavu \
+  fonts-cascadia-code \
+  fonts-roboto \
+  imagemagick \
+  netpbm \
+  pango1.0-tools \
+  wamerican \
+  wget
+
+# Interactive Tools
+RUN apt-get install -y --no-install-recommends \
+  less \
+  gdb \
+  strace \
+  vim
+
+# We need to set the locale for pango-view
+ENV LANG C.UTF-8
+ENV LANGUAGE C.UTF-8
+ENV LC_ALL C.UTF-8
 
 ENV PATH=/opt/sledge/bin:$PATH
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
