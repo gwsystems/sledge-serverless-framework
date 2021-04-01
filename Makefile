@@ -1,25 +1,14 @@
-COMPILER='awsm'
+COMPILER=awsm
 ROOT=${ROOT:-$(cd "$(dirname ${BASH_SOURCE:-$0})" && pwd)}
 
 .PHONY: build
 build:
-	if [[ -x "${COMPILER}/wasmception/dist/bin/clang" ]]; then
-		@echo "Wasmception seems to have been built... Skipping"
-	else 
-		@echo "Building wasmception toolchain, takes a while."
-		@cd ${COMPILER} && make -C wasmception && cd ${ROOT}
-	fi
-	@echo "Building aWsm compiler (release)"
+	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
 	@cd ${COMPILER} && cargo build --release && cd ${ROOT}
 
 .PHONY: build-dev
 build-dev:
-	if [[ -x "${COMPILER}/wasmception/dist/bin/clang" ]]; then
-		@echo "Wasmception seems to have been built... Skipping"
-	else 
-		@echo "Building wasmception toolchain, takes a while."
-		@cd ${COMPILER} && make -C wasmception && cd ${ROOT}
-	fi
+	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
 	@echo "Building aWsm compiler (default==debug)"
 	@cd ${COMPILER} && cargo build && cd ${ROOT}
 
