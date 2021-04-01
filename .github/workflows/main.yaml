@@ -6,12 +6,9 @@ env:
   LLVM_VERSION: 8
   WASMCEPTION_URL: https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
   WASI_SDK: /opt/wasi-sdk
-  PATH: /root/.cargo/bin:$PATH
   LANG: C.UTF-8
   LANGUAGE: C.UTF-8
   LC_ALL: C.UTF-8
-  PATH: /opt/sledge/bin:$PATH
-  LD_LIBRARY_PATH: /usr/local/lib:$LD_LIBRARY_PATH
 
 # job control
 jobs:
@@ -57,7 +54,7 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
-          PATH=/root/.cargo/bin:$PATH
+          echo "/root/.cargo/bin:$PATH" >> $GITHUB_PATH
           cargo install --debug cargo-audit cargo-watch rsign2
       # - name: Get wasmception
       #   run: |
@@ -75,6 +72,8 @@ jobs:
       - name: Compile sledge
         run: |
           make install
+          echo "/opt/sledge/bin:$PATH" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
       - name: Compile test workloads
         run: |
           ./test.sh
