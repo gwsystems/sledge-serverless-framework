@@ -64,16 +64,22 @@ jobs:
       - name: Get WASI-SDK
         run: |
           curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && sudo dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
-          ENV WASI_SDK=/opt/wasi-sdk
+          echo "ENV WASI_SDK=/opt/wasi-sdk" >> $GITHUB_ENV
       - name: Install Test Script Utilities
         run: |
-          curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && sudo dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
-          ENV WASI_SDK=/opt/wasi-sdk
+          sudo apt-get install -y --no-install-recommends \
+            fonts-dejavu \
+            fonts-cascadia-code \
+            fonts-roboto \
+            imagemagick \
+            netpbm \
+            pango1.0-tools \
+            wamerican
       - name: Compile sledge
         run: |
           make install
           echo "/opt/sledge/bin:$PATH" >> $GITHUB_PATH
           echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-      - name: Compile test workloads
+      - name: Compile sample apps and run tests
         run: |
           ./test.sh
