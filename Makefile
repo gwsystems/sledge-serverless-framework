@@ -3,15 +3,23 @@ ROOT=${ROOT:-$(cd "$(dirname ${BASH_SOURCE:-$0})" && pwd)}
 
 .PHONY: build
 build:
-	@echo "Building wasmception toolchain, takes a while."
-	@cd ${COMPILER} && make -C wasmception && cd ${ROOT}
+	if [[ -x "${COMPILER}/wasmception/dist/bin/clang" ]]; then
+		@echo "Wasmception seems to have been built... Skipping"
+	else 
+		@echo "Building wasmception toolchain, takes a while."
+		@cd ${COMPILER} && make -C wasmception && cd ${ROOT}
+	fi
 	@echo "Building aWsm compiler (release)"
 	@cd ${COMPILER} && cargo build --release && cd ${ROOT}
 
 .PHONY: build-dev
 build-dev:
-	@echo "Building wasmception toolchain, takes a while."
-	@cd ${COMPILER} && make -C wasmception && cd ${ROOT}
+	if [[ -x "${COMPILER}/wasmception/dist/bin/clang" ]]; then
+		@echo "Wasmception seems to have been built... Skipping"
+	else 
+		@echo "Building wasmception toolchain, takes a while."
+		@cd ${COMPILER} && make -C wasmception && cd ${ROOT}
+	fi
 	@echo "Building aWsm compiler (default==debug)"
 	@cd ${COMPILER} && cargo build && cd ${ROOT}
 
