@@ -3,8 +3,15 @@ name: sledge
 on: [push, pull_request]
 
 env:
-  LLVM_VERSION: 11
+  LLVM_VERSION: 8
   WASMCEPTION_URL: https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
+  WASI_SDK: /opt/wasi-sdk
+  PATH: /root/.cargo/bin:$PATH
+  LANG: C.UTF-8
+  LANGUAGE: C.UTF-8
+  LC_ALL: C.UTF-8
+  PATH: /opt/sledge/bin:$PATH
+  LD_LIBRARY_PATH: /usr/local/lib:$LD_LIBRARY_PATH
 
 # job control
 jobs:
@@ -17,36 +24,57 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Apt Update
+        run: sudo apt-get update
       - uses: actions/checkout@v2
-      - name: Install
-        run: |
-          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" bash $LLVM_VERSION
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-$LLVM_VERSION 100
-          sudo update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-$LLVM_VERSION 100
-          sudo apt-get install libc++1-10 libc++-10-dev libc++-dev libc++abi-dev --yes
-          # not really sure why we need to modify this
-          PATH=/usr/bin:$PATH
-          llvm-config --version
-
       - name: Init Submodules
+        run: git submodule update --init --recursive
+      - name: Install General GCC C/C++ Build toolchain
         run: |
-          git submodule update --init --recursive
-
-      - name: Get wasmception
+          sudo apt-get install -y --no-install-recommends \
+            automake \
+            build-essential \
+            binutils-dev \
+            cmake \
+            git \
+            libtinfo5 \
+            libtool \
+            pkg-config
+      - name: Install curl / wget tools
         run: |
-          wget $WASMCEPTION_URL -O wasmception.tar.gz
-          mkdir -p awsm/wasmception
-          tar xvfz wasmception.tar.gz -C awsm/wasmception
-
-      - name: Compile awsm
+          sudo apt-get install -y --no-install-recommends \
+            curl \
+            ca-certificates \
+            libssl-dev \
+            lsb-release \
+            gpg-agent \
+            software-properties-common \
+            wget
+      - name: Install LLVM
         run: |
-          cd awsm && cargo build --release && cd ..
+          sudo ./install_llvm.sh $LLVM_VERSION
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+            sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
+          PATH=/root/.cargo/bin:$PATH
+          cargo install --debug cargo-audit cargo-watch rsign2
+      # - name: Get wasmception
+      #   run: |
+      #     wget $WASMCEPTION_URL -O wasmception.tar.gz
+      #     mkdir -p awsm/wasmception
+      #     tar xvfz wasmception.tar.gz -C awsm/wasmception
+      - name: Get WASI-SDK
+        run: |
+          curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && sudo dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
+          ENV WASI_SDK=/opt/wasi-sdk
+      - name: Install Test Script Utilities
+        run: |
+          curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && sudo dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
+          ENV WASI_SDK=/opt/wasi-sdk
       - name: Compile sledge
         run: |
-          make rtinit
+          make install
       - name: Compile test workloads
         run: |
-          cd runtime/tests && make -B gocr && cd ../..
-      - name: Hyde
-        run: |
-          cd runtime/experiments/applications/ocr/hyde && ./run.sh
+          ./test.sh
