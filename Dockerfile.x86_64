@@ -14,29 +14,24 @@ RUN apt-get install -y --no-install-recommends \
   binutils-dev \
   cmake \
   git \
-  libc++-dev \
   libtinfo5 \
   libtool \
   pkg-config
 
-# LLVM Tools
-RUN apt-get install -y --no-install-recommends \
-  clang-8 \
-  clang-tools-8 \
-  llvm-8 \
-  llvm-8-dev \
-  libc++abi-dev \
-  lld-8 \
-  libclang-8-dev \
-  libclang-common-8-dev
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100
-RUN update-alternatives --install /usr/bin/llvm-config llvm-config /usr/bin/llvm-config-8 100
-
-# Needed to install from http endpoints via curl
+# Needed to install from http endpoints via curl or wget
 RUN apt-get install -y --no-install-recommends \
   curl \
   ca-certificates \
-  libssl-dev
+  libssl-dev \
+  lsb-release \
+  gpg-agent \
+  software-properties-common \
+  wget
+
+# LLVM Tools
+ENV LLVM_VERSION=8
+ADD install_llvm.sh /sledge/install_llvm.sh
+RUN ./sledge/install_llvm.sh $LLVM_VERSION
 
 # Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
@@ -55,8 +50,7 @@ RUN apt-get install -y --no-install-recommends \
   imagemagick \
   netpbm \
   pango1.0-tools \
-  wamerican \
-  wget
+  wamerican
 
 # Interactive Tools
 RUN apt-get install -y --no-install-recommends \
