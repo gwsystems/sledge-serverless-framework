@@ -16,7 +16,7 @@ clean:
 	@rm -rf ${SLEDGE_BIN_DIR}/*_wasm.so
 
 tinyekf:
-	make clean gps_ekf_fn.so -C ./TinyEKF/extras/c/ -f MakefileWasm
+	make clean gps_ekf_fn.so -C ./TinyEKF/extras/c/ -f wasm.mk
 	cp ./TinyEKF/extras/c/gps_ekf_fn.so ${SLEDGE_BIN_DIR}/ekf_wasm.so
 
 cifar10:
@@ -24,8 +24,8 @@ cifar10:
 	cp ./CMSIS_5_NN/tmp/cifar10.awsm.so ${SLEDGE_BIN_DIR}/cifar10_wasm.so
 
 gocr:
-	make clean all -C ./gocr/src/ -f makefile.wasm
-	cp ./gocr/src/gocr.aso ${SLEDGE_BIN_DIR}/gocr_wasm.so
+	make clean gocr.so -C ./gocr/src/ -f wasm.mk
+	cp ./gocr/src/gocr.so ${SLEDGE_BIN_DIR}/gocr_wasm.so
 
 sod:
 	make clean all samples samples.wasm -C ./sod/
