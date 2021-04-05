@@ -20,8 +20,8 @@ tinyekf:
 	cp ./TinyEKF/extras/c/gps_ekf_fn.so ${SLEDGE_BIN_DIR}/ekf_wasm.so
 
 cifar10:
-	make clean all -C ./CMSIS_5_NN/ -f Makefile
-	cp ./CMSIS_5_NN/tmp/cifar10.awsm.so ${SLEDGE_BIN_DIR}/cifar10_wasm.so
+	make clean cifar10.so -C ./CMSIS_5_NN/ -f Makefile
+	cp ./CMSIS_5_NN/cifar10.so ${SLEDGE_BIN_DIR}/cifar10_wasm.so
 
 gocr:
 	make clean gocr.so -C ./gocr/src/ -f wasm.mk
