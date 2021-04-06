@@ -6,14 +6,11 @@ build:
 	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
 	@cd ${COMPILER} && cargo build --release && cd ${ROOT}
 
+# Sanity check that the aWsm compiler built and is in our PATH
 .PHONY: build-validate
 build-validate:
 	which awsm
 	awsm --version
-	cd ${COMPILER} 
-	which awsm
-	awsm --version
-	cd ${ROOT}
 
 .PHONY: build-dev
 build-dev:
@@ -44,6 +41,6 @@ runtime:
 	make -C runtime
 
 .PHONY: install
-install: build build-validate rtinit
+install: build rtinit
 	@./install.sh wasmception
 
