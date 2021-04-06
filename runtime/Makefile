@@ -40,6 +40,10 @@ CFLAGS += -DNDEBUG
 # CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_MODULE_LOADING
 
+# This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
+# page is allocated. This helps understand the relationship to memory allocation and execution time.
+# CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE
+
 # This flag dumps totals of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX. It is useful to debug clients hanging waiting for a response.
 # To log, run `call http_total_log()` while in GDB

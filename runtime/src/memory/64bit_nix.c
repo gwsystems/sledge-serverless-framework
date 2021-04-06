@@ -30,6 +30,7 @@ expand_memory(void)
 	// FIXME: max_pages = 0 => no limit. Issue #103.
 	assert((sandbox->sandbox_size + local_sandbox_context_cache.linear_memory_size) / WASM_PAGE_SIZE
 	       < WASM_MAX_PAGES);
+	assert(sandbox->state = SANDBOX_RUNNING);
 	// Remap the relevant wasm page to readable
 	char *mem_as_chars = local_sandbox_context_cache.linear_memory_start;
 	char *page_address = &mem_as_chars[local_sandbox_context_cache.linear_memory_size];
@@ -43,6 +44,15 @@ expand_memory(void)
 		panic("expand_memory - Out of Memory!\n");
 
 	local_sandbox_context_cache.linear_memory_size += WASM_PAGE_SIZE;
+
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+	// Cache the runtime of the first N page allocations
+	if (likely(sandbox->page_allocation_timestamps_size < SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT)) {
+		sandbox->page_allocation_timestamps[sandbox->page_allocation_timestamps_size++] =
+		  sandbox->running_duration + (uint32_t)(__getcycles() - sandbox->last_state_change_timestamp);
+	}
+#endif
+
 	// local_sandbox_context_cache is "forked state", so update authoritative member
 	sandbox->linear_memory_size = local_sandbox_context_cache.linear_memory_size;
 }

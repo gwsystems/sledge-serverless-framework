@@ -18,6 +18,10 @@
 #define SANDBOX_MAX_IO_HANDLE_COUNT           32
 #define SANDBOX_MAX_MEMORY                    (1L << 32) /* 4GB */
 
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+#define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
+#endif
+
 /*********************
  * Structs and Types *
  ********************/
@@ -46,7 +50,10 @@ struct sandbox {
 	uint64_t response_timestamp;          /* Timestamp when response is sent */
 	uint64_t completion_timestamp;        /* Timestamp when sandbox runs to completion */
 	uint64_t last_state_change_timestamp; /* Used for bookkeeping of actual execution time */
-
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+	uint32_t page_allocation_timestamps[SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT];
+	size_t   page_allocation_timestamps_size;
+#endif
 	/* Duration of time (in cycles) that the sandbox is in each state */
 	uint64_t initializing_duration;
 	uint64_t runnable_duration;
@@ -255,6 +262,32 @@ sandbox_print_perf(struct sandbox *sandbox)
 	        sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
 	        running_us, blocked_us, returned_us, sandbox->linear_memory_size);
 }
+
+static inline void
+sandbox_summarize_page_allocations(struct sandbox *sandbox)
+{
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+	// TODO: Handle interleavings
+	char sandbox_page_allocations_log_path[100] = {};
+	sandbox_page_allocations_log_path[99]       = '\0';
+	snprintf(sandbox_page_allocations_log_path, 99, "%s_%d_page_allocations.csv", sandbox->module->name,
+	         sandbox->module->port);
+
+	debuglog("Logging to %s", sandbox_page_allocations_log_path);
+
+	FILE *sandbox_page_allocations_log = fopen(sandbox_page_allocations_log_path, "a");
+
+	fprintf(sandbox_page_allocations_log, "%lu,%lu,%s", sandbox->id, sandbox->running_duration,
+	        sandbox_state_stringify(sandbox->state));
+	for (size_t i = 0; i < sandbox->page_allocation_timestamps_size; i++)
+		fprintf(sandbox_page_allocations_log, "%u,", sandbox->page_allocation_timestamps[i]);
+
+	fprintf(sandbox_page_allocations_log, "\n");
+#else
+	return;
+#endif
+}
+
 
 static inline void
 sandbox_close_http(struct sandbox *sandbox)
