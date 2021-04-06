@@ -29,8 +29,8 @@ gocr:
 
 sod:
 	make clean dir samples.so -C ./sod/
-	cp ./sod/bin/license_plate_detection.so /sledge/runtime/bin/lpd_wasm.so
-	cp ./sod/bin/resize_image.so /sledge/runtime/bin/resize_wasm.so
+	cp ./sod/bin/license_plate_detection.so ${SLEDGE_BIN_DIR}/lpd_wasm.so
+	cp ./sod/bin/resize_image.so ${SLEDGE_BIN_DIR}/resize_wasm.so
 
 %_rt:
 	@mkdir -p ${TMP_DIR}
