@@ -488,9 +488,6 @@ module_new_from_json(char *file_name)
 		}
 		i += ntoks;
 
-		/* If the ratio is too big, admissions control is too coarse */
-		uint32_t ratio = relative_deadline_us / expected_execution_us;
-		if (ratio > 1000000) panic("Ratio of Deadline to Execution time cannot exceed 1000000");
 
 		/* Validate presence of required fields */
 		if (strlen(module_name) == 0) panic("name field is required\n");
@@ -501,6 +498,13 @@ module_new_from_json(char *file_name)
 		/* expected-execution-us and relative-deadline-us are required in case of admissions control */
 		if (expected_execution_us == 0) panic("expected-execution-us is required\n");
 		if (relative_deadline_us == 0) panic("relative_deadline_us is required\n");
+
+		/* If the ratio is too big, admissions control is too coarse */
+		uint32_t ratio = relative_deadline_us / expected_execution_us;
+		if (ratio > ADMISSIONS_CONTROL_GRANULARITY)
+			panic("Ratio of Deadline to Execution time cannot exceed admissions control granularity of "
+			      "%d\n",
+			      ADMISSIONS_CONTROL_GRANULARITY);
 #else
 		/* relative-deadline-us is required if scheduler is EDF */
 		if (runtime_scheduler == RUNTIME_SCHEDULER_EDF && relative_deadline_us == 0)
