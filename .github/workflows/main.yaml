@@ -77,13 +77,13 @@ jobs:
       - name: Compile sledge
         run: |
           make build 
-          make build-validate 
           make rtinit
           mkdir bin
           mkdir lib
           SYS_PREFIX="$(pwd)" ./install.sh
           echo "$(pwd)/bin:$PATH" >> $GITHUB_PATH
           echo "LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          make build-validate
       - name: Compile sample apps and run tests
         run: |
           ./test.sh
