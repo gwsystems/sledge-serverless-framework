@@ -6,6 +6,15 @@ build:
 	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
 	@cd ${COMPILER} && cargo build --release && cd ${ROOT}
 
+.PHONY: build-validate
+build-validate:
+	which awsm
+	awsm --version
+	cd ${COMPILER} 
+	which awsm
+	awsm --version
+	cd ${ROOT}
+
 .PHONY: build-dev
 build-dev:
 	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
@@ -35,6 +44,6 @@ runtime:
 	make -C runtime
 
 .PHONY: install
-install: build rtinit
+install: build build-validate rtinit
 	@./install.sh wasmception
 

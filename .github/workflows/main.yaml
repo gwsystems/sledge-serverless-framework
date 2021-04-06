@@ -76,9 +76,14 @@ jobs:
             wamerican
       - name: Compile sledge
         run: |
-          make install
-          echo "/opt/sledge/bin:$PATH" >> $GITHUB_PATH
-          echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          make build 
+          make build-validate 
+          make rtinit
+          mkdir bin
+          mkdir lib
+          SYS_PREFIX="$(pwd)" ./install.sh
+          echo "$(pwd)/bin:$PATH" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=$(pwd)/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
       - name: Compile sample apps and run tests
         run: |
           ./test.sh
