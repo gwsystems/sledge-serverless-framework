@@ -55,7 +55,6 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
           echo "/root/.cargo/bin:$PATH" >> $GITHUB_PATH
-          cargo install --debug cargo-audit cargo-watch rsign2
       - name: Get wasmception
         run: |
           wget $WASMCEPTION_URL -O wasmception.tar.gz
