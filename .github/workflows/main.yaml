@@ -2,6 +2,14 @@
 name: sledge
 on: [push, pull_request]
 
+env:
+  LLVM_VERSION: 8
+  WASMCEPTION_URL: https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
+  # WASI_SDK: /opt/wasi-sdk
+  LANG: C.UTF-8
+  LANGUAGE: C.UTF-8
+  LC_ALL: C.UTF-8
+
 # job control
 jobs:
   format:
@@ -10,3 +18,74 @@ jobs:
       - uses: actions/checkout@v2
       - name: Clang Format
         run: ./format.sh -d
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apt Update
+        run: sudo apt-get update
+      - uses: actions/checkout@v2
+      - name: Init Submodules
+        run: git submodule update --init --recursive
+      - name: Install General GCC C/C++ Build toolchain
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            automake \
+            build-essential \
+            binutils-dev \
+            cmake \
+            git \
+            libtinfo5 \
+            libtool \
+            pkg-config
+      - name: Install curl / wget tools
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            curl \
+            ca-certificates \
+            libssl-dev \
+            lsb-release \
+            gpg-agent \
+            software-properties-common \
+            wget
+      - name: Install LLVM
+        run: |
+          sudo ./install_llvm.sh $LLVM_VERSION
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+            sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
+          echo "/root/.cargo/bin:$PATH" >> $GITHUB_PATH
+      - name: Get wasmception
+        run: |
+          wget $WASMCEPTION_URL -O wasmception.tar.gz
+          mkdir -p awsm/wasmception
+          tar xvfz wasmception.tar.gz -C awsm/wasmception
+      # - name: Get WASI-SDK
+      #   run: |
+      #     curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && sudo dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
+      #     echo "ENV WASI_SDK=/opt/wasi-sdk" >> $GITHUB_ENV
+      - name: Install Test Script Utilities
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            fonts-dejavu \
+            fonts-cascadia-code \
+            fonts-roboto \
+            imagemagick \
+            netpbm \
+            pango1.0-tools \
+            wamerican
+      - name: Compile sledge
+        run: |
+          make build 
+          make rtinit
+          mkdir bin
+          mkdir lib
+          SYS_PREFIX="$(pwd)" ./install.sh
+          PATH="$(pwd)/bin:$PATH"
+          echo "$PATH" >> $GITHUB_PATH
+          LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          make build-validate
+      - name: Compile sample apps and run tests
+        run: |
+          ./test.sh

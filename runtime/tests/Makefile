@@ -16,29 +16,27 @@ clean:
 	@rm -rf ${SLEDGE_BIN_DIR}/*_wasm.so
 
 tinyekf:
-	make clean all -C ./TinyEKF/extras/c/ -f makefile.wasm
-	cp ./TinyEKF/extras/c/gps_ekf_fn.aso ${SLEDGE_BIN_DIR}/ekf_wasm.so
+	make clean gps_ekf_fn.so -C ./TinyEKF/extras/c/ -f wasm.mk
+	cp ./TinyEKF/extras/c/gps_ekf_fn.so ${SLEDGE_BIN_DIR}/ekf_wasm.so
 
 cifar10:
-	make clean all -C ./CMSIS_5_NN/ -f Makefile
-	cp ./CMSIS_5_NN/tmp/cifar10.awsm.so ${SLEDGE_BIN_DIR}/cifar10_wasm.so
+	make clean cifar10.so -C ./CMSIS_5_NN/ -f Makefile
+	cp ./CMSIS_5_NN/cifar10.so ${SLEDGE_BIN_DIR}/cifar10_wasm.so
 
 gocr:
-	make clean all -C ./gocr/src/ -f makefile.wasm
-	cp ./gocr/src/gocr.aso ${SLEDGE_BIN_DIR}/gocr_wasm.so
+	make clean gocr.so -C ./gocr/src/ -f wasm.mk
+	cp ./gocr/src/gocr.so ${SLEDGE_BIN_DIR}/gocr_wasm.so
 
 sod:
-	make clean all samples samples.wasm -C ./sod/
-	cp ./sod/bin/license_plate_detection.awsm /sledge/runtime/bin/lpd_wasm.so
-	cp ./sod/bin/resize_image.awsm /sledge/runtime/bin/resize_wasm.so
+	make clean dir samples.so -C ./sod/
+	cp ./sod/bin/license_plate_detection.so ${SLEDGE_BIN_DIR}/lpd_wasm.so
+	cp ./sod/bin/resize_image.so ${SLEDGE_BIN_DIR}/resize_wasm.so
 
 %_rt:
 	@mkdir -p ${TMP_DIR}
 	@echo "Compiling $(@:%_rt=%)"
 	${WASMCC} ${$(@:%_rt=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} $(@:%_rt=%)/*.c $(AWSM_DUMMY) -o ${TMP_DIR}/$(@:%_rt=%).wasm
 	${AWSM_NAME} ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
-	${CC} ${CFLAGS} ${OPTFLAGS} -D${USE_MEM} -D${ARCH} ${TMP_DIR}/$(@:%_rt=%).bc ${AWSM_MEMC} ${AWSM_RT_LIBC} ${AWSM_RT_ENV} ${AWSM_RT_RT} -lm -o ${TMP_DIR}/$(@:%_rt=%)_wasm.out
-	${AWSM_NAME} --inline-constant-globals --runtime-globals ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
 	${CC} --shared -fPIC ${OPTFLAGS} -I${SLEDGE_RT_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${SLEDGE_MEMC} ${SLEDGE_WASMISA} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.so
 	@cp ${TMP_DIR}/$(@:%_rt=%)_wasm.so ${SLEDGE_BIN_DIR} 
 #	@rm -rf ${TMP_DIR}

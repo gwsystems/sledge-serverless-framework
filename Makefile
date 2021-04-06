@@ -1,17 +1,20 @@
-COMPILER='awsm'
+COMPILER=awsm
 ROOT=${ROOT:-$(cd "$(dirname ${BASH_SOURCE:-$0})" && pwd)}
 
 .PHONY: build
 build:
-	@echo "Building wasmception toolchain, takes a while."
-	@cd ${COMPILER} && make -C wasmception && cd ${ROOT}
-	@echo "Building aWsm compiler (release)"
+	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
 	@cd ${COMPILER} && cargo build --release && cd ${ROOT}
+
+# Sanity check that the aWsm compiler built and is in our PATH
+.PHONY: build-validate
+build-validate:
+	which awsm
+	awsm --version
 
 .PHONY: build-dev
 build-dev:
-	@echo "Building wasmception toolchain, takes a while."
-	@cd ${COMPILER} && make -C wasmception && cd ${ROOT}
+	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
 	@echo "Building aWsm compiler (default==debug)"
 	@cd ${COMPILER} && cargo build && cd ${ROOT}
 
