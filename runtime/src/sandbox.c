@@ -749,6 +749,9 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t sandbox_id = sandbox->id;
 	sandbox->state      = SANDBOX_ERROR;
 	sandbox_print_perf(sandbox);
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+	sandbox_summarize_page_allocations(sandbox);
+#endif
 	sandbox_free_linear_memory(sandbox);
 	admissions_control_substract(sandbox->admissions_estimate);
 	/* Do not touch sandbox after adding to completion queue to avoid use-after-free bugs */
@@ -793,6 +796,9 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t sandbox_id = sandbox->id;
 	sandbox->state      = SANDBOX_COMPLETE;
 	sandbox_print_perf(sandbox);
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+	sandbox_summarize_page_allocations(sandbox);
+#endif
 	/* Admissions Control Post Processing */
 	admissions_info_update(&sandbox->module->admissions_info, sandbox->running_duration);
 	admissions_control_substract(sandbox->admissions_estimate);
@@ -852,6 +858,9 @@ err_stack_allocation_failed:
 	 */
 	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
 	sandbox->last_state_change_timestamp = now;
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+	sandbox->page_allocation_timestamps_size = 0;
+#endif
 	ps_list_init_d(sandbox);
 err_memory_allocation_failed:
 err:
