@@ -60,9 +60,6 @@ runtime/tests/**/*.xlsx
 # Swap Files
 *.swp
 
-# Editor Configs
-.vscode
-
 # Symlinks
 Dockerfile
 
