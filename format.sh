@@ -21,8 +21,10 @@ validate() {
 		patch="${BASH_REMATCH[3]}"
 	fi
 
-	if ((major < required_major)) || ((minor < required_minor)) || ((patch < required_patch)); then
-		echo "$utility $required_major.$required_minor.$required_patch required, but is $major.$minor.$patch"
+	if ((major >= required_major)) && ((minor >= required_minor)) && ((patch >= required_patch)); then
+		echo "$utility $required_major.$required_minor.$required_patch required. Satisfied by $major.$minor.$patch"
+	else
+		echo "$utility $required_major.$required_minor.$required_patch required. Not satisfied by $major.$minor.$patch"
 		exit 1
 	fi
 }
