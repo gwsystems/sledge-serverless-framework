@@ -16,12 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install General GCC C/C++ Build toolchain
+      - name: Install clang-format-11
         run: |
-          sudo apt-get install -y --no-install-recommends clang-format-11
-      - name: Install General GCC C/C++ Build toolchain
+          sudo apt-get remove -y --no-install-recommends clang-format-10 && sudo apt-get install -y --no-install-recommends clang-format-11
+      - name: Update alternatives
         run: |
-          sudo update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-11" 100
+          sudo update-alternatives --remove-all clang-format && sudo update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-11" 100
       - name: Clang Format
         run: ./format.sh -d
   test:
