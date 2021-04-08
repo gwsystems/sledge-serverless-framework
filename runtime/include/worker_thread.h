@@ -53,7 +53,7 @@ worker_thread_get_memory_string(uint32_t offset, uint32_t max_length)
 {
 	for (int i = 0; i < max_length; i++) {
 		if (worker_thread_get_memory_character(offset + i) == '\0') {
-			return worker_thread_get_memory_ptr_void(offset, 1);
+			return (char *)worker_thread_get_memory_ptr_void(offset, 1);
 		}
 	}
 	return NULL;

@@ -12,10 +12,10 @@ binary_directory=$(cd "$project_directory"/bin && pwd)
 did_pass=true
 
 if [ "$1" != "-d" ]; then
-  PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
-  sleep 1
+	PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
+	sleep 1
 else
-  echo "Running under gdb"
+	echo "Running under gdb"
 fi
 
 expected_result="$(cat ./expected_result.txt)"
@@ -24,35 +24,35 @@ success_count=0
 total_count=50
 
 for ((i = 0; i < total_count; i++)); do
-  echo "$i"
-  result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@5x8.pnm" localhost:10000 2>/dev/null)
-  # echo "$result"
-  if [[ "$result" == "$expected_result" ]]; then
-    success_count=$((success_count + 1))
-  else
-    echo "FAIL"
-    echo "Expected:"
-    echo "$expected_result"
-    echo "==============================================="
-    echo "Was:"
-    echo "$result"
+	echo "$i"
+	result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@5x8.pnm" localhost:10000 2> /dev/null)
+	# echo "$result"
+	if [[ "$result" == "$expected_result" ]]; then
+		success_count=$((success_count + 1))
+	else
+		echo "FAIL"
+		echo "Expected:"
+		echo "$expected_result"
+		echo "==============================================="
+		echo "Was:"
+		echo "$result"
 
-    did_pass=false
-    break
-  fi
+		did_pass=false
+		break
+	fi
 done
 
 echo "$success_count / $total_count"
 
 if [ "$1" != "-d" ]; then
-  sleep 5
-  echo -n "Running Cleanup: "
-  pkill sledgert >/dev/null 2>/dev/null
-  echo "[DONE]"
+	sleep 5
+	echo -n "Running Cleanup: "
+	pkill sledgert > /dev/null 2> /dev/null
+	echo "[DONE]"
 fi
 
 if $did_pass; then
-  exit 0
+	exit 0
 else
-  exit 1
+	exit 1
 fi

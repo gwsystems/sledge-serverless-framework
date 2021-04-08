@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "name": "Linux",
+      "intelliSenseMode": "clang-x64",
+      "includePath": [
+        "/usr/include/",
+        "${workspaceFolder}/runtime/include/",
+        "${workspaceFolder}/runtime/thirdparty/ck/include/",
+        "${workspaceFolder}/runtime/thirdparty/http-parser/",
+        "${workspaceFolder}/runtime/thirdparty/jsmn/"
+      ],
+      "defines": ["USE_MEM_VM", "x86_64", "_GNU_SOURCE"],
+      "cStandard": "c17",
+      "compilerPath": "/usr/bin/clang"
+    }
+  ],
+  "version": 4
+}

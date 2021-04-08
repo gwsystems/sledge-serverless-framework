@@ -1,10 +1,10 @@
+#ifdef USE_MEM_VM
+
 #include "current_sandbox.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
 #include "types.h"
-
-#ifdef USE_MEM_VM
 
 #include <sys/mman.h>
 

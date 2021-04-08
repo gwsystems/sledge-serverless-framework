@@ -2,7 +2,7 @@
 
 # Installs the deps needed for run.sh
 if [ "$(whoami)" == "root" ]; then
-  apt-get install netpbm pango1.0-tools wamerican
+	apt-get install netpbm pango1.0-tools wamerican
 else
-  sudo apt-get install netpbm pango1.0-tools wamerican
+	sudo apt-get install netpbm pango1.0-tools wamerican
 fi

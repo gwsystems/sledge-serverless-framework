@@ -2,8 +2,8 @@
 # Test Driver Script
 
 if [[ $0 != "./test.sh" ]]; then
-  echo "Must run in same directory as ./test.sh"
-  exit 1
+	echo "Must run in same directory as ./test.sh"
+	exit 1
 fi
 
 base_dir=$(pwd)
