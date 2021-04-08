@@ -12,7 +12,7 @@ results_directory="$experiment_directory/res/$timestamp/$scheduler"
 log=log.txt
 
 mkdir -p "$results_directory"
-log_environment >>"$results_directory/$log"
+log_environment >> "$results_directory/$log"
 
 # Start the runtime
 PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" | tee -a "$results_directory/$log"

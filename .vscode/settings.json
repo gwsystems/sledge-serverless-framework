@@ -69,5 +69,7 @@
   "C_Cpp.files.exclude": {
     "awsm/wasmception": true,
     "**/.vscode": true
-  }
+  },
+
+  "shellformat.flag": "-ln=bash -i 0 -bn -ci -sr -kp"
 }

@@ -26,29 +26,29 @@ echo "Setting up toolchain environment"
 for last_arg in "$@"; do :; done
 
 if [[ $last_arg == "-d" ]] || [[ $last_arg == "--dry-run" ]]; then
-  DRY_RUN=true
+	DRY_RUN=true
 else
-  DRY_RUN=false
+	DRY_RUN=false
 fi
 
 if $DRY_RUN; then
-  DRY_RUN_PREFIX=echo
+	DRY_RUN_PREFIX=echo
 else
-  DRY_RUN_PREFIX=
+	DRY_RUN_PREFIX=
 fi
 
 # Get the absolute path of the topmost project directly
 # The use of dirname is particular. It seems unneccesary how this script is run
 SYS_SRC_PREFIX=${SYS_SRC_PREFIX:-"$(
-  cd "$(dirname "$(dirname "${0}")")" || exit 1
-  pwd -P
+	cd "$(dirname "$(dirname "${0}")")" || exit 1
+	pwd -P
 )"}
 $DRY_RUN && echo SYS_SRC_PREFIX: "$SYS_SRC_PREFIX"
 
 # And check for the presence of this script to make sure we got it right
 if [ ! -x "${SYS_SRC_PREFIX}/install.sh" ]; then
-  echo "Unable to find the install script" >&2
-  exit 1
+	echo "Unable to find the install script" >&2
+	exit 1
 fi
 
 SYS_NAME='sledge'
@@ -79,21 +79,21 @@ $DRY_RUN && echo SYS_LIB_DIR: "$SYS_LIB_DIR"
 # The default is wasmception
 # Currently, WASI is not actually supported by the runtime.
 if [ $# -eq 0 ] || [ "$1" = "wasmception" ]; then
-  echo "Setting up for wasmception"
-  WASM_PREFIX=${WASM_PREFIX:-"${SYS_SRC_PREFIX}/${COMPILER}/wasmception"}
-  WASM_BIN=${WASM_BIN:-"${WASM_PREFIX}/dist/bin"}
-  WASM_SYSROOT=${WASM_SYSROOT:-"${WASM_PREFIX}/sysroot"}
-  WASM_TARGET=${WASM_TARGET:-"wasm32-unknown-unknown-wasm"}
-  WASM_BIN_PREFIX=${WASM_BIN_PREFIX:-"$WASM_TARGET"}
-  WASM_TOOLS=(ar)
+	echo "Setting up for wasmception"
+	WASM_PREFIX=${WASM_PREFIX:-"${SYS_SRC_PREFIX}/${COMPILER}/wasmception"}
+	WASM_BIN=${WASM_BIN:-"${WASM_PREFIX}/dist/bin"}
+	WASM_SYSROOT=${WASM_SYSROOT:-"${WASM_PREFIX}/sysroot"}
+	WASM_TARGET=${WASM_TARGET:-"wasm32-unknown-unknown-wasm"}
+	WASM_BIN_PREFIX=${WASM_BIN_PREFIX:-"$WASM_TARGET"}
+	WASM_TOOLS=(ar)
 elif [ "$1" = "wasi" ]; then
-  echo "Setting up for wasi-sdk"
-  WASM_PREFIX=${WASM_PREFIX:-${WASM_SDK:-"/opt/wasi-sdk"}}
-  WASM_BIN=${WASM_BIN:-"${WASM_PREFIX}/bin"}
-  WASM_SYSROOT=${WASM_SYSROOT:-"${WASM_PREFIX}/share/sysroot"}
-  WASM_TARGET=${WASM_TARGET:-"wasm32-wasi"}
-  WASM_BIN_PREFIX=${WASM_BIN_PREFIX:-"$WASM_TARGET"}
-  WASM_TOOLS=(ar dwarfdump nm ranlib size)
+	echo "Setting up for wasi-sdk"
+	WASM_PREFIX=${WASM_PREFIX:-${WASM_SDK:-"/opt/wasi-sdk"}}
+	WASM_BIN=${WASM_BIN:-"${WASM_PREFIX}/bin"}
+	WASM_SYSROOT=${WASM_SYSROOT:-"${WASM_PREFIX}/share/sysroot"}
+	WASM_TARGET=${WASM_TARGET:-"wasm32-wasi"}
+	WASM_BIN_PREFIX=${WASM_BIN_PREFIX:-"$WASM_TARGET"}
+	WASM_TOOLS=(ar dwarfdump nm ranlib size)
 fi
 $DRY_RUN && echo WASM_PREFIX: "$WASM_PREFIX"
 $DRY_RUN && echo WASM_BIN: "$WASM_BIN"
@@ -117,27 +117,27 @@ $DRY_RUN_PREFIX ln -sfv "${SYS_COMPILER_REL_DIR}/${COMPILER_EXECUTABLE}" "${SYS_
 # For example, when wasmception is set, calling `wasm32-unknown-unknown-wasm-clang` results in
 # `exec "/sledge/awsm/wasmception/dist/bin/clang" --target="wasm32-unknown-unknown-wasm" --sysroot="/sledge/awsm/wasmception/sysroot" "$@"`
 for file in clang clang++; do
-  wrapper_file="$(mktemp)"
-  cat >"$wrapper_file" <<EOT
+	wrapper_file="$(mktemp)"
+	cat > "$wrapper_file" << EOT
 #! /bin/sh
 
 exec "${WASM_BIN}/${file}" --target="$WASM_TARGET" --sysroot="$WASM_SYSROOT" "\$@"
 EOT
-  cat "$wrapper_file"
-  $DRY_RUN_PREFIX install -p -v "$wrapper_file" "${SYS_BIN_DIR}/${WASM_BIN_PREFIX}-${file}"
-  $DRY_RUN && echo rm -f "$wrapper_file"
-  rm -f "$wrapper_file"
+	cat "$wrapper_file"
+	$DRY_RUN_PREFIX install -p -v "$wrapper_file" "${SYS_BIN_DIR}/${WASM_BIN_PREFIX}-${file}"
+	$DRY_RUN && echo rm -f "$wrapper_file"
+	rm -f "$wrapper_file"
 done
 
 # Link the LLVM Tools with the proper prefix
 for file in "${WASM_TOOLS[@]}"; do
-  $DRY_RUN_PREFIX ln -sfv "${WASM_BIN}/llvm-${file}" "${SYS_BIN_DIR}/${WASM_BIN_PREFIX}-${file}"
+	$DRY_RUN_PREFIX ln -sfv "${WASM_BIN}/llvm-${file}" "${SYS_BIN_DIR}/${WASM_BIN_PREFIX}-${file}"
 done
 
 # Link any other tools with the proper prefix
 OTHER_TOOLS=(ld)
 for file in "${OTHER_TOOLS[@]}"; do
-  $DRY_RUN_PREFIX ln -sfv "${WASM_BIN}/wasm-${file}" "${SYS_BIN_DIR}/${WASM_BIN_PREFIX}-${file}"
+	$DRY_RUN_PREFIX ln -sfv "${WASM_BIN}/wasm-${file}" "${SYS_BIN_DIR}/${WASM_BIN_PREFIX}-${file}"
 done
 
 # Link clang as gcc if needed

@@ -10,14 +10,14 @@ binary_directory=$(cd "$project_directory"/bin && pwd)
 
 # Copy License Plate Image if not here
 if [[ ! -f "./samples/goforward.raw" ]]; then
-  cp ../../../tests/speechtotext/goforward.raw ./samples/goforward.raw
+	cp ../../../tests/speechtotext/goforward.raw ./samples/goforward.raw
 fi
 
 if [ "$1" != "-d" ]; then
-  PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
-  sleep 1
+	PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
+	sleep 1
 else
-  echo "Running under gdb"
+	echo "Running under gdb"
 fi
 
 # expected_size="$(find expected_result.jpg -printf "%s")"
@@ -25,29 +25,29 @@ success_count=0
 total_count=50
 
 for ((i = 0; i < total_count; i++)); do
-  echo "$i"
-  # ext="$RANDOM"
-  curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@goforward.raw" localhost:10000 2>/dev/null
+	echo "$i"
+	# ext="$RANDOM"
+	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@goforward.raw" localhost:10000 2> /dev/null
 
-  # # echo "$result"
-  # if [[ "$expected_size" == "$actual_size" ]]; then
-  #   echo "SUCCESS $success_count"
-  # else
-  #   echo "FAIL"
-  #   echo "Expected Size:"
-  #   echo "$expected_size"
-  #   echo "==============================================="
-  #   echo "Actual Size:"
-  #   echo "$actual_size"
-  # fi
+	# # echo "$result"
+	# if [[ "$expected_size" == "$actual_size" ]]; then
+	#   echo "SUCCESS $success_count"
+	# else
+	#   echo "FAIL"
+	#   echo "Expected Size:"
+	#   echo "$expected_size"
+	#   echo "==============================================="
+	#   echo "Actual Size:"
+	#   echo "$actual_size"
+	# fi
 done
 
 echo "$success_count / $total_count"
 
 if [ "$1" != "-d" ]; then
-  sleep 5
-  echo -n "Running Cleanup: "
-  rm result_*.jpg
-  pkill sledgert >/dev/null 2>/dev/null
-  echo "[DONE]"
+	sleep 5
+	echo -n "Running Cleanup: "
+	rm result_*.jpg
+	pkill sledgert > /dev/null 2> /dev/null
+	echo "[DONE]"
 fi
