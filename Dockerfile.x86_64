@@ -9,24 +9,25 @@ RUN apt-get update
 # pkg-config, libtool - used by PocketSphinx
 # cmake - used by cmsis
 RUN apt-get install -y --no-install-recommends \
-  automake \
-  build-essential \
-  binutils-dev \
-  cmake \
-  git \
-  libtinfo5 \
-  libtool \
-  pkg-config
+	automake \
+	bsdmainutils \
+	build-essential \
+	binutils-dev \
+	cmake \
+	git \
+	libtinfo5 \
+	libtool \
+	pkg-config
 
 # Needed to install from http endpoints via curl or wget
 RUN apt-get install -y --no-install-recommends \
-  curl \
-  ca-certificates \
-  libssl-dev \
-  lsb-release \
-  gpg-agent \
-  software-properties-common \
-  wget
+	curl \
+	ca-certificates \
+	libssl-dev \
+	lsb-release \
+	gpg-agent \
+	software-properties-common \
+	wget
 
 # LLVM Tools
 ENV LLVM_VERSION=8
@@ -44,20 +45,24 @@ ENV WASI_SDK=/opt/wasi-sdk
 
 # Test Script Stuff
 RUN apt-get install -y --no-install-recommends \
-  fonts-dejavu \
-  fonts-cascadia-code \
-  fonts-roboto \
-  imagemagick \
-  netpbm \
-  pango1.0-tools \
-  wamerican
+	fonts-dejavu \
+	fonts-cascadia-code \
+	fonts-roboto \
+	imagemagick \
+	netpbm \
+	pango1.0-tools \
+	wamerican
+
+# Hey is a load generator we have to recklessly download from the 'net, as it is only published to brew
+# See https://github.com/rakyll/hey
+RUN wget https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64 && mv hey_linux_amd64 hey && chmod +x hey && mv hey /usr/bin/hey
 
 # Interactive Tools
 RUN apt-get install -y --no-install-recommends \
-  less \
-  gdb \
-  strace \
-  vim
+	less \
+	gdb \
+	strace \
+	vim
 
 # We need to set the locale for pango-view
 ENV LANG C.UTF-8
@@ -76,7 +81,7 @@ ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # # Create the user and add to sudoers
 # RUN groupadd --gid $USER_GID $USERNAME
-# RUN useradd --uid $USER_UID --gid $USER_GID -m $USERNAME 
+# RUN useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
 # RUN apt-get update && apt-get install -y sudo
 # RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
 # RUN chmod 0440 /etc/sudoers.d/$USERNAME
