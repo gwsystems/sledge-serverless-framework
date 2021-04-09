@@ -363,7 +363,7 @@ main(int argc, char **argv)
 #ifdef LOG_MODULE_LOADING
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 #endif
-	if (module_new_from_json(argv[1])) panic("failed to parse modules file[%s]\n", argv[1]);
+	if (module_new_from_json(argv[1])) panic("failed to initialize module(s) defined in %s\n", argv[1]);
 
 	runtime_start_runtime_worker_threads();
 	listener_thread_initialize();
