@@ -2,13 +2,14 @@
 FROM ubuntu:focal
 
 ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update
+ARG HEY_URL=https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64
+ARG WASI_SDK_URL=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb
+ARG WASMCEPTION_URL=https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
 
 # General GCC C/C++ Build toolchain
 # pkg-config, libtool - used by PocketSphinx
 # cmake - used by cmsis
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
 	automake \
 	build-essential \
 	binutils-dev \
@@ -19,7 +20,7 @@ RUN apt-get install -y --no-install-recommends \
 	pkg-config
 
 # Needed to install from http endpoints via curl or wget
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
 	curl \
 	ca-certificates \
 	libssl-dev \
@@ -28,22 +29,8 @@ RUN apt-get install -y --no-install-recommends \
 	software-properties-common \
 	wget
 
-# LLVM Tools
-ENV LLVM_VERSION=8
-ADD install_llvm.sh /sledge/install_llvm.sh
-RUN ./sledge/install_llvm.sh $LLVM_VERSION
-
-# Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
-ENV PATH=/root/.cargo/bin:$PATH
-RUN cargo install --debug cargo-audit cargo-watch rsign2
-
-# WASI-SDK
-RUN curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
-ENV WASI_SDK=/opt/wasi-sdk
-
 # Test Script Stuff
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
 	fonts-dejavu \
 	fonts-cascadia-code \
 	fonts-roboto \
@@ -53,11 +40,12 @@ RUN apt-get install -y --no-install-recommends \
 	wamerican
 
 # Hey is a load generator we have to recklessly download from the 'net, as it is only published to brew
+# Binaries are only provided for AMD64 though, so ARM will have to build from source
 # See https://github.com/rakyll/hey
-RUN wget https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64 && mv hey_linux_amd64 hey && chmod +x hey && mv hey /usr/bin/hey
+RUN wget $HEY_URL -O hey && chmod +x hey && mv hey /usr/bin/hey
 
 # Interactive Tools
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
 	bc \
 	bsdmainutils \
 	less \
@@ -65,30 +53,58 @@ RUN apt-get install -y --no-install-recommends \
 	strace \
 	vim
 
+ENV LLVM_VERSION=8
+ADD install_llvm.sh /sledge/install_llvm.sh
+RUN ./sledge/install_llvm.sh $LLVM_VERSION
+
+# Wasmception
+RUN wget $WASMCEPTION_URL -O wasmception.tar.gz
+RUN mkdir -p /sledge/awsm/wasmception
+RUN tar xvfz wasmception.tar.gz -C /sledge/awsm/wasmception
+
+# WASI-SDK
+# TODO: Refactor to output as an arch-neutral filename
+# RUN curl -sS -L -O $WASI_SDK_URL && dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
+# ENV WASI_SDK=/opt/wasi-sdk
+
+# Create non-root user and add to sudoers
+ARG USERNAME=dev
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+RUN groupadd --gid $USER_GID $USERNAME
+RUN useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
+RUN apt-get update && apt-get install -y sudo
+RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME
+RUN chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Make non-root user default user and use for rest of Dockerfile
+USER $USER_UID
+
+# Make sure the mount point and installation target and any files therein are owned by the non-root user
+RUN sudo chown $USER_GID:$USER_GID /sledge
+ADD fix_root.sh /sledge/fix_root.sh
+RUN cd sledge && ./fix_root.sh
+RUN sudo mkdir /opt/sledge
+RUN sudo chown $USER_GID:$USER_GID /opt/sledge
+
+################################
+# Final Setup as non-root user #
+################################
+
+# Rust
+# Rustup does not cleanly support system installs, so install as non-root user
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
+ENV PATH=/home/dev/.cargo/bin:$PATH
+RUN cargo install --debug cargo-audit cargo-watch rsign2
+
 # We need to set the locale for pango-view
 ENV LANG C.UTF-8
 ENV LANGUAGE C.UTF-8
 ENV LC_ALL C.UTF-8
 
+# Update PATH and LD_LIBRARY_PATH
 ENV PATH=/opt/sledge/bin:$PATH
-ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
-# WIP: Try to use a non-root user
-# # RUN rm /bin/sh && ln -s /bin/bash /bin/sh
-
-# ARG USERNAME=dev
-# ARG USER_UID=1000
-# ARG USER_GID=$USER_UID
-
-# # Create the user and add to sudoers
-# RUN groupadd --gid $USER_GID $USERNAME
-# RUN useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
-# RUN apt-get update && apt-get install -y sudo
-# RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-# RUN chmod 0440 /etc/sudoers.d/$USERNAME
-
-# # ********************************************************
-# # * Anything else you want to do like clean up goes here *
-# # ********************************************************
-
-# # [Optional] Set the default user. Omit if you want to keep the default as root.
+# TODO: Does the build process for the sample applications actually copy here?
+# TODO: Should we create a special SLEDGE_MODULE_PATH that is searched for these modules?
+ENV LD_LIBRARY_PATH=/opt/sledge/bin:LD_LIBRARY_PATH
