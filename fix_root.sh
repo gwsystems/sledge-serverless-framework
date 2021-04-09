@@ -6,6 +6,11 @@ if [[ $(whoami) == "root" ]]; then
 	exit 1
 fi
 
+if [[ $(pwd) == "/" ]]; then
+	echo "Should not be run from root directory"
+	exit 1
+fi
+
 # Uses your host username and its primary associated group
 username="$(whoami)"
 group="$(id -g -n "$username")"
@@ -13,4 +18,4 @@ group="$(id -g -n "$username")"
 while read -r file; do
 	echo sudo chown "$username":"$group" "$file"
 	sudo chown "$username":"$group" "$file"
-done < <(find ~+ -type f -user root)
+done < <(find ~+ -type f,d -user root)
