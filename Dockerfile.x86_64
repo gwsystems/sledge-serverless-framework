@@ -10,7 +10,6 @@ RUN apt-get update
 # cmake - used by cmsis
 RUN apt-get install -y --no-install-recommends \
 	automake \
-	bsdmainutils \
 	build-essential \
 	binutils-dev \
 	cmake \
@@ -59,6 +58,8 @@ RUN wget https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64 && mv he
 
 # Interactive Tools
 RUN apt-get install -y --no-install-recommends \
+	bc \
+	bsdmainutils \
 	less \
 	gdb \
 	strace \
