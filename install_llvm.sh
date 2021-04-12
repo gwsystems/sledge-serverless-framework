@@ -22,11 +22,18 @@ apt-get install -y --no-install-recommends \
 	"libc++abi-$LLVM_VERSION-dev" \
 	"libc++1-$LLVM_VERSION"
 
-# Explicitly use clang-format-11 because of changes between 10 and 11
-apt-get install -y --no-install-recommends \
-	"clang-format-11"
-
 update-alternatives --install /usr/bin/clang clang "/usr/bin/clang-$LLVM_VERSION" 100
 update-alternatives --install /usr/bin/clang++ clang++ "/usr/bin/clang++-$LLVM_VERSION" 100
 update-alternatives --install /usr/bin/llvm-config llvm-config "/usr/bin/llvm-config-$LLVM_VERSION" 100
-update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-11" 100
+update-alternatives --install /usr/bin/llvm-objdump llvm-objdump "/usr/bin/llvm-objdump-$LLVM_VERSION" 100
+
+# Explicitly use at least clang-format-11 to format source because of changes between 10 and 11
+if [[ "$LLVM_VERSION" -ge 11 ]]; then
+	apt-get install -y --no-install-recommends \
+		"clang-format-$LLVM_VERSION"
+	update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-$LLVM_VERSION" 100
+else
+	apt-get install -y --no-install-recommends \
+		"clang-format-11"
+	update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-11" 100
+fi
