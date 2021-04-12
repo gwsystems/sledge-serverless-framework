@@ -1,6 +1,10 @@
 #!/bin/bash
 
 log_environment() {
+	if ! command -v git &> /dev/null; then
+		echo "git could not be found"
+		exit
+	fi
 	echo "*******"
 	echo "* Git *"
 	echo "*******"
@@ -39,6 +43,20 @@ kill_runtime() {
 }
 
 generate_gnuplots() {
+	if ! command -v gnuplot &> /dev/null; then
+		echo "gnuplot could not be found"
+		exit
+	fi
+	# shellcheck disable=SC2154
+	if [ -z "$results_directory" ]; then
+		echo "results_directory is unset or empty"
+		exit
+	fi
+	# shellcheck disable=SC2154
+	if [ -z "$experiment_directory" ]; then
+		echo "experiment_directory is unset or empty"
+		exit
+	fi
 	cd "$results_directory" || exit
 	gnuplot ../../latency.gnuplot
 	gnuplot ../../success.gnuplot

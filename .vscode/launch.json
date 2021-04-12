@@ -5,11 +5,35 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch",
+            "name": "Hyde",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/runtime/bin/sledgert",
-            "args": ["${workspaceFolder}/runtime/experiments/applications/ocr/hyde/spec.json"],
+            "args": [
+                "${workspaceFolder}/runtime/experiments/applications/ocr/hyde/spec.json"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "envFile": "${workspaceFolder}/.env",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Preemption",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/runtime/bin/sledgert",
+            "args": [
+                "${workspaceFolder}/runtime/experiments/preemption/spec.json"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

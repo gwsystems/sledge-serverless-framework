@@ -150,38 +150,42 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	/* Load the dynamic library *.so file with lazy function call binding and deep binding */
 	module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
 	if (module->dynamic_library_handle == NULL) {
-		fprintf(stderr, "Failed to open dynamic library at %s: %s\n", path, dlerror());
+		fprintf(stderr, "Failed to open %s with error: %s\n", path, dlerror());
 		goto dl_open_error;
 	};
 
 	/* Resolve the symbols in the dynamic library *.so file */
 	module->main = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MODULE_MAIN);
 	if (module->main == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_MAIN, dlerror());
+		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_MAIN, path, dlerror());
 		goto dl_error;
 	}
 
 	module->initialize_globals = (mod_glb_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_GLOBALS);
 	if (module->initialize_globals == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_GLOBALS, dlerror());
+		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_GLOBALS, path,
+		        dlerror());
 		goto dl_error;
 	}
 
 	module->initialize_memory = (mod_mem_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_MEMORY);
 	if (module->initialize_memory == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_MEMORY, dlerror());
+		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_MEMORY, path,
+		        dlerror());
 		goto dl_error;
 	};
 
 	module->initialize_tables = (mod_tbl_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_TABLE);
 	if (module->initialize_tables == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_TABLE, dlerror());
+		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_TABLE, path,
+		        dlerror());
 		goto dl_error;
 	};
 
 	module->initialize_libc = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_LIBC);
 	if (module->initialize_libc == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s: %s\n", MODULE_INITIALIZE_LIBC, dlerror());
+		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_LIBC, path,
+		        dlerror());
 		goto dl_error;
 	}
 

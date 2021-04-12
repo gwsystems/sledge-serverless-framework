@@ -1,8 +1,18 @@
 #!/bin/bash
-source ../common.sh
 
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
 # Use -d flag if running under gdb
+
+source ../common.sh
+
+# Validate dependencies
+declare -a -r dependencies=(awk hey wc)
+for dependency in "${dependencies[@]}"; do
+	if ! command -v "$dependency" &> /dev/null; then
+		echo "$dependency could not be found"
+		exit
+	fi
+done
 
 timestamp=$(date +%s)
 experiment_directory=$(pwd)
@@ -73,9 +83,9 @@ for scheduler in ${schedulers[*]}; do
 
 		# Calculate Success Rate for csv
 		awk -F, '
-      $7 == 200 && ($1 * 1000) <= '"$deadline"' {ok++}
-      END{printf "'"$payload"',%3.5f%\n", (ok / (NR - 1) * 100)}
-    ' < "$results_directory/$payload.csv" >> "$results_directory/success.csv"
+			$7 == 200 && ($1 * 1000) <= '"$deadline"' {ok++}
+			END{printf "'"$payload"',%3.5f\n", (ok / (NR - 1) * 100)}
+		' < "$results_directory/$payload.csv" >> "$results_directory/success.csv"
 
 		# Filter on 200s, convery from s to ms, and sort
 		awk -F, '$7 == 200 {print ($1 * 1000)}' < "$results_directory/$payload.csv" \
@@ -92,19 +102,19 @@ for scheduler in ${schedulers[*]}; do
 
 		# Generate Latency Data for csv
 		awk '
-      BEGIN {
-        sum = 0
-        p50 = int('"$oks"' * 0.5)
-        p90 = int('"$oks"' * 0.9)
-        p99 = int('"$oks"' * 0.99)
-        p100 = '"$oks"'
-        printf "'"$payload"',"
-      }
-      NR==p50  {printf "%1.4f,",  $0}
-      NR==p90  {printf "%1.4f,",  $0}
-      NR==p99  {printf "%1.4f,",  $0}
-      NR==p100 {printf "%1.4f\n", $0}
-    ' < "$results_directory/$payload-response.csv" >> "$results_directory/latency.csv"
+			BEGIN {
+				sum = 0
+				p50 = int('"$oks"' * 0.5)
+				p90 = int('"$oks"' * 0.9)
+				p99 = int('"$oks"' * 0.99)
+				p100 = '"$oks"'
+				printf "'"$payload"',"
+			}
+			NR==p50  {printf "%1.4f,",  $0}
+			NR==p90  {printf "%1.4f,",  $0}
+			NR==p99  {printf "%1.4f,",  $0}
+			NR==p100 {printf "%1.4f\n", $0}
+		' < "$results_directory/$payload-response.csv" >> "$results_directory/latency.csv"
 
 		# Delete scratch file used for sorting/counting
 		# rm -rf "$results_directory/$payload-response.csv"

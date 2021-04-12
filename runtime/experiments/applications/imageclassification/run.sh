@@ -21,7 +21,7 @@ else
 	echo "Running under gdb"
 fi
 
-# expected_size="$(find expected_result.jpg -printf "%s")"
+expected_size="$(find expected_result.jpg -printf "%s")"
 success_count=0
 total_count=50
 

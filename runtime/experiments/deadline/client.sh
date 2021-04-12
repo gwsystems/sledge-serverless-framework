@@ -7,7 +7,6 @@ source ../common.sh
 host=localhost
 timestamp=$(date +%s)
 experiment_directory=$(pwd)
-binary_directory=$(cd ../../bin && pwd)
 
 results_directory="$experiment_directory/res/$timestamp"
 log=log.txt
@@ -31,9 +30,9 @@ echo "Running Experiments"
 
 # Run lower priority first, then higher priority. The lower priority has offsets to ensure it runs the entire time the high priority is trying to run
 hey -n 1000 -c 1000 -cpus 6 -t 0 -o csv -m GET -d "40\n" http://${host}:10040 > "$results_directory/fib40-con.csv"
-# sleep $offset
-# hey -n 25000 -c 1000000 -t 0 -o csv -m GET -d "10\n" http://${host}:10010 >"$results_directory/fib10-con.csv" &
-# sleep $((duration_sec + offset + 45))
+sleep $offset
+hey -n 25000 -c 1000000 -t 0 -o csv -m GET -d "10\n" http://${host}:10010 > "$results_directory/fib10-con.csv" &
+sleep $((duration_sec + offset + 45))
 
 # Generate *.csv and *.dat results
 echo -n "Parsing Results: "
@@ -57,8 +56,8 @@ for ((i = 1; i < 2; i++)); do
 
 	# Calculate Success Rate for csv
 	awk -F, '
-      $7 == 200 && ($1 * 1000) <= '"$deadline"' {ok++}
-      END{printf "'"$payload"',%3.5f%\n", (ok / (NR - 1) * 100)}
+		$7 == 200 && ($1 * 1000) <= '"$deadline"' {ok++}
+		END{printf "'"$payload"',%3.5f%\n", (ok / (NR - 1) * 100)}
     ' < "$results_directory/$payload.csv" >> "$results_directory/success.csv"
 
 	# Filter on 200s, convery from s to ms, and sort
@@ -75,18 +74,18 @@ for ((i = 1; i < 2; i++)); do
 
 	# Generate Latency Data for csv
 	awk '
-      BEGIN {
-        sum = 0
-        p50 = int('"$oks"' * 0.5)
-        p90 = int('"$oks"' * 0.9)
-        p99 = int('"$oks"' * 0.99)  
-        p100 = '"$oks"'
-        printf "'"$payload"',"
-      }
-      NR==p50  {printf "%1.4f,",  $0}
-      NR==p90  {printf "%1.4f,",  $0}
-      NR==p99  {printf "%1.4f,",  $0}
-      NR==p100 {printf "%1.4f\n", $0}
+		BEGIN {
+			sum = 0
+			p50 = int('"$oks"' * 0.5)
+			p90 = int('"$oks"' * 0.9)
+			p99 = int('"$oks"' * 0.99)  
+			p100 = '"$oks"'
+			printf "'"$payload"',"
+		}
+		NR==p50  {printf "%1.4f,",  $0}
+		NR==p90  {printf "%1.4f,",  $0}
+		NR==p99  {printf "%1.4f,",  $0}
+		NR==p100 {printf "%1.4f\n", $0}
     ' < "$results_directory/$payload-response.csv" >> "$results_directory/latency.csv"
 
 	# Delete scratch file used for sorting/counting

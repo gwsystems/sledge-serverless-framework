@@ -27,8 +27,8 @@ for ((i = 0; i < 2; i++)); do
 
 	# Calculate Success Rate for csv
 	awk -F, '
-      $7 == 200 && ($1 * 1000) <= '"$deadline"' {ok++}
-      END{printf "'"$payload"',%3.5f%\n", (ok / (NR - 1) * 100)}
+		$7 == 200 && ($1 * 1000) <= '"$deadline"' {ok++}
+		END{printf "'"$payload"',%3.5f%\n", (ok / (NR - 1) * 100)}
     ' < "$results_directory/$payload.csv" >> "$results_directory/success.csv"
 
 	# Filter on 200s, convery from s to ms, and sort
@@ -46,18 +46,18 @@ for ((i = 0; i < 2; i++)); do
 
 	# Generate Latency Data for csv
 	awk '
-      BEGIN {
-        sum = 0
-        p50 = int('"$oks"' * 0.5)
-        p90 = int('"$oks"' * 0.9)
-        p99 = int('"$oks"' * 0.99)  
-        p100 = '"$oks"'
-        printf "'"$payload"',"
-      }
-      NR==p50  {printf "%1.4f,",  $0}
-      NR==p90  {printf "%1.4f,",  $0}
-      NR==p99  {printf "%1.4f,",  $0}
-      NR==p100 {printf "%1.4f\n", $0}
+		BEGIN {
+			sum = 0
+			p50 = int('"$oks"' * 0.5)
+			p90 = int('"$oks"' * 0.9)
+			p99 = int('"$oks"' * 0.99)  
+			p100 = '"$oks"'
+			printf "'"$payload"',"
+		}
+		NR==p50  {printf "%1.4f,",  $0}
+		NR==p90  {printf "%1.4f,",  $0}
+		NR==p99  {printf "%1.4f,",  $0}
+		NR==p100 {printf "%1.4f\n", $0}
     ' < "$results_directory/$payload-response.csv" >> "$results_directory/latency.csv"
 
 	# Delete scratch file used for sorting/counting
