@@ -61,9 +61,9 @@ for payload in ${payloads[*]}; do
 	# Calculate Success Rate for csv
 	file=$(echo "$payload" | awk -F/ '{print $2}')
 	awk -F, '
-    $7 == 200 {ok++}
-    END{printf "'"$file"',%3.5f\n", (ok / '"$iterations"' * 100)}
-  ' < "$results_directory/$file.csv" >> "$results_directory/success.csv"
+		$7 == 200 {ok++}
+		END{printf "'"$file"',%3.5f\n", (ok / '"$iterations"' * 100)}
+	' < "$results_directory/$file.csv" >> "$results_directory/success.csv"
 
 	# Filter on 200s, convery from s to ms, and sort
 	awk -F, '$7 == 200 {print ($1 * 1000)}' < "$results_directory/$file.csv" \
@@ -80,19 +80,19 @@ for payload in ${payloads[*]}; do
 
 	# Generate Latency Data for csv
 	awk '
-    BEGIN {
-      sum = 0
-      p50 = int('"$oks"' * 0.5)
-      p90 = int('"$oks"' * 0.9)
-      p99 = int('"$oks"' * 0.99)
-      p100 = '"$oks"'
-      printf "'"$file"',"
-    }   
-    NR==p50 {printf "%1.4f,", $0}
-    NR==p90 {printf "%1.4f,", $0}
-    NR==p99 {printf "%1.4f,", $0}
-    NR==p100 {printf "%1.4f\n", $0}
-  ' < "$results_directory/$file-response.csv" >> "$results_directory/latency.csv"
+		BEGIN {
+			sum = 0
+			p50 = int('"$oks"' * 0.5)
+			p90 = int('"$oks"' * 0.9)
+			p99 = int('"$oks"' * 0.99)
+			p100 = '"$oks"'
+			printf "'"$file"',"
+		}
+		NR==p50 {printf "%1.4f,", $0}
+		NR==p90 {printf "%1.4f,", $0}
+		NR==p99 {printf "%1.4f,", $0}
+		NR==p100 {printf "%1.4f\n", $0}
+	' < "$results_directory/$file-response.csv" >> "$results_directory/latency.csv"
 
 	# Delete scratch file used for sorting/counting
 	rm -rf "$results_directory/$file-response.csv"

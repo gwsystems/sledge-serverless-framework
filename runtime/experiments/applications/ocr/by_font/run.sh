@@ -29,25 +29,25 @@ for ((i = 1; i <= total_count; i++)); do
 		# For whatever reason, templating in multiple word strips was a pain, so brute forcing
 		case "$font" in
 			"DejaVu Sans Mono")
-				echo   "DejaVu Sans Mono"
-				pango-view   --font="DejaVu Sans Mono" -qo mono_words.png -t "$words" || exit 1
-				pngtopnm   mono_words.png > mono_words.pnm || exit 1
-				result=$(  curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @mono_words.pnm localhost:10000 2> /dev/null)
-				diff   -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
+				echo "DejaVu Sans Mono"
+				pango-view --font="DejaVu Sans Mono" -qo mono_words.png -t "$words" || exit 1
+				pngtopnm mono_words.png > mono_words.pnm || exit 1
+				result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @mono_words.pnm localhost:10000 2> /dev/null)
+				diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
 				;;
 			"Roboto")
-				echo   "Roboto"
-				pango-view   --font="Roboto" -qo Roboto_words.png -t "$words" || exit 1
-				pngtopnm   Roboto_words.png > Roboto_words.pnm || exit 1
-				result=$(  curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @Roboto_words.pnm localhost:10002 2> /dev/null)
-				diff   -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
+				echo "Roboto"
+				pango-view --font="Roboto" -qo Roboto_words.png -t "$words" || exit 1
+				pngtopnm Roboto_words.png > Roboto_words.pnm || exit 1
+				result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @Roboto_words.pnm localhost:10002 2> /dev/null)
+				diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
 				;;
 			"Cascadia Code")
-				echo   "Cascadia Code"
-				pango-view   --font="Cascadia Code" -qo Cascadia_Code_words.png -t "$words" || exit 1
-				pngtopnm   Cascadia_Code_words.png > Cascadia_Code_words.pnm || exit 1
-				result=$(  curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @Cascadia_Code_words.pnm localhost:10001 2> /dev/null)
-				diff   -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
+				echo "Cascadia Code"
+				pango-view --font="Cascadia Code" -qo Cascadia_Code_words.png -t "$words" || exit 1
+				pngtopnm Cascadia_Code_words.png > Cascadia_Code_words.pnm || exit 1
+				result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @Cascadia_Code_words.pnm localhost:10001 2> /dev/null)
+				diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
 				;;
 		esac
 		echo "==============================================="

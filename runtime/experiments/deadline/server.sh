@@ -1,7 +1,5 @@
 #!/bin/bash
-source ../common.sh
 
-timestamp=$(date +%s)
 experiment_directory=$(pwd)
 binary_directory=$(cd ../../bin && pwd)
 

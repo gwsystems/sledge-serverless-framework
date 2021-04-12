@@ -33,7 +33,7 @@ for ((i = 0; i < total_count; i++)); do
 
 	for dpi in "${dpis[@]}"; do
 		echo "${dpi}"_dpi.pnm
-		pango-view --dpi=$dpi --font=mono -qo "${dpi}"_dpi.png -t "$words"
+		pango-view --dpi="$dpi" --font=mono -qo "${dpi}"_dpi.png -t "$words"
 		pngtopnm "${dpi}"_dpi.png > "${dpi}"_dpi.pnm
 
 		result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"${dpi}"_dpi.pnm localhost:${dpi_to_port[$dpi]} 2> /dev/null)
