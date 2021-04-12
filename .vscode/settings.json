@@ -71,5 +71,11 @@
     "**/.vscode": true
   },
 
-  "shellformat.flag": "-ln=bash -i 0 -bn -ci -sr -kp"
+  "shellformat.flag": "-ln=bash -i 0 -bn -ci -sr -kp",
+  "terminal.integrated.profiles.linux": {
+    "bash": {
+      "path": "bash"
+    }
+  },
+  "terminal.integrated.shell.linux": "bash"
 }
