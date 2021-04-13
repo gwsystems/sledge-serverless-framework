@@ -57,7 +57,7 @@ for ((i = 1; i < 2; i++)); do
 	# Calculate Success Rate for csv
 	awk -F, '
 		$7 == 200 && ($1 * 1000) <= '"$deadline"' {ok++}
-		END{printf "'"$payload"',%3.5f%\n", (ok / (NR - 1) * 100)}
+		END{printf "'"$payload"',%3.5f\n", (ok / (NR - 1) * 100)}
     ' < "$results_directory/$payload.csv" >> "$results_directory/success.csv"
 
 	# Filter on 200s, convery from s to ms, and sort
