@@ -2,16 +2,24 @@
 source ../common.sh
 
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
+# Success - The percentage of requests that complete by their deadlines
+# 	TODO: Does this handle non-200s?
+# Throughput - The mean number of successful requests per second
+# Latency - the rount-trip resonse time (unit?) of successful requests at the p50, p90, p99, and p100 percetiles
+
 # Use -d flag if running under gdb
-# TODO: GDB? Debug?
+# TODO: Just use ENV for policy and other runtime dynamic variables?
 usage() {
 	echo "$0 [options...]"
 	echo ""
 	echo "Options:"
 	echo "  -t,--target=<target url> Execute as client against remote URL"
 	echo "  -s,--serve=<EDF|FIFO>    Serve with scheduling policy, but do not run client"
+	echo "  -d,--debug=<EDF|FIFO>    Debug under GDB with scheduling policy, but do not run client"
+	echo "  -p,--perf=<EDF|FIFO>     Run under perf with scheduling policy, but do not run client"
 }
 
+# Declares application level global state
 initialize_globals() {
 	# timestamp is used to name the results directory for a particular test run
 	# shellcheck disable=SC2155
@@ -24,19 +32,27 @@ initialize_globals() {
 	declare -gr binary_directory=$(cd ../../bin && pwd)
 
 	# Scrape the perf window size from the source if possible
-	declare -gr perf_window_path="../../include/perf_window.h"
+	local -r perf_window_path="../../include/perf_window.h"
 	declare -gi perf_window_buffer_size
 	if ! perf_window_buffer_size=$(grep "#define PERF_WINDOW_BUFFER_SIZE" < "$perf_window_path" | cut -d\  -f3); then
 		echo "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../include/perf_window.h"
 		echo "Defaulting to 16"
 		declare -ir perf_window_buffer_size=16
 	fi
+	declare -gir perf_window_buffer_size
 
-	declare -gx target=""
-	declare -gx policy=""
-	declare -gx role="both"
+	# Globals used by parse_arguments
+	declare -g target=""
+	declare -g policy=""
+	declare -g role=""
+
+	# Configure environment variables
+	export PATH=$binary_directory:$PATH
+	export LD_LIBRARY_PATH=$binary_directory:$LD_LIBRARY_PATH
+	export SLEDGE_NWORKERS=5
 }
 
+# Parses arguments from the user and sets associates global state
 parse_arguments() {
 	for i in "$@"; do
 		case $i in
@@ -44,37 +60,73 @@ parse_arguments() {
 				if [[ "$role" == "server" ]]; then
 					echo "Cannot set target when server"
 					usage
-					exit 1
+					return 1
 				fi
 				role=client
 				target="${i#*=}"
-				shift # past argument=value
+				shift
 				;;
 			-s=* | --serve=*)
 				if [[ "$role" == "client" ]]; then
-					echo "Cannot serve with target is set"
+					echo "Cannot use -s,--serve with -t,--target"
 					usage
-					exit 1
+					return 1
 				fi
 				role=server
 				policy="${i#*=}"
 				if [[ ! $policy =~ ^(EDF|FIFO)$ ]]; then
 					echo "\"$policy\" is not a valid policy. EDF or FIFO allowed"
 					usage
-					exit 1
+					return 1
 				fi
-				shift # past argument=value
+				shift
+				;;
+			-d=* | --debug=*)
+				if [[ "$role" == "client" ]]; then
+					echo "Cannot use -d,--debug with -t,--target"
+					usage
+					return 1
+				fi
+				role=debug
+				policy="${i#*=}"
+				if [[ ! $policy =~ ^(EDF|FIFO)$ ]]; then
+					echo "\"$policy\" is not a valid policy. EDF or FIFO allowed"
+					usage
+					return 1
+				fi
+				shift
+				;;
+			-p=* | --perf=*)
+				if [[ "$role" == "perf" ]]; then
+					echo "Cannot use -p,--perf with -t,--target"
+					usage
+					return 1
+				fi
+				role=perf
+				policy="${i#*=}"
+				if [[ ! $policy =~ ^(EDF|FIFO)$ ]]; then
+					echo "\"$policy\" is not a valid policy. EDF or FIFO allowed"
+					usage
+					return 1
+				fi
+				shift
 				;;
 			-h | --help)
 				usage
+				exit 0
 				;;
 			*)
 				echo "$1 is a not a valid option"
 				usage
-				exit 1
+				return 1
 				;;
 		esac
 	done
+
+	# default to both if no arguments were passed
+	if [[ -z "$role" ]]; then
+		role="both"
+	fi
 
 	# Set globals as read only
 	declare -r target
@@ -82,15 +134,20 @@ parse_arguments() {
 	declare -r role
 }
 
+# Starts the Sledge Runtime
 start_runtime() {
+	printf "Starting Runtime: "
 	if (($# != 2)); then
-		echo "${FUNCNAME[0]} error: invalid number of arguments \"$1\""
+		printf "[ERR]\n"
+		error_msg "invalid number of arguments \"$1\""
 		return 1
 	elif ! [[ $1 =~ ^(EDF|FIFO)$ ]]; then
-		echo "${FUNCNAME[0]} error: expected EDF or FIFO was \"$1\""
+		printf "[ERR]\n"
+		error_msg "expected EDF or FIFO was \"$1\""
 		return 1
 	elif ! [[ -d "$2" ]]; then
-		echo "${FUNCNAME[0]} error: \"$2\" does not exist"
+		printf "[ERR]\n"
+		error_msg "directory \"$2\" does not exist"
 		return 1
 	fi
 
@@ -102,114 +159,132 @@ start_runtime() {
 
 	log_environment >> "$log"
 
-	SLEDGE_NWORKERS=5 SLEDGE_SCHEDULER=$scheduler PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" >> "$log" 2>> "$log" &
-	return $?
+	SLEDGE_SCHEDULER="$scheduler" \
+		sledgert "$experiment_directory/spec.json" >> "$log" 2>> "$log" &
+
+	printf "[OK]\n"
+	return 0
 }
 
-# Seed enough work to fill the perf window buffers
+# Sends requests until the per-module perf window buffers are full
+# This ensures that Sledge has accurate estimates of execution time
 run_samples() {
 	local hostname="${1:-localhost}"
 
 	echo -n "Running Samples: "
-	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" || {
-		echo "error"
+	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" 1> /dev/null 2> /dev/null || {
+		error_msg "fib40 samples failed"
 		return 1
 	}
 
-	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" || {
-		echo "error"
+	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" 1> /dev/null 2> /dev/null || {
+		error_msg "fib10 samples failed"
 		return 1
 	}
 
+	echo "[OK]"
 	return 0
 }
 
+# Execute the fib10 and fib40 experiments sequentially and concurrently
 # $1 (results_directory) - a directory where we will store our results
 # $2 (hostname="localhost") - an optional parameter that sets the hostname. Defaults to localhost
 run_experiments() {
 	if (($# < 1 || $# > 2)); then
-		echo "${FUNCNAME[0]} error: invalid number of arguments \"$1\""
-		exit
+		error_msg "invalid number of arguments \"$1\""
+		return 1
 	elif ! [[ -d "$1" ]]; then
-		echo "${FUNCNAME[0]} error: \"$2\" does not exist"
-		exit
-	elif (($# > 2)) && [[ ! $1 =~ ^(EDF|FIFO)$ ]]; then
-		echo "${FUNCNAME[0]} error: expected EDF or FIFO was \"$1\""
-		exit
+		error_msg "directory \"$1\" does not exist"
+		return 1
 	fi
 
 	local results_directory="$1"
 	local hostname="${2:-localhost}"
 
-	# The duration in seconds that the low priority task should run before the high priority task starts
-	local -ir offset=5
-
 	# The duration in seconds that we want the client to send requests
 	local -ir duration_sec=15
 
-	echo "Running Experiments"
+	# The duration in seconds that the low priority task should run before the high priority task starts
+	local -ir offset=5
+
+	printf "Running Experiments\n"
 
 	# Run each separately
-	echo "Running fib40"
-	hey -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" > "$results_directory/fib40.csv" || {
-		echo "error"
+	printf "\tfib40: "
+	hey -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "40\n" "http://$hostname:10040" > "$results_directory/fib40.csv" 2> /dev/null || {
+		printf "[ERR]\n"
+		error_msg "fib40 failed"
 		return 1
 	}
 	get_result_count "$results_directory/fib40.csv" || {
-		echo "fib40 unexpectedly has zero requests"
+		printf "[ERR]\n"
+		error_msg "fib40 unexpectedly has zero requests"
 		return 1
 	}
+	printf "[OK]\n"
 
-	echo "Running fib10"
-	hey -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:10010" > "$results_directory/fib10.csv" || {
-		echo "error"
+	printf "\tfib10: "
+	hey -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://$hostname:10010" > "$results_directory/fib10.csv" 2> /dev/null || {
+		printf "[ERR]\n"
+		error_msg "fib10 failed"
 		return 1
 	}
 	get_result_count "$results_directory/fib10.csv" || {
-		echo "fib10 unexpectedly has zero requests"
+		printf "[ERR]\n"
+		error_msg "fib10 unexpectedly has zero requests"
 		return 1
 	}
+	printf "[OK]\n"
 
 	# Run concurrently
 	# The lower priority has offsets to ensure it runs the entire time the high priority is trying to run
 	# This asynchronously trigger jobs and then wait on their pids
-	local -a pids=()
+	local fib40_con_PID
+	local fib10_con_PID
 
-	echo "Running fib40_con"
-	hey -z $((duration_sec + 2 * offset))s -cpus 2 -c 100 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" > "$results_directory/fib40_con.csv" &
-	pids+=($!)
+	hey -z $((duration_sec + 2 * offset))s -cpus 2 -c 100 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" > "$results_directory/fib40_con.csv" 2> /dev/null &
+	fib40_con_PID="$!"
 
 	sleep $offset
 
-	echo "Running fib10_con"
-	hey -z "${duration_sec}s" -cpus 2 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:10010" > "$results_directory/fib10_con.csv" &
-	pids+=($!)
+	hey -z "${duration_sec}s" -cpus 2 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:10010" > "$results_directory/fib10_con.csv" 2> /dev/null &
+	fib10_con_PID="$!"
 
-	for ((i = 0; i < "${#pids[@]}"; i++)); do
-		wait -n "${pids[@]}" || {
-			echo "error"
-			return 1
-		}
-	done
-
-	get_result_count "$results_directory/fib40_con.csv" || {
-		echo "fib40_con unexpectedly has zero requests"
+	wait -f "$fib10_con_PID" || {
+		printf "\tfib10_con: [ERR]\n"
+		error_msg "failed to wait -f ${fib10_con_PID}"
 		return 1
 	}
 	get_result_count "$results_directory/fib10_con.csv" || {
-		echo "fib10_con has zero requests. This might be because fib40_con saturated the runtime"
+		printf "\tfib10_con: [ERR]\n"
+		error_msg "fib10_con has zero requests. This might be because fib40_con saturated the runtime"
+		return 1
 	}
+	printf "\tfib10_con: [OK]\n"
+
+	wait -f "$fib40_con_PID" || {
+		printf "\tfib40_con: [ERR]\n"
+		error_msg "failed to wait -f ${fib40_con_PID}"
+		return 1
+	}
+	get_result_count "$results_directory/fib40_con.csv" || {
+		printf "\tfib40_con: [ERR]\n"
+		error_msg "fib40_con has zero requests."
+		return 1
+	}
+	printf "\tfib40_con: [OK]\n"
 
 	return 0
 }
 
+# Process the experimental results and generate human-friendly results for success rate, throughput, and latency
 process_results() {
 	if (($# != 1)); then
-		echo "${FUNCNAME[0]} error: invalid number of arguments \"$1\""
-		exit
+		error_msg "invalid number of arguments ($#, expected 1)"
+		return 1
 	elif ! [[ -d "$1" ]]; then
-		echo "${FUNCNAME[0]} error: \"$1\" does not exist"
-		exit
+		error_msg "directory $1 does not exist"
+		return 1
 	fi
 
 	local -r results_directory="$1"
@@ -227,6 +302,7 @@ process_results() {
 	local -ar payloads=(fib10 fib10_con fib40 fib40_con)
 
 	# The deadlines for each of the workloads
+	# TODO: Scrape these from spec.json
 	local -Ar deadlines_ms=(
 		[fib10]=2
 		[fib40]=3000
@@ -257,8 +333,11 @@ process_results() {
 		oks=$(wc -l < "$results_directory/$payload-response.csv")
 		((oks == 0)) && continue # If all errors, skip line
 
-		# Get Latest Timestamp
+		# We determine duration by looking at the timestamp of the last complete request
+		# TODO: Should this instead just use the client-side synthetic duration_sec value?
 		duration=$(tail -n1 "$results_directory/$payload.csv" | cut -d, -f8)
+
+		# Throughput is calculated as the mean number of successful requests per second
 		throughput=$(echo "$oks/$duration" | bc)
 		printf "%s,%f\n" "$payload" "$throughput" >> "$results_directory/throughput.csv"
 
@@ -290,122 +369,177 @@ process_results() {
 }
 
 run_server() {
-	if (($# != 2)); then
-		echo "${FUNCNAME[0]} error: invalid number of arguments \"$1\""
-		exit
+	if (($# != 1)); then
+		error_msg "invalid number of arguments \"$1\""
+		return 1
 	elif ! [[ $1 =~ ^(EDF|FIFO)$ ]]; then
-		echo "${FUNCNAME[0]} error: expected EDF or FIFO was \"$1\""
-		exit
-	elif ! [[ -d "$2" ]]; then
-		echo "${FUNCNAME[0]} error: \"$2\" does not exist"
-		exit
+		error_msg "expected EDF or FIFO was \"$1\""
+		return 1
 	fi
 
 	local -r scheduler="$1"
-	local -r results_directory="$2"
 
-	start_runtime "$scheduler" "$log" || {
-		echo "${FUNCNAME[0]} error"
+	if [[ "$role" == "both" ]]; then
+		local results_directory="$experiment_directory/res/$timestamp/$scheduler"
+	elif [[ "$role" == "server" ]]; then
+		local results_directory="$experiment_directory/res/$timestamp"
+	else
+		error_msg "Unexpected $role"
+		return 1
+	fi
+
+	mkdir -p "$results_directory"
+
+	start_runtime "$scheduler" "$results_directory" || {
+		echo "start_runtime RC: $?"
+		error_msg "Error calling start_runtime $scheduler $results_directory"
 		return 1
 	}
+
+	return 0
+}
+
+run_perf() {
+	if (($# != 1)); then
+		printf "[ERR]\n"
+		error_msg "invalid number of arguments \"$1\""
+		return 1
+	elif ! [[ $1 =~ ^(EDF|FIFO)$ ]]; then
+		printf "[ERR]\n"
+		error_msg "expected EDF or FIFO was \"$1\""
+		return 1
+	fi
+
+	[[ ! -x perf ]] && {
+		echo "perf is not present"
+		exit 1
+	}
+
+	SLEDGE_SCHEDULER="$scheduler" perf record -g -s sledgert "$experiment_directory/spec.json"
+}
+
+# Starts the Sledge Runtime under GDB
+run_debug() {
+	# shellcheck disable=SC2155
+	local project_directory=$(cd ../.. && pwd)
+	if (($# != 1)); then
+		printf "[ERR]\n"
+		error_msg "invalid number of arguments \"$1\""
+		return 1
+	elif ! [[ $1 =~ ^(EDF|FIFO)$ ]]; then
+		printf "[ERR]\n"
+		error_msg "expected EDF or FIFO was \"$1\""
+		return 1
+	fi
+
+	local -r scheduler="$1"
+
+	if [[ "$project_directory" != "/sledge/runtime" ]]; then
+		printf "It appears that you are not running in the container. Substituting path to match host environment\n"
+		SLEDGE_SCHEDULER="$scheduler" gdb \
+			--eval-command="handle SIGUSR1 nostop" \
+			--eval-command="handle SIGPIPE nostop" \
+			--eval-command="set pagination off" \
+			--eval-command="set substitute-path /sledge/runtime $project_directory" \
+			--eval-command="run $experiment_directory/spec.json" \
+			sledgert
+	else
+		SLEDGE_SCHEDULER="$scheduler" gdb \
+			--eval-command="handle SIGUSR1 nostop" \
+			--eval-command="handle SIGPIPE nostop" \
+			--eval-command="set pagination off" \
+			--eval-command="run $experiment_directory/spec.json" \
+			sledgert
+	fi
+	return 0
 }
 
 run_client() {
-	results_directory="$experiment_directory/res/$timestamp"
+	if [[ "$role" == "both" ]]; then
+		local results_directory="$experiment_directory/res/$timestamp/$scheduler"
+	elif [[ "$role" == "client" ]]; then
+		local results_directory="$experiment_directory/res/$timestamp"
+	else
+		error_msg "${FUNCNAME[0]} Unexpected $role"
+		return 1
+	fi
+
 	mkdir -p "$results_directory"
 
 	run_samples "$target" || {
-		echo "${FUNCNAME[0]} error"
-		exit 1
+		error_msg "Error calling run_samples $target"
+		return 1
 	}
 
-	sleep 5
-
-	run_experiments "$target" || {
-		echo "${FUNCNAME[0]} error"
-		exit 1
+	run_experiments "$results_directory" || {
+		error_msg "Error calling run_experiments $results_directory"
+		return 1
 	}
-
-	sleep 1
 
 	process_results "$results_directory" || {
-		echo "${FUNCNAME[0]} error"
-		exit 1
+		error_msg "Error calling process_results $results_directory"
+		return 1
 	}
 
-	echo "[DONE]"
-	exit 0
-
+	echo "[OK]"
+	return 0
 }
 
 run_both() {
 	local -ar schedulers=(EDF FIFO)
 	for scheduler in "${schedulers[@]}"; do
-		results_directory="$experiment_directory/res/$timestamp/$scheduler"
-		mkdir -p "$results_directory"
-		start_runtime "$scheduler" "$results_directory" || {
-			echo "${FUNCNAME[0]} Error"
-			exit 1
+		printf "Running %s\n" "$scheduler"
+
+		run_server "$scheduler" || {
+			error_msg "Error calling run_server"
+			return 1
 		}
 
-		sleep 1
-
-		run_samples || {
-			echo "${FUNCNAME[0]} Error"
+		run_client || {
+			error_msg "Error calling run_client"
 			kill_runtime
-			exit 1
+			return 1
 		}
 
-		sleep 1
-
-		run_experiments "$results_directory" || {
-			echo "${FUNCNAME[0]} Error"
-			kill_runtime
-			exit 1
-		}
-
-		sleep 1
 		kill_runtime || {
-			echo "${FUNCNAME[0]} Error"
-			exit 1
+			error_msg "Error calling kill_runtime"
+			return 1
 		}
 
-		process_results "$results_directory" || {
-			echo "${FUNCNAME[0]} Error"
-			exit 1
-		}
-
-		echo "[DONE]"
-		exit 0
 	done
+
+	return 0
 }
 
 main() {
 	initialize_globals
-	parse_arguments "$@"
-
-	echo "$timestamp"
-
-	echo "Target: $target"
-	echo "Policy: $policy"
-	echo "Role: $role"
+	parse_arguments "$@" || {
+		exit 1
+	}
 
 	case $role in
 		both)
 			run_both
 			;;
 		server)
-			results_directory="$experiment_directory/res/$timestamp"
-			mkdir -p "$results_directory"
-			start_runtime "$target" "$results_directory"
-			exit 0
+			run_server "$policy"
 			;;
-		client) ;;
+		debug)
+			run_debug "$policy"
+			;;
+		perf)
+			run_perf "$policy"
+			;;
+		client)
+			run_client
+			;;
 		*)
 			echo "Invalid state"
-			exit 1
+			false
 			;;
 	esac
+
+	exit "$?"
 }
 
 main "$@"

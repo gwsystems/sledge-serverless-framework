@@ -1,9 +1,20 @@
 #!/bin/bash
 
-dump_bash_stack() {
+declare __common_did_dump_callstack=false
+
+error_msg() {
+	[[ "$__common_did_dump_callstack" == false ]] && {
+		printf "%.23s %s() in %s, line %s: %s\n" "$(date +%F.%T.%N)" "${FUNCNAME[1]}" "${BASH_SOURCE[1]##*/}" "${BASH_LINENO[0]}" "${@}"
+		__common_dump_callstack
+		__common_did_dump_callstack=true
+	}
+}
+
+__common_dump_callstack() {
 	echo "Call Stack:"
-	for func in "${FUNCNAME[@]}"; do
-		echo "$func"
+	# Skip the dump_bash_stack and error_msg_frames
+	for ((i = 2; i < ${#FUNCNAME[@]}; i++)); do
+		printf "\t%d - %s\n" "$((i - 2))" "${FUNCNAME[i]}"
 	done
 }
 
@@ -45,14 +56,17 @@ log_environment() {
 # Given a file, returns the number of results
 # This assumes a *.csv file with a header
 # $1 the file we want to check for results
-# $2 an optional return nameref. If not set, writes results to STDOUT
+# $2 an optional return nameref
 get_result_count() {
 	if (($# != 1)); then
-		echo "${FUNCNAME[0]} error: insufficient parameters"
-		dump_bash_stack
+		error_msg "insufficient parameters. $#/1"
+		return 1
 	elif [[ ! -f $1 ]]; then
-		echo "${FUNCNAME[0]} error: the file $1 does not exist"
-		dump_bash_stack
+		error_msg "the file $1 does not exist"
+		return 1
+	elif [[ ! -s $1 ]]; then
+		error_msg "the file $1 is size 0"
+		return 1
 	fi
 
 	local -r file=$1
@@ -61,10 +75,8 @@ get_result_count() {
 	local -i count=$(($(wc -l < "$file") - 1))
 
 	if (($# == 2)); then
+		# shellcheck disable=2034
 		local -n __result=$2
-		__result=count
-	else
-		echo "$count"
 	fi
 
 	if ((count > 0)); then
@@ -75,10 +87,10 @@ get_result_count() {
 }
 
 kill_runtime() {
-	echo -n "Killing Runtime: "
+	printf "Stopping Runtime: "
 	pkill sledgert > /dev/null 2> /dev/null
 	pkill hey > /dev/null 2> /dev/null
-	echo "[DONE]"
+	printf "[OK]\n"
 }
 
 generate_gnuplots() {
