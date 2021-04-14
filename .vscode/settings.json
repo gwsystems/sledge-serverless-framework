@@ -105,9 +105,7 @@
 		"**/runtime/thirdparty/jsmn/**": true,
 		"**/runtime/thirdparty/dist/**": true,
 		"*.o": true,
-		"**/res/**": true,
-		"**/concurrency/res/**/**": true,
-		"**/deadline/res/**/**": true,
-		"**/preemption/res/**/**": true,
+		"*.bc": true,
+		"*.wasm": true,
 	}
 }
