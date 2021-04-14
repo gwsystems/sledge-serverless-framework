@@ -20,16 +20,6 @@ _How does increasing levels of concurrent client requests affect tail latency, t
 - `hey` (https://github.com/rakyll/hey) is available in your PATH
 - You have compiled `sledgert` and the `empty.so` test workload
 
-## To Execute
-
-1. Run `./run.sh`
-2. View the results in the newest timestamped directory in `./res`
-
-## To Debug
-
-1. Run `./debug.sh` in a tab
-2. Run `./run.sh -d` in a second tab
-
 ## TODO
 
 - Harden scripts to validate assumptions
