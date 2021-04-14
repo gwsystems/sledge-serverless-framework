@@ -6,32 +6,32 @@ FROM ubuntu:bionic
 # install some basic packages
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
-  build-essential \
-  curl \
-  git \
-  cmake \
-  ca-certificates \
-  libssl-dev \
-  pkg-config \
-  gcc \
-  g++ \
-  clang-8 \
-  clang-tools-8 \
-  llvm-8 \
-  llvm-8-dev \
-  libc++-dev \
-  libc++abi-dev \
-  lld-8 \
-  lldb-8 \
-  libclang-8-dev \
-  libclang-common-8-dev \
-  vim \
-  binutils-dev \
-  build-essential \
-  automake \
-  libtool \
-  strace \
-  less
+	build-essential \
+	curl \
+	git \
+	cmake \
+	ca-certificates \
+	libssl-dev \
+	pkg-config \
+	gcc \
+	g++ \
+	clang-8 \
+	clang-tools-8 \
+	llvm-8 \
+	llvm-8-dev \
+	libc++-dev \
+	libc++abi-dev \
+	lld-8 \
+	lldb-8 \
+	libclang-8-dev \
+	libclang-common-8-dev \
+	vim \
+	binutils-dev \
+	build-essential \
+	automake \
+	libtool \
+	strace \
+	less
 RUN rm -rf /var/lib/apt/lists/*
 
 # set to use our installed clang version
