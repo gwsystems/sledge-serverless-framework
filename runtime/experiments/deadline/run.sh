@@ -16,7 +16,7 @@ usage() {
 	echo "  -t,--target=<target url> Execute as client against remote URL"
 	echo "  -s,--serve=<EDF|FIFO>    Serve with scheduling policy, but do not run client"
 	echo "  -d,--debug=<EDF|FIFO>    Debug under GDB with scheduling policy, but do not run client"
-	echo "  -p,--perf=<EDF|FIFO>     Run under perf with scheduling policy, but do not run client"
+	echo "  -p,--perf=<EDF|FIFO>     Run under perf with scheduling policy. Run on baremetal Linux host!"
 }
 
 # Declares application level global state
@@ -410,10 +410,12 @@ run_perf() {
 		return 1
 	fi
 
-	[[ ! -x perf ]] && {
-		echo "perf is not present"
+	if ! command -v perf; then
+		echo "perf is not present."
 		exit 1
-	}
+	fi
+
+	local -r scheduler="$1"
 
 	SLEDGE_SCHEDULER="$scheduler" perf record -g -s sledgert "$experiment_directory/spec.json"
 }

@@ -85,10 +85,6 @@ RUN tar xvfz wasmception.tar.gz -C /sledge/awsm/wasmception
 # RUN curl -sS -L -O $WASI_SDK_URL && dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
 # ENV WASI_SDK=/opt/wasi-sdk
 
-# PERF
-ADD install_perf.sh /sledge/install_perf.sh
-RUN ./sledge/install_perf.sh
-
 # Create non-root user and add to sudoers
 ARG USERNAME=dev
 ARG USER_UID=1000
