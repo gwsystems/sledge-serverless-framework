@@ -137,7 +137,7 @@ parse_arguments() {
 # Starts the Sledge Runtime
 start_runtime() {
 	printf "Starting Runtime: "
-	if (($# != 2)); then
+	if (($# < 2 || $# > 3)); then
 		printf "[ERR]\n"
 		error_msg "invalid number of arguments \"$1\""
 		return 1
@@ -149,18 +149,31 @@ start_runtime() {
 		printf "[ERR]\n"
 		error_msg "directory \"$2\" does not exist"
 		return 1
+	elif ! [[ $3 =~ ^(foreground|background)$ ]]; then
+		printf "[ERR]\n"
+		error_msg "expected foreground or background was \"$3\""
+		return 1
 	fi
 
 	local -r scheduler="$1"
 	local -r results_directory="$2"
+	local -r how_to_run="${3:-background}"
 
 	local -r log_name=log.txt
 	local log="$results_directory/${log_name}"
 
 	log_environment >> "$log"
 
-	SLEDGE_SCHEDULER="$scheduler" \
-		sledgert "$experiment_directory/spec.json" >> "$log" 2>> "$log" &
+	case "$how_to_run" in
+		"background")
+			SLEDGE_SCHEDULER="$scheduler" \
+				sledgert "$experiment_directory/spec.json" >> "$log" 2>> "$log" &
+			;;
+		"foreground")
+			SLEDGE_SCHEDULER="$scheduler" \
+				sledgert "$experiment_directory/spec.json"
+			;;
+	esac
 
 	printf "[OK]\n"
 	return 0
@@ -380,9 +393,11 @@ run_server() {
 	local -r scheduler="$1"
 
 	if [[ "$role" == "both" ]]; then
-		local results_directory="$experiment_directory/res/$timestamp/$scheduler"
+		local -r results_directory="$experiment_directory/res/$timestamp/$scheduler"
+		local -r how_to_run="background"
 	elif [[ "$role" == "server" ]]; then
-		local results_directory="$experiment_directory/res/$timestamp"
+		local -r results_directory="$experiment_directory/res/$timestamp"
+		local -r how_to_run="foreground"
 	else
 		error_msg "Unexpected $role"
 		return 1
@@ -390,7 +405,7 @@ run_server() {
 
 	mkdir -p "$results_directory"
 
-	start_runtime "$scheduler" "$results_directory" || {
+	start_runtime "$scheduler" "$results_directory" "$how_to_run" || {
 		echo "start_runtime RC: $?"
 		error_msg "Error calling start_runtime $scheduler $results_directory"
 		return 1
