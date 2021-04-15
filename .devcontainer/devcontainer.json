@@ -1,32 +1,29 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.166.1/containers/docker-existing-dockerfile
 {
-  "name": "Dockerfile",
-
-  // Sets the run context to one level up instead of the .devcontainer folder.
-  "context": "..",
-
-  // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-  "dockerFile": "../Dockerfile.x86_64",
-
-  // Set *default* container specific settings.json values on container create.
-  "settings": {
-    "terminal.integrated.shell.linux": null
-  },
-
-  // Add the IDs of extensions you want installed when the container is created.
-  "extensions": [
-    "editorconfig.editorconfig",
-    "foxundermoon.shell-format",
-    "timonwong.shellcheck",
-    "dtsvet.vscode-wasm",
-    "13xforever.language-x86-64-assembly",
-    "ms-vscode.cpptools",
-    "ms-vscode.cpptools-themes",
-    "jeff-hykin.better-cpp-syntax"
-  ],
-  "workspaceMount": "source=${localWorkspaceFolder},target=/sledge,type=bind,consistency=cached",
-  "workspaceFolder": "/sledge",
-  "postCreateCommand": "make -C /sledge install && make -B -C /sledge/runtime/tests clean all",
-  "containerUser": "dev",
+	"name": "Dockerfile",
+	// Sets the run context to one level up instead of the .devcontainer folder.
+	"context": "..",
+	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
+	"dockerFile": "../Dockerfile.x86_64",
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+		"terminal.integrated.shell.linux": "bash"
+	},
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"editorconfig.editorconfig",
+		"foxundermoon.shell-format",
+		"timonwong.shellcheck",
+		"dtsvet.vscode-wasm",
+		"13xforever.language-x86-64-assembly",
+		"ms-vscode.cpptools",
+		"ms-vscode.cpptools-themes",
+		"jeff-hykin.better-cpp-syntax",
+		"mads-hartmann.bash-ide-vscode"
+	],
+	"workspaceMount": "source=${localWorkspaceFolder},target=/sledge,type=bind,consistency=cached",
+	"workspaceFolder": "/sledge",
+	"postCreateCommand": "make -C /sledge install && make -B -C /sledge/runtime/tests clean all",
+	"containerUser": "dev",
 }

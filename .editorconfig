@@ -23,3 +23,15 @@ ignore = true
 
 [thirdparty/**]
 ignore = true
+
+[*.json]
+indent_style = tab
+indent_size = 4
+
+[dockerfile]
+indent_style = tab
+indent_size = 4
+
+[Dockerfile.*]
+indent_style = tab
+indent_size = 4

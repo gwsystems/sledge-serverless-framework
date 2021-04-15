@@ -132,11 +132,11 @@ envrun() {
 		echo "Starting ${SYS_DOC_NAME}"
 		docker run \
 			--privileged \
-			--security-opt  seccomp:unconfined \
+			--security-opt seccomp:unconfined \
 			--name=${SYS_DOC_NAME} \
 			--detach \
-			--mount  type=bind,src="$(cd "$(dirname "${0}")" && pwd -P || exit 1),target=/${SYS_NAME}" \
-			${SYS_DOC_NAMETAG}  /bin/sleep 99999999 > /dev/null
+			--mount type=bind,src="$(cd "$(dirname "${0}")" && pwd -P || exit 1),target=/${SYS_NAME}" \
+			${SYS_DOC_NAMETAG} /bin/sleep 99999999 > /dev/null
 	fi
 
 	echo "Running shell"
