@@ -45,28 +45,17 @@ run_samples() {
 	local -ir perf_window_buffer_size
 
 	# Execute workloads long enough for runtime to learn excepted execution time
-	printf "Running Samples: "
-	hey -n "$iterations" -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -o csv -m GET -D "$__run_sh__base_path/body/1024.txt" "http://$hostname:10000" 1> /dev/null 2> /dev/null || {
-		printf "[ERR]\n"
-		panic "samples failed"
-		return 1
-	}
-	hey -n "$iterations" -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -o csv -m GET -D "$__run_sh__base_path/body/10240.txt" "http://$hostname:10001" 1> /dev/null 2> /dev/null || {
-		printf "[ERR]\n"
-		panic "samples failed"
-		return 1
-	}
-	hey -n "$iterations" -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -o csv -m GET -D "$__run_sh__base_path/body/102400.txt" "http://$hostname:10002" 1> /dev/null 2> /dev/null || {
-		printf "[ERR]\n"
-		panic "samples failed"
-		return 1
-	}
-	hey -n "$iterations" --n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -o csv -m GET -D "$__run_sh__base_path/body/1048576.txt" "http://$hostname:10003" 1> /dev/null 2> /dev/null || {
-		printf "[ERR]\n"
-		panic "samples failed"
-		return 1
-	}
-	printf "[OK]\n"
+	printf "Running Samples:\n"
+	for payload in "${payloads[@]}"; do
+		printf "\t%d Payload: " "$payload"
+		hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -o csv -m GET -D "$__run_sh__base_path/body/$payload.txt" "http://$hostname:${ports["$payload"]}" 1> /dev/null 2> /dev/null || {
+			printf "[ERR]\n"
+			panic "samples failed"
+			return 1
+		}
+		printf "[OK]\n"
+	done
+
 	return 0
 }
 
@@ -86,9 +75,9 @@ run_experiments() {
 	printf "Running Experiments:\n"
 	for payload in "${payloads[@]}"; do
 		printf "\t%d Payload: " "$payload"
-		hey -n "$iterations" -c 1 -cpus 2 -o csv -m GET -D "$__run_sh__base_path/body/$payload.txt" http://localhost:"${ports["$payload"]}" > "$results_directory/$payload.csv" 2> /dev/null || {
+		hey -n "$iterations" -c 1 -cpus 2 -o csv -m GET -D "$__run_sh__base_path/body/$payload.txt" "http://$hostname:${ports["$payload"]}" > "$results_directory/$payload.csv" 2> /dev/null || {
 			printf "[ERR]\n"
-			panic "experiment failed"
+			panic "$payload experiment failed"
 			return 1
 		}
 		get_result_count "$results_directory/$payload.csv" || {
