@@ -1,5 +1,4 @@
 #!/bin/bash
-source ../common.sh
 
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
 # Success - The percentage of requests that complete by their deadlines
@@ -7,50 +6,77 @@ source ../common.sh
 # Throughput - The mean number of successful requests per second
 # Latency - the rount-trip resonse time (unit?) of successful requests at the p50, p90, p99, and p100 percetiles
 
+# Add bash_libraries directory to path
+__run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
+__run_sh__bash_libraries_relative_path="../bash_libraries"
+__run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
+export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
+
+source csv_to_dat.sh || exit 1
+source framework.sh || exit 1
+# source generate_gnuplots.sh || exit 1
+source get_result_count.sh || exit 1
+source panic.sh || exit 1
+source path_join.sh || exit 1
+
 # Sends requests until the per-module perf window buffers are full
 # This ensures that Sledge has accurate estimates of execution time
 run_samples() {
-	local hostname="${1:-localhost}"
+	if (($# != 1)); then
+		panic "invalid number of arguments \"$1\""
+		return 1
+	elif [[ -z "$1" ]]; then
+		panic "hostname \"$1\" was empty"
+		return 1
+	fi
+
+	local hostname="${1}"
 
 	# Scrape the perf window size from the source if possible
-	local -r perf_window_path="../../include/perf_window.h"
+	# TODO: Make a util function
+	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../include/perf_window.h)"
 	local -i perf_window_buffer_size
 	if ! perf_window_buffer_size=$(grep "#define PERF_WINDOW_BUFFER_SIZE" < "$perf_window_path" | cut -d\  -f3); then
-		echo "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../include/perf_window.h"
-		echo "Defaulting to 16"
+		printf "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../include/perf_window.h\n"
+		printf "Defaulting to 16\n"
 		perf_window_buffer_size=16
 	fi
 	local -ir perf_window_buffer_size
 
-	echo -n "Running Samples: "
+	printf "Running Samples: "
 	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" 1> /dev/null 2> /dev/null || {
-		error_msg "fib40 samples failed"
+		printf "[ERR]\n"
+		panic "fib40 samples failed"
 		return 1
 	}
 
 	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" 1> /dev/null 2> /dev/null || {
-		error_msg "fib10 samples failed"
+		printf "[ERR]\n"
+		panic "fib10 samples failed"
 		return 1
 	}
 
-	echo "[OK]"
+	printf "[OK]\n"
 	return 0
 }
 
 # Execute the fib10 and fib40 experiments sequentially and concurrently
-# $1 (results_directory) - a directory where we will store our results
-# $2 (hostname="localhost") - an optional parameter that sets the hostname. Defaults to localhost
+# $1 (hostname)
+# $2 (results_directory) - a directory where we will store our results
 run_experiments() {
-	if (($# < 1 || $# > 2)); then
-		error_msg "invalid number of arguments \"$1\""
+	if (($# != 2)); then
+		panic "invalid number of arguments \"$1\""
 		return 1
-	elif ! [[ -d "$1" ]]; then
-		error_msg "directory \"$1\" does not exist"
+	elif [[ -z "$1" ]]; then
+		panic "hostname \"$1\" was empty"
+		return 1
+	elif [[ ! -d "$2" ]]; then
+		panic "directory \"$2\" does not exist"
 		return 1
 	fi
 
-	local results_directory="$1"
-	local hostname="${2:-localhost}"
+	local hostname="$1"
+	local results_directory="$2"
 
 	# The duration in seconds that we want the client to send requests
 	local -ir duration_sec=15
@@ -64,12 +90,12 @@ run_experiments() {
 	printf "\tfib40: "
 	hey -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "40\n" "http://$hostname:10040" > "$results_directory/fib40.csv" 2> /dev/null || {
 		printf "[ERR]\n"
-		error_msg "fib40 failed"
+		panic "fib40 failed"
 		return 1
 	}
 	get_result_count "$results_directory/fib40.csv" || {
 		printf "[ERR]\n"
-		error_msg "fib40 unexpectedly has zero requests"
+		panic "fib40 unexpectedly has zero requests"
 		return 1
 	}
 	printf "[OK]\n"
@@ -77,12 +103,12 @@ run_experiments() {
 	printf "\tfib10: "
 	hey -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://$hostname:10010" > "$results_directory/fib10.csv" 2> /dev/null || {
 		printf "[ERR]\n"
-		error_msg "fib10 failed"
+		panic "fib10 failed"
 		return 1
 	}
 	get_result_count "$results_directory/fib10.csv" || {
 		printf "[ERR]\n"
-		error_msg "fib10 unexpectedly has zero requests"
+		panic "fib10 unexpectedly has zero requests"
 		return 1
 	}
 	printf "[OK]\n"
@@ -103,24 +129,24 @@ run_experiments() {
 
 	wait -f "$fib10_con_PID" || {
 		printf "\tfib10_con: [ERR]\n"
-		error_msg "failed to wait -f ${fib10_con_PID}"
+		panic "failed to wait -f ${fib10_con_PID}"
 		return 1
 	}
 	get_result_count "$results_directory/fib10_con.csv" || {
 		printf "\tfib10_con: [ERR]\n"
-		error_msg "fib10_con has zero requests. This might be because fib40_con saturated the runtime"
+		panic "fib10_con has zero requests. This might be because fib40_con saturated the runtime"
 		return 1
 	}
 	printf "\tfib10_con: [OK]\n"
 
 	wait -f "$fib40_con_PID" || {
 		printf "\tfib40_con: [ERR]\n"
-		error_msg "failed to wait -f ${fib40_con_PID}"
+		panic "failed to wait -f ${fib40_con_PID}"
 		return 1
 	}
 	get_result_count "$results_directory/fib40_con.csv" || {
 		printf "\tfib40_con: [ERR]\n"
-		error_msg "fib40_con has zero requests."
+		panic "fib40_con has zero requests."
 		return 1
 	}
 	printf "\tfib40_con: [OK]\n"
@@ -140,7 +166,7 @@ process_results() {
 
 	local -r results_directory="$1"
 
-	echo -n "Processing Results: "
+	printf "Processing Results: "
 
 	# Write headers to CSVs
 	printf "Payload,Success_Rate\n" >> "$results_directory/success.csv"
@@ -163,14 +189,7 @@ process_results() {
 		# Strip the _con suffix when getting the deadline
 		local -i deadline=${deadlines_ms[${payload/_con/}]}
 
-		# Get Number of Requests, subtracting the header
-		local -i requests=$(($(wc -l < "$results_directory/$payload.csv") - 1))
-		((requests == 0)) && {
-			echo "$payload unexpectedly has zero requests"
-			continue
-		}
-
-		# Calculate Success Rate for csv
+		# Calculate Success Rate for csv (percent of requests that return 200 within deadline)
 		awk -F, '
 			$7 == 200 && ($1 * 1000) <= '"$deadline"' {ok++}
 			END{printf "'"$payload"',%3.5f\n", (ok / (NR - 1) * 100)}
@@ -216,7 +235,25 @@ process_results() {
 	csv_to_dat "$results_directory/success.csv" "$results_directory/throughput.csv" "$results_directory/latency.csv"
 
 	# Generate gnuplots. Commented out because we don't have *.gnuplots defined
-	# generate_gnuplots
+	# generate_gnuplots "$results_directory" "$__run_sh__base_path" || {
+	# 	printf "[ERR]\n"
+	# 	panic "failed to generate gnuplots"
+	# }
+
+	printf "[OK]\n"
+	return 0
+}
+
+# Expected Symbol used by the framework
+experiment_main() {
+	local -r target_hostname="$1"
+	local -r results_directory="$2"
+
+	run_samples "$target_hostname" || return 1
+	run_experiments "$target_hostname" "$results_directory" || return 1
+	process_results "$results_directory" || return 1
+
+	return 0
 }
 
 main "$@"
