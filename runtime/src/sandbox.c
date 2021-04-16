@@ -476,7 +476,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->absolute_deadline        = sandbox_request->absolute_deadline;
 	sandbox->arguments                = (void *)sandbox_request->arguments;
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
-	memcpy(&sandbox->client_address, sandbox_request->socket_address, sizeof(struct sockaddr));
+	memcpy(&sandbox->client_address, &sandbox_request->socket_address, sizeof(struct sockaddr));
 
 	sandbox->last_state_change_timestamp = allocation_timestamp; /* We use arg to include alloc */
 	sandbox->state                       = SANDBOX_INITIALIZED;

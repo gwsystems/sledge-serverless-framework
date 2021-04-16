@@ -13,13 +13,13 @@
 #include "sandbox_state.h"
 
 struct sandbox_request {
-	uint64_t         id;
-	struct module *  module;
-	char *           arguments;
-	int              socket_descriptor;
-	struct sockaddr *socket_address;
-	uint64_t         request_arrival_timestamp; /* cycles */
-	uint64_t         absolute_deadline;         /* cycles */
+	uint64_t        id;
+	struct module * module;
+	char *          arguments;
+	int             socket_descriptor;
+	struct sockaddr socket_address;
+	uint64_t        request_arrival_timestamp; /* cycles */
+	uint64_t        absolute_deadline;         /* cycles */
 
 	/*
 	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request
@@ -74,10 +74,10 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	/* Sets the ID to the value before the increment */
 	sandbox_request->id = sandbox_request_count_postfix_increment();
 
-	sandbox_request->module                    = module;
-	sandbox_request->arguments                 = arguments;
-	sandbox_request->socket_descriptor         = socket_descriptor;
-	sandbox_request->socket_address            = (struct sockaddr *)socket_address;
+	sandbox_request->module            = module;
+	sandbox_request->arguments         = arguments;
+	sandbox_request->socket_descriptor = socket_descriptor;
+	memcpy(&sandbox_request->socket_address, socket_address, sizeof(struct sockaddr));
 	sandbox_request->request_arrival_timestamp = request_arrival_timestamp;
 	sandbox_request->absolute_deadline         = request_arrival_timestamp + module->relative_deadline;
 
