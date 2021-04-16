@@ -488,7 +488,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 			int32_t len = iov[i].len;
 			void *  ptr = worker_thread_get_memory_ptr_void(iov[i].base_offset, len);
 
-			printf("%.*s", len, ptr);
+			printf("%.*s", len, (char *)ptr);
 			sum += len;
 		}
 		return sum;
