@@ -30,7 +30,7 @@ expand_memory(void)
 	// FIXME: max_pages = 0 => no limit. Issue #103.
 	assert((sandbox->sandbox_size + local_sandbox_context_cache.linear_memory_size) / WASM_PAGE_SIZE
 	       < WASM_MAX_PAGES);
-	assert(sandbox->state = SANDBOX_RUNNING);
+	assert(sandbox->state == SANDBOX_RUNNING);
 	// Remap the relevant wasm page to readable
 	char *mem_as_chars = local_sandbox_context_cache.linear_memory_start;
 	char *page_address = &mem_as_chars[local_sandbox_context_cache.linear_memory_size];
