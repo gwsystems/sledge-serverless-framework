@@ -243,16 +243,16 @@ __framework_sh__run_debug() {
 	if [[ "$project_directory" != "/sledge/runtime" ]]; then
 		printf "It appears that you are not running in the container. Substituting path to match host environment\n"
 		gdb \
-			--eval-command="handle SIGUSR1 nostop" \
-			--eval-command="handle SIGPIPE nostop" \
+			--eval-command="handle SIGUSR1 noprint nostop" \
+			--eval-command="handle SIGPIPE noprint nostop" \
 			--eval-command="set pagination off" \
 			--eval-command="set substitute-path /sledge/runtime $project_directory" \
 			--eval-command="run $__framework_sh__application_directory/spec.json" \
 			sledgert
 	else
 		gdb \
-			--eval-command="handle SIGUSR1 nostop" \
-			--eval-command="handle SIGPIPE nostop" \
+			--eval-command="handle SIGUSR1 noprint nostop" \
+			--eval-command="handle SIGPIPE noprint nostop" \
 			--eval-command="set pagination off" \
 			--eval-command="run $__framework_sh__application_directory/spec.json" \
 			sledgert
