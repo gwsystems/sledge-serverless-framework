@@ -36,8 +36,10 @@ local_completion_queue_add(struct sandbox *sandbox)
 void
 local_completion_queue_free()
 {
-	struct sandbox *sandbox_iterator;
-	struct sandbox *buffer;
+	if (local_completion_queue_is_empty()) return;
+
+	struct sandbox *sandbox_iterator = NULL;
+	struct sandbox *buffer           = NULL;
 
 	ps_list_foreach_del_d(&local_completion_queue, sandbox_iterator, buffer)
 	{
