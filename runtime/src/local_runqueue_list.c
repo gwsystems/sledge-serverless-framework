@@ -60,7 +60,7 @@ local_runqueue_list_get_next()
 		return sandbox;
 	err_allocate:
 		client_socket_send(sandbox_request->socket_descriptor, 503);
-		client_socket_close(sandbox_request->socket_descriptor);
+		client_socket_close(sandbox_request->socket_descriptor, &sandbox->client_address);
 		free(sandbox_request);
 	err:
 		sandbox = NULL;

@@ -10,6 +10,7 @@
 #include "http_total.h"
 #include "local_completion_queue.h"
 #include "local_runqueue.h"
+#include "likely.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
@@ -85,6 +86,20 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 			}
 		}
 
+		/* Client request is malformed */
+		if (recved == 0 && !sandbox->http_request.message_end) {
+			char client_address_text[INET6_ADDRSTRLEN] = {};
+			if (unlikely(inet_ntop(AF_INET, &sandbox->client_address, client_address_text, INET6_ADDRSTRLEN)
+			             == NULL)) {
+				debuglog("Failed to log client_address: %s", strerror(errno));
+			}
+
+			debuglog("Sandbox %lu: recv returned 0 before a complete request was received\n", sandbox->id);
+			debuglog("Socket: %d. Address: %s\n", fd, client_address_text);
+			http_request_print(&sandbox->http_request);
+			goto err;
+		}
+
 #ifdef LOG_HTTP_PARSER
 		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings, buf,
 		         recved);
@@ -99,13 +114,6 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 			goto err;
 		}
 
-		if (recved == 0 && !sandbox->http_request.message_end) {
-#ifdef LOG_HTTP_PARSER
-			debuglog("Sandbox %lu: Received 0, but parsing was incomplete\n", sandbox->id);
-			http_request_print(&sandbox->http_request);
-#endif
-			goto err;
-		}
 
 		sandbox->request_response_data_length += nparsed;
 	}
@@ -373,6 +381,8 @@ sandbox_allocate_memory(struct module *module)
 		error_message = "sandbox_allocate_memory - memory allocation failed";
 		goto alloc_failed;
 	}
+
+	assert(addr != NULL);
 
 	/* Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write */
 	errno         = 0;

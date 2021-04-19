@@ -92,7 +92,7 @@ local_runqueue_minheap_get_next()
 		sandbox = sandbox_allocate(sandbox_request);
 		if (!sandbox) {
 			client_socket_send(sandbox_request->socket_descriptor, 503);
-			client_socket_close(sandbox_request->socket_descriptor);
+			client_socket_close(sandbox_request->socket_descriptor, &sandbox->client_address);
 			free(sandbox_request);
 			continue;
 		};
@@ -193,7 +193,7 @@ done:
 	return;
 err_sandbox_allocate:
 	client_socket_send(sandbox_request->socket_descriptor, 503);
-	client_socket_close(sandbox_request->socket_descriptor);
+	client_socket_close(sandbox_request->socket_descriptor, &sandbox_request->socket_address);
 	debuglog("local_runqueue_minheap_preempt failed to allocate sandbox\n");
 err:
 	goto done;

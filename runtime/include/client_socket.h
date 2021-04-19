@@ -1,5 +1,6 @@
 #pragma once
 
+#include <arpa/inet.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
@@ -13,14 +14,22 @@
 
 
 static inline void
-client_socket_close(int client_socket)
+client_socket_close(int client_socket, struct sockaddr *client_address)
 {
 	/* Should never close 0, 1, or 2 */
 	assert(client_socket != STDIN_FILENO);
 	assert(client_socket != STDOUT_FILENO);
 	assert(client_socket != STDERR_FILENO);
 
-	if (unlikely(close(client_socket) < 0)) debuglog("Error closing client socket - %s", strerror(errno));
+
+	if (unlikely(close(client_socket) < 0)) {
+		char client_address_text[INET6_ADDRSTRLEN] = {};
+		if (unlikely(inet_ntop(AF_INET, &client_address, client_address_text, INET6_ADDRSTRLEN) == NULL)) {
+			debuglog("Failed to log client_address: %s", strerror(errno));
+		}
+		debuglog("Error closing client socket %d associated with %s - %s", client_socket, client_address_text,
+		         strerror(errno));
+	}
 }
 
 
