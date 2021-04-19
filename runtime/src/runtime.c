@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <sched.h>
 #include <sys/mman.h>
+#include <arpa/inet.h>
 
 #include "admissions_control.h"
 #include "arch/context.h"
@@ -165,7 +166,7 @@ listener_thread_main(void *dummy)
 
 				/*
 				 * According to accept(2), it is possible that the the sockaddr structure client_address
-				 * may be too small, resulting in data being truncated to fit. The appect call mutates
+				 * may be too small, resulting in data being truncated to fit. The accept call mutates
 				 * the size value to indicate that this is the case.
 				 */
 				if (address_length > sizeof(client_address)) {
