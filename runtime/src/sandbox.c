@@ -514,7 +514,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
 
@@ -563,7 +563,7 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
 
@@ -609,7 +609,7 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_PREEMPTED;
 
@@ -648,7 +648,7 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_BLOCKED;
 
@@ -689,7 +689,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RETURNED;
 
@@ -736,7 +736,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_ERROR;
 
@@ -763,7 +763,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_summarize_page_allocations(sandbox);
 #endif
 	sandbox_free_linear_memory(sandbox);
-	admissions_control_substract(sandbox->admissions_estimate);
+	admissions_control_subtract(sandbox->admissions_estimate);
 	/* Do not touch sandbox after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
 
@@ -787,7 +787,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_COMPLETE;
 
@@ -811,7 +811,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 #endif
 	/* Admissions Control Post Processing */
 	admissions_info_update(&sandbox->module->admissions_info, sandbox->running_duration);
-	admissions_control_substract(sandbox->admissions_estimate);
+	admissions_control_subtract(sandbox->admissions_estimate);
 	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
 

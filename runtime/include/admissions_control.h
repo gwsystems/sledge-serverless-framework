@@ -49,7 +49,7 @@ admissions_control_add(uint64_t admissions_estimate)
 }
 
 static inline void
-admissions_control_substract(uint64_t admissions_estimate)
+admissions_control_subtract(uint64_t admissions_estimate)
 {
 #ifdef ADMISSIONS_CONTROL
 	/* Assumption: Should never underflow */
