@@ -889,6 +889,7 @@ sandbox_free_linear_memory(struct sandbox *sandbox)
 {
 	int rc = munmap(sandbox->linear_memory_start, SANDBOX_MAX_MEMORY + PAGE_SIZE);
 	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
+	sandbox->linear_memory_start = NULL;
 }
 
 /**
@@ -918,14 +919,17 @@ sandbox_free(struct sandbox *sandbox)
 	};
 
 
-	/* Free Sandbox Linear Address Space
-	struct sandbox | HTTP Buffer | 4GB of Wasm Linear Memory | Guard Page
-	sandbox_size includes the struct and HTTP buffer */
-	size_t sandbox_address_space_size = sandbox->sandbox_size + sandbox->linear_memory_max_size
-	                                    + /* guard page */ PAGE_SIZE;
+	/* Free Remaining Sandbox Linear Address Space
+	 * sandbox_size includes the struct and HTTP buffer
+	 * The linear memory was already freed during the transition from running to error|complete
+	 * struct sandbox | HTTP Buffer | 4GB of Wasm Linear Memory | Guard Page
+	 * Allocated      | Allocated   | Freed                     | Freed
+	 */
 
+	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
+	assert(sandbox->linear_memory_start == NULL);
 	errno = 0;
-	rc    = munmap(sandbox, sandbox_address_space_size);
+	rc    = munmap(sandbox, sandbox->sandbox_size);
 	if (rc == -1) {
 		debuglog("Failed to unmap Sandbox %lu\n", sandbox->id);
 		goto err_free_sandbox_failed;
