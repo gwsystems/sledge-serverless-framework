@@ -147,8 +147,12 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 
 	memset(module, 0, sizeof(struct module));
 
+	atomic_init(&module->reference_count, 0);
+
 	/* Load the dynamic library *.so file with lazy function call binding and deep binding */
-	module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
+	// TODO: Changed to work with sanitizers. What does RTLD_DEEPBIND do?
+	// module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
+	module->dynamic_library_handle = dlopen(path, RTLD_LAZY);
 	if (module->dynamic_library_handle == NULL) {
 		fprintf(stderr, "Failed to open %s with error: %s\n", path, dlerror());
 		goto dl_open_error;
@@ -193,8 +197,9 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
 	strncpy(module->path, path, MODULE_MAX_PATH_LENGTH);
 
-	module->argument_count    = argument_count;
-	module->stack_size        = round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size);
+	module->argument_count = argument_count;
+	module->stack_size     = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
+	debuglog("Stack Size: %u", module->stack_size);
 	module->max_memory        = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
 	module->socket_descriptor = -1;
 	module->port              = port;
@@ -209,7 +214,7 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	module->relative_deadline = (uint64_t)relative_deadline_us * runtime_processor_speed_MHz;
 
 	/* Admissions Control */
-	uint64_t expected_execution = expected_execution_us * runtime_processor_speed_MHz;
+	uint64_t expected_execution = (uint64_t)expected_execution_us * runtime_processor_speed_MHz;
 	admissions_info_initialize(&module->admissions_info, admissions_percentile, expected_execution,
 	                           module->relative_deadline);
 
