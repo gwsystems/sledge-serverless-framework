@@ -850,7 +850,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 
 	/* Allocate the Stack */
 	if (sandbox_allocate_stack(sandbox) < 0) {
-		error_message = "failed to allocate sandbox heap and linear memory";
+		error_message = "failed to allocate sandbox stack";
 		goto err_stack_allocation_failed;
 	}
 	sandbox->state = SANDBOX_ALLOCATED;
