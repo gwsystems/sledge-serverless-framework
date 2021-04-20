@@ -149,10 +149,11 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 
 	atomic_init(&module->reference_count, 0);
 
-	/* Load the dynamic library *.so file with lazy function call binding and deep binding */
-	// TODO: Changed to work with sanitizers. What does RTLD_DEEPBIND do?
-	// module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
-	module->dynamic_library_handle = dlopen(path, RTLD_LAZY);
+	/* Load the dynamic library *.so file with lazy function call binding and deep binding
+	 * RTLD_DEEPBIND is incompatible with certain clang sanitizers, so it might need to be temporarily disabled at
+	 * times. See https://github.com/google/sanitizers/issues/611
+	 */
+	module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
 	if (module->dynamic_library_handle == NULL) {
 		fprintf(stderr, "Failed to open %s with error: %s\n", path, dlerror());
 		goto dl_open_error;
