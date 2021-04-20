@@ -24,6 +24,7 @@ __framework_sh__usage() {
 	echo "  -t,--target=<target url> Execute as client against remote URL"
 	echo "  -s,--serve               Serve but do not run client"
 	echo "  -d,--debug               Debug under GDB but do not run client"
+	echo "  -v,--valgrind            Debug under Valgrind but do not run client"
 	echo "  -p,--perf                Run under perf. Limited to running on a baremetal Linux host!"
 	echo "  -h,--help                Display usage information"
 }
@@ -80,12 +81,21 @@ __framework_sh__parse_arguments() {
 				shift
 				;;
 			-p | --perf)
-				if [[ "$__framework_sh__role" == "perf" ]]; then
+				if [[ "$__framework_sh__role" == "client" ]]; then
 					echo "Cannot use -p,--perf with -t,--target"
 					__framework_sh__usage
 					return 1
 				fi
 				__framework_sh__role=perf
+				shift
+				;;
+			-v | --valgrind)
+				if [[ "$__framework_sh__role" == "client" ]]; then
+					echo "Cannot use -v,--valgrind with -t,--target"
+					__framework_sh__usage
+					return 1
+				fi
+				__framework_sh__role=valgrind
 				shift
 				;;
 			-h | --help)
@@ -229,6 +239,21 @@ __framework_sh__run_perf() {
 	perf record -g -s sledgert "$__framework_sh__application_directory/spec.json"
 }
 
+__framework_sh__run_valgrind() {
+	if (($# != 0)); then
+		printf "[ERR]\n"
+		panic "Invalid number of arguments. Saw $#. Expected 0."
+		return 1
+	fi
+
+	if ! command -v valgrind; then
+		echo "valgrind is not present."
+		exit 1
+	fi
+
+	valgrind --leak-check=full sledgert "$__framework_sh__application_directory/spec.json"
+}
+
 # Starts the Sledge Runtime under GDB
 __framework_sh__run_debug() {
 	if (($# != 0)); then
@@ -314,7 +339,7 @@ __framework_sh__create_and_export_results_directory() {
 		"both")
 			dir="$__framework_sh__application_directory/res/$__framework_sh__timestamp/$subdirectory"
 			;;
-		"client" | "server" | "debug" | "perf")
+		"client" | "server" | "debug" | "perf" | "valgrind")
 			dir="$__framework_sh__application_directory/res/$__framework_sh__timestamp"
 			;;
 		*)
@@ -358,6 +383,9 @@ main() {
 			;;
 		perf)
 			__framework_sh__run_perf
+			;;
+		valgrind)
+			__framework_sh__run_valgrind
 			;;
 		client)
 			__framework_sh__run_client
