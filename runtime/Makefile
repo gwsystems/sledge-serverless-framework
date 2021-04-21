@@ -6,7 +6,7 @@ endif
 endif
 
 TOTAL_CORES := $(shell getconf _NPROCESSORS_CONF)
-PAGE_SIZE=$(shell getconf PAGESIZE)
+PAGE_SIZE := $(shell getconf PAGESIZE)
 
 # Compiler Settings
 CC=clang
@@ -15,16 +15,36 @@ CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 # CC_OPTIONS for Debugging
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE
 
+# CFI Sanitizer
+# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -flto -fvisibility=default -fsanitize=cfi 
+
+# Undefined Sanitizer
+# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds 
+
+# Clang SafeStack
+# This actually seems to "solve" the segfaults
+# https://clang.llvm.org/docs/SafeStack.html
+# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=safe-stack
+
+# Memory Sanitizer 
+# https://clang.llvm.org/docs/MemorySanitizer.html
+# https://github.com/google/sanitizers/wiki/MemorySanitizer
+# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=memory -fno-omit-frame-pointer
+
+# Address Sanitizer
+# https://clang.llvm.org/docs/AddressSanitizer.html
+# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=address -fno-omit-frame-pointer 
+
 BINARY_NAME=sledgert
 
 
 # Feature Toggles
-CFLAGS += -DADMISSIONS_CONTROL
+# CFLAGS += -DADMISSIONS_CONTROL
 
 # Debugging Flags
 
 # Strips out calls to assert() and disables debuglog
-CFLAGS += -DNDEBUG
+# CFLAGS += -DNDEBUG
 
 # Redirects debuglogs to /runtime/bin/sledge.log 
 # CFLAGS += -DLOG_TO_FILE

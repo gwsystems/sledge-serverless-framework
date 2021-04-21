@@ -51,7 +51,7 @@ struct module {
 	uint64_t                    max_memory; /* perhaps a specification of the module. (max 4GB) */
 	uint32_t                    relative_deadline_us;
 	uint64_t                    relative_deadline; /* cycles */
-	uint32_t                    reference_count;   /* ref count how many instances exist here. */
+	_Atomic uint32_t            reference_count;   /* ref count how many instances exist here. */
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
 	struct sockaddr_in          socket_address;
 	int                         socket_descriptor;
@@ -101,7 +101,9 @@ struct module {
 static inline void
 module_acquire(struct module *module)
 {
-	module->reference_count++;
+	assert(module->reference_count < UINT32_MAX);
+	atomic_fetch_add(&module->reference_count, 1);
+	return;
 }
 
 /**
@@ -200,7 +202,9 @@ module_main(struct module *module, int32_t argc, int32_t argv)
 static inline void
 module_release(struct module *module)
 {
-	module->reference_count--;
+	assert(module->reference_count > 0);
+	atomic_fetch_sub(&module->reference_count, 1);
+	return;
 }
 
 /**

@@ -10,6 +10,7 @@
 #include "http_total.h"
 #include "local_completion_queue.h"
 #include "local_runqueue.h"
+#include "likely.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
@@ -85,6 +86,20 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 			}
 		}
 
+		/* Client request is malformed */
+		if (recved == 0 && !sandbox->http_request.message_end) {
+			char client_address_text[INET6_ADDRSTRLEN] = {};
+			if (unlikely(inet_ntop(AF_INET, &sandbox->client_address, client_address_text, INET6_ADDRSTRLEN)
+			             == NULL)) {
+				debuglog("Failed to log client_address: %s", strerror(errno));
+			}
+
+			debuglog("Sandbox %lu: recv returned 0 before a complete request was received\n", sandbox->id);
+			debuglog("Socket: %d. Address: %s\n", fd, client_address_text);
+			http_request_print(&sandbox->http_request);
+			goto err;
+		}
+
 #ifdef LOG_HTTP_PARSER
 		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings, buf,
 		         recved);
@@ -99,13 +114,6 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 			goto err;
 		}
 
-		if (recved == 0 && !sandbox->http_request.message_end) {
-#ifdef LOG_HTTP_PARSER
-			debuglog("Sandbox %lu: Received 0, but parsing was incomplete\n", sandbox->id);
-			http_request_print(&sandbox->http_request);
-#endif
-			goto err;
-		}
 
 		sandbox->request_response_data_length += nparsed;
 	}
@@ -374,6 +382,8 @@ sandbox_allocate_memory(struct module *module)
 		goto alloc_failed;
 	}
 
+	assert(addr != NULL);
+
 	/* Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write */
 	errno         = 0;
 	void *addr_rw = mmap(addr, sandbox_size + linear_memory_size, PROT_READ | PROT_WRITE,
@@ -476,7 +486,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->absolute_deadline        = sandbox_request->absolute_deadline;
 	sandbox->arguments                = (void *)sandbox_request->arguments;
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
-	memcpy(&sandbox->client_address, sandbox_request->socket_address, sizeof(struct sockaddr));
+	memcpy(&sandbox->client_address, &sandbox_request->socket_address, sizeof(struct sockaddr));
 
 	sandbox->last_state_change_timestamp = allocation_timestamp; /* We use arg to include alloc */
 	sandbox->state                       = SANDBOX_INITIALIZED;
@@ -504,7 +514,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
 
@@ -553,7 +563,7 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
 
@@ -599,7 +609,7 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_PREEMPTED;
 
@@ -638,7 +648,7 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_BLOCKED;
 
@@ -679,7 +689,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_RETURNED;
 
@@ -726,7 +736,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_ERROR;
 
@@ -753,7 +763,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_summarize_page_allocations(sandbox);
 #endif
 	sandbox_free_linear_memory(sandbox);
-	admissions_control_substract(sandbox->admissions_estimate);
+	admissions_control_subtract(sandbox->admissions_estimate);
 	/* Do not touch sandbox after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
 
@@ -777,7 +787,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
-	uint32_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
 
 	sandbox->state = SANDBOX_SET_AS_COMPLETE;
 
@@ -801,7 +811,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 #endif
 	/* Admissions Control Post Processing */
 	admissions_info_update(&sandbox->module->admissions_info, sandbox->running_duration);
-	admissions_control_substract(sandbox->admissions_estimate);
+	admissions_control_subtract(sandbox->admissions_estimate);
 	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
 
@@ -840,7 +850,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 
 	/* Allocate the Stack */
 	if (sandbox_allocate_stack(sandbox) < 0) {
-		error_message = "failed to allocate sandbox heap and linear memory";
+		error_message = "failed to allocate sandbox stack";
 		goto err_stack_allocation_failed;
 	}
 	sandbox->state = SANDBOX_ALLOCATED;
@@ -879,6 +889,7 @@ sandbox_free_linear_memory(struct sandbox *sandbox)
 {
 	int rc = munmap(sandbox->linear_memory_start, SANDBOX_MAX_MEMORY + PAGE_SIZE);
 	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
+	sandbox->linear_memory_start = NULL;
 }
 
 /**
@@ -908,14 +919,17 @@ sandbox_free(struct sandbox *sandbox)
 	};
 
 
-	/* Free Sandbox Linear Address Space
-	struct sandbox | HTTP Buffer | 4GB of Wasm Linear Memory | Guard Page
-	sandbox_size includes the struct and HTTP buffer */
-	size_t sandbox_address_space_size = sandbox->sandbox_size + sandbox->linear_memory_max_size
-	                                    + /* guard page */ PAGE_SIZE;
+	/* Free Remaining Sandbox Linear Address Space
+	 * sandbox_size includes the struct and HTTP buffer
+	 * The linear memory was already freed during the transition from running to error|complete
+	 * struct sandbox | HTTP Buffer | 4GB of Wasm Linear Memory | Guard Page
+	 * Allocated      | Allocated   | Freed                     | Freed
+	 */
 
+	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
+	assert(sandbox->linear_memory_start == NULL);
 	errno = 0;
-	rc    = munmap(sandbox, sandbox_address_space_size);
+	rc    = munmap(sandbox, sandbox->sandbox_size);
 	if (rc == -1) {
 		debuglog("Failed to unmap Sandbox %lu\n", sandbox->id);
 		goto err_free_sandbox_failed;

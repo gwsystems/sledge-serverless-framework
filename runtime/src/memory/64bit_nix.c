@@ -41,7 +41,8 @@ expand_memory(void)
 	// TODO: Refactor to return RC signifying out-of-mem to caller. Issue #96.
 	if (map_result == MAP_FAILED) panic("Mapping of new memory failed");
 	if (local_sandbox_context_cache.linear_memory_size > sandbox->linear_memory_max_size)
-		panic("expand_memory - Out of Memory!\n");
+		panic("expand_memory - Out of Memory!. %u out of %lu\n", local_sandbox_context_cache.linear_memory_size,
+		      sandbox->linear_memory_max_size);
 
 	local_sandbox_context_cache.linear_memory_size += WASM_PAGE_SIZE;
 
