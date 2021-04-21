@@ -16,7 +16,7 @@ fi
 
 if [ "$1" != "-d" ]; then
 	PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
-	sleep 1
+	sleep 2
 else
 	echo "Running under gdb"
 fi
