@@ -37,6 +37,9 @@ for ((i = 0; i < total_count; i++)); do
 
 		result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"${word_count}"_words.pnm localhost:${word_count_to_port["$word_count"_words.pnm]} 2> /dev/null)
 
+		# If the OCR does not produce a guess, fail
+		[[ -z "$result" ]] && exit 1
+
 		diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
 		echo "==============================================="
 	done

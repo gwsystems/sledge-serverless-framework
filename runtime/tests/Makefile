@@ -4,7 +4,7 @@ TESTS=fibonacci empty work work1k work10k work100k work1m forever filesys sockse
 
 TESTSRT=$(TESTS:%=%_rt)
 
-.PHONY: all clean rttests
+.PHONY: all clean rttests tinyekf cifar10 gocr sod
 
 all: rttests tinyekf cifar10 gocr sod
 	@echo "Compilation done!"
@@ -16,15 +16,15 @@ clean:
 	@rm -rf ${SLEDGE_BIN_DIR}/*_wasm.so
 
 tinyekf:
-	make clean gps_ekf_fn.so -C ./TinyEKF/extras/c/ -f wasm.mk
+	make gps_ekf_fn.so -C ./TinyEKF/extras/c/ -f wasm.mk
 	cp ./TinyEKF/extras/c/gps_ekf_fn.so ${SLEDGE_BIN_DIR}/ekf_wasm.so
 
 cifar10:
-	make clean cifar10.so -C ./CMSIS_5_NN/ -f Makefile
+	make cifar10.so -C ./CMSIS_5_NN/ -f Makefile
 	cp ./CMSIS_5_NN/cifar10.so ${SLEDGE_BIN_DIR}/cifar10_wasm.so
 
 gocr:
-	make clean gocr.so -C ./gocr/src/ -f wasm.mk
+	make gocr.so -C ./gocr/src/ -f wasm.mk
 	cp ./gocr/src/gocr.so ${SLEDGE_BIN_DIR}/gocr_wasm.so
 
 sod:
