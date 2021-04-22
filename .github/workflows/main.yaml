@@ -108,3 +108,6 @@ jobs:
       - name: Hyde
         run: |
           ./test.sh ocr_hyde
+      - name: Handwriting
+        run: |
+          ./test.sh ocr_handwriting
