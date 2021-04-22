@@ -114,3 +114,6 @@ jobs:
       - name: Five by Eight
         run: |
           ./test.sh ocr_fivebyeight
+      - name: OCR by Word
+        run: |
+          ./test.sh ocr_by_word
