@@ -80,6 +80,15 @@ jobs:
             netpbm \
             pango1.0-tools \
             wamerican
+      - name: Cache Cargo
+        uses: actions/cache@v2
+        env:
+          cache-name: cargo
+        with:
+          path: ~/.cargo
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('./awsm/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
       - name: Compile sledge
         run: |
           make build 
