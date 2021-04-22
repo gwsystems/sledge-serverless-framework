@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifndef MAX_BUF
 #define MAX_BUF (1024 * 1024 * 1) // 1m

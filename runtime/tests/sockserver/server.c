@@ -2,8 +2,11 @@
    The port number is passed as an argument */
 /* code from: http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html */
 #include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #include <netinet/in.h>
 
 void
