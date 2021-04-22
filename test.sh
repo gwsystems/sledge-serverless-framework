@@ -32,7 +32,9 @@ declare -a failed_tests=()
 # OCR Tests
 # FIXME: OCR tests seem to sporadically fail and then work on rerun.
 ocr_hyde() {
-	make gocr -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/gocr_wasm.so" ]]; then
+		make gocr -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/hyde" || exit 1
 	./run.sh || failed_tests+=("ocr_hyde")
 	popd || exit 1
@@ -40,7 +42,9 @@ ocr_hyde() {
 }
 
 ocr_handwriting() {
-	make gocr -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/gocr_wasm.so" ]]; then
+		make gocr -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/handwriting" || exit 1
 	./run.sh || failed_tests+=("ocr_handwriting")
 	popd || exit 1
@@ -48,7 +52,9 @@ ocr_handwriting() {
 }
 
 ocr_fivebyeight() {
-	make gocr -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/gocr_wasm.so" ]]; then
+		make gocr -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/fivebyeight" || exit 1
 	./run.sh || failed_tests+=("ocr_fivebyeight")
 	popd || exit 1
@@ -56,7 +62,9 @@ ocr_fivebyeight() {
 }
 
 ocr_by_word() {
-	make gocr -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/gocr_wasm.so" ]]; then
+		make gocr -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/by_word" || exit 1
 	./install.sh || exit 1
 	./run.sh || failed_tests+=("ocr_by_word")
@@ -65,7 +73,9 @@ ocr_by_word() {
 }
 
 ocr_by_font() {
-	make gocr -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/gocr_wasm.so" ]]; then
+		make gocr -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/by_font" || exit 1
 	./install.sh || exit 1
 	./run.sh || failed_tests+=("ocr_by_font")
@@ -74,7 +84,9 @@ ocr_by_font() {
 }
 
 ocr_by_dpi() {
-	make gocr -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/gocr_wasm.so" ]]; then
+		make gocr -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/by_dpi" || exit 1
 	./install.sh || exit 1
 	./run.sh || failed_tests+=("ocr_by_dpi")
