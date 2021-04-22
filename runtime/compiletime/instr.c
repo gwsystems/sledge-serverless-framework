@@ -116,56 +116,56 @@ i64_rem(int64_t a, int64_t b)
 uint32_t
 u32_trunc_f32(float f)
 {
-	assert(0 <= f && f <= UINT32_MAX);
+	assert(0 <= f && f <= (float)UINT32_MAX);
 	return (uint32_t)f;
 }
 
 int32_t
 i32_trunc_f32(float f)
 {
-	assert(INT32_MIN <= f && f <= INT32_MAX);
+	assert(INT32_MIN <= f && f <= (float)INT32_MAX);
 	return (int32_t)f;
 }
 
 uint32_t
 u32_trunc_f64(double f)
 {
-	assert(0 <= f && f <= UINT32_MAX);
+	assert(0 <= f && f <= (double)UINT32_MAX);
 	return (uint32_t)f;
 }
 
 int32_t
 i32_trunc_f64(double f)
 {
-	assert(INT32_MIN <= f && f <= INT32_MAX);
+	assert(INT32_MIN <= f && f <= (double)INT32_MAX);
 	return (int32_t)f;
 }
 
 uint64_t
 u64_trunc_f32(float f)
 {
-	assert(0 <= f && f <= UINT64_MAX);
+	assert(0 <= f && f <= (float)UINT64_MAX);
 	return (uint64_t)f;
 }
 
 int64_t
 i64_trunc_f32(float f)
 {
-	assert(INT64_MIN <= f && f <= INT64_MAX);
+	assert(INT64_MIN <= f && f <= (float)INT64_MAX);
 	return (int64_t)f;
 }
 
 uint64_t
 u64_trunc_f64(double f)
 {
-	assert(0 <= f && f <= UINT64_MAX);
+	assert(0 <= f && f <= (double)UINT64_MAX);
 	return (uint64_t)f;
 }
 
 int64_t
 i64_trunc_f64(double f)
 {
-	assert(INT64_MIN <= f && f <= INT64_MAX);
+	assert(INT64_MIN <= f && f <= (double)INT64_MAX);
 	return (int64_t)f;
 }
 
