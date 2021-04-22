@@ -111,3 +111,6 @@ jobs:
       - name: Handwriting
         run: |
           ./test.sh ocr_handwriting
+      - name: Five by Eight
+        run: |
+          ./test.sh ocr_fivebyeight
