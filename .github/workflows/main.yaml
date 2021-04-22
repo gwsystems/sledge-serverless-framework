@@ -123,3 +123,11 @@ jobs:
       - name: OCR by DPI
         run: |
           ./test.sh ocr_by_dpi
+      - name: Cache EKF
+        uses: actions/cache@v2
+        with:
+          path: ./runtime/bin/ekf_wasm.so
+          key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/TinyEKF') }}
+      - name: EKF by Iteration
+        run: |
+          ./test.sh ekf_by_iteration

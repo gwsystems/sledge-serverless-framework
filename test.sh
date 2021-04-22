@@ -96,15 +96,20 @@ ocr_by_dpi() {
 
 # EKF Tests
 ekf_by_iteration() {
+	if [[ ! -f "$base_dir/runtime/bin/ekf_wasm.so" ]]; then
+		make tinyekf -C "$base_dir/runtime/tests" || exit 1
+	fi
 	make tinyekf -C "$base_dir/runtime/tests" || exit 1
 	pushd "$base_dir/runtime/experiments/applications/ekf/by_iteration" || exit 1
-	./run.sh || failed_tests+=("ocr_by_dpi")
+	./run.sh || failed_tests+=("ekf_by_iteration")
 	popd || exit 1
 	return 0
 }
 
 ekf_one_iteration() {
-	make tinyekf -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/ekf_wasm.so" ]]; then
+		make tinyekf -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/ekf/one_iteration" || exit 1
 	./run.sh || failed_tests+=("ekf_one_iteration")
 	popd || exit 1
