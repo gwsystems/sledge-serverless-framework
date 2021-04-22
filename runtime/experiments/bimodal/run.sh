@@ -19,6 +19,11 @@ source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
 
+if ! command -v hey; then
+	echo "hey is not present."
+	exit 1
+fi
+
 # Sends requests until the per-module perf window buffers are full
 # This ensures that Sledge has accurate estimates of execution time
 run_samples() {

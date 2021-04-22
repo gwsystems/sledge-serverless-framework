@@ -166,6 +166,7 @@ bimodal() {
 		make rttests -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/bimodal/" || exit 1
+	./install.sh || exit 1
 	./run.sh || failed_tests+=("bimodal")
 	popd || exit 1
 	return 0
@@ -177,6 +178,7 @@ concurrency() {
 		make rttests -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/concurrency/" || exit 1
+	./install.sh || exit 1
 	./run.sh || failed_tests+=("concurrency")
 	popd || exit 1
 	return 0
@@ -192,6 +194,7 @@ payload() {
 	fi
 	# TODO: Make Dependency "work1k_wasm.so" "work10k_wasm.so" "work100k_wasm.so" "work1m_wasm.so"
 	pushd "$base_dir/runtime/experiments/payload/" || exit 1
+	./install.sh || exit 1
 	./run.sh || failed_tests+=("payload")
 	popd || exit 1
 	return 0

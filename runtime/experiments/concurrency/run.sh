@@ -15,6 +15,11 @@ source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
 
+if ! command -v hey; then
+	echo "hey is not present."
+	exit 1
+fi
+
 declare -gi iterations=10000
 declare -ga concurrency=(1 20 40 60 80 100)
 
