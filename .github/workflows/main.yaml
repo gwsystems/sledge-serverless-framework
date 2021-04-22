@@ -99,7 +99,7 @@ jobs:
         with:
           # Cache the gocr webassembly module based on the submodule file
           path: ./runtime/bin/gocr_wasm.so
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles(./runtime/tests/gocr') }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('./runtime/tests/gocr') }}
       - name: Compile sample apps and run tests
         run: |
           ./test.sh
