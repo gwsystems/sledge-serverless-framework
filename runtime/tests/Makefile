@@ -24,8 +24,9 @@ cifar10:
 	cp ./CMSIS_5_NN/cifar10.so ${SLEDGE_BIN_DIR}/cifar10_wasm.so
 
 gocr:
+	@echo "Making and Installing gocr"
 	make gocr.so -C ./gocr/src/ -f wasm.mk
-	cp ./gocr/src/gocr.so ${SLEDGE_BIN_DIR}/gocr_wasm.so
+	@cp ./gocr/src/gocr.so ${SLEDGE_BIN_DIR}/gocr_wasm.so
 
 sod:
 	make clean dir samples.so -C ./sod/
