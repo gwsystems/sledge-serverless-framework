@@ -119,7 +119,9 @@ ekf_one_iteration() {
 
 # cifar10 Tests
 image_classification() {
-	make cifar10 -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/cifar10_wasm.so" ]]; then
+		make cifar10 -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/imageclassification" || exit 1
 	./run.sh || failed_tests+=("image_classification")
 	popd || exit 1
@@ -127,8 +129,9 @@ image_classification() {
 }
 
 image_resize() {
-	return 0
-	make sod -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/resize_wasm.so" ]]; then
+		make sod -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/imageresize/test" || exit 1
 	./install.sh || exit 1
 	./run.sh || failed_tests+=("image_resize")
@@ -137,9 +140,9 @@ image_resize() {
 }
 
 lpd_by_resolution() {
-	# Disabled... Seems to be dumping raw image data
-	return 0
-	make sod -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/lpd_wasm.so" ]]; then
+		make sod -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/imageresize/by_resolution" || exit 1
 	./install.sh || exit 1
 	./run.sh || failed_tests+=("lpd_by_resolution")
@@ -148,9 +151,9 @@ lpd_by_resolution() {
 }
 
 lpd_by_plate_count() {
-	# Disabled... Seems to be dumping raw image data
-	return 0
-	make sod -C "$base_dir/runtime/tests" || exit 1
+	if [[ ! -f "$base_dir/runtime/bin/lpd_wasm.so" ]]; then
+		make sod -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/applications/licenseplate/by_plate_count" || exit 1
 	./run.sh || failed_tests+=("lpd_by_plate_count")
 	popd || exit 1
@@ -158,9 +161,10 @@ lpd_by_plate_count() {
 }
 
 bimodal() {
-	return 0
 	echo "Bimodal"
-	# TODO: Make Dependency "fibonacci_wasm.so"
+	if [[ ! -f "$base_dir/runtime/bin/fibonacci_wasm.so" ]]; then
+		make rttests -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/bimodal/" || exit 1
 	./run.sh || failed_tests+=("bimodal")
 	popd || exit 1
@@ -168,9 +172,10 @@ bimodal() {
 }
 
 concurrency() {
-	return 0
 	echo "Concurrency"
-	# TODO: Make Dependency "empty_wasm.so"
+	if [[ ! -f "$base_dir/runtime/bin/empty_wasm.so" ]]; then
+		make rttests -C "$base_dir/runtime/tests" || exit 1
+	fi
 	pushd "$base_dir/runtime/experiments/concurrency/" || exit 1
 	./run.sh || failed_tests+=("concurrency")
 	popd || exit 1
@@ -178,8 +183,13 @@ concurrency() {
 }
 
 payload() {
-	return 0
 	echo "Payload"
+	if [[ ! -f "$base_dir/runtime/bin/work1k_wasm.so" ]] \
+		|| [[ ! -f "$base_dir/runtime/bin/work10k_wasm.so" ]] \
+		|| [[ ! -f "$base_dir/runtime/bin/work100k_wasm.so" ]] \
+		|| [[ ! -f "$base_dir/runtime/bin/work1m_wasm.so" ]]; then
+		make rttests -C "$base_dir/runtime/tests" || exit 1
+	fi
 	# TODO: Make Dependency "work1k_wasm.so" "work10k_wasm.so" "work100k_wasm.so" "work1m_wasm.so"
 	pushd "$base_dir/runtime/experiments/payload/" || exit 1
 	./run.sh || failed_tests+=("payload")
@@ -191,40 +201,36 @@ main() {
 	cd "$base_dir/awsm" && cargo build --release || exit 1
 	make all -C "$base_dir/runtime" || exit 1
 
-	# If no arguments are provided, run all tests
 	if (($# == 0)); then
+		# If no arguments are provided, run all tests
 		for test in "${tests[@]}"; do
 			"$test"
 		done
 
-		local -i failure_count=${#failed_tests[@]}
+	else
+		# Otherwise, only run the tests passed as arguments
+		for test in "$@"; do
+			if [[ ! " ${tests[*]} " =~ " ${test} " ]]; then
+				printf "Error: %s is not a known test\n" "$test"
+				return 1
+			else
+				"$test"
+			fi
+		done
 
-		if ((failure_count > 0)); then
-			printf "Failed Tests\n"
-			for test in "${failed_tests[@]}"; do
-				printf "\t%s\n" "$test"
-			done
-			exit 1
-		fi
-
-		exit 0
 	fi
 
-	# Otherwise, only run the tests passed as arguments
-	for test in "$@"; do
-		if [[ ! " ${tests[*]} " =~ " ${test} " ]]; then
-			printf "Error: %s is not a known test\n" "$test"
-			return 1
-		else
-			if "$test"; then
-				printf "%s: Pass\n" "$test"
-			else
-				printf "%s: Fail\n" "$test"
-
-			fi
-		fi
-
-	done
+	local -i failure_count=${#failed_tests[@]}
+	if ((failure_count > 0)); then
+		printf "Failed Tests\n"
+		for test in "${failed_tests[@]}"; do
+			printf "\t%s\n" "$test"
+		done
+		exit 1
+	else
+		printf "All tests passed\n"
+		exit 0
+	fi
 }
 
 main "$@"
