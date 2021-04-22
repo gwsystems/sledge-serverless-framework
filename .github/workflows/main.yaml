@@ -106,86 +106,73 @@ jobs:
         with:
           path: ./runtime/bin/gocr_wasm.so
           key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/gocr') }}
+        if: success() || failure()
       - name: Hyde
         run: |
           ./test.sh ocr_hyde
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: Handwriting
         run: |
           ./test.sh ocr_handwriting
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: Five by Eight
         run: |
           ./test.sh ocr_fivebyeight
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: OCR by Word
         run: |
           ./test.sh ocr_by_word
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: OCR by Font
         run: |
           ./test.sh ocr_by_font
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: OCR by DPI
         run: |
           ./test.sh ocr_by_dpi
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache EKF
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/ekf_wasm.so
           key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/TinyEKF') }}
+        if: success() || failure()
       - name: EKF one iteration
         run: |
           ./test.sh ekf_one_iteration
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: EKF by Iteration
         run: |
           ./test.sh ekf_by_iteration
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Image Classification
         run: |
           ./test.sh image_classification
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Image Resize
         run: |
           ./test.sh image_resize
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: License Plate Detection by Resolution
         run: |
           ./test.sh lpd_by_resolution
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: License Plate Detection by Plate Count
         run: |
           ./test.sh lpd_by_plate_count
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: Bimodal
         run: |
           ./test.sh bimodal
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: Concurrency
         run: |
           ./test.sh concurrency
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
       - name: Payload
         run: |
           ./test.sh payload
-        continue-on-error: true
-        # if: succeeded() || failed()
+        if: success() || failure()
