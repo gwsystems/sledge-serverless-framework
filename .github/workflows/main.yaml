@@ -117,3 +117,9 @@ jobs:
       - name: OCR by Word
         run: |
           ./test.sh ocr_by_word
+      - name: OCR by Font
+        run: |
+          ./test.sh ocr_by_font
+      - name: OCR by DPI
+        run: |
+          ./test.sh ocr_by_dpi
