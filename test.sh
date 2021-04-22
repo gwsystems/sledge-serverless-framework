@@ -208,6 +208,7 @@ main() {
 	for test in "$@"; do
 		if [[ ! " ${tests[*]} " =~ " ${test} " ]]; then
 			printf "Error: %s is not a known test\n" "$test"
+			return 1
 		else
 			if "$test"; then
 				printf "%s: Pass\n" "$test"

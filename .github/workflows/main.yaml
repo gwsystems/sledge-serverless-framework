@@ -107,4 +107,4 @@ jobs:
           key: ${{ runner.os }}-gocr-${{ hashFiles('./runtime/tests/gocr') }}
       - name: Hyde
         run: |
-          ./test.sh hyde
+          ./test.sh ocr_hyde
