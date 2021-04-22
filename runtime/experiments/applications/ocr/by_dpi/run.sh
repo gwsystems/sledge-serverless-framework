@@ -28,7 +28,6 @@ dpi_to_port[144]=10002
 total_count=100
 
 for ((i = 0; i < total_count; i++)); do
-	echo "$i"
 	words="$(shuf -n"$word_count" /usr/share/dict/american-english)"
 
 	for dpi in "${dpis[@]}"; do

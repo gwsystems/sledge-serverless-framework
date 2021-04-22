@@ -12,7 +12,7 @@ log="$experiment_directory/log.csv"
 
 if [ "$1" != "-d" ]; then
 	SLEDGE_SANDBOX_PERF_LOG=$log PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
-	sleep 1
+	sleep 3
 else
 	echo "Running under gdb"
 fi
@@ -24,28 +24,43 @@ for ((i = 0; i < total_count; i++)); do
 	echo "$i"
 	ext="$RANDOM"
 
-	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "result_${ext}_small.png" localhost:10000 2> /dev/null 1> /dev/null
-	pixel_differences="$(compare -identify -metric AE "result_${ext}_small.png" expected_result_small.png null: 2>&1 > /dev/null)"
-	if [[ "$pixel_differences" != "0" ]]; then
-		echo "Small FAIL"
-		echo "$pixel_differences pixel differences detected"
-		exit 1
+	# Small
+	if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "result_${ext}_small.png" localhost:10000 2> /dev/null 1> /dev/null; then
+		pixel_differences="$(compare -identify -metric AE "result_${ext}_small.png" expected_result_small.png null: 2>&1 > /dev/null)"
+		echo "Pixel Differences: $pixel_differences"
+		if [[ "$pixel_differences" != "0" ]]; then
+			echo "Small FAIL"
+			echo "$pixel_differences pixel differences detected"
+			exit 1
+		fi
+	else
+		echo "curl failed with ${?}. See man curl for meaning."
 	fi
 
-	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "result_${ext}_medium.png" localhost:10001 2> /dev/null 1> /dev/null
-	pixel_differences="$(compare -identify -metric AE "result_${ext}_medium.png" expected_result_medium.png null: 2>&1 > /dev/null)"
-	if [[ "$pixel_differences" != "0" ]]; then
-		echo "Small FAIL"
-		echo "$pixel_differences pixel differences detected"
-		exit 1
+	# Medium
+	if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "result_${ext}_medium.png" localhost:10001 2> /dev/null 1> /dev/null; then
+		pixel_differences="$(compare -identify -metric AE "result_${ext}_medium.png" expected_result_medium.png null: 2>&1 > /dev/null)"
+		echo "Pixel Differences: $pixel_differences"
+		if [[ "$pixel_differences" != "0" ]]; then
+			echo "Medium FAIL"
+			echo "$pixel_differences pixel differences detected"
+			exit 1
+		fi
+	else
+		echo "curl failed with ${?}. See man curl for meaning."
 	fi
 
-	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "result_${ext}_large.png" localhost:10002 2> /dev/null 1> /dev/null
-	pixel_differences="$(compare -identify -metric AE "result_${ext}_large.png" expected_result_large.png null: 2>&1 > /dev/null)"
-	if [[ "$pixel_differences" != "0" ]]; then
-		echo "Small FAIL"
-		echo "$pixel_differences pixel differences detected"
-		exit 1
+	# Large
+	if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "result_${ext}_large.png" localhost:10002 2> /dev/null 1> /dev/null; then
+		pixel_differences="$(compare -identify -metric AE "result_${ext}_large.png" expected_result_large.png null: 2>&1 > /dev/null)"
+		echo "Pixel Differences: $pixel_differences"
+		if [[ "$pixel_differences" != "0" ]]; then
+			echo "Large FAIL"
+			echo "$pixel_differences pixel differences detected"
+			exit 1
+		fi
+	else
+		echo "curl failed with ${?}. See man curl for meaning."
 	fi
 
 	success_count=$((success_count + 1))

@@ -22,7 +22,6 @@ fonts=("DejaVu Sans Mono" "Roboto" "Cascadia Code")
 total_count=10
 
 for ((i = 1; i <= total_count; i++)); do
-	echo "Test $i"
 	words="$(shuf -n"$word_count" /usr/share/dict/american-english)"
 
 	for font in "${fonts[@]}"; do

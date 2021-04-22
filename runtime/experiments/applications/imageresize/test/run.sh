@@ -16,7 +16,7 @@ fi
 
 if [ "$1" != "-d" ]; then
 	PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
-	sleep 1
+	sleep 3
 else
 	echo "Running under gdb"
 fi
@@ -27,16 +27,20 @@ total_count=10
 for ((i = 0; i < total_count; i++)); do
 	echo "$i"
 	ext="$RANDOM"
-	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "result_$ext.png" localhost:10000 2> /dev/null 1> /dev/null || exit 1
 
-	pixel_differences="$(compare -identify -metric AE "result_$ext.png" expected_result.png null: 2>&1 > /dev/null)"
+	if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "result_$ext.png" localhost:10000 2> /dev/null 1> /dev/null; then
 
-	if [[ "$pixel_differences" == "0" ]]; then
-		success_count=$((success_count + 1))
+		pixel_differences="$(compare -identify -metric AE "result_$ext.png" expected_result.png null: 2>&1 > /dev/null)"
+
+		if [[ "$pixel_differences" == "0" ]]; then
+			success_count=$((success_count + 1))
+		else
+			echo "FAIL"
+			echo "$pixel_differences pixel differences detected"
+			exit 1
+		fi
 	else
-		echo "FAIL"
-		echo "$pixel_differences pixel differences detected"
-		exit 1
+		echo "curl failed with ${?}. See man curl for meaning."
 	fi
 done
 

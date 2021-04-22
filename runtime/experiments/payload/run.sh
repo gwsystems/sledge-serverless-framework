@@ -16,6 +16,11 @@ source "framework.sh" || exit 1
 source "get_result_count.sh" || exit 1
 source "generate_gnuplots.sh" || exit 1
 
+if ! command -v hey; then
+	echo "hey is not present."
+	exit 1
+fi
+
 # Experiment Globals and Setups
 declare -ar payloads=(1024 10240 102400 1048576)
 

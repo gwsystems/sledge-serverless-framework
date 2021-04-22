@@ -19,11 +19,27 @@ else
 fi
 
 expected_result="$(cat ./expected_result.txt)"
+
+# Retry 5 times in case the runtime startup is slow
+retries=5
+for ((i = 0; i < retries; i++)); do
+	result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@handwrt1.pnm" localhost:10000 2> /dev/null)
+	if [[ "$result" == "$expected_result" ]]; then
+		break
+	fi
+
+	if ((i == 4)); then
+		echo "Retries exhaused"
+		exit 1
+	fi
+
+	sleep 1
+done
+
 success_count=0
 total_count=50
 
 for ((i = 0; i < total_count; i++)); do
-	echo "$i"
 	result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@handwrt1.pnm" localhost:10000 2> /dev/null)
 	# echo "$result"
 	if [[ "$result" == "$expected_result" ]]; then

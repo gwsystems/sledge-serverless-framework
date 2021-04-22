@@ -19,6 +19,11 @@ source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
 
+if ! command -v hey; then
+	echo "hey is not present."
+	exit 1
+fi
+
 # Sends requests until the per-module perf window buffers are full
 # This ensures that Sledge has accurate estimates of execution time
 run_samples() {
@@ -46,13 +51,13 @@ run_samples() {
 	printf "Running Samples: "
 	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
-		panic "fib40 samples failed"
+		panic "fib40 samples failed with $?"
 		return 1
 	}
 
 	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
-		panic "fib10 samples failed"
+		panic "fib10 samples failed with $?"
 		return 1
 	}
 
