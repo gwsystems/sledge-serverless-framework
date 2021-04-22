@@ -26,7 +26,6 @@ jobs:
         run: ./format.sh -d
   test:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Apt Update
         run: sudo apt-get update
@@ -110,21 +109,33 @@ jobs:
       - name: Hyde
         run: |
           ./test.sh ocr_hyde
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: Handwriting
         run: |
           ./test.sh ocr_handwriting
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: Five by Eight
         run: |
           ./test.sh ocr_fivebyeight
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: OCR by Word
         run: |
           ./test.sh ocr_by_word
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: OCR by Font
         run: |
           ./test.sh ocr_by_font
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: OCR by DPI
         run: |
           ./test.sh ocr_by_dpi
+        continue-on-error: true
+        # if: succeeded() || failed()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache EKF
         uses: actions/cache@v2
@@ -134,29 +145,47 @@ jobs:
       - name: EKF one iteration
         run: |
           ./test.sh ekf_one_iteration
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: EKF by Iteration
         run: |
           ./test.sh ekf_by_iteration
+        continue-on-error: true
+        # if: succeeded() || failed()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Image Classification
         run: |
           ./test.sh image_classification
+        continue-on-error: true
+        # if: succeeded() || failed()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Image Resize
         run: |
           ./test.sh image_resize
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: License Plate Detection by Resolution
         run: |
           ./test.sh lpd_by_resolution
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: License Plate Detection by Plate Count
         run: |
           ./test.sh lpd_by_plate_count
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: Bimodal
         run: |
           ./test.sh bimodal
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: Concurrency
         run: |
           ./test.sh concurrency
+        continue-on-error: true
+        # if: succeeded() || failed()
       - name: Payload
         run: |
           ./test.sh payload
+        continue-on-error: true
+        # if: succeeded() || failed()
