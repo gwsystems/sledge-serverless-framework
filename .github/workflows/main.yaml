@@ -104,7 +104,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gocr_wasm.so
-          key: ${{ runner.os }}-gocr-${{ hashFiles('./runtime/tests/gocr') }}
+          key: ${{ runner.os }}-gocr-${{ hashFiles('./runtime/tests/gocr')-2 }}
       - name: Hyde
         run: |
           ./test.sh ocr_hyde
