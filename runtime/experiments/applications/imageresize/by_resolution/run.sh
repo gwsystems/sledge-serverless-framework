@@ -24,24 +24,27 @@ for ((i = 0; i < total_count; i++)); do
 	echo "$i"
 	ext="$RANDOM"
 
-	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "result_${ext}_small.png" localhost:10000 2> /dev/null 1> /dev/null
+	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "result_${ext}_small.png" localhost:10000
 	pixel_differences="$(compare -identify -metric AE "result_${ext}_small.png" expected_result_small.png null: 2>&1 > /dev/null)"
+	echo "Pixel Differences: $pixel_differences"
 	if [[ "$pixel_differences" != "0" ]]; then
 		echo "Small FAIL"
 		echo "$pixel_differences pixel differences detected"
 		exit 1
 	fi
 
-	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "result_${ext}_medium.png" localhost:10001 2> /dev/null 1> /dev/null
+	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "result_${ext}_medium.png" localhost:10001
 	pixel_differences="$(compare -identify -metric AE "result_${ext}_medium.png" expected_result_medium.png null: 2>&1 > /dev/null)"
+	echo "Pixel Differences: $pixel_differences"
 	if [[ "$pixel_differences" != "0" ]]; then
 		echo "Small FAIL"
 		echo "$pixel_differences pixel differences detected"
 		exit 1
 	fi
 
-	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "result_${ext}_large.png" localhost:10002 2> /dev/null 1> /dev/null
+	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "result_${ext}_large.png" localhost:10002
 	pixel_differences="$(compare -identify -metric AE "result_${ext}_large.png" expected_result_large.png null: 2>&1 > /dev/null)"
+	echo "Pixel Differences: $pixel_differences"
 	if [[ "$pixel_differences" != "0" ]]; then
 		echo "Small FAIL"
 		echo "$pixel_differences pixel differences detected"
