@@ -27,8 +27,6 @@ word_count_to_port["100_words.pnm"]=10002
 total_count=100
 
 for ((i = 0; i < total_count; i++)); do
-	echo "$i"
-
 	for word_count in "${word_counts[@]}"; do
 		echo "${word_count}"_words.pnm
 		words="$(shuf -n"$word_count" /usr/share/dict/american-english)"
@@ -43,7 +41,6 @@ for ((i = 0; i < total_count; i++)); do
 		diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result")
 		echo "==============================================="
 	done
-
 done
 
 if [ "$1" != "-d" ]; then

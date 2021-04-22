@@ -40,7 +40,6 @@ success_count=0
 total_count=50
 
 for ((i = 0; i < total_count; i++)); do
-	echo "$i"
 	result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@handwrt1.pnm" localhost:10000 2> /dev/null)
 	# echo "$result"
 	if [[ "$result" == "$expected_result" ]]; then
