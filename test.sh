@@ -32,6 +32,8 @@ declare -a failed_tests=()
 # OCR Tests
 # FIXME: OCR tests seem to sporadically fail and then work on rerun.
 ocr_hyde() {
+	# FIXME: This check is a hack because GitHub Actions is caching
+	# the *.so file in the destination file, not the subodule it built from
 	if [[ ! -f "$base_dir/runtime/bin/gocr_wasm.so" ]]; then
 		make gocr -C "$base_dir/runtime/tests" || exit 1
 	fi
@@ -99,9 +101,8 @@ ekf_by_iteration() {
 	if [[ ! -f "$base_dir/runtime/bin/ekf_wasm.so" ]]; then
 		make tinyekf -C "$base_dir/runtime/tests" || exit 1
 	fi
-	make tinyekf -C "$base_dir/runtime/tests" || exit 1
 	pushd "$base_dir/runtime/experiments/applications/ekf/by_iteration" || exit 1
-	./run.sh || failed_tests+=("ekf_by_iteration")
+	./run.sh || failed_tests+=("ocr_by_dpi")
 	popd || exit 1
 	return 0
 }

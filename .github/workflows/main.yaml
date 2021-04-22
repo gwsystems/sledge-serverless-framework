@@ -26,6 +26,7 @@ jobs:
         run: ./format.sh -d
   test:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Apt Update
         run: sudo apt-get update
@@ -100,6 +101,7 @@ jobs:
           LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
           make build-validate
+      # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache gocr
         uses: actions/cache@v2
         with:
@@ -123,11 +125,38 @@ jobs:
       - name: OCR by DPI
         run: |
           ./test.sh ocr_by_dpi
+      # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache EKF
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/ekf_wasm.so
           key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/TinyEKF') }}
+      - name: EKF one iteration
+        run: |
+          ./test.sh ekf_one_iteration
       - name: EKF by Iteration
         run: |
           ./test.sh ekf_by_iteration
+      # TODO:Cache assets before being copied to ./runtime/bin
+      - name: Image Classification
+        run: |
+          ./test.sh image_classification
+      # TODO:Cache assets before being copied to ./runtime/bin
+      - name: Image Resize
+        run: |
+          ./test.sh image_resize
+      - name: License Plate Detection by Resolution
+        run: |
+          ./test.sh lpd_by_resolution
+      - name: License Plate Detection by Plate Count
+        run: |
+          ./test.sh lpd_by_plate_count
+      - name: Bimodal
+        run: |
+          ./test.sh bimodal
+      - name: Concurrency
+        run: |
+          ./test.sh concurrency
+      - name: Payload
+        run: |
+          ./test.sh payload
