@@ -76,6 +76,7 @@ jobs:
             fonts-dejavu \
             fonts-cascadia-code \
             fonts-roboto \
+            gnuplot \
             imagemagick \
             netpbm \
             pango1.0-tools \
