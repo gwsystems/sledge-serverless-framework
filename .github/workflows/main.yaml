@@ -82,13 +82,12 @@ jobs:
             wamerican
       - name: Cache Cargo
         uses: actions/cache@v2
-        env:
-          cache-name: cargo
         with:
-          path: ~/.cargo
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('./awsm/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ./awsm/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('./awsm/Cargo.lock') }}
       - name: Compile sledge
         run: |
           make build 
@@ -103,12 +102,9 @@ jobs:
           make build-validate
       - name: Cache gocr
         uses: actions/cache@v2
-        env:
-          cache-name: gocr
         with:
-          # Cache the gocr webassembly module based on the submodule file
           path: ./runtime/bin/gocr_wasm.so
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('./runtime/tests/gocr') }}
-      - name: Compile sample apps and run tests
+          key: ${{ runner.os }}-gocr-${{ hashFiles('./runtime/tests/gocr') }}
+      - name: Hyde
         run: |
-          ./test.sh
+          ./test.sh hyde
