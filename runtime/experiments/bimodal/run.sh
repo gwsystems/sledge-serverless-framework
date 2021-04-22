@@ -44,15 +44,15 @@ run_samples() {
 	local -ir perf_window_buffer_size
 
 	printf "Running Samples: "
-	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" 1> /dev/null 2> /dev/null || {
+	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" || {
 		printf "[ERR]\n"
-		panic "fib40 samples failed"
+		panic "fib40 samples failed with $?"
 		return 1
 	}
 
-	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" 1> /dev/null 2> /dev/null || {
+	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" || {
 		printf "[ERR]\n"
-		panic "fib10 samples failed"
+		panic "fib10 samples failed with $?"
 		return 1
 	}
 
