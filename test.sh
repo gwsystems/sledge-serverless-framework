@@ -20,7 +20,7 @@ declare -ra tests=(
 	ekf_one_iteration
 	image_classification
 	image_resize
-	lpd_by_resolution
+	image_resize_by_resolution
 	lpd_by_plate_count
 	bimodal
 	concurrency
@@ -139,13 +139,13 @@ image_resize() {
 	return 0
 }
 
-lpd_by_resolution() {
-	if [[ ! -f "$base_dir/runtime/bin/lpd_wasm.so" ]]; then
+image_resize_by_resolution() {
+	if [[ ! -f "$base_dir/runtime/bin/resize_wasm.so" ]]; then
 		make sod -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/imageresize/by_resolution" || exit 1
 	./install.sh || exit 1
-	./run.sh || failed_tests+=("lpd_by_resolution")
+	./run.sh || failed_tests+=("image_resize_resolution")
 	popd || exit 1
 	return 0
 }

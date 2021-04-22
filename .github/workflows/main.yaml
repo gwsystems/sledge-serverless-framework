@@ -156,9 +156,9 @@ jobs:
         run: |
           ./test.sh image_resize
         if: success() || failure()
-      - name: License Plate Detection by Resolution
+      - name: Image Resize by Resolution
         run: |
-          ./test.sh lpd_by_resolution
+          ./test.sh image_resize_by_resolution
         if: success() || failure()
       - name: License Plate Detection by Plate Count
         run: |
