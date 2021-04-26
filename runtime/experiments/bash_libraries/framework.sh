@@ -22,6 +22,7 @@ __framework_sh__usage() {
 	echo ""
 	echo "Options:"
 	echo "  -t,--target=<target url> Execute as client against remote URL"
+	echo "  -e,--envfile=<file name> Load an Env File. No path and pass filename with *.env extension"
 	echo "  -s,--serve               Serve but do not run client"
 	echo "  -d,--debug               Debug under GDB but do not run client"
 	echo "  -v,--valgrind            Debug under Valgrind but do not run client"
@@ -39,6 +40,7 @@ __framework_sh__initialize_globals() {
 	# Globals used by parse_arguments
 	declare -g __framework_sh__target=""
 	declare -g __framework_sh__role=""
+	declare -g __framework_sh__envfile=""
 
 	# Configure environment variables
 	# shellcheck disable=SC2155
@@ -97,6 +99,15 @@ __framework_sh__parse_arguments() {
 				fi
 				__framework_sh__role=valgrind
 				shift
+				;;
+			-e=* | --envfile=*)
+				if [[ "$__framework_sh__role" == "client" ]]; then
+					echo "Expected to be used with run by the server"
+					__framework_sh__usage
+					return 1
+				fi
+				__framework_sh__envfile="${i#*=}"
+				echo "Set envfile to $__framework_sh__envfile"
 				;;
 			-h | --help)
 				__framework_sh__usage
@@ -225,12 +236,6 @@ __framework_sh__run_server() {
 }
 
 __framework_sh__run_perf() {
-	if (($# != 0)); then
-		printf "[ERR]\n"
-		panic "Invalid number of arguments. Saw $#. Expected 0."
-		return 1
-	fi
-
 	if ! command -v perf; then
 		echo "perf is not present."
 		exit 1
@@ -240,12 +245,6 @@ __framework_sh__run_perf() {
 }
 
 __framework_sh__run_valgrind() {
-	if (($# != 0)); then
-		printf "[ERR]\n"
-		panic "Invalid number of arguments. Saw $#. Expected 0."
-		return 1
-	fi
-
 	if ! command -v valgrind; then
 		echo "valgrind is not present."
 		exit 1
@@ -256,12 +255,6 @@ __framework_sh__run_valgrind() {
 
 # Starts the Sledge Runtime under GDB
 __framework_sh__run_debug() {
-	if (($# != 0)); then
-		printf "[ERR]\n"
-		panic "Invalid number of arguments. Saw $#. Expected 0."
-		return 1
-	fi
-
 	# shellcheck disable=SC2155
 	local project_directory=$(cd ../.. && pwd)
 
@@ -294,12 +287,23 @@ __framework_sh__run_client() {
 	return 0
 }
 
+__framework_sh__load_env_file() {
+	local envfile="$1"
+	if [[ -f "$envfile" ]]; then
+		while read -r line; do
+			echo export "${line?}"
+			export "${line?}"
+		done < "$envfile"
+	fi
+}
+
 __framework_sh__run_both() {
-	local -ar schedulers=(EDF FIFO)
-	for scheduler in "${schedulers[@]}"; do
-		printf "Running %s\n" "$scheduler"
-		export SLEDGE_SCHEDULER="$scheduler"
-		__framework_sh__create_and_export_results_directory "$scheduler"
+	local short_name
+	for envfile in "$__framework_sh__application_directory"/*.env; do
+		short_name="$(basename "${envfile/.env/}")"
+		printf "Running %s\n" "$short_name"
+		__framework_sh__load_env_file "$envfile"
+		__framework_sh__create_and_export_results_directory "$short_name"
 
 		__framework_sh__run_server background || {
 			panic "Error calling __framework_sh__run_server"
@@ -370,6 +374,7 @@ main() {
 	__framework_sh__initialize_globals || exit 1
 	__framework_sh__parse_arguments "$@" || exit 1
 	__framework_sh__create_and_export_results_directory || exit 1
+	[[ -n "$__framework_sh__envfile" ]] && __framework_sh__load_env_file "$__framework_sh__application_directory/$__framework_sh__envfile"
 
 	case $__framework_sh__role in
 		both)

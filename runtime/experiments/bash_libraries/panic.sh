@@ -8,9 +8,8 @@ declare __common_did_dump_callstack=false
 
 __common_dump_callstack() {
 	echo "Call Stack:"
-	# Skip the dump_bash_stack and error_msg_frames
-	for ((i = 2; i < ${#FUNCNAME[@]}; i++)); do
-		printf "\t%d - %s\n" "$((i - 2))" "${FUNCNAME[i]} (${BASH_SOURCE[i + 1]}:${BASH_LINENO[i + 1]})"
+	for ((i = 1; i < ${#FUNCNAME[@]}; i++)); do
+		printf "\t%d - %s\n" "$((i - 1))" "${FUNCNAME[i]} (${BASH_SOURCE[i + 1]}:${BASH_LINENO[i]})"
 	done
 }
 
