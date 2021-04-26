@@ -40,6 +40,10 @@ FILE *runtime_sandbox_perf_log = NULL;
 enum RUNTIME_SCHEDULER runtime_scheduler = RUNTIME_SCHEDULER_FIFO;
 int                    runtime_worker_core_count;
 
+
+bool     runtime_preemption_enabled = true;
+uint32_t runtime_quantum_us         = 5000; /* 5ms */
+
 /**
  * Returns instructions on use of CLI if used incorrectly
  * @param cmd - The command the user entered
@@ -213,6 +217,22 @@ runtime_configure()
 	}
 	printf("\tScheduler Policy: %s\n", print_runtime_scheduler(runtime_scheduler));
 
+	/* Runtime Preemption Toggle */
+	char *preempt_disable = getenv("SLEDGE_DISABLE_PREEMPTION");
+	if (preempt_disable != NULL && strcmp(preempt_disable, "false") != 0) runtime_preemption_enabled = false;
+	printf("\tPreemption: %s\n", runtime_preemption_enabled ? "Enabled" : "Disabled");
+
+	/* Runtime Quantum */
+	char *quantum_raw = getenv("SLEDGE_QUANTUM_US");
+	if (quantum_raw != NULL) {
+		long quantum = atoi(quantum_raw);
+		if (unlikely(quantum <= 0)) panic("SLEDGE_QUANTUM_US must be a positive integer, saw %ld\n", quantum);
+		if (unlikely(quantum > 999999))
+			panic("SLEDGE_QUANTUM_US must be less than 999999 ms, saw %ld\n", quantum);
+		runtime_quantum_us = (uint32_t)quantum;
+	}
+	printf("\tQuantum: %u us\n", runtime_quantum_us);
+
 	/* Runtime Perf Log */
 	char *runtime_sandbox_perf_log_path = getenv("SLEDGE_SANDBOX_PERF_LOG");
 	if (runtime_sandbox_perf_log_path != NULL) {
@@ -352,8 +372,7 @@ main(int argc, char **argv)
 	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
 
-	software_interrupt_interval_duration_in_cycles = (uint64_t)SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC
-	                                                 * runtime_processor_speed_MHz;
+	software_interrupt_interval_duration_in_cycles = (uint64_t)runtime_quantum_us * runtime_processor_speed_MHz;
 	printf("\tProcessor Speed: %u MHz\n", runtime_processor_speed_MHz);
 
 	runtime_set_resource_limits_to_max();

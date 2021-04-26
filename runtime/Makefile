@@ -85,9 +85,6 @@ CFLAGS += -D${ARCH}
 CFLAGS += -DNCORES=${TOTAL_CORES}
 CFLAGS += -DPAGE_SIZE=$(PAGE_SIZE)
 
-# Optionally Disable preemption
-# CFLAGS += -DPREEMPT_DISABLE
-
 # Sandboxes running on Sledge always use WebAssembly linear memory
 CFLAGS += -DUSE_MEM_VM
 

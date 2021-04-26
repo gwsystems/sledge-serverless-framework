@@ -165,9 +165,9 @@ software_interrupt_validate_worker()
 static inline void
 software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 {
-#ifdef PREEMPT_DISABLE
-	panic("Unexpectedly invoked signal handlers when PREEMPT_DISABLE set\n");
-#else
+	if (unlikely(!runtime_preemption_enabled)) {
+		panic("Unexpectedly invoked signal handlers with preemption disabled\n");
+	}
 
 	software_interrupt_validate_worker();
 
@@ -190,7 +190,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		}
 	}
 	}
-#endif
 }
 
 /********************
@@ -198,24 +197,24 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
  *******************/
 
 /**
- * Arms the Interval Timer to start in 10ms and then trigger a SIGALRM every 5ms
+ * Arms the Interval Timer to start in one quantum and then trigger a SIGALRM every quantum
  */
 void
 software_interrupt_arm_timer(void)
 {
-#ifndef PREEMPT_DISABLE
+	if (!runtime_preemption_enabled) return;
+
 	struct itimerval interval_timer;
 
 	memset(&interval_timer, 0, sizeof(struct itimerval));
-	interval_timer.it_value.tv_usec    = SOFTWARE_INTERRUPT_TIME_TO_START_IN_USEC;
-	interval_timer.it_interval.tv_usec = SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC;
+	interval_timer.it_value.tv_usec    = runtime_quantum_us;
+	interval_timer.it_interval.tv_usec = runtime_quantum_us;
 
 	int return_code = setitimer(ITIMER_REAL, &interval_timer, NULL);
 	if (return_code) {
 		perror("setitimer");
 		exit(1);
 	}
-#endif
 }
 
 /**
