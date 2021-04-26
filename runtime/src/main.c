@@ -40,6 +40,9 @@ FILE *runtime_sandbox_perf_log = NULL;
 enum RUNTIME_SCHEDULER runtime_scheduler = RUNTIME_SCHEDULER_FIFO;
 int                    runtime_worker_core_count;
 
+
+bool runtime_preemption_enabled = true;
+
 /**
  * Returns instructions on use of CLI if used incorrectly
  * @param cmd - The command the user entered
@@ -212,6 +215,11 @@ runtime_configure()
 		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
 	}
 	printf("\tScheduler Policy: %s\n", print_runtime_scheduler(runtime_scheduler));
+
+	/* Runtime Preemption Toggle */
+	char *preempt_disable = getenv("SLEDGE_DISABLE_PREEMPTION");
+	if (preempt_disable != NULL && strcmp(preempt_disable, "false") != 0) runtime_preemption_enabled = false;
+	printf("\tPreemption: %s\n", runtime_preemption_enabled ? "Enabled" : "Disabled");
 
 	/* Runtime Perf Log */
 	char *runtime_sandbox_perf_log_path = getenv("SLEDGE_SANDBOX_PERF_LOG");

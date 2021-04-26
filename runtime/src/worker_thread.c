@@ -317,10 +317,11 @@ worker_thread_main(void *return_code)
 
 
 	/* Unmask signals */
-#ifndef PREEMPT_DISABLE
-	software_interrupt_unmask_signal(SIGALRM);
-	software_interrupt_unmask_signal(SIGUSR1);
-#endif
+	if (runtime_preemption_enabled) {
+		software_interrupt_unmask_signal(SIGALRM);
+		software_interrupt_unmask_signal(SIGUSR1);
+	}
+
 	signal(SIGPIPE, SIG_IGN);
 
 	/* Initialize epoll */

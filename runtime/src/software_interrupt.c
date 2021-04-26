@@ -165,9 +165,9 @@ software_interrupt_validate_worker()
 static inline void
 software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 {
-#ifdef PREEMPT_DISABLE
-	panic("Unexpectedly invoked signal handlers when PREEMPT_DISABLE set\n");
-#else
+	if (unlikely(!runtime_preemption_enabled)) {
+		panic("Unexpectedly invoked signal handlers with preemption disabled\n");
+	}
 
 	software_interrupt_validate_worker();
 
@@ -190,7 +190,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		}
 	}
 	}
-#endif
 }
 
 /********************
@@ -203,7 +202,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 void
 software_interrupt_arm_timer(void)
 {
-#ifndef PREEMPT_DISABLE
+	if (!runtime_preemption_enabled) return;
+
 	struct itimerval interval_timer;
 
 	memset(&interval_timer, 0, sizeof(struct itimerval));
@@ -215,7 +215,6 @@ software_interrupt_arm_timer(void)
 		perror("setitimer");
 		exit(1);
 	}
-#endif
 }
 
 /**

@@ -90,3 +90,4 @@ print_runtime_scheduler(enum RUNTIME_SCHEDULER variant)
 };
 
 extern enum RUNTIME_SCHEDULER runtime_scheduler;
+extern bool                   runtime_preemption_enabled;
