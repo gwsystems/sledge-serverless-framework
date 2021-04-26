@@ -11,9 +11,6 @@
 
 #include "debuglog.h"
 
-#define SOFTWARE_INTERRUPT_TIME_TO_START_IN_USEC     (2 * 1000) /* 2 ms */
-#define SOFTWARE_INTERRUPT_INTERVAL_DURATION_IN_USEC (1 * 1000) /* 1 ms */
-
 /************
  * Externs  *
  ***********/
