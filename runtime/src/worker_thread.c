@@ -332,8 +332,6 @@ worker_thread_main(void *argument)
 		software_interrupt_unmask_signal(SIGUSR1);
 	}
 
-	signal(SIGPIPE, SIG_IGN);
-
 	/* Initialize epoll */
 	worker_thread_epoll_file_descriptor = epoll_create1(0);
 	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();

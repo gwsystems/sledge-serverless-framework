@@ -30,6 +30,14 @@ uint64_t runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT] = { U
  * Shared Process / Listener Thread Logic *
  *****************************************/
 
+void
+runtime_cleanup()
+{
+	if (runtime_sandbox_perf_log != NULL) fflush(runtime_sandbox_perf_log);
+
+	exit(EXIT_SUCCESS);
+}
+
 /**
  * Initialize runtime global state, mask signals, and init http parser
  */
@@ -55,6 +63,13 @@ runtime_initialize(void)
 	default:
 		panic("Invalid scheduler policy set: %u\n", runtime_scheduler);
 	}
+
+	/* Configure Signals */
+	signal(SIGPIPE, SIG_IGN);
+	signal(SIGTERM, runtime_cleanup);
+	/* These should only be unmasked by workers */
+	software_interrupt_mask_signal(SIGUSR1);
+	software_interrupt_mask_signal(SIGALRM);
 
 	http_parser_settings_initialize();
 	admissions_control_initialize();

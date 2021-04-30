@@ -35,7 +35,7 @@ const uint32_t runtime_first_worker_processor  = 1;
 FILE *runtime_sandbox_perf_log = NULL;
 
 enum RUNTIME_SCHEDULER       runtime_scheduler       = RUNTIME_SCHEDULER_EDF;
-enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_TRIAGED;
+enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 int                          runtime_worker_core_count;
 
 
@@ -193,17 +193,8 @@ runtime_start_runtime_worker_threads()
 }
 
 void
-runtime_cleanup()
-{
-	if (runtime_sandbox_perf_log != NULL) fflush(runtime_sandbox_perf_log);
-
-	exit(EXIT_SUCCESS);
-}
-
-void
 runtime_configure()
 {
-	signal(SIGTERM, runtime_cleanup);
 	/* Scheduler Policy */
 	char *scheduler_policy = getenv("SLEDGE_SCHEDULER");
 	if (scheduler_policy == NULL) scheduler_policy = "EDF";
@@ -218,7 +209,7 @@ runtime_configure()
 
 	/* Sigalrm Handler Technique */
 	char *sigalrm_policy = getenv("SLEDGE_SIGALRM_HANDLER");
-	if (sigalrm_policy == NULL) sigalrm_policy = "TRIAGED";
+	if (sigalrm_policy == NULL) sigalrm_policy = "BROADCAST";
 	if (strcmp(sigalrm_policy, "BROADCAST") == 0) {
 		runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 	} else if (strcmp(sigalrm_policy, "TRIAGED") == 0) {
