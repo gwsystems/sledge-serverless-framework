@@ -56,11 +56,6 @@ runtime_initialize(void)
 		panic("Invalid scheduler policy set: %u\n", runtime_scheduler);
 	}
 
-	/* Mask Signals */
-	software_interrupt_mask_signal(SIGUSR1);
-	software_interrupt_mask_signal(SIGALRM);
-	signal(SIGPIPE, SIG_IGN);
-
 	http_parser_settings_initialize();
 	admissions_control_initialize();
 }
