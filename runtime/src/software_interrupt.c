@@ -165,7 +165,7 @@ static inline void
 software_interrupt_validate_worker()
 {
 #ifndef NDEBUG
-	if (!runtime_is_worker()) panic("A non-worker thread received has unexpectedly received a signal!");
+	if (!runtime_is_worker()) panic("A non-worker thread has unexpectedly received a signal!");
 #endif
 }
 
