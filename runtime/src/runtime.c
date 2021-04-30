@@ -20,11 +20,23 @@
  * Shared Process State    *
  **************************/
 
-int runtime_epoll_file_descriptor;
+int       runtime_epoll_file_descriptor;
+pthread_t runtime_worker_threads[RUNTIME_WORKER_THREAD_CORE_COUNT];
+int       runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT] = { 0 };
+/* The active deadline of the sandbox running on each worker thread */
+uint64_t runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT] = { UINT64_MAX };
 
 /******************************************
  * Shared Process / Listener Thread Logic *
  *****************************************/
+
+void
+runtime_cleanup()
+{
+	if (runtime_sandbox_perf_log != NULL) fflush(runtime_sandbox_perf_log);
+
+	exit(EXIT_SUCCESS);
+}
 
 /**
  * Initialize runtime global state, mask signals, and init http parser
@@ -52,10 +64,12 @@ runtime_initialize(void)
 		panic("Invalid scheduler policy set: %u\n", runtime_scheduler);
 	}
 
-	/* Mask Signals */
+	/* Configure Signals */
+	signal(SIGPIPE, SIG_IGN);
+	signal(SIGTERM, runtime_cleanup);
+	/* These should only be unmasked by workers */
 	software_interrupt_mask_signal(SIGUSR1);
 	software_interrupt_mask_signal(SIGALRM);
-	signal(SIGPIPE, SIG_IGN);
 
 	http_parser_settings_initialize();
 	admissions_control_initialize();

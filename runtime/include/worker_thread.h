@@ -2,20 +2,10 @@
 
 #include "runtime.h"
 
-#ifndef NCORES
-#warning "NCORES not defined in Makefile. Defaulting to 2"
-#define NCORES 2
-#endif
-
-#if NCORES == 1
-#error "RUNTIME MINIMUM REQUIREMENT IS 2 CORES"
-#endif
-
-#define WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
-
 extern __thread uint64_t worker_thread_lock_duration;
 extern __thread uint64_t worker_thread_start_timestamp;
 extern __thread int      worker_thread_epoll_file_descriptor;
+extern __thread int      worker_thread_idx;
 
 void *worker_thread_main(void *return_code);
 

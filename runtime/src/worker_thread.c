@@ -33,6 +33,9 @@ __thread uint64_t worker_thread_lock_duration;
 /* Timestamp when worker thread began executing */
 __thread uint64_t worker_thread_start_timestamp;
 
+/* Used to index into global arguments and deadlines arrays */
+__thread int worker_thread_idx;
+
 /***********************
  * Worker Thread Logic *
  **********************/
@@ -96,6 +99,9 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 
 	/* Get the old sandbox we're switching from */
 	struct sandbox *current_sandbox = current_sandbox_get();
+
+	/* Update the worker's absolute deadline */
+	runtime_worker_threads_deadline[worker_thread_idx] = next_sandbox->absolute_deadline;
 
 	if (current_sandbox == NULL) {
 		/* Switching from "Base Context" */
@@ -171,6 +177,7 @@ worker_thread_switch_to_base_context()
 	worker_thread_transition_exiting_sandbox(current_sandbox);
 	current_sandbox_set(NULL);
 	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
+	runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	arch_context_switch(current_context, &worker_thread_base_context);
 	software_interrupt_enable();
 }
@@ -283,11 +290,14 @@ worker_thread_execute_epoll_loop(void)
 /**
  * The entry function for sandbox worker threads
  * Initializes thread-local state, unmasks signals, sets up epoll loop and
- * @param return_code - argument provided by pthread API. We set to -1 on error
+ * @param argument - argument provided by pthread API. We set to -1 on error
  */
 void *
-worker_thread_main(void *return_code)
+worker_thread_main(void *argument)
 {
+	/* Index was passed via argument */
+	worker_thread_idx = *(int *)argument;
+
 	/* Initialize Bookkeeping */
 	worker_thread_start_timestamp = __getcycles();
 	worker_thread_lock_duration   = 0;
@@ -321,8 +331,6 @@ worker_thread_main(void *return_code)
 		software_interrupt_unmask_signal(SIGALRM);
 		software_interrupt_unmask_signal(SIGUSR1);
 	}
-
-	signal(SIGPIPE, SIG_IGN);
 
 	/* Initialize epoll */
 	worker_thread_epoll_file_descriptor = epoll_create1(0);

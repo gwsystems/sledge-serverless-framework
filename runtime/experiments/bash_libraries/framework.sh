@@ -297,6 +297,16 @@ __framework_sh__load_env_file() {
 	fi
 }
 
+__framework_sh__unset_env_file() {
+	local envfile="$1"
+	if [[ -f "$envfile" ]]; then
+		while read -r line; do
+			echo unset "${line//=*/}"
+			unset "${line//=*/}"
+		done < "$envfile"
+	fi
+}
+
 __framework_sh__run_both() {
 	local short_name
 	for envfile in "$__framework_sh__application_directory"/*.env; do
@@ -320,6 +330,8 @@ __framework_sh__run_both() {
 			panic "Error calling __framework_sh__stop_runtime"
 			return 1
 		}
+
+		__framework_sh__unset_env_file "$envfile"
 
 	done
 
