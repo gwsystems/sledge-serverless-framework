@@ -15,7 +15,7 @@ source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
 
-if ! command -v hey; then
+if ! command -v hey > /dev/null; then
 	echo "hey is not present."
 	exit 1
 fi
