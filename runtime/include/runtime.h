@@ -28,11 +28,29 @@
 /* 100 MB */
 #define RUNTIME_HTTP_RESPONSE_SIZE_MAX 100000000
 
+/* Static buffer used for global deadline array */
+#define RUNTIME_MAX_WORKER_COUNT 32
+
+#ifndef NCORES
+#warning "NCORES not defined in Makefile. Defaulting to 2"
+#define NCORES 2
+#endif
+
+#if NCORES == 1
+#error "RUNTIME MINIMUM REQUIREMENT IS 2 CORES"
+#endif
+
+#define RUNTIME_WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
+
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
  * serverless modules. The listener cores listens for incoming client requests through this.
  */
 extern int runtime_epoll_file_descriptor;
+
+extern int runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT];
+
+extern uint64_t runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT];
 
 /* Optional path to a file to log sandbox perf metrics */
 extern FILE *runtime_sandbox_perf_log;
@@ -83,12 +101,31 @@ print_runtime_scheduler(enum RUNTIME_SCHEDULER variant)
 {
 	switch (variant) {
 	case RUNTIME_SCHEDULER_FIFO:
-		return "RUNTIME_SCHEDULER_FIFO";
+		return "FIFO";
 	case RUNTIME_SCHEDULER_EDF:
-		return "RUNTIME_SCHEDULER_EDF";
+		return "EDF";
 	}
 };
 
-extern enum RUNTIME_SCHEDULER runtime_scheduler;
-extern bool                   runtime_preemption_enabled;
-extern uint32_t               runtime_quantum_us;
+enum RUNTIME_SIGALRM_HANDLER
+{
+	RUNTIME_SIGALRM_HANDLER_BROADCAST = 0,
+	RUNTIME_SIGALRM_HANDLER_TRIAGED   = 1
+};
+
+
+static inline char *
+print_runtime_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)
+{
+	switch (variant) {
+	case RUNTIME_SIGALRM_HANDLER_BROADCAST:
+		return "BROADCAST";
+	case RUNTIME_SIGALRM_HANDLER_TRIAGED:
+		return "TRIAGED";
+	}
+};
+
+extern enum RUNTIME_SCHEDULER       runtime_scheduler;
+extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
+extern bool                         runtime_preemption_enabled;
+extern uint32_t                     runtime_quantum_us;

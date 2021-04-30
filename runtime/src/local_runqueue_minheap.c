@@ -9,6 +9,7 @@
 #include "panic.h"
 #include "priority_queue.h"
 #include "software_interrupt.h"
+#include "runtime.h"
 
 __thread static struct priority_queue *local_runqueue_minheap;
 
@@ -185,6 +186,7 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		 * user-level context switch state, so do not enable software interrupts.
 		 * TODO: Review the interrupt logic here. Issue #63
 		 */
+		runtime_worker_threads_deadline[worker_thread_idx] = next_sandbox->absolute_deadline;
 		arch_context_restore_new(&user_context->uc_mcontext, &next_sandbox->ctxt);
 		should_enable_software_interrupt = false;
 	}

@@ -20,7 +20,11 @@
  * Shared Process State    *
  **************************/
 
-int runtime_epoll_file_descriptor;
+int       runtime_epoll_file_descriptor;
+pthread_t runtime_worker_threads[RUNTIME_WORKER_THREAD_CORE_COUNT];
+int       runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT] = { 0 };
+/* The active deadline of the sandbox running on each worker thread */
+uint64_t runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT] = { UINT64_MAX };
 
 /******************************************
  * Shared Process / Listener Thread Logic *

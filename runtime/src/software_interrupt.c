@@ -10,6 +10,7 @@
 #include "arch/context.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
+#include "global_request_scheduler.h"
 #include "local_runqueue.h"
 #include "module.h"
 #include "panic.h"
@@ -28,9 +29,10 @@ uint64_t         software_interrupt_interval_duration_in_cycles;
  * Thread Globals *
  *****************/
 
-__thread static volatile sig_atomic_t software_interrupt_SIGALRM_count = 0;
-__thread static volatile sig_atomic_t software_interrupt_SIGUSR_count  = 0;
-__thread volatile sig_atomic_t        software_interrupt_is_disabled   = 0;
+__thread static volatile sig_atomic_t software_interrupt_SIGALRM_kernel_count = 0;
+__thread static volatile sig_atomic_t software_interrupt_SIGALRM_thread_count = 0;
+__thread static volatile sig_atomic_t software_interrupt_SIGUSR_count         = 0;
+__thread volatile sig_atomic_t        software_interrupt_is_disabled          = 0;
 
 /***************************************
  * Externs
@@ -54,15 +56,29 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 {
 	/* Signal was sent directly by the kernel, so forward to other threads */
 	if (signal_info->si_code == SI_KERNEL) {
+		software_interrupt_SIGALRM_kernel_count++;
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
+			debuglog("Kernel SIGALRM: %d!\n", software_interrupt_SIGALRM_kernel_count);
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
 			/* All threads should have been initialized */
 			assert(runtime_worker_threads[i] != 0);
 
-			pthread_kill(runtime_worker_threads[i], SIGALRM);
+			/* If using EDF, conditionally send signals. If not, broadcast */
+			if (runtime_sigalrm_handler == RUNTIME_SIGALRM_HANDLER_TRIAGED) {
+				uint64_t local_deadline  = runtime_worker_threads_deadline[i];
+				uint64_t global_deadline = global_request_scheduler_peek();
+				if (global_deadline < local_deadline) pthread_kill(runtime_worker_threads[i], SIGALRM);
+				return;
+			} else if (runtime_sigalrm_handler == RUNTIME_SIGALRM_HANDLER_BROADCAST) {
+				pthread_kill(runtime_worker_threads[i], SIGALRM);
+			} else {
+				panic("Unexpected SIGALRM Handler: %d\n", runtime_sigalrm_handler)
+			}
 		}
 	} else {
+		software_interrupt_SIGALRM_thread_count++;
+		debuglog("Thread SIGALRM: %d!\n", software_interrupt_SIGALRM_thread_count);
 		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 		assert(signal_info->si_code == SI_TKILL);
 	}
@@ -79,7 +95,6 @@ sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 {
 	sigalrm_propagate_workers(signal_info);
 
-	software_interrupt_SIGALRM_count++;
 
 	/* NOOP if software interrupts not enabled */
 	if (!software_interrupt_is_enabled()) return;

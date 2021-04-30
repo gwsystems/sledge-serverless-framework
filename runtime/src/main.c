@@ -30,15 +30,13 @@ uint32_t       runtime_processor_speed_MHz     = 0;
 uint32_t       runtime_total_online_processors = 0;
 uint32_t       runtime_worker_threads_count    = 0;
 const uint32_t runtime_first_worker_processor  = 1;
-/* TODO: the worker never actually records state here */
-int runtime_worker_threads_argument[WORKER_THREAD_CORE_COUNT] = { 0 }; /* The worker sets its argument to -1 on error */
-pthread_t runtime_worker_threads[WORKER_THREAD_CORE_COUNT];
 
 
 FILE *runtime_sandbox_perf_log = NULL;
 
-enum RUNTIME_SCHEDULER runtime_scheduler = RUNTIME_SCHEDULER_FIFO;
-int                    runtime_worker_core_count;
+enum RUNTIME_SCHEDULER       runtime_scheduler       = RUNTIME_SCHEDULER_EDF;
+enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_TRIAGED;
+int                          runtime_worker_core_count;
 
 
 bool     runtime_preemption_enabled = true;
@@ -175,6 +173,8 @@ runtime_start_runtime_worker_threads()
 {
 	printf("Starting %d worker thread(s)\n", runtime_worker_threads_count);
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
+		/* Pass the value we want the threads to use when indexing into global arrays of per-thread values */
+		runtime_worker_threads_argument[i] = i;
 		int ret = pthread_create(&runtime_worker_threads[i], NULL, worker_thread_main,
 		                         (void *)&runtime_worker_threads_argument[i]);
 		if (ret) {
@@ -206,8 +206,7 @@ runtime_configure()
 	signal(SIGTERM, runtime_cleanup);
 	/* Scheduler Policy */
 	char *scheduler_policy = getenv("SLEDGE_SCHEDULER");
-	if (scheduler_policy == NULL) scheduler_policy = "FIFO";
-
+	if (scheduler_policy == NULL) scheduler_policy = "EDF";
 	if (strcmp(scheduler_policy, "EDF") == 0) {
 		runtime_scheduler = RUNTIME_SCHEDULER_EDF;
 	} else if (strcmp(scheduler_policy, "FIFO") == 0) {
@@ -216,6 +215,20 @@ runtime_configure()
 		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
 	}
 	printf("\tScheduler Policy: %s\n", print_runtime_scheduler(runtime_scheduler));
+
+	/* Sigalrm Handler Technique */
+	char *sigalrm_policy = getenv("SLEDGE_SIGALRM_HANDLER");
+	if (sigalrm_policy == NULL) sigalrm_policy = "TRIAGED";
+	if (strcmp(sigalrm_policy, "BROADCAST") == 0) {
+		runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
+	} else if (strcmp(sigalrm_policy, "TRIAGED") == 0) {
+		if (unlikely(runtime_scheduler != RUNTIME_SCHEDULER_EDF))
+			panic("triaged sigalrm handlers are only valid with EDF\n");
+		runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_TRIAGED;
+	} else {
+		panic("Invalid sigalrm policy: %s. Must be {BROADCAST|TRIAGED}\n", sigalrm_policy);
+	}
+	printf("\tSigalrm Policy: %s\n", print_runtime_sigalrm_handler(runtime_sigalrm_handler));
 
 	/* Runtime Preemption Toggle */
 	char *preempt_disable = getenv("SLEDGE_DISABLE_PREEMPTION");
@@ -367,7 +380,7 @@ main(int argc, char **argv)
 
 	printf("Runtime Environment:\n");
 
-	memset(runtime_worker_threads, 0, sizeof(pthread_t) * WORKER_THREAD_CORE_COUNT);
+	memset(runtime_worker_threads, 0, sizeof(pthread_t) * RUNTIME_WORKER_THREAD_CORE_COUNT);
 
 	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
