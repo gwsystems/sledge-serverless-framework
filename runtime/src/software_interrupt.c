@@ -57,8 +57,10 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 	/* Signal was sent directly by the kernel, so forward to other threads */
 	if (signal_info->si_code == SI_KERNEL) {
 		software_interrupt_SIGALRM_kernel_count++;
+#ifdef LOG_PREEMPTION
+		debuglog("Kernel SIGALRM: %d!\n", software_interrupt_SIGALRM_kernel_count);
+#endif
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
-			debuglog("Kernel SIGALRM: %d!\n", software_interrupt_SIGALRM_kernel_count);
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
 			/* All threads should have been initialized */
@@ -78,7 +80,9 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 		}
 	} else {
 		software_interrupt_SIGALRM_thread_count++;
+#ifdef LOG_PREEMPTION
 		debuglog("Thread SIGALRM: %d!\n", software_interrupt_SIGALRM_thread_count);
+#endif
 		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 		assert(signal_info->si_code == SI_TKILL);
 	}

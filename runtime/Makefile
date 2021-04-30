@@ -57,7 +57,7 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_REQUEST_ALLOCATION
-CFLAGS += -DLOG_PREEMPTION
+# CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_MODULE_LOADING
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
