@@ -2,6 +2,7 @@
 
 #include <spinlock/mcs.h>
 
+#include "arch/getcycles.h"
 #include "runtime.h"
 #include "software_interrupt.h"
 
@@ -31,7 +32,7 @@ typedef ck_spinlock_mcs_t lock_t;
 	struct ck_spinlock_mcs _hygiene_##unique_variable_name##_node;                \
 	uint64_t               _hygiene_##unique_variable_name##_pre = __getcycles(); \
 	ck_spinlock_mcs_lock((lock), &(_hygiene_##unique_variable_name##_node));      \
-	worker_thread_lock_duration += (__getcycles() - _hygiene_##unique_variable_name##_pre);
+	generic_thread_lock_duration += (__getcycles() - _hygiene_##unique_variable_name##_pre);
 
 /**
  * Unlocks a lock

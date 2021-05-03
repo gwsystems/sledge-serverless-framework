@@ -2,7 +2,7 @@
 #include <ck_pr.h>
 #include <math.h>
 
-#include "runtime.h"
+#include "arch/getcycles.h"
 #include "worker_thread.h"
 
 extern int32_t inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f);

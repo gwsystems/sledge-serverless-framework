@@ -27,33 +27,12 @@ __thread struct arch_context worker_thread_base_context;
 
 __thread int worker_thread_epoll_file_descriptor;
 
-/* Total Lock Contention in Cycles */
-__thread uint64_t worker_thread_lock_duration;
-
-/* Timestamp when worker thread began executing */
-__thread uint64_t worker_thread_start_timestamp;
-
 /* Used to index into global arguments and deadlines arrays */
 __thread int worker_thread_idx;
 
 /***********************
  * Worker Thread Logic *
  **********************/
-
-/**
- * Reports lock contention for the worker thread
- */
-static inline void
-worker_thread_dump_lock_overhead()
-{
-#ifndef NDEBUG
-#ifdef LOG_LOCK_OVERHEAD
-	uint64_t worker_duration = __getcycles() - worker_thread_start_timestamp;
-	debuglog("Locks consumed %lu / %lu cycles, or %f%%\n", worker_thread_lock_duration, worker_duration,
-	         (double)worker_thread_lock_duration / worker_duration * 100);
-#endif
-#endif
-}
 
 /**
  * Conditionally triggers appropriate state changes for exiting sandboxes
@@ -231,9 +210,9 @@ static inline void
 worker_thread_execute_epoll_loop(void)
 {
 	while (true) {
-		struct epoll_event epoll_events[LISTENER_THREAD_MAX_EPOLL_EVENTS];
+		struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 		int                descriptor_count = epoll_wait(worker_thread_epoll_file_descriptor, epoll_events,
-                                                  LISTENER_THREAD_MAX_EPOLL_EVENTS, 0);
+                                                  RUNTIME_MAX_EPOLL_EVENTS, 0);
 
 		if (descriptor_count < 0) {
 			if (errno == EINTR) continue;
@@ -297,10 +276,6 @@ worker_thread_main(void *argument)
 {
 	/* Index was passed via argument */
 	worker_thread_idx = *(int *)argument;
-
-	/* Initialize Bookkeeping */
-	worker_thread_start_timestamp = __getcycles();
-	worker_thread_lock_duration   = 0;
 
 	/* Initialize Base Context as unused
 	 * The SP and IP are populated during the first FAST switch away
@@ -370,7 +345,7 @@ worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
 {
 	assert(exiting_sandbox);
 	assert(!software_interrupt_is_enabled());
-	worker_thread_dump_lock_overhead();
+	generic_thread_dump_lock_overhead();
 	worker_thread_switch_to_base_context();
 	panic("Unexpected return\n");
 }
