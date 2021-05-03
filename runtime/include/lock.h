@@ -1,6 +1,7 @@
 #pragma once
 
 #include <spinlock/mcs.h>
+#include <stdint.h>
 
 #include "arch/getcycles.h"
 #include "runtime.h"
@@ -27,12 +28,16 @@ typedef ck_spinlock_mcs_t lock_t;
  * @param lock - the address of the lock
  * @param unique_variable_name - a unique prefix to hygienically namespace an associated lock/unlock pair
  */
-#define LOCK_LOCK_WITH_BOOKKEEPING(lock, unique_variable_name)                        \
-	assert(!runtime_is_worker() || !software_interrupt_is_enabled());             \
-	struct ck_spinlock_mcs _hygiene_##unique_variable_name##_node;                \
-	uint64_t               _hygiene_##unique_variable_name##_pre = __getcycles(); \
-	ck_spinlock_mcs_lock((lock), &(_hygiene_##unique_variable_name##_node));      \
-	generic_thread_lock_duration += (__getcycles() - _hygiene_##unique_variable_name##_pre);
+#define LOCK_LOCK_WITH_BOOKKEEPING(lock, unique_variable_name)                                                         \
+	assert(!runtime_is_worker() || !software_interrupt_is_enabled());                                              \
+	struct ck_spinlock_mcs _hygiene_##unique_variable_name##_node;                                                 \
+	uint64_t               _hygiene_##unique_variable_name##_pre = __getcycles();                                  \
+	ck_spinlock_mcs_lock((lock), &(_hygiene_##unique_variable_name##_node));                                       \
+	uint64_t _hygiene_##unique_variable_name##_duration = (__getcycles() - _hygiene_##unique_variable_name##_pre); \
+	if (_hygiene_##unique_variable_name##_duration > generic_thread_lock_longest) {                                \
+		generic_thread_lock_longest = _hygiene_##unique_variable_name##_duration;                              \
+	}                                                                                                              \
+	generic_thread_lock_duration += _hygiene_##unique_variable_name##_duration;
 
 /**
  * Unlocks a lock

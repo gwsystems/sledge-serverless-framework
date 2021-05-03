@@ -4,8 +4,10 @@
 
 #include "arch/getcycles.h"
 #include "debuglog.h"
+#include "runtime.h"
 
 extern __thread uint64_t generic_thread_lock_duration;
+extern __thread uint64_t generic_thread_lock_longest;
 extern __thread uint64_t generic_thread_start_timestamp;
 
 /**
@@ -19,6 +21,8 @@ generic_thread_dump_lock_overhead()
 	uint64_t duration = __getcycles() - generic_thread_start_timestamp;
 	debuglog("Locks consumed %lu / %lu cycles, or %f%%\n", generic_thread_lock_duration, duration,
 	         (double)generic_thread_lock_duration / duration * 100);
+	debuglog("Longest Held Lock was %lu cycles, or %f quantums\n", generic_thread_lock_longest,
+	         (double)generic_thread_lock_longest / ((uint64_t)runtime_processor_speed_MHz * runtime_quantum_us));
 #endif
 #endif
 }
