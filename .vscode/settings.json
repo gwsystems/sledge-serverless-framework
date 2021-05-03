@@ -56,7 +56,8 @@
 		"features.h": "c",
 		"time.h": "c",
 		"local_runqueue_minheap.h": "c",
-		"global_request_scheduler.h": "c"
+		"global_request_scheduler.h": "c",
+		"dlfcn.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

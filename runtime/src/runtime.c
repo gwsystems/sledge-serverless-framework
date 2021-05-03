@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <sched.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <arpa/inet.h>
 
 #include "admissions_control.h"
@@ -36,6 +37,45 @@ runtime_cleanup()
 	if (runtime_sandbox_perf_log != NULL) fflush(runtime_sandbox_perf_log);
 
 	exit(EXIT_SUCCESS);
+}
+
+/**
+ * Sets the process data segment (RLIMIT_DATA) and # file descriptors
+ * (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
+ */
+void
+runtime_set_resource_limits_to_max()
+{
+	struct rlimit limit;
+	const size_t  uint64_t_max_digits = 20;
+	char          lim[uint64_t_max_digits + 1];
+	char          max[uint64_t_max_digits + 1];
+
+	uint64_t resources[]      = { RLIMIT_DATA, RLIMIT_NOFILE };
+	char *   resource_names[] = { "RLIMIT_DATA", "RLIMIT_NOFILE" };
+
+	for (int i = 0; i < sizeof(resources) / sizeof(resources[0]); i++) {
+		int resource = resources[i];
+		if (getrlimit(resource, &limit) < 0) panic_err();
+
+		if (limit.rlim_cur == RLIM_INFINITY) {
+			strncpy(lim, "Infinite", uint64_t_max_digits);
+		} else {
+			snprintf(lim, uint64_t_max_digits, "%lu", limit.rlim_cur);
+		}
+		if (limit.rlim_max == RLIM_INFINITY) {
+			strncpy(max, "Infinite", uint64_t_max_digits);
+		} else {
+			snprintf(max, uint64_t_max_digits, "%lu", limit.rlim_max);
+		}
+		if (limit.rlim_cur == limit.rlim_max) {
+			printf("\t%s: %s\n", resource_names[i], max);
+		} else {
+			limit.rlim_cur = limit.rlim_max;
+			if (setrlimit(resource, &limit) < 0) panic_err();
+			printf("\t%s: %s (Increased from %s)\n", resource_names[i], max, lim);
+		}
+	}
 }
 
 /**
@@ -99,8 +139,8 @@ listener_thread_stop_lock_overhead_measurement()
 }
 
 /**
- * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and pushes
- * the sandbox object to the global dequeue
+ * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and
+ * pushes the sandbox object to the global dequeue
  * @param dummy data pointer provided by pthreads API. Unused in this function
  * @return NULL
  *
@@ -125,7 +165,8 @@ listener_thread_main(void *dummy)
 
 			panic("epoll_wait: %s", strerror(errno));
 		}
-		/* Assumption: Because epoll_wait is set to not timeout, we should always have descriptors here */
+		/* Assumption: Because epoll_wait is set to not timeout, we should always have descriptors here
+		 */
 		assert(descriptor_count > 0);
 
 		uint64_t request_arrival_timestamp = __getcycles();
@@ -142,7 +183,8 @@ listener_thread_main(void *dummy)
 				panic("epoll_wait");
 			};
 
-			/* Assumption: We have only registered EPOLLIN events, so we should see no others here */
+			/* Assumption: We have only registered EPOLLIN events, so we should see no others here
+			 */
 			assert((epoll_events[i].events & EPOLLIN) == EPOLLIN);
 
 			/* Unpack module from epoll event */
@@ -161,7 +203,8 @@ listener_thread_main(void *dummy)
 
 			/*
 			 * Accept as many requests as possible, terminating when we would have blocked
-			 * This inner loop is used in case there are more datagrams than epoll events for some reason
+			 * This inner loop is used in case there are more datagrams than epoll events for some
+			 * reason
 			 */
 			while (true) {
 				int client_socket = accept4(module->socket_descriptor,
@@ -179,13 +222,12 @@ listener_thread_main(void *dummy)
 				assert(client_socket != STDERR_FILENO);
 
 				/*
-				 * According to accept(2), it is possible that the the sockaddr structure client_address
-				 * may be too small, resulting in data being truncated to fit. The accept call mutates
-				 * the size value to indicate that this is the case.
+				 * According to accept(2), it is possible that the the sockaddr structure
+				 * client_address may be too small, resulting in data being truncated to fit.
+				 * The accept call mutates the size value to indicate that this is the case.
 				 */
 				if (address_length > sizeof(client_address)) {
-					debuglog("A client address to %s has been truncated because buffer was too "
-					         "small\n",
+					debuglog("Client address %s truncated because buffer was too small\n",
 					         module->name);
 				}
 
