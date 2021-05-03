@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sched.h>
-#include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -24,8 +23,7 @@
 #include "worker_thread.h"
 
 /* Conditionally used by debuglog when NDEBUG is not set */
-int32_t debuglog_file_descriptor = -1;
-
+int32_t        debuglog_file_descriptor        = -1;
 uint32_t       runtime_processor_speed_MHz     = 0;
 uint32_t       runtime_total_online_processors = 0;
 uint32_t       runtime_worker_threads_count    = 0;
@@ -50,34 +48,6 @@ static void
 runtime_usage(char *cmd)
 {
 	printf("%s <modules_file>\n", cmd);
-}
-
-/**
- * Sets the process data segment (RLIMIT_DATA) and # file descriptors
- * (RLIMIT_NOFILE) soft limit to its hard limit (see man getrlimit)
- */
-void
-runtime_set_resource_limits_to_max()
-{
-	struct rlimit resource_limit;
-	if (getrlimit(RLIMIT_DATA, &resource_limit) < 0) {
-		perror("getrlimit RLIMIT_DATA");
-		exit(-1);
-	}
-	resource_limit.rlim_cur = resource_limit.rlim_max;
-	if (setrlimit(RLIMIT_DATA, &resource_limit) < 0) {
-		perror("setrlimit RLIMIT_DATA");
-		exit(-1);
-	}
-	if (getrlimit(RLIMIT_NOFILE, &resource_limit) < 0) {
-		perror("getrlimit RLIMIT_NOFILE");
-		exit(-1);
-	}
-	resource_limit.rlim_cur = resource_limit.rlim_max;
-	if (setrlimit(RLIMIT_NOFILE, &resource_limit) < 0) {
-		perror("setrlimit RLIMIT_NOFILE");
-		exit(-1);
-	}
 }
 
 /**

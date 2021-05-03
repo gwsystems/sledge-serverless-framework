@@ -42,18 +42,25 @@
 
 #define RUNTIME_WORKER_THREAD_CORE_COUNT (NCORES > 1 ? NCORES - 1 : NCORES)
 
+enum RUNTIME_SCHEDULER
+{
+	RUNTIME_SCHEDULER_FIFO = 0,
+	RUNTIME_SCHEDULER_EDF  = 1
+};
+
+enum RUNTIME_SIGALRM_HANDLER
+{
+	RUNTIME_SIGALRM_HANDLER_BROADCAST = 0,
+	RUNTIME_SIGALRM_HANDLER_TRIAGED   = 1
+};
+
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
  * serverless modules. The listener cores listens for incoming client requests through this.
  */
 extern int runtime_epoll_file_descriptor;
 
-extern int runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT];
-
-extern uint64_t runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT];
-
-/* Optional path to a file to log sandbox perf metrics */
-extern FILE *runtime_sandbox_perf_log;
+extern bool runtime_preemption_enabled;
 
 /*
  * Assumption: All cores are the same speed
@@ -61,17 +68,29 @@ extern FILE *runtime_sandbox_perf_log;
  */
 extern uint32_t runtime_processor_speed_MHz;
 
+extern uint32_t runtime_quantum_us;
+
+/* Optional path to a file to log sandbox perf metrics */
+extern FILE *runtime_sandbox_perf_log;
+
+extern enum RUNTIME_SCHEDULER       runtime_scheduler;
+extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
+
 /* Count of worker threads and array of their pthread identifiers */
 extern pthread_t runtime_worker_threads[];
 extern uint32_t  runtime_worker_threads_count;
+extern int       runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT];
+extern uint64_t  runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT];
 
-void         alloc_linear_memory(void);
-void         expand_memory(void);
+
+extern void  alloc_linear_memory(void);
+extern void  expand_memory(void);
 INLINE char *get_function_from_table(uint32_t idx, uint32_t type_id);
 INLINE char *get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check);
-void         runtime_initialize(void);
-void         listener_thread_initialize(void);
-void         stub_init(int32_t offset);
+extern void  listener_thread_initialize(void);
+extern void  runtime_initialize(void);
+extern void  runtime_set_resource_limits_to_max();
+extern void  stub_init(int32_t offset);
 
 unsigned long long __getcycles(void);
 
@@ -90,12 +109,6 @@ runtime_is_worker()
 	return false;
 }
 
-enum RUNTIME_SCHEDULER
-{
-	RUNTIME_SCHEDULER_FIFO = 0,
-	RUNTIME_SCHEDULER_EDF  = 1
-};
-
 static inline char *
 print_runtime_scheduler(enum RUNTIME_SCHEDULER variant)
 {
@@ -107,13 +120,6 @@ print_runtime_scheduler(enum RUNTIME_SCHEDULER variant)
 	}
 };
 
-enum RUNTIME_SIGALRM_HANDLER
-{
-	RUNTIME_SIGALRM_HANDLER_BROADCAST = 0,
-	RUNTIME_SIGALRM_HANDLER_TRIAGED   = 1
-};
-
-
 static inline char *
 print_runtime_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)
 {
@@ -124,8 +130,3 @@ print_runtime_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)
 		return "TRIAGED";
 	}
 };
-
-extern enum RUNTIME_SCHEDULER       runtime_scheduler;
-extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
-extern bool                         runtime_preemption_enabled;
-extern uint32_t                     runtime_quantum_us;
