@@ -28,7 +28,6 @@ success_count=0
 total_count=50
 
 for ((i = 0; i < total_count; i++)); do
-	echo "$i"
 	result="$(curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@ekf_raw.dat" localhost:10000 2> /dev/null | tr -d '\0')"
 	if [[ "$expected_result" == "$result" ]]; then
 		success_count=$((success_count + 1))

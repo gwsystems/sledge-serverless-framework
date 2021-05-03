@@ -14,7 +14,7 @@ did_pass=true
 
 # Copy data if not here
 if [[ ! -f "./initial_state.dat" ]]; then
-	cp $runtime_directory/tests/TinyEKF/extras/c/ekf_raw.dat ./initial_state.dat
+	cp "$runtime_directory"/tests/TinyEKF/extras/c/ekf_raw.dat ./initial_state.dat
 fi
 
 if [ "$1" != "-d" ]; then
