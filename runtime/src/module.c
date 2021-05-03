@@ -10,6 +10,7 @@
 #include "debuglog.h"
 #include "http.h"
 #include "likely.h"
+#include "listener_thread.h"
 #include "module.h"
 #include "module_database.h"
 #include "panic.h"
@@ -64,10 +65,7 @@ module_listen(struct module *module)
 
 	/* Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP
 	requests */
-	struct epoll_event accept_evt;
-	accept_evt.data.ptr = (void *)module;
-	accept_evt.events   = EPOLLIN;
-	rc = epoll_ctl(runtime_epoll_file_descriptor, EPOLL_CTL_ADD, module->socket_descriptor, &accept_evt);
+	rc = listener_thread_register_module(module);
 	if (unlikely(rc < 0)) goto err_add_to_epoll;
 
 	rc = 0;

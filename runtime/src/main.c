@@ -15,6 +15,7 @@
 #endif
 
 #include "debuglog.h"
+#include "listener_thread.h"
 #include "module.h"
 #include "panic.h"
 #include "runtime.h"
@@ -175,7 +176,7 @@ runtime_configure()
 	} else {
 		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
 	}
-	printf("\tScheduler Policy: %s\n", print_runtime_scheduler(runtime_scheduler));
+	printf("\tScheduler Policy: %s\n", runtime_print_scheduler(runtime_scheduler));
 
 	/* Sigalrm Handler Technique */
 	char *sigalrm_policy = getenv("SLEDGE_SIGALRM_HANDLER");
@@ -189,7 +190,7 @@ runtime_configure()
 	} else {
 		panic("Invalid sigalrm policy: %s. Must be {BROADCAST|TRIAGED}\n", sigalrm_policy);
 	}
-	printf("\tSigalrm Policy: %s\n", print_runtime_sigalrm_handler(runtime_sigalrm_handler));
+	printf("\tSigalrm Policy: %s\n", runtime_print_sigalrm_handler(runtime_sigalrm_handler));
 
 	/* Runtime Preemption Toggle */
 	char *preempt_disable = getenv("SLEDGE_DISABLE_PREEMPTION");
@@ -271,12 +272,6 @@ log_compiletime_config()
 	printf("\tLog Lock Overhead: Disabled\n");
 #endif
 
-#ifdef LOG_LISTENER_LOCK_OVERHEAD
-	printf("\tLog Listener Lock Overhead: Enabled\n");
-#else
-	printf("\tLog Listener Lock Overhead: Disabled\n");
-#endif
-
 #ifdef LOG_CONTEXT_SWITCHES
 	printf("\tLog Context Switches: Enabled\n");
 #else
@@ -353,13 +348,17 @@ main(int argc, char **argv)
 	runtime_allocate_available_cores();
 	runtime_configure();
 	runtime_initialize();
+
+	listener_thread_initialize();
+	runtime_start_runtime_worker_threads();
+	software_interrupt_initialize();
+	software_interrupt_arm_timer();
+
 #ifdef LOG_MODULE_LOADING
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 #endif
 	if (module_new_from_json(argv[1])) panic("failed to initialize module(s) defined in %s\n", argv[1]);
 
-	runtime_start_runtime_worker_threads();
-	listener_thread_initialize();
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);

@@ -1,11 +1,10 @@
 #pragma once
 
+#include "generic_thread.h"
 #include "runtime.h"
 
-extern __thread uint64_t worker_thread_lock_duration;
-extern __thread uint64_t worker_thread_start_timestamp;
-extern __thread int      worker_thread_epoll_file_descriptor;
-extern __thread int      worker_thread_idx;
+extern __thread int worker_thread_epoll_file_descriptor;
+extern __thread int worker_thread_idx;
 
 void *worker_thread_main(void *return_code);
 
