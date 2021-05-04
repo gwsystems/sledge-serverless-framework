@@ -79,6 +79,9 @@ listener_thread_main(void *dummy)
 
 	generic_thread_initialize();
 
+	/* Set my priority */
+	runtime_set_pthread_prio(pthread_self(), 0);
+
 	while (true) {
 		/*
 		 * Block indefinitely on the epoll file descriptor, waiting on up to a max number of events

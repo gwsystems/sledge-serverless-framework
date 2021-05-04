@@ -277,6 +277,9 @@ worker_thread_main(void *argument)
 	/* Index was passed via argument */
 	worker_thread_idx = *(int *)argument;
 
+	/* Set my priority */
+	runtime_set_pthread_prio(pthread_self(), 0);
+
 	/* Initialize Base Context as unused
 	 * The SP and IP are populated during the first FAST switch away
 	 */

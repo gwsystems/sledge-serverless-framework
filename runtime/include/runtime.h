@@ -68,6 +68,7 @@ extern void  expand_memory(void);
 INLINE char *get_function_from_table(uint32_t idx, uint32_t type_id);
 INLINE char *get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check);
 extern void  runtime_initialize(void);
+extern void  runtime_set_pthread_prio(pthread_t thread, unsigned int nice);
 extern void  runtime_set_resource_limits_to_max();
 extern void  stub_init(int32_t offset);
 

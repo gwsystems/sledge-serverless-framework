@@ -78,6 +78,57 @@ runtime_set_resource_limits_to_max()
 	}
 }
 
+static void
+runtime_getrlimit(int id, char *name)
+{
+	struct rlimit rl;
+
+	if (getrlimit(id, &rl)) {
+		debuglog("id: %d, name: %s\n", id, name);
+		perror("getrlimit: ");
+		exit(-1);
+	}
+}
+
+static void
+runtime_setrlimit(int id, rlim_t c, rlim_t m)
+{
+	struct rlimit rl;
+
+	rl.rlim_cur = c;
+	rl.rlim_max = m;
+	if (setrlimit(id, &rl)) {
+		debuglog("id: %d, current: %lu, max: %lu \n", id, c, m);
+		perror("setrlimit: ");
+		exit(-1);
+	}
+}
+
+void
+runtime_set_pthread_prio(pthread_t thread, unsigned int nice)
+{
+	struct sched_param sp;
+	int                policy;
+
+	runtime_getrlimit(RLIMIT_CPU, "CPU");
+	runtime_getrlimit(RLIMIT_RTTIME, "RTTIME");
+	runtime_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
+	runtime_setrlimit(RLIMIT_RTPRIO, RLIM_INFINITY, RLIM_INFINITY);
+	runtime_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
+	runtime_getrlimit(RLIMIT_NICE, "NICE");
+
+	if (pthread_getschedparam(thread, &policy, &sp) < 0) { perror("pth_getparam: "); }
+	sp.sched_priority = sched_get_priority_max(SCHED_RR) - nice;
+	if (pthread_setschedparam(thread, SCHED_RR, &sp) < 0) {
+		perror("pth_setparam: ");
+		exit(-1);
+	}
+	if (pthread_getschedparam(thread, &policy, &sp) < 0) { perror("getparam: "); }
+	assert(sp.sched_priority == sched_get_priority_max(SCHED_RR) - nice);
+
+	return;
+}
+
 /**
  * Initialize runtime global state, mask signals, and init http parser
  */
