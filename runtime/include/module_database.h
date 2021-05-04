@@ -3,7 +3,9 @@
 #include <errno.h>
 
 #include "panic.h"
-#include "module.h"
+#include "module_t.h"
+
+#define MODULE_DATABASE_CAPACITY 128
 
 struct module *module_database_find_by_name(char *name);
 struct module *module_database_find_by_socket_descriptor(int socket_descriptor);
@@ -19,11 +21,11 @@ extern size_t         module_database_count;
 static inline int
 module_database_add(struct module *module)
 {
-	assert(module_database_count <= MODULE_MAX_MODULE_COUNT);
+	assert(module_database_count <= MODULE_DATABASE_CAPACITY);
 
 	int rc;
 
-	if (module_database_count == MODULE_MAX_MODULE_COUNT) goto err_no_space;
+	if (module_database_count == MODULE_DATABASE_CAPACITY) goto err_no_space;
 	module_database[module_database_count++] = module;
 
 	rc = 0;

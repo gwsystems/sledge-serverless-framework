@@ -4,8 +4,8 @@
  * Module Database *
  ******************/
 
-struct module *module_database[MODULE_MAX_MODULE_COUNT] = { NULL };
-size_t         module_database_count                    = 0;
+struct module *module_database[MODULE_DATABASE_CAPACITY] = { NULL };
+size_t         module_database_count                     = 0;
 
 /**
  * Given a name, find the associated module
