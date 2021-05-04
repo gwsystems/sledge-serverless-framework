@@ -1,7 +1,7 @@
 #pragma once
 
 #include "generic_thread.h"
-#include "module.h"
+#include "module_t.h"
 
 #define LISTENER_THREAD_CORE_ID 1
 

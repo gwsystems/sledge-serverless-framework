@@ -8,7 +8,7 @@
 #include "debuglog.h"
 #include "deque.h"
 #include "http_total.h"
-#include "module.h"
+#include "module_t.h"
 #include "runtime.h"
 #include "sandbox_state.h"
 
