@@ -34,7 +34,7 @@ priority_queue_append(struct priority_queue *self, void *new_item)
 	int rc;
 
 	if (unlikely(self->size + 1 > self->capacity)) panic("PQ overflow");
-	if (self->size + 1 == self->capacity) goto err_enospc;
+	if (unlikely(self->size + 1 == self->capacity)) goto err_enospc;
 	self->items[++self->size] = new_item;
 
 	rc = 0;
@@ -255,7 +255,7 @@ priority_queue_enqueue_nolock(struct priority_queue *self, void *value)
 
 	int rc;
 
-	if (priority_queue_append(self, value) == -ENOSPC) goto err_enospc;
+	if (unlikely(priority_queue_append(self, value) == -ENOSPC)) goto err_enospc;
 
 	priority_queue_percolate_up(self);
 
