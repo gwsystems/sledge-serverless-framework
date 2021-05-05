@@ -7,8 +7,8 @@
  * Module Database *
  ******************/
 
-struct module *module_database[MODULE_MAX_MODULE_COUNT] = { NULL };
-size_t         module_database_count                    = 0;
+struct module *module_database[MODULE_DATABASE_CAPACITY] = { NULL };
+size_t         module_database_count                     = 0;
 
 /**
  * Adds a module to the in-memory module DB
@@ -18,11 +18,11 @@ size_t         module_database_count                    = 0;
 int
 module_database_add(struct module *module)
 {
-	assert(module_database_count <= MODULE_MAX_MODULE_COUNT);
+	assert(module_database_count <= MODULE_DATABASE_CAPACITY);
 
 	int rc;
 
-	if (module_database_count == MODULE_MAX_MODULE_COUNT) goto err_no_space;
+	if (module_database_count == MODULE_DATABASE_CAPACITY) goto err_no_space;
 	module_database[module_database_count++] = module;
 
 	rc = 0;
