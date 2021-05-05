@@ -84,6 +84,31 @@ err:
 	goto done;
 }
 
+
+/**
+ * Sets the HTTP Request and Response Headers and Content type on a module
+ * @param module
+ * @param request_count
+ * @param request_headers
+ * @param request_content_type
+ * @param response_count
+ * @param response_headers
+ * @param response_content_type
+ */
+static inline void
+module_set_http_info(struct module *module, int request_count, char *request_headers, char request_content_type[],
+                     int response_count, char *response_headers, char response_content_type[])
+{
+	assert(module);
+	module->request_header_count = request_count;
+	memcpy(module->request_headers, request_headers, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+	strcpy(module->request_content_type, request_content_type);
+	module->response_header_count = response_count;
+	memcpy(module->response_headers, response_headers, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
+	strcpy(module->response_content_type, response_content_type);
+}
+
+
 /***************************************
  * Public Methods
  ***************************************/
