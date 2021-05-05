@@ -1,6 +1,8 @@
 #include <stdint.h>
+#include <unistd.h>
 
 #include "arch/getcycles.h"
+#include "client_socket.h"
 #include "global_request_scheduler.h"
 #include "generic_thread.h"
 #include "listener_thread.h"
