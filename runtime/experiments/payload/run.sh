@@ -40,7 +40,7 @@ run_samples() {
 	local hostname="$1"
 
 	# Scrape the perf window size from the source if possible
-	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../include/perf_window.h)"
+	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../include/perf_window_t.h)"
 	local -i perf_window_buffer_size
 	if ! perf_window_buffer_size=$(grep "#define PERF_WINDOW_BUFFER_SIZE" < "$perf_window_path" | cut -d\  -f3); then
 		printf "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../include/perf_window.h\n"
