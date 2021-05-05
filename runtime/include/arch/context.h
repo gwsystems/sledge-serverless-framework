@@ -1,5 +1,8 @@
 #pragma once
 
+#include "arch/common.h"
+#include "software_interrupt.h"
+
 /*
  * This header is the single entry point into the arch_context code.
  * It includes processor independent code and conditionally includes architecture
@@ -50,6 +53,9 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
 	/* Transitioning from Slow -> Running */
 	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_SLOW);
 	sandbox_context->variant = ARCH_CONTEXT_VARIANT_RUNNING;
+
+	/* Assumption: The context switch path that triggered the SIGUSR1 should have restored interrupts if required */
+	assert(software_interrupt_is_enabled() == sandbox_context->preemptable);
 
 	/* Restore mcontext */
 	memcpy(active_context, &sandbox_context->mctx, sizeof(mcontext_t));

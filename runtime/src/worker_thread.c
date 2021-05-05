@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#include "arch/context.h"
 #include "client_socket.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
@@ -76,17 +77,20 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 	assert(next_sandbox != NULL);
 	struct arch_context *next_context = &next_sandbox->ctxt;
 
-	/* Get the old sandbox we're switching from */
-	struct sandbox *current_sandbox = current_sandbox_get();
+	/* Get the old sandbox we're switching from.
+	 * This is null if switching from base context
+	 */
+	struct sandbox *     current_sandbox = current_sandbox_get();
+	struct arch_context *current_context = NULL;
+	if (current_sandbox != NULL) current_context = &current_sandbox->ctxt;
+
+	assert(next_sandbox != current_sandbox);
 
 	/* Update the worker's absolute deadline */
 	runtime_worker_threads_deadline[worker_thread_idx] = next_sandbox->absolute_deadline;
 
 	if (current_sandbox == NULL) {
 		/* Switching from "Base Context" */
-
-		sandbox_set_as_running(next_sandbox, next_sandbox->state);
-
 #ifdef LOG_CONTEXT_SWITCHES
 		debuglog("Base Context (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", &worker_thread_base_context,
 		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id, next_context,
@@ -96,13 +100,8 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
 		       || &current_sandbox_get()->ctxt == next_context);
 
-		arch_context_switch(NULL, next_context);
 	} else {
-		/* Set the current sandbox to the next */
-		assert(next_sandbox != current_sandbox);
-
-		struct arch_context *current_context = &current_sandbox->ctxt;
-
+		/* Switching from a sandbox context */
 #ifdef LOG_CONTEXT_SWITCHES
 		debuglog("Sandbox %lu (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", current_sandbox->id,
 		         &current_sandbox->ctxt, arch_context_variant_print(current_sandbox->ctxt.variant),
@@ -110,19 +109,10 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 #endif
 
 		worker_thread_transition_exiting_sandbox(current_sandbox);
-
-		sandbox_set_as_running(next_sandbox, next_sandbox->state);
-
-#ifndef NDEBUG
-		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
-		       || &current_sandbox_get()->ctxt == next_context);
-#endif
-
-		/* Switch to the associated context. */
-		arch_context_switch(current_context, next_context);
 	}
 
-	software_interrupt_enable();
+	sandbox_set_as_running(next_sandbox, next_sandbox->state);
+	arch_context_switch(current_context, next_context);
 }
 
 
@@ -158,24 +148,7 @@ worker_thread_switch_to_base_context()
 	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
 	runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	arch_context_switch(current_context, &worker_thread_base_context);
-	software_interrupt_enable();
 }
-
-/**
- * Mark a blocked sandbox as runnable and add it to the runqueue
- * @param sandbox the sandbox to check and update if blocked
- */
-void
-worker_thread_wakeup_sandbox(struct sandbox *sandbox)
-{
-	assert(sandbox != NULL);
-	assert(sandbox->state == SANDBOX_BLOCKED);
-
-	software_interrupt_disable();
-	sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
-	software_interrupt_enable();
-}
-
 
 /**
  * Mark the currently executing sandbox as blocked, remove it from the local runqueue,
@@ -184,10 +157,11 @@ worker_thread_wakeup_sandbox(struct sandbox *sandbox)
 void
 worker_thread_block_current_sandbox(void)
 {
-	software_interrupt_disable();
-
 	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
 	struct sandbox *current_sandbox = current_sandbox_get();
+
+	/* If a preemptable sandbox blocked, disable interrupts */
+	if (current_sandbox->ctxt.preemptable) software_interrupt_disable();
 
 	assert(current_sandbox->state == SANDBOX_RUNNING);
 	sandbox_set_as_blocked(current_sandbox, SANDBOX_RUNNING);
@@ -209,6 +183,7 @@ worker_thread_block_current_sandbox(void)
 static inline void
 worker_thread_execute_epoll_loop(void)
 {
+	assert(software_interrupt_is_disabled);
 	while (true) {
 		struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 		int                descriptor_count = epoll_wait(worker_thread_epoll_file_descriptor, epoll_events,
@@ -228,7 +203,9 @@ worker_thread_execute_epoll_loop(void)
 				struct sandbox *sandbox = (struct sandbox *)epoll_events[i].data.ptr;
 				assert(sandbox);
 
-				if (sandbox->state == SANDBOX_BLOCKED) worker_thread_wakeup_sandbox(sandbox);
+				if (sandbox->state == SANDBOX_BLOCKED) {
+					sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
+				}
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
 				/* Mystery: This seems to never fire. Why? Issue #130 */
 
@@ -274,8 +251,14 @@ worker_thread_execute_epoll_loop(void)
 void *
 worker_thread_main(void *argument)
 {
+	/* The base worker thread should start with software interrupts disabled */
+	assert(software_interrupt_is_disabled);
+
 	/* Index was passed via argument */
 	worker_thread_idx = *(int *)argument;
+
+	/* Set my priority */
+	// runtime_set_pthread_prio(pthread_self(), 0);
 
 	/* Initialize Base Context as unused
 	 * The SP and IP are populated during the first FAST switch away
@@ -297,19 +280,15 @@ worker_thread_main(void *argument)
 	/* Initialize Completion Queue */
 	local_completion_queue_initialize();
 
-	/* Initialize Flags */
-	software_interrupt_is_disabled = false;
+	/* Initialize epoll */
+	worker_thread_epoll_file_descriptor = epoll_create1(0);
+	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
 
-
-	/* Unmask signals */
+	/* Unmask signals, unless the runtime has disabled preemption */
 	if (runtime_preemption_enabled) {
 		software_interrupt_unmask_signal(SIGALRM);
 		software_interrupt_unmask_signal(SIGUSR1);
 	}
-
-	/* Initialize epoll */
-	worker_thread_epoll_file_descriptor = epoll_create1(0);
-	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
 
 	/* Begin Worker Execution Loop */
 	struct sandbox *next_sandbox;
@@ -320,13 +299,9 @@ worker_thread_main(void *argument)
 		worker_thread_execute_epoll_loop();
 
 		/* Switch to a sandbox if one is ready to run */
-		software_interrupt_disable();
 		next_sandbox = local_runqueue_get_next();
-		if (next_sandbox != NULL) {
-			worker_thread_switch_to_sandbox(next_sandbox);
-		} else {
-			software_interrupt_enable();
-		};
+		if (next_sandbox != NULL) { worker_thread_switch_to_sandbox(next_sandbox); }
+		assert(software_interrupt_is_disabled);
 
 		/* Clear the completion queue */
 		local_completion_queue_free();
@@ -347,4 +322,15 @@ worker_thread_on_sandbox_exit()
 	generic_thread_dump_lock_overhead();
 	worker_thread_switch_to_base_context();
 	panic("Unexpected return\n");
+}
+
+
+void
+worker_thread_sched()
+{
+	struct sandbox *current_sandbox = current_sandbox_get();
+	struct sandbox *next_sandbox    = local_runqueue_get_next();
+	if (next_sandbox != NULL && next_sandbox != current_sandbox_get()) {
+		worker_thread_switch_to_sandbox(next_sandbox);
+	}
 }
