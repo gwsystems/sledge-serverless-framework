@@ -1,6 +1,6 @@
 #pragma once
 
-#include "perf_window.h"
+#include "perf_window_t.h"
 
 struct admissions_info {
 	struct perf_window perf_window;
