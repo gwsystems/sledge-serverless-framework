@@ -418,7 +418,16 @@ main() {
 
 __framework_sh__stop_runtime() {
 	printf "Stopping Runtime: "
-	pkill sledgert > /dev/null 2> /dev/null
-	pkill hey > /dev/null 2> /dev/null
+	# Ignoring RC of 1, as it indicates no matching process
+	sudo pkill sledgert > /dev/null 2> /dev/null
+	(($? > 1)) && {
+		printf "[ERR]\npkill sledgrt: %d\n" $?
+		exit 1
+	}
+	sudo pkill hey > /dev/null 2> /dev/null
+	(($? > 1)) && {
+		printf "[ERR]\npkill hey: %d\n" $?
+		exit 1
+	}
 	printf "[OK]\n"
 }
