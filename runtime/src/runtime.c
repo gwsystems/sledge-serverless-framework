@@ -147,12 +147,12 @@ runtime_pthread_prio(pthread_t thread, unsigned int nice)
 	struct sched_param sp;
 	int                policy;
 
-	call_getrlimit(RLIMIT_CPU, "CPU");
-	call_getrlimit(RLIMIT_RTTIME, "RTTIME");
-	call_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
-	call_setrlimit(RLIMIT_RTPRIO, RLIM_INFINITY, RLIM_INFINITY);
-	call_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
-	call_getrlimit(RLIMIT_NICE, "NICE");
+	runtime_call_getrlimit(RLIMIT_CPU, "CPU");
+	runtime_call_getrlimit(RLIMIT_RTTIME, "RTTIME");
+	runtime_call_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
+	runtime_call_setrlimit(RLIMIT_RTPRIO, RLIM_INFINITY, RLIM_INFINITY);
+	runtime_call_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
+	runtime_call_getrlimit(RLIMIT_NICE, "NICE");
 
 	if (pthread_getschedparam(thread, &policy, &sp) < 0) { perror("pth_getparam: "); }
 	sp.sched_priority = sched_get_priority_max(SCHED_RR) - nice;
@@ -171,13 +171,13 @@ runtime_set_prio(unsigned int nice)
 {
 	struct sched_param sp;
 
-	call_getrlimit(RLIMIT_CPU, "CPU");
-	call_getrlimit(RLIMIT_RTTIME, "RTTIME");
-	call_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
-	call_setrlimit(RLIMIT_RTPRIO, RLIM_INFINITY, RLIM_INFINITY);
-	call_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
+	runtime_call_getrlimit(RLIMIT_CPU, "CPU");
+	runtime_call_getrlimit(RLIMIT_RTTIME, "RTTIME");
+	runtime_call_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
+	runtime_call_setrlimit(RLIMIT_RTPRIO, RLIM_INFINITY, RLIM_INFINITY);
+	runtime_call_getrlimit(RLIMIT_RTPRIO, "RTPRIO");
 
-	call_getrlimit(RLIMIT_NICE, "NICE");
+	runtime_call_getrlimit(RLIMIT_NICE, "NICE");
 
 	if (sched_getparam(0, &sp) < 0) { perror("getparam: "); }
 	sp.sched_priority = sched_get_priority_max(SCHED_RR) - nice;
