@@ -18,6 +18,83 @@
 #include "worker_thread.h"
 
 /**
+ * Close the sandbox's ith io_handle
+ * @param sandbox
+ * @param io_handle_index index of the handle to close
+ */
+void
+sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
+{
+	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return;
+	/* TODO: Do we actually need to call some sort of close function here? Issue #90 */
+	sandbox->io_handles[io_handle_index].file_descriptor = -1;
+}
+
+/**
+ * Getter for the arguments of the sandbox
+ * @param sandbox
+ * @return the arguments of the sandbox
+ */
+static inline char *
+sandbox_get_arguments(struct sandbox *sandbox)
+{
+	if (!sandbox) return NULL;
+	return (char *)sandbox->arguments;
+}
+
+/**
+ * Get the file descriptor of the sandbox's ith io_handle
+ * @param sandbox
+ * @param io_handle_index index into the sandbox's io_handles table
+ * @returns file descriptor or -1 in case of error
+ */
+int
+sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index)
+{
+	if (!sandbox) return -1;
+	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
+	return sandbox->io_handles[io_handle_index].file_descriptor;
+}
+
+/**
+ * Sets the file descriptor of the sandbox's ith io_handle
+ * Returns error condition if the file_descriptor to set does not contain sandbox preopen magic
+ * @param sandbox
+ * @param io_handle_index index of the sandbox io_handles we want to set
+ * @param file_descriptor the file descripter we want to set it to
+ * @returns the index that was set or -1 in case of error
+ */
+static inline int
+sandbox_set_file_descriptor(struct sandbox *sandbox, int io_handle_index, int file_descriptor)
+{
+	if (!sandbox) return -1;
+	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
+	if (file_descriptor < 0
+	    || sandbox->io_handles[io_handle_index].file_descriptor != SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC)
+		return -1;
+	sandbox->io_handles[io_handle_index].file_descriptor = file_descriptor;
+	return io_handle_index;
+}
+
+/**
+ * Initializes and returns an IO handle on the current sandbox ready for use
+ * @param sandbox
+ * @return index of handle we preopened or -1 on error (sandbox is null or all io_handles are exhausted)
+ */
+int
+sandbox_initialize_io_handle(struct sandbox *sandbox)
+{
+	if (!sandbox) return -1;
+	int io_handle_index;
+	for (io_handle_index = 0; io_handle_index < SANDBOX_MAX_IO_HANDLE_COUNT; io_handle_index++) {
+		if (sandbox->io_handles[io_handle_index].file_descriptor < 0) break;
+	}
+	if (io_handle_index == SANDBOX_MAX_IO_HANDLE_COUNT) return -1;
+	sandbox->io_handles[io_handle_index].file_descriptor = SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC;
+	return io_handle_index;
+}
+
+/**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
  */
 static inline void
@@ -294,7 +371,7 @@ sandbox_initialize_io_handles_and_file_descriptors(struct sandbox *sandbox)
  * This is defined by an environment variable
  * @param sandbox
  */
-void
+static inline void
 sandbox_print_perf(struct sandbox *sandbox)
 {
 	/* If the log was not defined by an environment variable, early out */
@@ -320,7 +397,7 @@ sandbox_print_perf(struct sandbox *sandbox)
 	        running_us, blocked_us, returned_us, sandbox->linear_memory_size);
 }
 
-void
+static inline void
 sandbox_summarize_page_allocations(struct sandbox *sandbox)
 {
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
@@ -354,6 +431,18 @@ sandbox_close_http(struct sandbox *sandbox)
 	if (unlikely(rc < 0)) panic_err();
 
 	client_socket_close(sandbox->client_socket_descriptor, &sandbox->client_address);
+}
+
+/**
+ * Given a sandbox, returns the module that sandbox is executing
+ * @param sandbox the sandbox whose module we want
+ * @return the module of the provided sandbox
+ */
+static inline struct module *
+sandbox_get_module(struct sandbox *sandbox)
+{
+	if (!sandbox) return NULL;
+	return sandbox->module;
 }
 
 /**
