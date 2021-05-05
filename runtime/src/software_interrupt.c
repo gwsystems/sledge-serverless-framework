@@ -11,6 +11,7 @@
 #include "current_sandbox.h"
 #include "debuglog.h"
 #include "global_request_scheduler.h"
+#include "listener_thread.h"
 #include "local_runqueue.h"
 #include "module.h"
 #include "panic.h"
@@ -169,7 +170,7 @@ static inline void
 software_interrupt_validate_worker()
 {
 #ifndef NDEBUG
-	if (!runtime_is_worker()) panic("A non-worker thread has unexpectedly received a signal!");
+	if (listener_thread_is_running()) panic("The listener thread unexpectedly received a signal!");
 #endif
 }
 

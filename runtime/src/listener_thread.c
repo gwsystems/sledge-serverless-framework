@@ -17,6 +17,8 @@ int listener_thread_epoll_file_descriptor;
 /* Timestamp when listener thread began executing */
 static __thread uint64_t listener_thread_start_timestamp;
 
+pthread_t listener_thread_id;
+
 /**
  * Initializes the listener thread, pinned to core 0, and starts to listen for requests
  */
@@ -33,15 +35,14 @@ listener_thread_initialize(void)
 	listener_thread_epoll_file_descriptor = epoll_create1(0);
 	assert(listener_thread_epoll_file_descriptor >= 0);
 
-	pthread_t listener_thread;
-	int       ret = pthread_create(&listener_thread, NULL, listener_thread_main, NULL);
+	int ret = pthread_create(&listener_thread_id, NULL, listener_thread_main, NULL);
 	assert(ret == 0);
-	ret = pthread_setaffinity_np(listener_thread, sizeof(cpu_set_t), &cs);
+	ret = pthread_setaffinity_np(listener_thread_id, sizeof(cpu_set_t), &cs);
 	assert(ret == 0);
 	ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cs);
 	assert(ret == 0);
 
-	printf("\tListener core thread: %lx\n", listener_thread);
+	printf("\tListener core thread: %lx\n", listener_thread_id);
 }
 
 /**
