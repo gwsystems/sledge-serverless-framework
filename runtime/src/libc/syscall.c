@@ -7,8 +7,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "current_sandbox.h"
+#include "worker_thread.h"
 
 // What should we tell the child program its UID and GID are?
 #define UID 0xFF
