@@ -40,35 +40,26 @@ enum RUNTIME_SIGALRM_HANDLER
 	RUNTIME_SIGALRM_HANDLER_TRIAGED   = 1
 };
 
-extern bool runtime_preemption_enabled;
-
-/*
- * Assumption: All cores are the same speed
- * See runtime_get_processor_speed_MHz for further details
- */
-extern uint32_t runtime_processor_speed_MHz;
-
-extern uint32_t runtime_quantum_us;
-
-/* Optional path to a file to log sandbox perf metrics */
-extern FILE *runtime_sandbox_perf_log;
-
+extern bool                         runtime_preemption_enabled;
+extern uint32_t                     runtime_processor_speed_MHz;
+extern uint32_t                     runtime_quantum_us;
+extern FILE *                       runtime_sandbox_perf_log;
 extern enum RUNTIME_SCHEDULER       runtime_scheduler;
 extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
+extern pthread_t                    runtime_worker_threads[];
+extern uint32_t                     runtime_worker_threads_count;
+extern int                          runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT];
+extern uint64_t                     runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT];
 
-/* Count of worker threads and array of their pthread identifiers */
-extern pthread_t runtime_worker_threads[];
-extern uint32_t  runtime_worker_threads_count;
-extern int       runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT];
-extern uint64_t  runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT];
+extern void runtime_initialize(void);
+extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);
+extern void runtime_set_resource_limits_to_max();
 
-
+/* External Symbols */
 extern void  alloc_linear_memory(void);
 extern void  expand_memory(void);
 INLINE char *get_function_from_table(uint32_t idx, uint32_t type_id);
 INLINE char *get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check);
-extern void  runtime_initialize(void);
-extern void  runtime_set_resource_limits_to_max();
 extern void  stub_init(int32_t offset);
 
 static inline char *
