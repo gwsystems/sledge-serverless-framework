@@ -131,10 +131,11 @@ err:
 int32_t
 wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 {
+	struct sandbox *s = current_sandbox_get();
+
 	if (fd == 1 || fd == 2) {
-		char *          buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
-		struct sandbox *s      = current_sandbox_get();
-		int             l      = s->module->max_response_size - s->request_response_data_length;
+		char *buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
+		int   l      = s->module->max_response_size - s->request_response_data_length;
 		if (l > buf_size) l = buf_size;
 		if (l == 0) return 0;
 		memcpy(s->request_response_data + s->request_response_data_length, buffer, l);
@@ -143,7 +144,7 @@ wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 		return l;
 	}
 
-	int   f   = current_sandbox_get_file_descriptor(fd);
+	int   f   = sandbox_get_file_descriptor(s, fd);
 	char *buf = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
 
 	int32_t res = 0;
@@ -192,7 +193,7 @@ wasm_open(int32_t path_off, int32_t flags, int32_t mode)
 {
 	char *path = worker_thread_get_memory_string(path_off, MODULE_MAX_PATH_LENGTH);
 
-	int iofd = current_sandbox_initialize_io_handle();
+	int iofd = sandbox_initialize_io_handle(current_sandbox_get());
 	if (iofd < 0) return -1;
 	int32_t modified_flags = 0;
 
@@ -237,7 +238,8 @@ wasm_open(int32_t path_off, int32_t flags, int32_t mode)
 int32_t
 wasm_close(int32_t io_handle_index)
 {
-	int fd = current_sandbox_get_file_descriptor(io_handle_index);
+	struct sandbox *sandbox = current_sandbox_get();
+	int             fd      = sandbox_get_file_descriptor(sandbox, io_handle_index);
 
 	// Silently disregard client requests to close STDIN, STDOUT, or STDERR
 	if (fd <= STDERR_FILENO) return 0;
