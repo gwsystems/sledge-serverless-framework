@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -10,7 +11,6 @@
 #include "http_total.h"
 #include "likely.h"
 #include "panic.h"
-#include "worker_thread.h"
 
 void
 client_socket_close(int client_socket, struct sockaddr *client_address)
