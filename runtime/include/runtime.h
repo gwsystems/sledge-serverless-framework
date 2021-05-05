@@ -71,21 +71,6 @@ extern void  runtime_initialize(void);
 extern void  runtime_set_resource_limits_to_max();
 extern void  stub_init(int32_t offset);
 
-/**
- * Used to determine if running in the context of a worker thread
- * @returns true if worker. false if listener core
- */
-static inline bool
-runtime_is_worker()
-{
-	pthread_t self = pthread_self();
-	for (int i = 0; i < runtime_worker_threads_count; i++) {
-		if (runtime_worker_threads[i] == self) return true;
-	}
-
-	return false;
-}
-
 static inline char *
 runtime_print_scheduler(enum RUNTIME_SCHEDULER variant)
 {

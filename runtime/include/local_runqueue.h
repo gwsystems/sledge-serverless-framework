@@ -19,11 +19,9 @@ struct local_runqueue_config {
 	local_runqueue_preempt_fn_t  preempt_fn;
 };
 
-void local_runqueue_initialize(struct local_runqueue_config *config);
-
-/* This is currently only used by worker_thread_wakeup_sandbox */
 void            local_runqueue_add(struct sandbox *);
 void            local_runqueue_delete(struct sandbox *);
 bool            local_runqueue_is_empty();
 struct sandbox *local_runqueue_get_next();
+void            local_runqueue_initialize(struct local_runqueue_config *config);
 void            local_runqueue_preempt(ucontext_t *);

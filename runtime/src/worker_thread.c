@@ -341,9 +341,8 @@ worker_thread_main(void *argument)
  * releases the linear memory, and then returns to the base context
  */
 __attribute__((noreturn)) void
-worker_thread_on_sandbox_exit(struct sandbox *exiting_sandbox)
+worker_thread_on_sandbox_exit()
 {
-	assert(exiting_sandbox);
 	assert(!software_interrupt_is_enabled());
 	generic_thread_dump_lock_overhead();
 	worker_thread_switch_to_base_context();

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdbool.h>
-#include <stdio.h>
 
 #include "http.h"
 
@@ -28,22 +27,5 @@ struct http_request {
 	bool message_end;    /* boolean flag set when body processing is complete */
 };
 
-static inline void
-http_request_print(struct http_request *self)
-{
-	printf("Header Count %d\n", self->header_count);
-	printf("Header Content:\n");
-	for (int i = 0; i < self->header_count; i++) {
-		for (int j = 0; j < self->headers[i].key_length; j++) { putchar(self->headers[i].key[j]); }
-		putchar(':');
-		for (int j = 0; j < self->headers[i].value_length; j++) { putchar(self->headers[i].value[j]); }
-		putchar('\n');
-	}
-	printf("Body Length %d\n", self->body_length);
-	printf("Body Read Length %d\n", self->body_read_length);
-}
-
-/***************************************************
- * General HTTP Request Functions                  *
- **************************************************/
-int http_request_get_body(struct http_request *http_request, char **body);
+int  http_request_get_body(struct http_request *http_request, char **body);
+void http_request_print(struct http_request *self);

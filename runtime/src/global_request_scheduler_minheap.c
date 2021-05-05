@@ -1,6 +1,7 @@
 #include <assert.h>
 
 #include "global_request_scheduler.h"
+#include "listener_thread.h"
 #include "panic.h"
 #include "priority_queue.h"
 #include "runtime.h"
@@ -17,7 +18,7 @@ global_request_scheduler_minheap_add(void *sandbox_request)
 {
 	assert(sandbox_request);
 	assert(global_request_scheduler_minheap);
-	if (unlikely(runtime_is_worker())) panic("%s is only callable by the listener thread\n", __func__);
+	if (unlikely(!listener_thread_is_running())) panic("%s is only callable by the listener thread\n", __func__);
 
 	int return_code = priority_queue_enqueue(global_request_scheduler_minheap, sandbox_request);
 	/* TODO: Propagate -1 to caller. Issue #91 */
