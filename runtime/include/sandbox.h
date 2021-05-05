@@ -120,7 +120,6 @@ struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_free_linear_memory(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
-size_t          sandbox_parse_http_request(struct sandbox *sandbox, size_t length);
 
 
 /**
@@ -162,26 +161,6 @@ sandbox_initialize_io_handle(struct sandbox *sandbox)
 	}
 	if (io_handle_index == SANDBOX_MAX_IO_HANDLE_COUNT) return -1;
 	sandbox->io_handles[io_handle_index].file_descriptor = SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC;
-	return io_handle_index;
-}
-
-
-/**
- * Initializes and returns an IO handle of a sandbox ready for use
- * @param sandbox
- * @param file_descriptor what we'll set on the IO handle after initialization
- * @return index of handle we preopened or -1 if all io_handles are exhausted
- */
-static inline int
-sandbox_initialize_io_handle_and_set_file_descriptor(struct sandbox *sandbox, int file_descriptor)
-{
-	if (!sandbox) return -1;
-	if (file_descriptor < 0) return file_descriptor;
-	int io_handle_index = sandbox_initialize_io_handle(sandbox);
-	if (io_handle_index != -1) {
-		sandbox->io_handles[io_handle_index].file_descriptor =
-		  file_descriptor; /* per sandbox, so synchronization necessary! */
-	}
 	return io_handle_index;
 }
 
@@ -232,74 +211,9 @@ sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
 	sandbox->io_handles[io_handle_index].file_descriptor = -1;
 }
 
-/**
- * Prints key performance metrics for a sandbox to runtime_sandbox_perf_log
- * This is defined by an environment variable
- * @param sandbox
- */
-static inline void
-sandbox_print_perf(struct sandbox *sandbox)
-{
-	/* If the log was not defined by an environment variable, early out */
-	if (runtime_sandbox_perf_log == NULL) return;
-
-	uint32_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
-	uint32_t queued_us     = (sandbox->allocation_timestamp - sandbox->request_arrival_timestamp)
-	                     / runtime_processor_speed_MHz;
-	uint32_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
-	uint32_t runnable_us     = sandbox->runnable_duration / runtime_processor_speed_MHz;
-	uint32_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
-	uint32_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
-	uint32_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
-
-	/*
-	 * Assumption: A sandbox is never able to free pages. If linear memory management
-	 * becomes more intelligent, then peak linear memory size needs to be tracked
-	 * seperately from current linear memory size.
-	 */
-	fprintf(runtime_sandbox_perf_log, "%lu,%s():%d,%s,%u,%u,%u,%u,%u,%u,%u,%u,%u\n", sandbox->id,
-	        sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
-	        sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
-	        running_us, blocked_us, returned_us, sandbox->linear_memory_size);
-}
-
-static inline void
-sandbox_summarize_page_allocations(struct sandbox *sandbox)
-{
-#ifdef LOG_SANDBOX_MEMORY_PROFILE
-	// TODO: Handle interleavings
-	char sandbox_page_allocations_log_path[100] = {};
-	sandbox_page_allocations_log_path[99]       = '\0';
-	snprintf(sandbox_page_allocations_log_path, 99, "%s_%d_page_allocations.csv", sandbox->module->name,
-	         sandbox->module->port);
-
-	debuglog("Logging to %s", sandbox_page_allocations_log_path);
-
-	FILE *sandbox_page_allocations_log = fopen(sandbox_page_allocations_log_path, "a");
-
-	fprintf(sandbox_page_allocations_log, "%lu,%lu,%s,", sandbox->id, sandbox->running_duration,
-	        sandbox_state_stringify(sandbox->state));
-	for (size_t i = 0; i < sandbox->page_allocation_timestamps_size; i++)
-		fprintf(sandbox_page_allocations_log, "%u,", sandbox->page_allocation_timestamps[i]);
-
-	fprintf(sandbox_page_allocations_log, "\n");
-#else
-	return;
-#endif
-}
-
-
-static inline void
-sandbox_close_http(struct sandbox *sandbox)
-{
-	assert(sandbox != NULL);
-
-	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, sandbox->client_socket_descriptor, NULL);
-	if (unlikely(rc < 0)) panic_err();
-
-	client_socket_close(sandbox->client_socket_descriptor, &sandbox->client_address);
-}
-
+void sandbox_close_http(struct sandbox *sandbox);
+void sandbox_print_perf(struct sandbox *sandbox);
+void sandbox_summarize_page_allocations(struct sandbox *sandbox);
 
 INLINE void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
                                        uint64_t allocation_timestamp);
