@@ -108,103 +108,15 @@ struct sandbox {
  **************************/
 
 struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
+void            sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index);
+void            sandbox_close_http(struct sandbox *sandbox);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_free_linear_memory(struct sandbox *sandbox);
+int             sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index);
+int             sandbox_initialize_io_handle(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 
-
-/**
- * Given a sandbox, returns the module that sandbox is executing
- * @param sandbox the sandbox whose module we want
- * @return the module of the provided sandbox
- */
-static inline struct module *
-sandbox_get_module(struct sandbox *sandbox)
-{
-	if (!sandbox) return NULL;
-	return sandbox->module;
-}
-
-/**
- * Getter for the arguments of the sandbox
- * @param sandbox
- * @return the arguments of the sandbox
- */
-static inline char *
-sandbox_get_arguments(struct sandbox *sandbox)
-{
-	if (!sandbox) return NULL;
-	return (char *)sandbox->arguments;
-}
-
-/**
- * Initializes and returns an IO handle on the current sandbox ready for use
- * @param sandbox
- * @return index of handle we preopened or -1 on error (sandbox is null or all io_handles are exhausted)
- */
-static inline int
-sandbox_initialize_io_handle(struct sandbox *sandbox)
-{
-	if (!sandbox) return -1;
-	int io_handle_index;
-	for (io_handle_index = 0; io_handle_index < SANDBOX_MAX_IO_HANDLE_COUNT; io_handle_index++) {
-		if (sandbox->io_handles[io_handle_index].file_descriptor < 0) break;
-	}
-	if (io_handle_index == SANDBOX_MAX_IO_HANDLE_COUNT) return -1;
-	sandbox->io_handles[io_handle_index].file_descriptor = SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC;
-	return io_handle_index;
-}
-
-/**
- * Sets the file descriptor of the sandbox's ith io_handle
- * Returns error condition if the file_descriptor to set does not contain sandbox preopen magic
- * @param sandbox
- * @param io_handle_index index of the sandbox io_handles we want to set
- * @param file_descriptor the file descripter we want to set it to
- * @returns the index that was set or -1 in case of error
- */
-static inline int
-sandbox_set_file_descriptor(struct sandbox *sandbox, int io_handle_index, int file_descriptor)
-{
-	if (!sandbox) return -1;
-	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
-	if (file_descriptor < 0
-	    || sandbox->io_handles[io_handle_index].file_descriptor != SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC)
-		return -1;
-	sandbox->io_handles[io_handle_index].file_descriptor = file_descriptor;
-	return io_handle_index;
-}
-
-/**
- * Get the file descriptor of the sandbox's ith io_handle
- * @param sandbox
- * @param io_handle_index index into the sandbox's io_handles table
- * @returns file descriptor or -1 in case of error
- */
-static inline int
-sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index)
-{
-	if (!sandbox) return -1;
-	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return -1;
-	return sandbox->io_handles[io_handle_index].file_descriptor;
-}
-
-/**
- * Close the sandbox's ith io_handle
- * @param sandbox
- * @param io_handle_index index of the handle to close
- */
-static inline void
-sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index)
-{
-	if (io_handle_index >= SANDBOX_MAX_IO_HANDLE_COUNT || io_handle_index < 0) return;
-	/* TODO: Do we actually need to call some sort of close function here? Issue #90 */
-	sandbox->io_handles[io_handle_index].file_descriptor = -1;
-}
-
 void sandbox_close_http(struct sandbox *sandbox);
-void sandbox_print_perf(struct sandbox *sandbox);
-void sandbox_summarize_page_allocations(struct sandbox *sandbox);
 
 INLINE void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
                                        uint64_t allocation_timestamp);
