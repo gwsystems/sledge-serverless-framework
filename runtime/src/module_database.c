@@ -1,4 +1,7 @@
+#include <errno.h>
+
 #include "module_database.h"
+#include "panic.h"
 
 /*******************
  * Module Database *
@@ -6,6 +9,31 @@
 
 struct module *module_database[MODULE_MAX_MODULE_COUNT] = { NULL };
 size_t         module_database_count                    = 0;
+
+/**
+ * Adds a module to the in-memory module DB
+ * @param module module to add
+ * @return 0 on success. -ENOSPC when full
+ */
+int
+module_database_add(struct module *module)
+{
+	assert(module_database_count <= MODULE_MAX_MODULE_COUNT);
+
+	int rc;
+
+	if (module_database_count == MODULE_MAX_MODULE_COUNT) goto err_no_space;
+	module_database[module_database_count++] = module;
+
+	rc = 0;
+done:
+	return rc;
+err_no_space:
+	panic("Cannot add module. Database is full.\n");
+	rc = -ENOSPC;
+	goto done;
+}
+
 
 /**
  * Given a name, find the associated module
