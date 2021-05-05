@@ -4,6 +4,8 @@
 #include <assert.h>
 #include "arch/common.h"
 #include "current_sandbox.h"
+#include "software_interrupt.h"
+#include "software_interrupt_enable.h"
 
 #define ARCH_SIG_JMP_OFF 0x100 /* Based on code generated! */
 
@@ -29,6 +31,7 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 
 	actx->regs[UREG_SP] = sp;
 	actx->regs[UREG_IP] = ip;
+	actx->preemptable   = false;
 }
 
 /**
@@ -107,6 +110,12 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 
 	reg_t *a_registers = a->regs, *b_registers = b->regs;
 	assert(a_registers && b_registers);
+
+	/* If switching back to a sandbox context marked as preemptable, reenable
+	 * interrupts before jumping
+	 * TODO: What if we receive a signal inside the inline assembly?
+	 */
+	if (b->preemptable) software_interrupt_enable();
 
 	asm volatile("mov x0, sp\n\t"
 	             "adr x1, reset%=\n\t"

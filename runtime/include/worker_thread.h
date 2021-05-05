@@ -1,12 +1,18 @@
 #pragma once
 
+#include <signal.h>
+
 #include "generic_thread.h"
 #include "runtime.h"
+#include "sandbox.h"
 
 extern __thread int worker_thread_epoll_file_descriptor;
 extern __thread int worker_thread_idx;
 
+void  worker_thread_block_current_sandbox(void);
 void *worker_thread_main(void *return_code);
+void  worker_thread_process_io(void);
+void  worker_thread_sched();
 
 /**
  * Translates WASM offsets into runtime VM pointers

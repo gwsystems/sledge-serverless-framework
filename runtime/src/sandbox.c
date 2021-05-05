@@ -3,8 +3,11 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
+#include "arch/context.h"
 #include "admissions_control.h"
+#include "client_socket.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
 #include "http_parser_settings.h"
@@ -12,9 +15,12 @@
 #include "local_completion_queue.h"
 #include "local_runqueue.h"
 #include "likely.h"
+#include "module.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox.h"
+#include "software_interrupt.h"
+#include "software_interrupt_enable.h"
 #include "worker_thread.h"
 
 /**
@@ -64,7 +70,7 @@ sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index)
  * @param file_descriptor the file descripter we want to set it to
  * @returns the index that was set or -1 in case of error
  */
-static inline int
+int
 sandbox_set_file_descriptor(struct sandbox *sandbox, int io_handle_index, int file_descriptor)
 {
 	if (!sandbox) return -1;
@@ -445,6 +451,20 @@ sandbox_get_module(struct sandbox *sandbox)
 	return sandbox->module;
 }
 
+static inline void
+current_sandbox_enable_preemption(struct sandbox *sandbox)
+{
+	sandbox->ctxt.preemptable = true;
+	software_interrupt_enable();
+}
+
+static inline void
+current_sandbox_disable_preemption(struct sandbox *sandbox)
+{
+	sandbox->ctxt.preemptable = false;
+	software_interrupt_disable();
+}
+
 /**
  * Sandbox execution logic
  * Handles setup, request parsing, WebAssembly initialization, function execution, response building and
@@ -453,15 +473,17 @@ sandbox_get_module(struct sandbox *sandbox)
 void
 sandbox_start(void)
 {
+	// Technically might have been enabled before this point...
+	assert(!software_interrupt_is_enabled());
+
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING);
 
 	char *error_message = "";
 
-	assert(!software_interrupt_is_enabled());
+	// TODO: I think this should not be called because it was invoked during sandbox_set_as_initialized
 	arch_context_init(&sandbox->ctxt, 0, 0);
-	software_interrupt_enable();
 
 	sandbox_initialize_io_handles_and_file_descriptors(sandbox);
 
@@ -483,8 +505,10 @@ sandbox_start(void)
 	/* Copy the arguments into the WebAssembly sandbox */
 	sandbox_setup_arguments(sandbox);
 
-	/* Executing the function */
-	sandbox->return_value         = module_main(current_module, argument_count, sandbox->arguments_offset);
+	current_sandbox_enable_preemption(sandbox);
+	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
+	current_sandbox_disable_preemption(sandbox);
+
 	sandbox->completion_timestamp = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
@@ -496,8 +520,6 @@ sandbox_start(void)
 	http_total_increment_2xx();
 
 	sandbox->response_timestamp = __getcycles();
-
-	software_interrupt_disable();
 
 	assert(sandbox->state == SANDBOX_RUNNING);
 	sandbox_close_http(sandbox);
@@ -518,7 +540,6 @@ err:
 	/* Send a 400 error back to the client */
 	client_socket_send(sandbox->client_socket_descriptor, 400);
 
-	software_interrupt_disable();
 	sandbox_close_http(sandbox);
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);
 	goto done;

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "arch/common.h"
+#include "software_interrupt.h"
+#include "software_interrupt_enable.h"
 
 #define ARCH_SIG_JMP_OFF 8
 
@@ -14,12 +16,15 @@
 static void __attribute__((noinline)) arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
 	assert(actx != NULL);
+	assert(software_interrupt_is_disabled);
 
 	if (ip == 0 && sp == 0) {
 		actx->variant = ARCH_CONTEXT_VARIANT_UNUSED;
 	} else {
 		actx->variant = ARCH_CONTEXT_VARIANT_FAST;
 	}
+
+	actx->preemptable = false;
 
 	if (sp) {
 		/*
@@ -138,6 +143,12 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 
 	reg_t *a_registers = a->regs, *b_registers = b->regs;
 	assert(a_registers && b_registers);
+
+	/* If switching back to a sandbox context marked as preemptable, reenable
+	 * interrupts before jumping
+	 * TODO: What if we receive a signal inside the inline assembly?
+	 */
+	if (b->preemptable) software_interrupt_enable();
 
 	asm volatile(
 	  /* Create a new stack frame */

@@ -17,6 +17,7 @@
 
 extern __thread volatile sig_atomic_t software_interrupt_is_disabled;
 extern uint64_t                       software_interrupt_interval_duration_in_cycles;
+extern __thread volatile sig_atomic_t software_interrupt_deferred_sigalrm;
 
 /*************************
  * Public Static Inlines *
@@ -27,18 +28,6 @@ software_interrupt_disable(void)
 {
 	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 0, 1) == false) {
 		panic("Recursive call to software_interrupt_disable\n");
-	}
-}
-
-
-/**
- * Enables signals
- */
-static inline void
-software_interrupt_enable(void)
-{
-	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 1, 0) == false) {
-		panic("Recursive call to software_interrupt_enable\n");
 	}
 }
 

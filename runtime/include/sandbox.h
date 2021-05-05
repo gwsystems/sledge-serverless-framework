@@ -3,16 +3,12 @@
 #include <ucontext.h>
 #include <stdbool.h>
 
-#include "arch/context.h"
-#include "client_socket.h"
-#include "deque.h"
+#include "arch/arch_context_t.h"
+#include "http_parser.h"
 #include "http_request.h"
 #include "http_response.h"
-#include "module.h"
 #include "ps_list.h"
 #include "sandbox_request.h"
-#include "sandbox_state.h"
-#include "software_interrupt.h"
 
 #define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) /* upside down LOLLOLLOL 🤣😂🤣*/
 #define SANDBOX_MAX_IO_HANDLE_COUNT           32
@@ -114,9 +110,6 @@ void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_free_linear_memory(struct sandbox *sandbox);
 int             sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index);
 int             sandbox_initialize_io_handle(struct sandbox *sandbox);
-void            sandbox_main(struct sandbox *sandbox);
-
-void sandbox_close_http(struct sandbox *sandbox);
 
 INLINE void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
                                        uint64_t allocation_timestamp);
