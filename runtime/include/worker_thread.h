@@ -47,3 +47,6 @@ worker_thread_get_memory_string(uint32_t offset, uint32_t max_length)
 	}
 	return NULL;
 }
+
+void                           worker_thread_block_current_sandbox(void);
+__attribute__((noreturn)) void worker_thread_on_sandbox_exit();

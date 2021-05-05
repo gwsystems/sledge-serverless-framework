@@ -180,7 +180,6 @@ struct priority_queue *
 priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_priority_fn_t get_priority_fn)
 {
 	assert(get_priority_fn != NULL);
-	assert(!software_interrupt_is_enabled());
 
 	/* Add one to capacity because this data structure ignores the element at 0 */
 	size_t one_based_capacity = capacity + 1;

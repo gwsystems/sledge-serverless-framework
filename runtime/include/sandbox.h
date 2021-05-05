@@ -104,15 +104,6 @@ struct sandbox {
 } PAGE_ALIGNED;
 
 /***************************
- * Externs                 *
- **************************/
-
-extern void worker_thread_block_current_sandbox(void);
-extern void worker_thread_on_sandbox_exit(struct sandbox *sandbox);
-extern void worker_thread_process_io(void);
-extern void worker_thread_wakeup_sandbox(struct sandbox *sandbox);
-
-/***************************
  * Public API              *
  **************************/
 

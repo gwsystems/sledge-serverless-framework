@@ -362,13 +362,12 @@ sandbox_close_http(struct sandbox *sandbox)
  * sending, and cleanup
  */
 void
-current_sandbox_main(void)
+sandbox_start(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING);
 
-	int   rc;
 	char *error_message = "";
 
 	assert(!software_interrupt_is_enabled());
@@ -380,8 +379,7 @@ current_sandbox_main(void)
 	sandbox_open_http(sandbox);
 
 	/* Parse the request */
-	rc = sandbox_receive_and_parse_client_request(sandbox);
-	if (rc < 0) {
+	if (sandbox_receive_and_parse_client_request(sandbox) < 0) {
 		error_message = "Unable to receive and parse client request\n";
 		goto err;
 	};
@@ -401,8 +399,7 @@ current_sandbox_main(void)
 	sandbox->completion_timestamp = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
-	rc = sandbox_build_and_send_client_response(sandbox);
-	if (rc < 0) {
+	if (sandbox_build_and_send_client_response(sandbox) < 0) {
 		error_message = "Unable to build and send client response\n";
 		goto err;
 	};
@@ -561,8 +558,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
 	/* stack_start points to the bottom of the usable stack, so add stack_size to get to top */
-	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_main,
-	                  (reg_t)sandbox->stack_start + sandbox->stack_size);
+	arch_context_init(&sandbox->ctxt, (reg_t)sandbox_start, (reg_t)sandbox->stack_start + sandbox->stack_size);
 
 	/* Initialize file descriptors to -1 */
 	for (int i = 0; i < SANDBOX_MAX_IO_HANDLE_COUNT; i++) sandbox->io_handles[i].file_descriptor = -1;
