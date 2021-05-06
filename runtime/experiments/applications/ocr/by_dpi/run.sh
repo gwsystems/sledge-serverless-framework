@@ -44,10 +44,6 @@ experiment_main() {
 	local -r hostname="$1"
 	local -r results_directory="$2"
 
-	# Write Headers to CSV files
-	printf "DPI,Success_Rate\n" >> "$results_directory/success.csv"
-	printf "DPI,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
-
 	# Perform Experiments
 	printf "Running Experiments\n"
 	local -ar dpis=(72 108 144)
@@ -69,11 +65,18 @@ experiment_main() {
 			rm "${dpi}"_dpi.png "${dpi}"_dpi.pnm
 
 			# Logs the number of words that don't match
-			diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result") | wc -l >> "$results_directory/${dpi}_results.txt"
+			echo "word count: $word_count" >> "$results_directory/${dpi}_full_results.txt"
+			diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result") \
+				| tee -a "$results_directory/${dpi}_full_results.txt" \
+				| wc -l >> "$results_directory/${dpi}_results.txt"
+			echo "==========================================" >> "$results_directory/${dpi}_full_results.txt"
 		done
 	done
 
 	# Process Results
+	# Write Headers to CSV files
+	printf "DPI,Success_Rate\n" >> "$results_directory/success.csv"
+	printf "DPI,min,mean,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
 	for dpi in "${dpis[@]}"; do
 		# Skip empty results
 		oks=$(wc -l < "$results_directory/${dpi}_time.txt")
@@ -97,16 +100,22 @@ experiment_main() {
 		awk '
 			BEGIN {
 				sum = 0
-				p50 = int('"$oks"' * 0.5)
-				p90 = int('"$oks"' * 0.9)
-				p99 = int('"$oks"' * 0.99)
-				p100 = '"$oks"'
+				p50_idx = int('"$oks"' * 0.5)
+				p90_idx = int('"$oks"' * 0.9)
+				p99_idx = int('"$oks"' * 0.99)
+				p100_idx = '"$oks"'
 				printf "'"$dpi"',"
 			}
-			NR==p50  {printf "%1.4f,",  $0}
-			NR==p90  {printf "%1.4f,",  $0}
-			NR==p99  {printf "%1.4f,",  $0}
-			NR==p100 {printf "%1.4f\n", $0}
+			             {sum += $0}
+			NR==1        {min  = $0}
+			NR==p50_idx  {p50  = $0}
+			NR==p90_idx  {p90  = $0}
+			NR==p99_idx  {p99  = $0}
+			NR==p100_idx {p100 = $0}
+			END {
+				mean = sum / NR
+				printf "%1.4f,%1.4f,%1.4f,%1.4f,%1.4f,%1.4f\n", min, mean, p50, p90, p99, p100
+			}
 		' < "$results_directory/${dpi}_time_sorted.txt" >> "$results_directory/latency.csv"
 	done
 

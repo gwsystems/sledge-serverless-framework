@@ -45,8 +45,6 @@ experiment_main() {
 	local -r results_directory="$2"
 
 	# Write Headers to CSV files
-	printf "words,Success_Rate\n" >> "$results_directory/success.csv"
-	printf "words,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
 
 	local -Ar word_count_to_port=(
 		["1_words"]=10000
@@ -72,11 +70,18 @@ experiment_main() {
 			rm "$word_count_file.png" "$word_count_file.pnm"
 
 			# Logs the number of words that don't match
-			diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result") | wc -l >> "$results_directory/${word_count_file}_results.txt"
+			# Also tees the full diff into a separate file
+			echo "word count: $word_count" >> "$results_directory/${word_count_file}_full_results.txt"
+			diff -ywBZE --suppress-common-lines <(echo "$words") <(echo "$result") \
+				| tee -a "$results_directory/${word_count_file}_full_results.txt" \
+				| wc -l >> "$results_directory/${word_count_file}_results.txt"
+			echo "==========================================" >> "$results_directory/${word_count_file}_full_results.txt"
 		done
 	done
 
 	# Process Results
+	printf "words,Success_Rate\n" >> "$results_directory/success.csv"
+	printf "words,min,mean,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
 	for word_count in "${word_counts[@]}"; do
 		word_count_file="${word_count}_words"
 
@@ -102,16 +107,22 @@ experiment_main() {
 		awk '
 			BEGIN {
 				sum = 0
-				p50 = int('"$oks"' * 0.5)
-				p90 = int('"$oks"' * 0.9)
-				p99 = int('"$oks"' * 0.99)
-				p100 = '"$oks"'
+				p50_idx = int('"$oks"' * 0.5)
+				p90_idx = int('"$oks"' * 0.9)
+				p99_idx = int('"$oks"' * 0.99)
+				p100_idx = '"$oks"'
 				printf "'"$word_count_file"',"
 			}
-			NR==p50  {printf "%1.4f,",  $0}
-			NR==p90  {printf "%1.4f,",  $0}
-			NR==p99  {printf "%1.4f,",  $0}
-			NR==p100 {printf "%1.4f\n", $0}
+			             {sum += $0}
+			NR==1        {min  = $0}
+			NR==p50_idx  {p50  = $0}
+			NR==p90_idx  {p90  = $0}
+			NR==p99_idx  {p99  = $0}
+			NR==p100_idx {p100 = $0}
+			END {
+				mean = sum / NR
+				printf "%1.4f,%1.4f,%1.4f,%1.4f,%1.4f,%1.4f\n", min, mean, p50, p90, p99, p100
+			}
 		' < "$results_directory/${word_count_file}_time_sorted.txt" >> "$results_directory/latency.csv"
 	done
 
