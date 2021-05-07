@@ -154,7 +154,7 @@ sandbox_receive_and_parse_client_request(struct sandbox *sandbox)
 
 		if (recved < 0) {
 			if (errno == EAGAIN) {
-				worker_thread_block_current_sandbox();
+				current_sandbox_block();
 				continue;
 			} else {
 				/* All other errors */
@@ -297,7 +297,7 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 		           response_cursor - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN)
-				worker_thread_block_current_sandbox();
+				current_sandbox_block();
 			else {
 				perror("write");
 				return -1;
@@ -505,7 +505,8 @@ sandbox_start(void)
 
 done:
 	/* Cleanup connection and exit sandbox */
-	worker_thread_on_sandbox_exit(sandbox);
+	generic_thread_dump_lock_overhead();
+	worker_thread_switch_to_base_context();
 
 	/* This assert prevents a segfault discussed in
 	 * https://github.com/phanikishoreg/awsm-Serverless-Framework/issues/66
@@ -932,9 +933,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t sandbox_id = sandbox->id;
 	sandbox->state      = SANDBOX_ERROR;
 	sandbox_print_perf(sandbox);
-#ifdef LOG_SANDBOX_MEMORY_PROFILE
 	sandbox_summarize_page_allocations(sandbox);
-#endif
 	sandbox_free_linear_memory(sandbox);
 	admissions_control_subtract(sandbox->admissions_estimate);
 	/* Do not touch sandbox after adding to completion queue to avoid use-after-free bugs */
@@ -979,9 +978,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t sandbox_id = sandbox->id;
 	sandbox->state      = SANDBOX_COMPLETE;
 	sandbox_print_perf(sandbox);
-#ifdef LOG_SANDBOX_MEMORY_PROFILE
 	sandbox_summarize_page_allocations(sandbox);
-#endif
 	/* Admissions Control Post Processing */
 	admissions_info_update(&sandbox->module->admissions_info, sandbox->running_duration);
 	admissions_control_subtract(sandbox->admissions_estimate);
@@ -1115,4 +1112,66 @@ err_free_stack_failed:
 err:
 	/* Errors freeing memory is a fatal error */
 	panic("Failed to free Sandbox %lu\n", sandbox->id);
+}
+
+/**
+ * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in SANDBOX_RETURNED state
+ * @param next_sandbox The Sandbox Context to switch to
+ */
+void
+sandbox_switch_to(struct sandbox *next_sandbox)
+{
+	/* Assumption: The caller disables interrupts */
+	assert(!software_interrupt_is_enabled());
+
+	assert(next_sandbox != NULL);
+	struct arch_context *next_context = &next_sandbox->ctxt;
+
+	/* Get the old sandbox we're switching from */
+	struct sandbox *current_sandbox = current_sandbox_get();
+
+	/* Update the worker's absolute deadline */
+	runtime_worker_threads_deadline[worker_thread_idx] = next_sandbox->absolute_deadline;
+
+	if (current_sandbox == NULL) {
+		/* Switching from "Base Context" */
+
+		sandbox_set_as_running(next_sandbox, next_sandbox->state);
+
+#ifdef LOG_CONTEXT_SWITCHES
+		debuglog("Base Context (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", &worker_thread_base_context,
+		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id, next_context,
+		         arch_context_variant_print(next_context->variant));
+#endif
+		/* Assumption: If a slow context switch, current sandbox should be set to the target */
+		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
+		       || &current_sandbox_get()->ctxt == next_context);
+
+		arch_context_switch(NULL, next_context);
+	} else {
+		/* Set the current sandbox to the next */
+		assert(next_sandbox != current_sandbox);
+
+		struct arch_context *current_context = &current_sandbox->ctxt;
+
+#ifdef LOG_CONTEXT_SWITCHES
+		debuglog("Sandbox %lu (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", current_sandbox->id,
+		         &current_sandbox->ctxt, arch_context_variant_print(current_sandbox->ctxt.variant),
+		         next_sandbox->id, &next_sandbox->ctxt, arch_context_variant_print(next_context->variant));
+#endif
+
+		sandbox_exit(current_sandbox);
+
+		sandbox_set_as_running(next_sandbox, next_sandbox->state);
+
+#ifndef NDEBUG
+		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
+		       || &current_sandbox_get()->ctxt == next_context);
+#endif
+
+		/* Switch to the associated context. */
+		arch_context_switch(current_context, next_context);
+	}
+
+	software_interrupt_enable();
 }

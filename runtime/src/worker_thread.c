@@ -35,101 +35,9 @@ __thread int worker_thread_idx;
  **********************/
 
 /**
- * Conditionally triggers appropriate state changes for exiting sandboxes
- * @param exiting_sandbox - The sandbox that ran to completion
- */
-static inline void
-worker_thread_transition_exiting_sandbox(struct sandbox *exiting_sandbox)
-{
-	assert(exiting_sandbox != NULL);
-
-	switch (exiting_sandbox->state) {
-	case SANDBOX_RETURNED:
-		/*
-		 * We draw a distinction between RETURNED and COMPLETED because a sandbox cannot add itself to the
-		 * completion queue
-		 */
-		sandbox_set_as_complete(exiting_sandbox, SANDBOX_RETURNED);
-		break;
-	case SANDBOX_BLOCKED:
-		/* Cooperative yield, so just break */
-		break;
-	case SANDBOX_ERROR:
-		/* Terminal State, so just break */
-		break;
-	default:
-		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
-		      sandbox_state_stringify(exiting_sandbox->state));
-	}
-}
-
-/**
- * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in SANDBOX_RETURNED state
- * @param next_sandbox The Sandbox Context to switch to
- */
-static inline void
-worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
-{
-	/* Assumption: The caller disables interrupts */
-	assert(software_interrupt_is_disabled);
-
-	assert(next_sandbox != NULL);
-	struct arch_context *next_context = &next_sandbox->ctxt;
-
-	/* Get the old sandbox we're switching from */
-	struct sandbox *current_sandbox = current_sandbox_get();
-
-	/* Update the worker's absolute deadline */
-	runtime_worker_threads_deadline[worker_thread_idx] = next_sandbox->absolute_deadline;
-
-	if (current_sandbox == NULL) {
-		/* Switching from "Base Context" */
-
-		sandbox_set_as_running(next_sandbox, next_sandbox->state);
-
-#ifdef LOG_CONTEXT_SWITCHES
-		debuglog("Base Context (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", &worker_thread_base_context,
-		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id, next_context,
-		         arch_context_variant_print(next_context->variant));
-#endif
-		/* Assumption: If a slow context switch, current sandbox should be set to the target */
-		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
-		       || &current_sandbox_get()->ctxt == next_context);
-
-		arch_context_switch(NULL, next_context);
-	} else {
-		/* Set the current sandbox to the next */
-		assert(next_sandbox != current_sandbox);
-
-		struct arch_context *current_context = &current_sandbox->ctxt;
-
-#ifdef LOG_CONTEXT_SWITCHES
-		debuglog("Sandbox %lu (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", current_sandbox->id,
-		         &current_sandbox->ctxt, arch_context_variant_print(current_sandbox->ctxt.variant),
-		         next_sandbox->id, &next_sandbox->ctxt, arch_context_variant_print(next_context->variant));
-#endif
-
-		worker_thread_transition_exiting_sandbox(current_sandbox);
-
-		sandbox_set_as_running(next_sandbox, next_sandbox->state);
-
-#ifndef NDEBUG
-		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
-		       || &current_sandbox_get()->ctxt == next_context);
-#endif
-
-		/* Switch to the associated context. */
-		arch_context_switch(current_context, next_context);
-	}
-
-	software_interrupt_enable();
-}
-
-
-/**
  * @brief Switches to the base context, placing the current sandbox on the completion queue if in RETURNED state
  */
-static inline void
+void
 worker_thread_switch_to_base_context()
 {
 	assert(!software_interrupt_is_enabled());
@@ -148,60 +56,18 @@ worker_thread_switch_to_base_context()
 	assert(current_context != &worker_thread_base_context);
 
 #ifdef LOG_CONTEXT_SWITCHES
-	debuglog("Sandbox %lu (@%p) (%s)> Base Context (@%p) (%s)\n", current_sandbox->id, current_context,
+	debuglog("Sandbox %lu (@%p) (%s) > Base Context (@%p) (%s)\n", current_sandbox->id, current_context,
 	         arch_context_variant_print(current_sandbox->ctxt.variant), &worker_thread_base_context,
 	         arch_context_variant_print(worker_thread_base_context.variant));
 #endif
 
-	worker_thread_transition_exiting_sandbox(current_sandbox);
+	sandbox_exit(current_sandbox);
 	current_sandbox_set(NULL);
 	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
 	runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	arch_context_switch(current_context, &worker_thread_base_context);
 	software_interrupt_enable();
 }
-
-/**
- * Mark a blocked sandbox as runnable and add it to the runqueue
- * @param sandbox the sandbox to check and update if blocked
- */
-void
-worker_thread_wakeup_sandbox(struct sandbox *sandbox)
-{
-	assert(sandbox != NULL);
-	assert(sandbox->state == SANDBOX_BLOCKED);
-
-	software_interrupt_disable();
-	sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
-	software_interrupt_enable();
-}
-
-
-/**
- * Mark the currently executing sandbox as blocked, remove it from the local runqueue,
- * and switch to base context
- */
-void
-worker_thread_block_current_sandbox(void)
-{
-	software_interrupt_disable();
-
-	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
-	struct sandbox *current_sandbox = current_sandbox_get();
-
-	assert(current_sandbox->state == SANDBOX_RUNNING);
-	sandbox_set_as_blocked(current_sandbox, SANDBOX_RUNNING);
-
-	/* The worker thread seems to "spin" on a blocked sandbox, so try to execute another sandbox for one quantum
-	 * after blocking to give time for the action to resolve */
-	struct sandbox *next_sandbox = local_runqueue_get_next();
-	if (next_sandbox != NULL) {
-		worker_thread_switch_to_sandbox(next_sandbox);
-	} else {
-		worker_thread_switch_to_base_context();
-	};
-}
-
 
 /**
  * Run all outstanding events in the local thread's epoll loop
@@ -228,7 +94,7 @@ worker_thread_execute_epoll_loop(void)
 				struct sandbox *sandbox = (struct sandbox *)epoll_events[i].data.ptr;
 				assert(sandbox);
 
-				if (sandbox->state == SANDBOX_BLOCKED) worker_thread_wakeup_sandbox(sandbox);
+				if (sandbox->state == SANDBOX_BLOCKED) sandbox_wakeup(sandbox);
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
 				/* Mystery: This seems to never fire. Why? Issue #130 */
 
@@ -298,8 +164,7 @@ worker_thread_main(void *argument)
 	local_completion_queue_initialize();
 
 	/* Initialize Flags */
-	software_interrupt_is_disabled = false;
-
+	software_interrupt_disable();
 
 	/* Unmask signals */
 	if (runtime_preemption_enabled) {
@@ -323,7 +188,7 @@ worker_thread_main(void *argument)
 		software_interrupt_disable();
 		next_sandbox = local_runqueue_get_next();
 		if (next_sandbox != NULL) {
-			worker_thread_switch_to_sandbox(next_sandbox);
+			sandbox_switch_to(next_sandbox);
 		} else {
 			software_interrupt_enable();
 		};
@@ -333,18 +198,4 @@ worker_thread_main(void *argument)
 	}
 
 	panic("Worker Thread unexpectedly completed run loop.");
-}
-
-/**
- * Called when the function in the sandbox exits
- * Removes the standbox from the thread-local runqueue, sets its state to SANDBOX_RETURNED,
- * releases the linear memory, and then returns to the base context
- */
-__attribute__((noreturn)) void
-worker_thread_on_sandbox_exit()
-{
-	assert(!software_interrupt_is_enabled());
-	generic_thread_dump_lock_overhead();
-	worker_thread_switch_to_base_context();
-	panic("Unexpected return\n");
 }

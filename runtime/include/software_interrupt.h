@@ -16,7 +16,6 @@
  ***********/
 
 extern __thread volatile sig_atomic_t software_interrupt_is_disabled;
-extern uint64_t                       software_interrupt_interval_duration_in_cycles;
 
 /*************************
  * Public Static Inlines *
@@ -29,7 +28,6 @@ software_interrupt_disable(void)
 		panic("Recursive call to software_interrupt_disable\n");
 	}
 }
-
 
 /**
  * Enables signals
@@ -107,3 +105,4 @@ software_interrupt_unmask_signal(int signal)
 void software_interrupt_initialize(void);
 void software_interrupt_arm_timer(void);
 void software_interrupt_disarm_timer(void);
+void software_interrupt_set_interval_duration(uint64_t cycles);

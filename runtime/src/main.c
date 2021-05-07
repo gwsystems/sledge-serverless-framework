@@ -341,7 +341,8 @@ main(int argc, char **argv)
 	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
 
-	software_interrupt_interval_duration_in_cycles = (uint64_t)runtime_quantum_us * runtime_processor_speed_MHz;
+	software_interrupt_set_interval_duration(runtime_quantum_us * runtime_processor_speed_MHz);
+
 	printf("\tProcessor Speed: %u MHz\n", runtime_processor_speed_MHz);
 
 	runtime_set_resource_limits_to_max();

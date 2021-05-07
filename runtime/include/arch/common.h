@@ -12,6 +12,7 @@
 #include "arch/reg_t.h"
 #include "arch/ureg_t.h"
 #include "software_interrupt.h"
+#include "worker_thread.h"
 
 /*
  * This file contains the common dependencies of the architecture-dependent code.
@@ -27,7 +28,6 @@
  * This is the slowpath switch to a preempted sandbox!
  * SIGUSR1 on the current thread and restore mcontext there!
  */
-extern __thread struct arch_context worker_thread_base_context;
 
 /* Cannot be inlined because called in assembly */
 void __attribute__((noinline)) __attribute__((noreturn)) arch_context_restore_preempted(void);

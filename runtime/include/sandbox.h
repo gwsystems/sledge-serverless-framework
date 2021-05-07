@@ -114,15 +114,58 @@ void            sandbox_free_linear_memory(struct sandbox *sandbox);
 int             sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index);
 int             sandbox_initialize_io_handle(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
+void            sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
+                                           uint64_t allocation_timestamp);
+void            sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state);
+void            sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state);
+void            sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state);
+void            sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state);
+void            sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state);
+void            sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state);
+void            sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state);
+void            sandbox_switch_to(struct sandbox *next_sandbox);
 
-void sandbox_close_http(struct sandbox *sandbox);
 
-INLINE void sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
-                                       uint64_t allocation_timestamp);
-INLINE void sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state);
-INLINE void sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state);
-INLINE void sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state);
-INLINE void sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state);
-INLINE void sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state);
-INLINE void sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state);
-INLINE void sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state);
+/**
+ * Conditionally triggers appropriate state changes for exiting sandboxes
+ * @param exiting_sandbox - The sandbox that ran to completion
+ */
+static inline void
+sandbox_exit(struct sandbox *exiting_sandbox)
+{
+	assert(exiting_sandbox != NULL);
+
+	switch (exiting_sandbox->state) {
+	case SANDBOX_RETURNED:
+		/*
+		 * We draw a distinction between RETURNED and COMPLETED because a sandbox cannot add itself to the
+		 * completion queue
+		 */
+		sandbox_set_as_complete(exiting_sandbox, SANDBOX_RETURNED);
+		break;
+	case SANDBOX_BLOCKED:
+		/* Cooperative yield, so just break */
+		break;
+	case SANDBOX_ERROR:
+		/* Terminal State, so just break */
+		break;
+	default:
+		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
+		      sandbox_state_stringify(exiting_sandbox->state));
+	}
+}
+
+/**
+ * Mark a blocked sandbox as runnable and add it to the runqueue
+ * @param sandbox the sandbox to check and update if blocked
+ */
+static inline void
+sandbox_wakeup(struct sandbox *sandbox)
+{
+	assert(sandbox != NULL);
+	assert(sandbox->state == SANDBOX_BLOCKED);
+
+	software_interrupt_disable();
+	sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
+	software_interrupt_enable();
+}

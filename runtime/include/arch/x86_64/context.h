@@ -86,7 +86,7 @@ static inline int
 arch_context_switch(struct arch_context *a, struct arch_context *b)
 {
 	/* Assumption: Software Interrupts are disabled by caller */
-	assert(software_interrupt_is_disabled);
+	assert(!software_interrupt_is_enabled());
 
 	/* if both a and b are NULL, there is no state change */
 	assert(a != NULL || b != NULL);
