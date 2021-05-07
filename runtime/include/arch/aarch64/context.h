@@ -32,33 +32,6 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 }
 
 /**
- * Restore a sandbox saved using a fastpath switch, restoring only the
- * instruction pointer and stack pointer registers rather than
- * a full mcontext, so it is less expensive than arch_mcontext_restore.
- * @param active_context - the context of the current worker thread
- * @param sandbox_context - the context that we want to restore
- */
-static void
-arch_context_restore(mcontext_t *active_context, struct arch_context *sandbox_context)
-{
-	assert(active_context != NULL);
-	assert(sandbox_context != NULL);
-
-	/* Assumption: Base Context is only ever used by arch_context_switch */
-	assert(sandbox_context != &worker_thread_base_context);
-
-	assert(sandbox_context->regs[UREG_SP]);
-	assert(sandbox_context->regs[UREG_IP]);
-
-	/* Transitioning from Fast -> Running */
-	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_FAST);
-	sandbox_context->variant = ARCH_CONTEXT_VARIANT_RUNNING;
-
-	active_context->sp = sandbox_context->regs[UREG_SP];
-	active_context->pc = sandbox_context->regs[UREG_IP] + ARCH_SIG_JMP_OFF;
-}
-
-/**
  * @param a - the registers and context of the thing running
  * @param b - the registers and context of what we're switching to
  * @return always returns 0, indicating success
