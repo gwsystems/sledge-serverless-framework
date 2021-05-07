@@ -57,14 +57,6 @@ struct module {
 	struct admissions_info      admissions_info;
 	int                         port;
 
-	/*
-	 * unfortunately, using UV for accepting connections is not great!
-	 * on_connection, to create a new accepted connection, will have to init a tcp handle,
-	 * which requires a uvloop. cannot use main as rest of the connection is handled in
-	 * sandboxing threads, with per-core(per-thread) tls data-structures.
-	 * so, using direct epoll for accepting connections.
-	 */
-
 	unsigned long max_request_size;
 	char          request_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
 	int           request_header_count;

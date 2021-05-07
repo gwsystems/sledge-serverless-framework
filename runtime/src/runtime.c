@@ -17,7 +17,6 @@
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
 #include "http_parser_settings.h"
-#include "http_response.h"
 #include "listener_thread.h"
 #include "module.h"
 #include "runtime.h"

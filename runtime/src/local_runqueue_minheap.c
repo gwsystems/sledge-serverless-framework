@@ -39,18 +39,6 @@ local_runqueue_minheap_add(struct sandbox *sandbox)
 }
 
 /**
- * Removes the highest priority sandbox from the run queue
- * @param pointer to test to address of removed sandbox if successful
- * @returns RC 0 if successfully set dequeued_element, -ENOENT if empty
- */
-static int
-local_runqueue_minheap_remove(struct sandbox **to_remove)
-{
-	assert(!software_interrupt_is_enabled());
-	return priority_queue_dequeue_nolock(local_runqueue_minheap, (void **)to_remove);
-}
-
-/**
  * Deletes a sandbox from the runqueue
  * @param sandbox to delete
  */

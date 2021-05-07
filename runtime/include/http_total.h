@@ -17,8 +17,41 @@ extern _Atomic uint32_t http_total_2XX;
 extern _Atomic uint32_t http_total_4XX;
 #endif
 
-void http_total_init();
-void http_total_increment_request();
-void http_total_increment_2xx();
-void http_total_increment_4XX();
-void http_total_increment_5XX();
+static inline void
+http_total_init()
+{
+	atomic_init(&http_total_requests, 0);
+	atomic_init(&http_total_5XX, 0);
+#ifdef LOG_TOTAL_REQS_RESPS
+	atomic_init(&http_total_2XX, 0);
+	atomic_init(&http_total_4XX, 0);
+#endif
+}
+
+static inline void
+http_total_increment_request()
+{
+	atomic_fetch_add(&http_total_requests, 1);
+}
+
+static inline void
+http_total_increment_2xx()
+{
+#ifdef LOG_TOTAL_REQS_RESPS
+	atomic_fetch_add(&http_total_2XX, 1);
+#endif
+}
+
+static inline void
+http_total_increment_4XX()
+{
+#ifdef LOG_TOTAL_REQS_RESPS
+	atomic_fetch_add(&http_total_4XX, 1);
+#endif
+}
+
+static inline void
+http_total_increment_5XX()
+{
+	atomic_fetch_add(&http_total_5XX, 1);
+}

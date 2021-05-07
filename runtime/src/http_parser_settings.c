@@ -1,11 +1,10 @@
 #include "debuglog.h"
 #include "http.h"
 #include "http_request.h"
-#include "http_response.h"
 #include "http_parser_settings.h"
 #include "sandbox.h"
 
-static http_parser_settings runtime_http_parser_settings;
+http_parser_settings runtime_http_parser_settings;
 
 /***********************************************************************
  * http-parser Callbacks in lifecycle order                            *
@@ -261,8 +260,3 @@ http_parser_settings_initialize()
 	http_parser_settings_register_callbacks(&runtime_http_parser_settings);
 }
 
-http_parser_settings *
-http_parser_settings_get()
-{
-	return &runtime_http_parser_settings;
-}

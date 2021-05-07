@@ -6,8 +6,8 @@
 #include "arch/context.h"
 #include "client_socket.h"
 #include "deque.h"
+#include "http_parser.h"
 #include "http_request.h"
-#include "http_response.h"
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_request.h"
@@ -81,10 +81,9 @@ struct sandbox {
 	struct sockaddr          client_address; /* client requesting connection! */
 	int                      client_socket_descriptor;
 
-	bool                 is_repeat_header;
-	http_parser          http_parser;
-	struct http_request  http_request;
-	struct http_response http_response;
+	bool                is_repeat_header;
+	http_parser         http_parser;
+	struct http_request http_request;
 
 	char *  read_buffer;
 	ssize_t read_length, read_size;
