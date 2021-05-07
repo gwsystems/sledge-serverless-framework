@@ -54,11 +54,11 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
 	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_SLOW);
 	sandbox_context->variant = ARCH_CONTEXT_VARIANT_RUNNING;
 
-	/* Assumption: The context switch path that triggered the SIGUSR1 should have restored interrupts if required */
-	assert(software_interrupt_is_enabled() == sandbox_context->preemptable);
-
 	/* Restore mcontext */
 	memcpy(active_context, &sandbox_context->mctx, sizeof(mcontext_t));
+
+	/* Reenable software interrupts if we restored a preemptable sandbox */
+	if (sandbox_context->preemptable) software_interrupt_enable();
 }
 
 

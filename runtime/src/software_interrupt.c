@@ -62,9 +62,6 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 	/* Signal was sent directly by the kernel, so forward to other threads */
 	if (signal_info->si_code == SI_KERNEL) {
 		software_interrupt_SIGALRM_kernel_count++;
-#ifdef LOG_PREEMPTION
-		debuglog("Kernel SIGALRM: %d!\n", software_interrupt_SIGALRM_kernel_count);
-#endif
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
@@ -85,9 +82,6 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 		}
 	} else {
 		software_interrupt_SIGALRM_thread_count++;
-#ifdef LOG_PREEMPTION
-		debuglog("Thread SIGALRM: %d!\n", software_interrupt_SIGALRM_thread_count);
-#endif
 		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 		assert(signal_info->si_code == SI_TKILL);
 	}
@@ -107,7 +101,6 @@ sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 	/* A worker thread received a SIGALRM when interrupts were disabled, so defer until they are reenabled */
 	if (!software_interrupt_is_enabled()) {
 		software_interrupt_deferred_sigalrm++;
-		debuglog("Missed Sigalrm: %d", software_interrupt_deferred_sigalrm);
 		return;
 	}
 
@@ -116,12 +109,15 @@ sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 	/* A worker thread received a SIGALRM while running a preemptable sandbox, so preempt */
 	software_interrupt_disable();
 
-	// software_interrupt_disable();
 	assert(current_sandbox != NULL);
 	assert(current_sandbox->state != SANDBOX_RETURNED);
 
 	/* Preempt */
 	local_runqueue_preempt(user_context);
+
+	/* We have to call current_sandbox_get because the argument potentially points to what
+	 * was just preempted */
+	if (current_sandbox_get()->ctxt.preemptable) software_interrupt_enable();
 
 	return;
 }
@@ -188,8 +184,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	// TODO: Use atomics to increment
 	atomic_fetch_add(&software_interrupt_signal_depth, 1);
-	debuglog("Signal Depth: %d\n", software_interrupt_signal_depth);
-
 	software_interrupt_validate_worker();
 
 	ucontext_t *    user_context    = (ucontext_t *)user_context_raw;
@@ -277,9 +271,11 @@ software_interrupt_initialize(void)
 	signal_action.sa_flags     = SA_SIGINFO | SA_RESTART;
 
 	/* all threads created by the calling thread will have signal blocked */
+
+	// TODO: Unclear about this...
 	sigemptyset(&signal_action.sa_mask);
-	sigaddset(&signal_action.sa_mask, SIGALRM);
-	sigaddset(&signal_action.sa_mask, SIGUSR1);
+	// sigaddset(&signal_action.sa_mask, SIGALRM);
+	// sigaddset(&signal_action.sa_mask, SIGUSR1);
 
 	for (int i = 0;
 	     i < (sizeof(software_interrupt_supported_signals) / sizeof(software_interrupt_supported_signals[0]));

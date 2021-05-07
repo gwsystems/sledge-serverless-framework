@@ -12,7 +12,6 @@ software_interrupt_enable(void)
 {
 	/* Trigger missed SIGALRM */
 	if (software_interrupt_deferred_sigalrm > 0) {
-		debuglog("Missed %d sigalrms, resetting\n", software_interrupt_deferred_sigalrm);
 		software_interrupt_deferred_sigalrm = 0;
 
 		worker_thread_sched();

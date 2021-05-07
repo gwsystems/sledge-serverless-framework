@@ -96,9 +96,6 @@ worker_thread_switch_to_sandbox(struct sandbox *next_sandbox)
 		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id, next_context,
 		         arch_context_variant_print(next_context->variant));
 #endif
-		/* Assumption: If a slow context switch, current sandbox should be set to the target */
-		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
-		       || &current_sandbox_get()->ctxt == next_context);
 
 	} else {
 		/* Switching from a sandbox context */

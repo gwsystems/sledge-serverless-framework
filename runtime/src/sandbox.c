@@ -454,6 +454,11 @@ sandbox_get_module(struct sandbox *sandbox)
 static inline void
 current_sandbox_enable_preemption(struct sandbox *sandbox)
 {
+#ifdef LOG_PREEMPTION
+	debuglog("Sandbox %lu - enabling preemption\n", sandbox->id);
+	fflush(stderr);
+#endif
+	assert(sandbox->ctxt.preemptable == false);
 	sandbox->ctxt.preemptable = true;
 	software_interrupt_enable();
 }
@@ -461,8 +466,13 @@ current_sandbox_enable_preemption(struct sandbox *sandbox)
 static inline void
 current_sandbox_disable_preemption(struct sandbox *sandbox)
 {
-	sandbox->ctxt.preemptable = false;
+#ifdef LOG_PREEMPTION
+	debuglog("Sandbox %lu - disabling preemption\n", sandbox->id);
+	fflush(stderr);
+#endif
+	assert(sandbox->ctxt.preemptable == true);
 	software_interrupt_disable();
+	sandbox->ctxt.preemptable = false;
 }
 
 /**

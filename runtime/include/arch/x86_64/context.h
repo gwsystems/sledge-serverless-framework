@@ -144,11 +144,12 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	reg_t *a_registers = a->regs, *b_registers = b->regs;
 	assert(a_registers && b_registers);
 
-	/* If switching back to a sandbox context marked as preemptable, reenable
-	 * interrupts before jumping
-	 * TODO: What if we receive a signal inside the inline assembly?
+	/* If fast switching back to a sandbox context marked as preemptable, reenable
+	 * interrupts before jumping. If this is a slow context switch, defer renabling until
+	 * arch_mcontext_restore
+	 * TODO: What if we receive a signal inside the inline assemly?
 	 */
-	if (b->preemptable) software_interrupt_enable();
+	if (b->variant == ARCH_CONTEXT_VARIANT_FAST && b->preemptable) software_interrupt_enable();
 
 	asm volatile(
 	  /* Create a new stack frame */

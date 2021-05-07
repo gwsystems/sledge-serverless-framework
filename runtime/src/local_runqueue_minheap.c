@@ -120,6 +120,7 @@ void
 local_runqueue_minheap_preempt(ucontext_t *user_context)
 {
 	assert(user_context != NULL);
+	assert(software_interrupt_is_disabled);
 
 	struct sandbox *current_sandbox = current_sandbox_get();
 
