@@ -483,7 +483,6 @@ current_sandbox_disable_preemption(struct sandbox *sandbox)
 void
 sandbox_start(void)
 {
-	// Technically might have been enabled before this point...
 	assert(!software_interrupt_is_enabled());
 
 	struct sandbox *sandbox = current_sandbox_get();
@@ -493,7 +492,7 @@ sandbox_start(void)
 	char *error_message = "";
 
 	// TODO: I think this should not be called because it was invoked during sandbox_set_as_initialized
-	arch_context_init(&sandbox->ctxt, 0, 0);
+	// arch_context_init(&sandbox->ctxt, 0, 0);
 
 	sandbox_initialize_io_handles_and_file_descriptors(sandbox);
 
