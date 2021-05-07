@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <panic.h>
 #include <pthread.h>
+#include <runtime.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -18,6 +19,7 @@
 extern __thread volatile sig_atomic_t software_interrupt_is_disabled;
 extern uint64_t                       software_interrupt_interval_duration_in_cycles;
 extern __thread volatile sig_atomic_t software_interrupt_deferred_sigalrm;
+extern volatile sig_atomic_t          software_interrupt_deferred_sigalrm_max[RUNTIME_WORKER_THREAD_CORE_COUNT];
 
 /*************************
  * Public Static Inlines *
@@ -96,3 +98,4 @@ software_interrupt_unmask_signal(int signal)
 void software_interrupt_initialize(void);
 void software_interrupt_arm_timer(void);
 void software_interrupt_disarm_timer(void);
+void software_interrupt_deferred_sigalrm_max_print(void);

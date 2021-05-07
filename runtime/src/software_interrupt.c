@@ -39,6 +39,19 @@ __thread volatile sig_atomic_t         software_interrupt_deferred_sigalrm     =
 __thread volatile sig_atomic_t         software_interrupt_deferred_sigusr1     = 0;
 __thread _Atomic volatile sig_atomic_t software_interrupt_signal_depth         = 0;
 
+volatile sig_atomic_t software_interrupt_deferred_sigalrm_max[RUNTIME_WORKER_THREAD_CORE_COUNT] = { 0 };
+
+void
+software_interrupt_deferred_sigalrm_max_print()
+{
+	printf("Max Deferred Sigalrms") for (int i = 0; i < runtime_worker_threads_count; i++)
+	{
+		printf("Worker %d: %d\n", software_interrupt_deferred_sigalrm_max[i]);
+	}
+	fflush(stdout);
+}
+
+
 /***************************************
  * Externs
  **************************************/
@@ -100,6 +113,7 @@ sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 
 	/* A worker thread received a SIGALRM when interrupts were disabled, so defer until they are reenabled */
 	if (!software_interrupt_is_enabled()) {
+		// Don't increment if kernel? The first worker gets tons of these...
 		software_interrupt_deferred_sigalrm++;
 		return;
 	}

@@ -170,6 +170,27 @@ __framework_sh__log_environment() {
 	echo "*************"
 }
 
+__framework_sh__load_env_file() {
+	local envfile="$1"
+	echo "Loading $envfile"
+	if [[ -f "$envfile" ]]; then
+		while read -r line; do
+			echo export "${line?}"
+			export "${line?}"
+		done < "$envfile"
+	fi
+}
+
+__framework_sh__unset_env_file() {
+	local envfile="$1"
+	if [[ -f "$envfile" ]]; then
+		while read -r line; do
+			echo unset "${line//=*/}"
+			unset "${line//=*/}"
+		done < "$envfile"
+	fi
+}
+
 # $1 - Results Directory
 # $2 - How to run (foreground|background)
 # $3 - JSON specification
@@ -259,6 +280,7 @@ __framework_sh__run_valgrind() {
 __framework_sh__run_debug() {
 	# shellcheck disable=SC2155
 	local project_directory=$(cd ../.. && pwd)
+	__framework_sh__load_env_file "$envfile"
 
 	if [[ "$project_directory" != "/sledge/runtime" ]]; then
 		printf "It appears that you are not running in the container. Substituting path to match host environment\n"
@@ -277,6 +299,7 @@ __framework_sh__run_debug() {
 			--eval-command="run $__framework_sh__application_directory/spec.json" \
 			sledgert
 	fi
+	__framework_sh__unset_env_file "$envfile"
 	return 0
 }
 
@@ -287,26 +310,6 @@ __framework_sh__run_client() {
 	}
 
 	return 0
-}
-
-__framework_sh__load_env_file() {
-	local envfile="$1"
-	if [[ -f "$envfile" ]]; then
-		while read -r line; do
-			echo export "${line?}"
-			export "${line?}"
-		done < "$envfile"
-	fi
-}
-
-__framework_sh__unset_env_file() {
-	local envfile="$1"
-	if [[ -f "$envfile" ]]; then
-		while read -r line; do
-			echo unset "${line//=*/}"
-			unset "${line//=*/}"
-		done < "$envfile"
-	fi
 }
 
 __framework_sh__run_both() {

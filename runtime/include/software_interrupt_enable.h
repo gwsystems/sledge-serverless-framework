@@ -12,6 +12,10 @@ software_interrupt_enable(void)
 {
 	/* Trigger missed SIGALRM */
 	if (software_interrupt_deferred_sigalrm > 0) {
+		if (software_interrupt_deferred_sigalrm > software_interrupt_deferred_sigalrm_max[worker_thread_idx]) {
+			software_interrupt_deferred_sigalrm_max[worker_thread_idx] =
+			  software_interrupt_deferred_sigalrm;
+		}
 		software_interrupt_deferred_sigalrm = 0;
 
 		worker_thread_sched();

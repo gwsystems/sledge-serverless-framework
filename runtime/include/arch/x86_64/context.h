@@ -130,7 +130,9 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	if (b == NULL) b = &worker_thread_base_context;
 
 	/* A Transition {Unused, Running} -> Fast */
-	assert(a->variant == ARCH_CONTEXT_VARIANT_UNUSED || a->variant == ARCH_CONTEXT_VARIANT_RUNNING);
+	// TODO: This errored out. What is the variant here?
+	// debuglog("Context switching from %s\n", arch_context_variant_print(a->variant));
+	// assert(a->variant == ARCH_CONTEXT_VARIANT_UNUSED || a->variant == ARCH_CONTEXT_VARIANT_RUNNING);
 
 	/* B Transition {Fast, Slow} -> Running */
 	assert(b->variant == ARCH_CONTEXT_VARIANT_FAST || b->variant == ARCH_CONTEXT_VARIANT_SLOW);

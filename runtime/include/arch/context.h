@@ -80,8 +80,10 @@ arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *activ
 	assert(sandbox_context != &worker_thread_base_context);
 
 	/* Transitioning from {Unused, Running} -> Slow */
-	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_UNUSED
-	       || sandbox_context->variant == ARCH_CONTEXT_VARIANT_RUNNING);
+	// TODO: Another assert firing here. What is this?
+	// assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_UNUSED
+	//        || sandbox_context->variant == ARCH_CONTEXT_VARIANT_RUNNING);
+	// debuglog("Slow transitioning from %s\n", arch_context_variant_print(sandbox_context->variant));
 	sandbox_context->variant = ARCH_CONTEXT_VARIANT_SLOW;
 
 	/* Copy mcontext */

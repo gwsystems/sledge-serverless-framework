@@ -42,6 +42,7 @@ runtime_cleanup()
 {
 	if (runtime_sandbox_perf_log != NULL) fflush(runtime_sandbox_perf_log);
 
+	software_interrupt_deferred_sigalrm_max_print();
 	exit(EXIT_SUCCESS);
 }
 
