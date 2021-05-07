@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include "current_sandbox.h"
@@ -111,7 +112,7 @@ wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 		int32_t length_read = (int32_t)read(filedes, buf, nbyte);
 		if (length_read < 0) {
 			if (errno == EAGAIN)
-				worker_thread_block_current_sandbox();
+				current_sandbox_block();
 			else {
 				/* All other errors */
 				debuglog("Error reading socket %d - %s\n", filedes, strerror(errno));
@@ -154,7 +155,7 @@ wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 		int32_t length_written = (int32_t)write(f, buf, buf_size);
 		if (length_written < 0) {
 			if (errno == EAGAIN)
-				worker_thread_block_current_sandbox();
+				current_sandbox_block();
 			else {
 				/* All other errors */
 				debuglog("Error reading socket %d - %s\n", fd, strerror(errno));

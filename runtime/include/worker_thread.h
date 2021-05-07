@@ -3,8 +3,9 @@
 #include "generic_thread.h"
 #include "runtime.h"
 
-extern __thread int worker_thread_epoll_file_descriptor;
-extern __thread int worker_thread_idx;
+extern __thread struct arch_context worker_thread_base_context;
+extern __thread int                 worker_thread_epoll_file_descriptor;
+extern __thread int                 worker_thread_idx;
 
 void *worker_thread_main(void *return_code);
 
@@ -48,5 +49,4 @@ worker_thread_get_memory_string(uint32_t offset, uint32_t max_length)
 	return NULL;
 }
 
-void                           worker_thread_block_current_sandbox(void);
-__attribute__((noreturn)) void worker_thread_on_sandbox_exit();
+void worker_thread_switch_to_base_context();

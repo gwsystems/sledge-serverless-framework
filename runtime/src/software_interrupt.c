@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <string.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <ucontext.h>
@@ -24,7 +25,7 @@
  ******************/
 
 static const int software_interrupt_supported_signals[] = { SIGALRM, SIGUSR1 };
-uint64_t         software_interrupt_interval_duration_in_cycles;
+static uint64_t  software_interrupt_interval_duration_in_cycles;
 
 /******************
  * Thread Globals *
@@ -44,9 +45,6 @@ extern pthread_t runtime_worker_threads[];
 /**************************
  * Private Static Inlines *
  *************************/
-
-static inline void software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw);
-
 
 /**
  * A POSIX signal is delivered to only one thread.
@@ -68,15 +66,20 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 			assert(runtime_worker_threads[i] != 0);
 
 			/* If using EDF, conditionally send signals. If not, broadcast */
-			if (runtime_sigalrm_handler == RUNTIME_SIGALRM_HANDLER_TRIAGED) {
+			switch (runtime_sigalrm_handler) {
+			case RUNTIME_SIGALRM_HANDLER_TRIAGED: {
 				uint64_t local_deadline  = runtime_worker_threads_deadline[i];
 				uint64_t global_deadline = global_request_scheduler_peek();
 				if (global_deadline < local_deadline) pthread_kill(runtime_worker_threads[i], SIGALRM);
-				return;
-			} else if (runtime_sigalrm_handler == RUNTIME_SIGALRM_HANDLER_BROADCAST) {
+				continue;
+			}
+			case RUNTIME_SIGALRM_HANDLER_BROADCAST: {
 				pthread_kill(runtime_worker_threads[i], SIGALRM);
-			} else {
-				panic("Unexpected SIGALRM Handler: %d\n", runtime_sigalrm_handler)
+				continue;
+			}
+			default: {
+				panic("Unexpected SIGALRM Handler: %d\n", runtime_sigalrm_handler);
+			}
 			}
 		}
 	} else {
@@ -99,7 +102,6 @@ static inline void
 sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox *current_sandbox)
 {
 	sigalrm_propagate_workers(signal_info);
-
 
 	/* NOOP if software interrupts not enabled */
 	if (!software_interrupt_is_enabled()) return;
@@ -278,4 +280,10 @@ software_interrupt_initialize(void)
 			exit(1);
 		}
 	}
+}
+
+void
+software_interrupt_set_interval_duration(uint64_t cycles)
+{
+	software_interrupt_interval_duration_in_cycles = cycles;
 }
