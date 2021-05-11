@@ -48,5 +48,3 @@ worker_thread_get_memory_string(uint32_t offset, uint32_t max_length)
 	}
 	return NULL;
 }
-
-void worker_thread_switch_to_base_context(void);

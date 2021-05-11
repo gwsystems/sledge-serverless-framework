@@ -19,7 +19,7 @@
 #include "module.h"
 #include "panic.h"
 #include "runtime.h"
-#include "sandbox.h"
+#include "sandbox_types.h"
 #include "software_interrupt.h"
 #include "worker_thread.h"
 

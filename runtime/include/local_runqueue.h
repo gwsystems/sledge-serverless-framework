@@ -2,7 +2,7 @@
 
 #include <stdbool.h>
 
-#include "sandbox.h"
+#include "sandbox_types.h"
 
 /* Returns pointer back if successful, null otherwise */
 typedef void (*local_runqueue_add_fn_t)(struct sandbox *);

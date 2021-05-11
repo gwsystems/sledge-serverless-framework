@@ -11,6 +11,8 @@
 #include <unistd.h>
 
 #include "current_sandbox.h"
+#include "current_sandbox_block.h"
+#include "sandbox_functions.h"
 #include "worker_thread.h"
 
 // What should we tell the child program its UID and GID are?
@@ -196,7 +198,7 @@ wasm_open(int32_t path_off, int32_t flags, int32_t mode)
 {
 	char *path = worker_thread_get_memory_string(path_off, MODULE_MAX_PATH_LENGTH);
 
-	int iofd = sandbox_initialize_io_handle(current_sandbox_get());
+	int iofd = sandbox_initialize_file_descriptor(current_sandbox_get());
 	if (iofd < 0) return -1;
 	int32_t modified_flags = 0;
 

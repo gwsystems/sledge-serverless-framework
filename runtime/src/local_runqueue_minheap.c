@@ -8,6 +8,7 @@
 #include "local_runqueue_minheap.h"
 #include "panic.h"
 #include "priority_queue.h"
+#include "sandbox_functions.h"
 #include "software_interrupt.h"
 #include "runtime.h"
 
@@ -188,14 +189,6 @@ err_sandbox_allocate:
 err:
 	goto done;
 }
-
-
-uint64_t
-sandbox_get_priority(void *element)
-{
-	struct sandbox *sandbox = (struct sandbox *)element;
-	return sandbox->absolute_deadline;
-};
 
 /**
  * Registers the PS variant with the polymorphic interface
