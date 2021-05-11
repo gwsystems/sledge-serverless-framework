@@ -82,7 +82,8 @@
 		"sandbox_request.h": "c",
 		"sandbox_send_response.h": "c",
 		"sandbox_setup_arguments.h": "c",
-		"worker_thread.h": "c"
+		"worker_thread.h": "c",
+		"sandbox_set_as_returned.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,
