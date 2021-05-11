@@ -17,6 +17,7 @@
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox_functions.h"
+#include "sandbox_set_as_error.h"
 #include "worker_thread.h"
 
 /***************************
@@ -60,7 +61,11 @@ worker_thread_execute_epoll_loop(void)
 				struct sandbox *sandbox = (struct sandbox *)epoll_events[i].data.ptr;
 				assert(sandbox);
 
-				if (sandbox->state == SANDBOX_BLOCKED) sandbox_wakeup(sandbox);
+				if (sandbox->state == SANDBOX_BLOCKED) {
+					software_interrupt_disable();
+					sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
+					software_interrupt_enable();
+				}
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
 				/* Mystery: This seems to never fire. Why? Issue #130 */
 

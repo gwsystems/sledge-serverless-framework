@@ -7,7 +7,7 @@
 #include "current_sandbox_yield.h"
 #include "generic_thread.h"
 #include "local_runqueue.h"
-#include "sandbox_functions.h"
+#include "sandbox_set_as_blocked.h"
 #include "software_interrupt.h"
 
 /**
