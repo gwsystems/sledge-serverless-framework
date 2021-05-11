@@ -60,7 +60,18 @@
 		"dlfcn.h": "c",
 		"chrono": "c",
 		"common.h": "c",
-		"listener_thread.h": "c"
+		"listener_thread.h": "c",
+		"http_total.h": "c",
+		"http_request.h": "c",
+		"http.h": "c",
+		"http_parser.h": "c",
+		"http_parser_settings.h": "c",
+		"client_socket.h": "c",
+		"context.h": "c",
+		"sandbox_types.h": "c",
+		"sandbox_functions.h": "c",
+		"ps_list.h": "c",
+		"module.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

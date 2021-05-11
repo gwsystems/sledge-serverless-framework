@@ -1,9 +1,14 @@
-#include "current_sandbox.h"
-#include "local_runqueue.h"
-#include "worker_thread.h"
+// #include "current_sandbox.h"
+// #include "local_runqueue.h"
+#include "current_sandbox_yield.h"
+#include "sandbox_functions.h"
+#include "sandbox_receive_request.h"
+#include "sandbox_send_response.h"
+#include "sandbox_setup_arguments.h"
+// #include "worker_thread.h"
 
-/* current sandbox that is active.. */
-static __thread struct sandbox *worker_thread_current_sandbox = NULL;
+// /* current sandbox that is active.. */
+__thread struct sandbox *worker_thread_current_sandbox = NULL;
 
 __thread struct sandbox_context_cache local_sandbox_context_cache = {
 	.linear_memory_start   = NULL,
@@ -12,62 +17,77 @@ __thread struct sandbox_context_cache local_sandbox_context_cache = {
 };
 
 /**
- * Getter for the current sandbox executing on this thread
- * @returns the current sandbox executing on this thread
- */
-struct sandbox *
-current_sandbox_get(void)
-{
-	return worker_thread_current_sandbox;
-}
-
-/**
- * Setter for the current sandbox executing on this thread
- * @param sandbox the sandbox we are setting this thread to run
+ * Sandbox execution logic
+ * Handles setup, request parsing, WebAssembly initialization, function execution, response building and
+ * sending, and cleanup
  */
 void
-current_sandbox_set(struct sandbox *sandbox)
+current_sandbox_start(void)
 {
-	/* Unpack hierarchy to avoid pointer chasing */
-	if (sandbox == NULL) {
-		local_sandbox_context_cache = (struct sandbox_context_cache){
-			.linear_memory_start   = NULL,
-			.linear_memory_size    = 0,
-			.module_indirect_table = NULL,
-		};
-		worker_thread_current_sandbox = NULL;
-	} else {
-		local_sandbox_context_cache = (struct sandbox_context_cache){
-			.linear_memory_start   = sandbox->linear_memory_start,
-			.linear_memory_size    = sandbox->linear_memory_size,
-			.module_indirect_table = sandbox->module->indirect_table,
-		};
-		worker_thread_current_sandbox = sandbox;
-	}
-}
+	struct sandbox *sandbox = current_sandbox_get();
+	assert(sandbox != NULL);
+	assert(sandbox->state == SANDBOX_RUNNING);
 
-/**
- * Mark the currently executing sandbox as blocked, remove it from the local runqueue,
- * and switch to base context
- */
-void
-current_sandbox_block(void)
-{
+	char *error_message = "";
+
+	assert(!software_interrupt_is_enabled());
+	arch_context_init(&sandbox->ctxt, 0, 0);
+	software_interrupt_enable();
+
+	sandbox_initialize_stdio(sandbox);
+
+	sandbox_open_http(sandbox);
+
+	if (sandbox_receive_request(sandbox) < 0) {
+		error_message = "Unable to receive or parse client request\n";
+		goto err;
+	};
+
+	/* Initialize sandbox memory */
+	struct module *current_module = sandbox_get_module(sandbox);
+	module_initialize_globals(current_module);
+	module_initialize_memory(current_module);
+	sandbox_setup_arguments(sandbox);
+
+	/* Executing the function */
+	int32_t argument_count        = module_get_argument_count(current_module);
+	sandbox->return_value         = module_main(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->completion_timestamp = __getcycles();
+
+	/* Retrieve the result, construct the HTTP response, and send to client */
+	if (sandbox_send_response(sandbox) < 0) {
+		error_message = "Unable to build and send client response\n";
+		goto err;
+	};
+
+	http_total_increment_2xx();
+
+	sandbox->response_timestamp = __getcycles();
+
 	software_interrupt_disable();
 
-	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
-	struct sandbox *current_sandbox = current_sandbox_get();
+	assert(sandbox->state == SANDBOX_RUNNING);
+	sandbox_close_http(sandbox);
+	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);
 
-	assert(current_sandbox->state == SANDBOX_RUNNING);
-	sandbox_set_as_blocked(current_sandbox, SANDBOX_RUNNING);
+done:
+	/* Cleanup connection and exit sandbox */
 	generic_thread_dump_lock_overhead();
+	current_sandbox_yield();
 
-	/* The worker thread seems to "spin" on a blocked sandbox, so try to execute another sandbox for one quantum
-	 * after blocking to give time for the action to resolve */
-	struct sandbox *next_sandbox = local_runqueue_get_next();
-	if (next_sandbox != NULL) {
-		sandbox_switch_to(next_sandbox);
-	} else {
-		worker_thread_switch_to_base_context();
-	};
+	/* This assert prevents a segfault discussed in
+	 * https://github.com/phanikishoreg/awsm-Serverless-Framework/issues/66
+	 */
+	assert(0);
+err:
+	debuglog("%s", error_message);
+	assert(sandbox->state == SANDBOX_RUNNING);
+
+	/* Send a 400 error back to the client */
+	client_socket_send(sandbox->client_socket_descriptor, 400);
+
+	software_interrupt_disable();
+	sandbox_close_http(sandbox);
+	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);
+	goto done;
 }

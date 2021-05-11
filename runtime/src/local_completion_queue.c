@@ -1,4 +1,5 @@
 #include "local_completion_queue.h"
+#include "sandbox_functions.h"
 
 __thread static struct ps_list_head local_completion_queue;
 

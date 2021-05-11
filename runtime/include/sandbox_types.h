@@ -1,21 +1,20 @@
 #pragma once
 
-#include <ucontext.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <sys/socket.h>
+#include <ucontext.h>
+#include <unistd.h>
 
 #include "arch/context.h"
-#include "client_socket.h"
-#include "deque.h"
 #include "http_parser.h"
 #include "http_request.h"
 #include "module.h"
 #include "ps_list.h"
-#include "sandbox_request.h"
 #include "sandbox_state.h"
-#include "software_interrupt.h"
 
 #define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) /* upside down LOLLOLLOL 🤣😂🤣*/
-#define SANDBOX_MAX_IO_HANDLE_COUNT           32
+#define SANDBOX_MAX_FD_COUNT                  32
 #define SANDBOX_MAX_MEMORY                    (1L << 32) /* 4GB */
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
@@ -77,9 +76,9 @@ struct sandbox {
 	void *  arguments;        /* arguments from request, must be of module->argument_count size. */
 	int32_t return_value;
 
-	struct sandbox_io_handle io_handles[SANDBOX_MAX_IO_HANDLE_COUNT];
-	struct sockaddr          client_address; /* client requesting connection! */
-	int                      client_socket_descriptor;
+	int             file_descriptors[SANDBOX_MAX_FD_COUNT];
+	struct sockaddr client_address; /* client requesting connection! */
+	int             client_socket_descriptor;
 
 	bool                is_repeat_header;
 	http_parser         http_parser;
@@ -101,71 +100,3 @@ struct sandbox {
 	ssize_t request_response_data_length; /* Should be <= module->max_request_or_response_size */
 	char    request_response_data[1];     /* of request_response_data_length, following sandbox mem.. */
 } PAGE_ALIGNED;
-
-/***************************
- * Public API              *
- **************************/
-
-struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
-void            sandbox_close_file_descriptor(struct sandbox *sandbox, int io_handle_index);
-void            sandbox_close_http(struct sandbox *sandbox);
-void            sandbox_free(struct sandbox *sandbox);
-void            sandbox_free_linear_memory(struct sandbox *sandbox);
-int             sandbox_get_file_descriptor(struct sandbox *sandbox, int io_handle_index);
-int             sandbox_initialize_io_handle(struct sandbox *sandbox);
-void            sandbox_main(struct sandbox *sandbox);
-void            sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
-                                           uint64_t allocation_timestamp);
-void            sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state);
-void            sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state);
-void            sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state);
-void            sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state);
-void            sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state);
-void            sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state);
-void            sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state);
-void            sandbox_switch_to(struct sandbox *next_sandbox);
-
-
-/**
- * Conditionally triggers appropriate state changes for exiting sandboxes
- * @param exiting_sandbox - The sandbox that ran to completion
- */
-static inline void
-sandbox_exit(struct sandbox *exiting_sandbox)
-{
-	assert(exiting_sandbox != NULL);
-
-	switch (exiting_sandbox->state) {
-	case SANDBOX_RETURNED:
-		/*
-		 * We draw a distinction between RETURNED and COMPLETED because a sandbox cannot add itself to the
-		 * completion queue
-		 */
-		sandbox_set_as_complete(exiting_sandbox, SANDBOX_RETURNED);
-		break;
-	case SANDBOX_BLOCKED:
-		/* Cooperative yield, so just break */
-		break;
-	case SANDBOX_ERROR:
-		/* Terminal State, so just break */
-		break;
-	default:
-		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
-		      sandbox_state_stringify(exiting_sandbox->state));
-	}
-}
-
-/**
- * Mark a blocked sandbox as runnable and add it to the runqueue
- * @param sandbox the sandbox to check and update if blocked
- */
-static inline void
-sandbox_wakeup(struct sandbox *sandbox)
-{
-	assert(sandbox != NULL);
-	assert(sandbox->state == SANDBOX_BLOCKED);
-
-	software_interrupt_disable();
-	sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
-	software_interrupt_enable();
-}
