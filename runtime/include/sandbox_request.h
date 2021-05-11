@@ -28,7 +28,7 @@ struct sandbox_request {
 	uint64_t admissions_estimate;
 };
 
-DEQUE_PROTOTYPE(sandbox, struct sandbox_request *);
+DEQUE_PROTOTYPE(sandbox, struct sandbox_request *)
 
 /* Count of the total number of requests we've ever allocated. Never decrements as it is used to generate IDs */
 extern _Atomic uint32_t sandbox_request_count;

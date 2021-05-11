@@ -6,19 +6,19 @@ __attribute__((noreturn)) static struct sandbox_request *
 uninitialized_add(void *arg)
 {
 	panic("Global Request Scheduler Add was called before initialization\n");
-};
+}
 
 __attribute__((noreturn)) static int
 uninitialized_remove(struct sandbox_request **arg)
 {
 	panic("Global Request Scheduler Remove was called before initialization\n");
-};
+}
 
 __attribute__((noreturn)) static uint64_t
 uninitialized_peek()
 {
 	panic("Global Request Scheduler Peek was called before initialization\n");
-};
+}
 
 
 /* The global of our polymorphic interface */
@@ -83,4 +83,4 @@ uint64_t
 global_request_scheduler_peek()
 {
 	return global_request_scheduler.peek_fn();
-};
+}

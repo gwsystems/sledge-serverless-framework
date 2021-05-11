@@ -53,7 +53,7 @@ extern uint64_t                     runtime_worker_threads_deadline[RUNTIME_WORK
 
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);
-extern void runtime_set_resource_limits_to_max();
+extern void runtime_set_resource_limits_to_max(void);
 
 /* External Symbols */
 extern void  alloc_linear_memory(void);
@@ -71,7 +71,7 @@ runtime_print_scheduler(enum RUNTIME_SCHEDULER variant)
 	case RUNTIME_SCHEDULER_EDF:
 		return "EDF";
 	}
-};
+}
 
 static inline char *
 runtime_print_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)
@@ -82,4 +82,4 @@ runtime_print_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)
 	case RUNTIME_SIGALRM_HANDLER_TRIAGED:
 		return "TRIAGED";
 	}
-};
+}

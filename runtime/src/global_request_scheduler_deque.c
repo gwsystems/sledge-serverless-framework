@@ -2,7 +2,9 @@
 #include "runtime.h"
 
 static struct deque_sandbox *global_request_scheduler_deque;
-static pthread_mutex_t       global_request_scheduler_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* TODO: Should this be used???  */
+static pthread_mutex_t global_request_scheduler_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * Pushes a sandbox request to the global deque

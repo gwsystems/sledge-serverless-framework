@@ -41,7 +41,7 @@ worker_thread_get_memory_character(uint32_t offset)
 static inline char *
 worker_thread_get_memory_string(uint32_t offset, uint32_t max_length)
 {
-	for (int i = 0; i < max_length; i++) {
+	for (uint32_t i = 0; i < max_length; i++) {
 		if (worker_thread_get_memory_character(offset + i) == '\0') {
 			return (char *)worker_thread_get_memory_ptr_void(offset, 1);
 		}
@@ -49,4 +49,4 @@ worker_thread_get_memory_string(uint32_t offset, uint32_t max_length)
 	return NULL;
 }
 
-void worker_thread_switch_to_base_context();
+void worker_thread_switch_to_base_context(void);

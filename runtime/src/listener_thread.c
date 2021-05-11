@@ -14,9 +14,6 @@
  */
 int listener_thread_epoll_file_descriptor;
 
-/* Timestamp when listener thread began executing */
-static __thread uint64_t listener_thread_start_timestamp;
-
 pthread_t listener_thread_id;
 
 /**
