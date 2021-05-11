@@ -14,7 +14,11 @@
 #include "likely.h"
 #include "panic.h"
 #include "runtime.h"
+#include "sandbox_exit.h"
 #include "sandbox_functions.h"
+#include "sandbox_set_as_error.h"
+#include "sandbox_set_as_initialized.h"
+#include "sandbox_set_as_running.h"
 #include "worker_thread.h"
 
 /**
@@ -30,35 +34,6 @@
 // 	/* Thought: do we need to refcount host fds? */
 // 	sandbox->file_descriptors[sandbox_fd] = -1;
 // }
-
-/**
- * Initializes a sandbox fd ready for use with the proper preopen magic
- * @param sandbox
- * @return index of handle we preopened or -1 on error (sandbox is null or all io_handles are exhausted)
- */
-int
-sandbox_initialize_file_descriptor(struct sandbox *sandbox)
-{
-	if (!sandbox) return -1;
-	int sandbox_fd;
-	for (sandbox_fd = 0; sandbox_fd < SANDBOX_MAX_FD_COUNT; sandbox_fd++) {
-		if (sandbox->file_descriptors[sandbox_fd] < 0) break;
-	}
-	if (sandbox_fd == SANDBOX_MAX_FD_COUNT) return -1;
-	sandbox->file_descriptors[sandbox_fd] = SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC;
-	return sandbox_fd;
-}
-
-void
-sandbox_close_http(struct sandbox *sandbox)
-{
-	assert(sandbox != NULL);
-
-	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, sandbox->client_socket_descriptor, NULL);
-	if (unlikely(rc < 0)) panic_err();
-
-	client_socket_close(sandbox->client_socket_descriptor, &sandbox->client_address);
-}
 
 /**
  * Allocates a WebAssembly sandbox represented by the following layout
@@ -127,7 +102,7 @@ err:
 	goto done;
 }
 
-int
+static inline int
 sandbox_allocate_stack(struct sandbox *sandbox)
 {
 	assert(sandbox);
@@ -215,17 +190,6 @@ err_memory_allocation_failed:
 	goto done;
 }
 
-/**
- * Free Linear Memory, leaving stack in place
- * @param sandbox
- */
-void
-sandbox_free_linear_memory(struct sandbox *sandbox)
-{
-	int rc = munmap(sandbox->linear_memory_start, SANDBOX_MAX_MEMORY + PAGE_SIZE);
-	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
-	sandbox->linear_memory_start = NULL;
-}
 
 /**
  * Free stack and heap resources.. also any I/O handles.

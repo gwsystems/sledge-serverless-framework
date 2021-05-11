@@ -7,7 +7,7 @@
 #include "arch/context.h"
 #include "current_sandbox.h"
 #include "sandbox_types.h"
-#include "sandbox_functions.h"
+#include "sandbox_exit.h"
 #include "software_interrupt.h"
 
 /**
