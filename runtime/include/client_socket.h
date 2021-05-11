@@ -23,7 +23,7 @@ client_socket_close(int client_socket, struct sockaddr *client_address)
 	assert(client_socket != STDERR_FILENO);
 
 	if (unlikely(close(client_socket) < 0)) {
-		char client_address_text[INET6_ADDRSTRLEN] = {};
+		char client_address_text[INET6_ADDRSTRLEN] = { '\0' };
 		if (unlikely(inet_ntop(AF_INET, &client_address, client_address_text, INET6_ADDRSTRLEN) == NULL)) {
 			debuglog("Failed to log client_address: %s", strerror(errno));
 		}
@@ -55,19 +55,19 @@ client_socket_send(int client_socket, int status_code)
 		panic("%d is not a valid status code\n", status_code);
 	}
 
-	int sent    = 0;
-	int to_send = strlen(response);
+	size_t total_sent = 0;
+	size_t to_send    = strlen(response);
 
-	while (sent < to_send) {
-		rc = write(client_socket, &response[sent], to_send - sent);
-		if (rc < 0) {
+	while (total_sent < to_send) {
+		ssize_t sent = write(client_socket, &response[total_sent], to_send - total_sent);
+		if (sent < 0) {
 			if (errno == EAGAIN) { debuglog("Unexpectedly blocking on write of %s\n", response); }
 
 			debuglog("Error with %s\n", strerror(errno));
 
 			goto send_err;
 		}
-		sent += rc;
+		total_sent += sent;
 	};
 
 	rc = 0;

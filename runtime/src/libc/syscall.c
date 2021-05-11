@@ -18,12 +18,12 @@
 #define GID 0xFE
 
 // Elf auxilary vector values (see google for what those are)
-#define AT_NULL          0
-#define AT_IGNORE        1
-#define AT_EXECFD        2
-#define AT_PHDR          3
-#define AT_PHENT         4
-#define AT_PHNUM         5
+// #define AT_NULL          0
+// #define AT_IGNORE        1
+// #define AT_EXECFD        2
+// #define AT_PHDR          3
+#define AT_PHENT 4
+// #define AT_PHNUM         5
 #define AT_PAGESZ        6
 #define AT_BASE          7
 #define AT_FLAGS         8
@@ -173,17 +173,17 @@ err:
 	goto done;
 }
 
-#define WO_RDONLY    00
-#define WO_WRONLY    01
-#define WO_RDWR      02
-#define WO_CREAT     0100
-#define WO_EXCL      0200
-#define WO_NOCTTY    0400
-#define WO_TRUNC     01000
-#define WO_APPEND    02000
-#define WO_NONBLOCK  04000
-#define WO_DSYNC     010000
-#define WO_SYNC      04010000
+#define WO_RDONLY 00
+#define WO_WRONLY 01
+#define WO_RDWR   02
+#define WO_CREAT  0100
+#define WO_EXCL   0200
+// #define WO_NOCTTY 0400
+// #define WO_TRUNC    01000
+#define WO_APPEND 02000
+// #define WO_NONBLOCK 04000
+// #define WO_DSYNC     010000
+// #define WO_SYNC      04010000
 #define WO_RSYNC     04010000
 #define WO_DIRECTORY 0200000
 #define WO_NOFOLLOW  0400000
@@ -200,7 +200,7 @@ wasm_open(int32_t path_off, int32_t flags, int32_t mode)
 	if (iofd < 0) return -1;
 	int32_t modified_flags = 0;
 
-	if (flags & WO_RDONLY) {
+	if (flags == WO_RDONLY) {
 		modified_flags |= O_RDONLY;
 		// flags ^= WO_RDONLY;
 	}
@@ -255,142 +255,142 @@ wasm_close(int32_t io_handle_index)
 }
 
 // What the wasm stat structure looks like
-struct wasm_stat {
-	int64_t  st_dev;
-	uint64_t st_ino;
-	uint32_t st_nlink;
+// struct wasm_stat {
+// 	int64_t  st_dev;
+// 	uint64_t st_ino;
+// 	uint32_t st_nlink;
 
-	uint32_t st_mode;
-	uint32_t st_uid;
-	uint32_t st_gid;
-	uint32_t __pad0;
-	uint64_t st_rdev;
-	uint64_t st_size;
-	int32_t  st_blksize;
-	int64_t  st_blocks;
+// 	uint32_t st_mode;
+// 	uint32_t st_uid;
+// 	uint32_t st_gid;
+// 	uint32_t __pad0;
+// 	uint64_t st_rdev;
+// 	uint64_t st_size;
+// 	int32_t  st_blksize;
+// 	int64_t  st_blocks;
 
-	struct {
-		int32_t tv_sec;
-		int32_t tv_nsec;
-	} st_atim;
-	struct {
-		int32_t tv_sec;
-		int32_t tv_nsec;
-	} st_mtim;
-	struct {
-		int32_t tv_sec;
-		int32_t tv_nsec;
-	} st_ctim;
-	int32_t __pad1[3];
-};
+// 	struct {
+// 		int32_t tv_sec;
+// 		int32_t tv_nsec;
+// 	} st_atim;
+// 	struct {
+// 		int32_t tv_sec;
+// 		int32_t tv_nsec;
+// 	} st_mtim;
+// 	struct {
+// 		int32_t tv_sec;
+// 		int32_t tv_nsec;
+// 	} st_ctim;
+// 	int32_t __pad1[3];
+// };
 
-#define SYS_STAT 4
+// #define SYS_STAT 4
 
-int32_t
-wasm_stat(uint32_t path_str_offset, int32_t stat_offset)
-{
-	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
-	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
+// int32_t
+// wasm_stat(uint32_t path_str_offset, int32_t stat_offset)
+// {
+// 	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
+// 	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
-	struct stat stat;
-	int32_t     res = lstat(path, &stat);
-	if (res == -1) return -errno;
+// 	struct stat stat;
+// 	int32_t     res = lstat(path, &stat);
+// 	if (res == -1) return -errno;
 
-	*stat_ptr = (struct wasm_stat){
-		.st_dev     = stat.st_dev,
-		.st_ino     = stat.st_ino,
-		.st_nlink   = stat.st_nlink,
-		.st_mode    = stat.st_mode,
-		.st_uid     = stat.st_uid,
-		.st_gid     = stat.st_gid,
-		.st_rdev    = stat.st_rdev,
-		.st_size    = stat.st_size,
-		.st_blksize = stat.st_blksize,
-		.st_blocks  = stat.st_blocks,
-	};
+// 	*stat_ptr = (struct wasm_stat){
+// 		.st_dev     = stat.st_dev,
+// 		.st_ino     = stat.st_ino,
+// 		.st_nlink   = stat.st_nlink,
+// 		.st_mode    = stat.st_mode,
+// 		.st_uid     = stat.st_uid,
+// 		.st_gid     = stat.st_gid,
+// 		.st_rdev    = stat.st_rdev,
+// 		.st_size    = stat.st_size,
+// 		.st_blksize = stat.st_blksize,
+// 		.st_blocks  = stat.st_blocks,
+// 	};
 
-	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
-	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
+// 	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
+// 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
-	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
+// 	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
+// 	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
-	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
+// 	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
+// 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
 
-	return res;
-}
+// 	return res;
+// }
 
-#define SYS_FSTAT 5
-int32_t
-wasm_fstat(int32_t filedes, int32_t stat_offset)
-{
-	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
+// #define SYS_FSTAT 5
+// int32_t
+// wasm_fstat(int32_t filedes, int32_t stat_offset)
+// {
+// 	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
-	struct stat stat;
-	int32_t     res = fstat(filedes, &stat);
-	if (res == -1) return -errno;
+// 	struct stat stat;
+// 	int32_t     res = fstat(filedes, &stat);
+// 	if (res == -1) return -errno;
 
-	*stat_ptr = (struct wasm_stat){
-		.st_dev     = stat.st_dev,
-		.st_ino     = stat.st_ino,
-		.st_nlink   = stat.st_nlink,
-		.st_mode    = stat.st_mode,
-		.st_uid     = stat.st_uid,
-		.st_gid     = stat.st_gid,
-		.st_rdev    = stat.st_rdev,
-		.st_size    = stat.st_size,
-		.st_blksize = stat.st_blksize,
-		.st_blocks  = stat.st_blocks,
-	};
+// 	*stat_ptr = (struct wasm_stat){
+// 		.st_dev     = stat.st_dev,
+// 		.st_ino     = stat.st_ino,
+// 		.st_nlink   = stat.st_nlink,
+// 		.st_mode    = stat.st_mode,
+// 		.st_uid     = stat.st_uid,
+// 		.st_gid     = stat.st_gid,
+// 		.st_rdev    = stat.st_rdev,
+// 		.st_size    = stat.st_size,
+// 		.st_blksize = stat.st_blksize,
+// 		.st_blocks  = stat.st_blocks,
+// 	};
 
-	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
-	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
+// 	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
+// 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
-	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
+// 	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
+// 	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
-	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
+// 	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
+// 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
 
-	return res;
-}
+// 	return res;
+// }
 
-#define SYS_LSTAT 6
-int32_t
-wasm_lstat(int32_t path_str_offset, int32_t stat_offset)
-{
-	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
-	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
+// #define SYS_LSTAT 6
+// int32_t
+// wasm_lstat(int32_t path_str_offset, int32_t stat_offset)
+// {
+// 	char *            path     = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
+// 	struct wasm_stat *stat_ptr = worker_thread_get_memory_ptr_void(stat_offset, sizeof(struct wasm_stat));
 
-	struct stat stat;
-	int32_t     res = lstat(path, &stat);
-	if (res == -1) return -errno;
+// 	struct stat stat;
+// 	int32_t     res = lstat(path, &stat);
+// 	if (res == -1) return -errno;
 
-	*stat_ptr = (struct wasm_stat){
-		.st_dev     = stat.st_dev,
-		.st_ino     = stat.st_ino,
-		.st_nlink   = stat.st_nlink,
-		.st_mode    = stat.st_mode,
-		.st_uid     = stat.st_uid,
-		.st_gid     = stat.st_gid,
-		.st_rdev    = stat.st_rdev,
-		.st_size    = stat.st_size,
-		.st_blksize = stat.st_blksize,
-		.st_blocks  = stat.st_blocks,
-	};
+// 	*stat_ptr = (struct wasm_stat){
+// 		.st_dev     = stat.st_dev,
+// 		.st_ino     = stat.st_ino,
+// 		.st_nlink   = stat.st_nlink,
+// 		.st_mode    = stat.st_mode,
+// 		.st_uid     = stat.st_uid,
+// 		.st_gid     = stat.st_gid,
+// 		.st_rdev    = stat.st_rdev,
+// 		.st_size    = stat.st_size,
+// 		.st_blksize = stat.st_blksize,
+// 		.st_blocks  = stat.st_blocks,
+// 	};
 
-	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
-	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
+// 	stat_ptr->st_atim.tv_sec  = stat.st_atim.tv_sec;
+// 	stat_ptr->st_atim.tv_nsec = stat.st_atim.tv_nsec;
 
-	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
-	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
+// 	stat_ptr->st_mtim.tv_sec  = stat.st_mtim.tv_sec;
+// 	stat_ptr->st_mtim.tv_nsec = stat.st_mtim.tv_nsec;
 
-	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
-	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
+// 	stat_ptr->st_ctim.tv_sec  = stat.st_ctim.tv_sec;
+// 	stat_ptr->st_ctim.tv_nsec = stat.st_ctim.tv_nsec;
 
-	return res;
-}
+// 	return res;
+// }
 
 
 #define SYS_LSEEK 8
@@ -513,9 +513,9 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	return res;
 }
 
-#define SYS_MREMAP     25
-#define MREMAP_MAYMOVE 1
-#define MREMAP_FIXED   2
+#define SYS_MREMAP 25
+// #define MREMAP_MAYMOVE 1
+// #define MREMAP_FIXED   2
 int32_t
 wasm_mremap(int32_t offset, int32_t old_size, int32_t new_size, int32_t flags)
 {
@@ -568,74 +568,74 @@ wasm_getpid()
 }
 
 
-#define WF_DUPFD 0
-#define WF_GETFD 1
+// #define WF_DUPFD 0
+// #define WF_GETFD 1
 #define WF_SETFD 2
-#define WF_GETFL 3
-#define WF_SETFL 4
+// #define WF_GETFL 3
+// #define WF_SETFL 4
 
-#define WF_SETOWN 8
-#define WF_GETOWN 9
-#define WF_SETSIG 10
+// #define WF_SETOWN 8
+// #define WF_GETOWN 9
+// #define WF_SETSIG 10
 #define WF_GETSIG 11
 
-#define WF_GETLK  5
+// #define WF_GETLK  5
 #define WF_SETLK  6
 #define WF_SETLKW 7
 
-#define SYS_FCNTL 72
-uint32_t
-wasm_fcntl(uint32_t fd, uint32_t cmd, uint32_t arg_or_lock_ptr)
-{
-	switch (cmd) {
-	case WF_SETFD:
-		//            return fcntl(fd, F_SETFD, arg_or_lock_ptr);
-		return 0;
-	case WF_SETLK:
-		return 0;
-	default:
-		panic("Unexpected Command");
-	}
-}
+// #define SYS_FCNTL 72
+// uint32_t
+// wasm_fcntl(uint32_t fd, uint32_t cmd, uint32_t arg_or_lock_ptr)
+// {
+// 	switch (cmd) {
+// 	case WF_SETFD:
+// 		//            return fcntl(fd, F_SETFD, arg_or_lock_ptr);
+// 		return 0;
+// 	case WF_SETLK:
+// 		return 0;
+// 	default:
+// 		panic("Unexpected Command");
+// 	}
+// }
 
-#define SYS_FSYNC 74
-uint32_t
-wasm_fsync(uint32_t filedes)
-{
-	uint32_t res = fsync(filedes);
-	if (res == -1) return -errno;
+// #define SYS_FSYNC 74
+// uint32_t
+// wasm_fsync(uint32_t filedes)
+// {
+// 	uint32_t res = fsync(filedes);
+// 	if (res == -1) return -errno;
 
-	return 0;
-}
+// 	return 0;
+// }
 
-#define SYS_GETCWD 79
-uint32_t
-wasm_getcwd(uint32_t buf_offset, uint32_t buf_size)
-{
-	char *buf = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
-	char *res = getcwd(buf, buf_size);
+// #define SYS_GETCWD 79
+// uint32_t
+// wasm_getcwd(uint32_t buf_offset, uint32_t buf_size)
+// {
+// 	char *buf = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
+// 	char *res = getcwd(buf, buf_size);
 
-	if (!res) return 0;
-	return buf_offset;
-}
+// 	if (!res) return 0;
+// 	return buf_offset;
+// }
 
-#define SYS_UNLINK 87
-uint32_t
-wasm_unlink(uint32_t path_str_offset)
-{
-	char *   str = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
-	uint32_t res = unlink(str);
-	if (res == -1) return -errno;
+// #define SYS_UNLINK 87
+// uint32_t
+// wasm_unlink(uint32_t path_str_offset)
+// {
+// 	char *   str = worker_thread_get_memory_string(path_str_offset, MODULE_MAX_PATH_LENGTH);
+// 	uint32_t res = unlink(str);
+// 	if (res == -1) return -errno;
 
-	return 0;
-}
+// 	return 0;
+// }
 
-#define SYS_GETEUID 107
-uint32_t
-wasm_geteuid()
-{
-	return (uint32_t)geteuid();
-}
+// #define SYS_GETEUID 107
+// uint32_t
+// wasm_geteuid()
+// {
+// 	return (uint32_t)geteuid();
+// }
 
 #define SYS_SET_THREAD_AREA 205
 
@@ -683,82 +683,83 @@ wasm_get_time(int32_t clock_id, int32_t timespec_off)
 int32_t
 wasm_exit_group(int32_t status)
 {
-	exit(status);
+	debuglog("Called wasm_exit_group");
+	// I believe that if a sandbox called this, it would cause the runtime to exit
+	// exit(status);
 	return 0;
 }
 
-#define SYS_FCHOWN 93
-int32_t
-wasm_fchown(int32_t fd, uint32_t owner, uint32_t group)
-{
-	return fchown(fd, owner, group);
-}
+// #define SYS_FCHOWN 93
+// int32_t
+// wasm_fchown(int32_t fd, uint32_t owner, uint32_t group)
+// {
+// 	return fchown(fd, owner, group);
+// }
 
 // networking syscalls
-#define SYS_SOCKET  41
-#define SYS_CONNECT 42
-#define SYS_ACCEPT  43
-#define SYS_BIND    49
-#define SYS_LISTEN  50
-int32_t
-wasm_socket(int32_t domain, int32_t type, int32_t protocol)
-{
-	return socket(domain, type, protocol);
-}
+// #define SYS_SOCKET 41
+// int32_t
+// wasm_socket(int32_t domain, int32_t type, int32_t protocol)
+// {
+// 	return socket(domain, type, protocol);
+// }
 
-int32_t
-wasm_connect(int32_t sockfd, int32_t sockaddr_offset, int32_t addrlen)
-{
-	return connect(sockfd, worker_thread_get_memory_ptr_void(sockaddr_offset, addrlen), addrlen);
-}
+// #define SYS_CONNECT 42
+// int32_t
+// wasm_connect(int32_t sockfd, int32_t sockaddr_offset, int32_t addrlen)
+// {
+// 	return connect(sockfd, worker_thread_get_memory_ptr_void(sockaddr_offset, addrlen), addrlen);
+// }
 
-int32_t
-wasm_accept(int32_t sockfd, int32_t sockaddr_offset, int32_t addrlen_offset)
-{
-	socklen_t *addrlen = worker_thread_get_memory_ptr_void(addrlen_offset, sizeof(socklen_t));
+// #define SYS_ACCEPT 43
+// int32_t
+// wasm_accept(int32_t sockfd, int32_t sockaddr_offset, int32_t addrlen_offset)
+// {
+// 	socklen_t *addrlen = worker_thread_get_memory_ptr_void(addrlen_offset, sizeof(socklen_t));
 
-	return accept(sockfd, worker_thread_get_memory_ptr_void(sockaddr_offset, *addrlen), addrlen);
-}
+// 	return accept(sockfd, worker_thread_get_memory_ptr_void(sockaddr_offset, *addrlen), addrlen);
+// }
 
-int32_t
-wasm_bind(int32_t sockfd, int32_t sockaddr_offset, int32_t addrlen)
-{
-	return bind(sockfd, worker_thread_get_memory_ptr_void(sockaddr_offset, addrlen), addrlen);
-}
+// #define SYS_BIND 49
+// int32_t
+// wasm_bind(int32_t sockfd, int32_t sockaddr_offset, int32_t addrlen)
+// {
+// 	return bind(sockfd, worker_thread_get_memory_ptr_void(sockaddr_offset, addrlen), addrlen);
+// }
 
-int32_t
-wasm_listen(int32_t sockfd, int32_t backlog)
-{
-	return listen(sockfd, backlog);
-}
+// #define SYS_LISTEN  50
+// int32_t
+// wasm_listen(int32_t sockfd, int32_t backlog)
+// {
+// 	return listen(sockfd, backlog);
+// }
 
-#define SYS_SENDTO   44
-#define SYS_RECVFROM 45
+// #define SYS_SENDTO   44
+// int32_t
+// wasm_sendto(int32_t fd, int32_t buff_offset, int32_t len, int32_t flags, int32_t sockaddr_offset, int32_t
+// sockaddr_len)
+// {
+// 	char *           buf  = worker_thread_get_memory_ptr_void(buff_offset, len);
+// 	struct sockaddr *addr = sockaddr_len ? worker_thread_get_memory_ptr_void(sockaddr_offset, sockaddr_len) : NULL;
 
-int32_t
-wasm_sendto(int32_t fd, int32_t buff_offset, int32_t len, int32_t flags, int32_t sockaddr_offset, int32_t sockaddr_len)
-{
-	char *           buf  = worker_thread_get_memory_ptr_void(buff_offset, len);
-	struct sockaddr *addr = sockaddr_len ? worker_thread_get_memory_ptr_void(sockaddr_offset, sockaddr_len) : NULL;
+// 	return sendto(fd, buf, len, flags, addr, sockaddr_len);
+// }
 
-	return sendto(fd, buf, len, flags, addr, sockaddr_len);
-}
+// #define SYS_RECVFROM 45
+// int32_t
+// wasm_recvfrom(int32_t fd, int32_t buff_offset, int32_t size, int32_t flags, int32_t sockaddr_offset,
+//               int32_t socklen_offset)
+// {
+// 	char *           buf  = worker_thread_get_memory_ptr_void(buff_offset, size);
+// 	socklen_t *      len  = worker_thread_get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
+// 	struct sockaddr *addr = *len ? worker_thread_get_memory_ptr_void(sockaddr_offset, *len) : NULL;
 
-int32_t
-wasm_recvfrom(int32_t fd, int32_t buff_offset, int32_t size, int32_t flags, int32_t sockaddr_offset,
-              int32_t socklen_offset)
-{
-	char *           buf  = worker_thread_get_memory_ptr_void(buff_offset, size);
-	socklen_t *      len  = worker_thread_get_memory_ptr_void(socklen_offset, sizeof(socklen_t));
-	struct sockaddr *addr = *len ? worker_thread_get_memory_ptr_void(sockaddr_offset, *len) : NULL;
-
-	return recvfrom(fd, buf, size, flags, addr, addr ? len : NULL);
-}
+// 	return recvfrom(fd, buf, size, flags, addr, addr ? len : NULL);
+// }
 
 int32_t
 inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f)
 {
-	int32_t res;
 	switch (n) {
 	case SYS_READ:
 		return wasm_read(a, b, c);
@@ -794,6 +795,7 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 	default:
 		/* This is a general catch all for the other functions below */
 		debuglog("Call to unknown or implemented syscall %d\n", n);
+		debuglog("syscall %d (%d, %d, %d, %d, %d, %d)\n", n, a, b, c, d, e, f);
 		errno = ENOSYS;
 		return -1;
 
@@ -806,8 +808,6 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 		// 	return wasm_fstat(a, b);
 		// case SYS_LSTAT:
 		// 	return wasm_lstat(a, b);
-		// case SYS_LSEEK:
-		// 	return wasm_lseek(a, b, c);
 		// case SYS_GETPID:
 		// 	return wasm_getpid();
 		// case SYS_FCNTL:
@@ -837,8 +837,4 @@ inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int
 		// case SYS_RECVFROM:
 		// 	return wasm_recvfrom(a, b, c, d, e, f);
 	}
-	printf("syscall %d (%d, %d, %d, %d, %d, %d)\n", n, a, b, c, d, e, f);
-	assert(0);
-
-	return 0;
 }

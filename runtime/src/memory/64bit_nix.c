@@ -8,20 +8,6 @@
 
 #include <sys/mman.h>
 
-#define MAX_LINEAR_MEM ((1LL << 32) + WASM_PAGE_SIZE)
-
-void
-alloc_linear_memory(void)
-{
-	// mmaped memory in sandbox_allocate.
-}
-
-void
-free_linear_memory(void *base, uint32_t bound, uint32_t max)
-{
-	// frees on sandbox_free
-}
-
 void
 expand_memory(void)
 {

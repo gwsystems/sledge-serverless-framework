@@ -286,9 +286,8 @@ sandbox_build_and_send_client_response(struct sandbox *sandbox)
 	response_cursor += body_size;
 
 	/* Capture Timekeeping data for end-to-end latency */
-	uint64_t end_time      = __getcycles();
-	sandbox->total_time    = end_time - sandbox->request_arrival_timestamp;
-	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
+	uint64_t end_time   = __getcycles();
+	sandbox->total_time = end_time - sandbox->request_arrival_timestamp;
 
 	int rc;
 	int sent = 0;
@@ -1043,7 +1042,6 @@ err_stack_allocation_failed:
 #endif
 	ps_list_init_d(sandbox);
 err_memory_allocation_failed:
-err:
 	sandbox_set_as_error(sandbox, SANDBOX_SET_AS_INITIALIZED);
 	perror(error_message);
 	sandbox = NULL;
@@ -1073,8 +1071,7 @@ sandbox_free(struct sandbox *sandbox)
 	assert(sandbox != current_sandbox_get());
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
 
-	char *error_message = NULL;
-	int   rc;
+	int rc;
 
 	module_release(sandbox->module);
 
@@ -1109,7 +1106,6 @@ done:
 	return;
 err_free_sandbox_failed:
 err_free_stack_failed:
-err:
 	/* Errors freeing memory is a fatal error */
 	panic("Failed to free Sandbox %lu\n", sandbox->id);
 }
