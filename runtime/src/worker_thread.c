@@ -17,6 +17,7 @@
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox_functions.h"
+#include "sandbox_set_as_runnable.h"
 #include "sandbox_set_as_error.h"
 #include "worker_thread.h"
 
