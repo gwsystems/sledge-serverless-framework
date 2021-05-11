@@ -164,7 +164,7 @@ worker_thread_main(void *argument)
 	local_completion_queue_initialize();
 
 	/* Initialize Flags */
-	software_interrupt_disable();
+	software_interrupt_is_disabled = false;
 
 	/* Unmask signals */
 	if (runtime_preemption_enabled) {
