@@ -31,10 +31,24 @@ static uint64_t  software_interrupt_interval_duration_in_cycles;
  * Thread Globals *
  *****************/
 
-__thread static volatile sig_atomic_t software_interrupt_SIGALRM_kernel_count = 0;
-__thread static volatile sig_atomic_t software_interrupt_SIGALRM_thread_count = 0;
-__thread static volatile sig_atomic_t software_interrupt_SIGUSR_count         = 0;
-__thread volatile sig_atomic_t        software_interrupt_is_disabled          = 0;
+__thread _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_kernel_count = 0;
+__thread _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_thread_count = 0;
+__thread _Atomic static volatile sig_atomic_t software_interrupt_SIGUSR_count         = 0;
+__thread volatile sig_atomic_t                software_interrupt_is_disabled          = 1;
+__thread _Atomic volatile sig_atomic_t        software_interrupt_deferred_sigalrm     = 0;
+__thread _Atomic volatile sig_atomic_t        software_interrupt_signal_depth         = 0;
+
+_Atomic volatile sig_atomic_t software_interrupt_deferred_sigalrm_max[RUNTIME_WORKER_THREAD_CORE_COUNT] = { 0 };
+
+void
+software_interrupt_deferred_sigalrm_max_print()
+{
+	printf("Max Deferred Sigalrms\n");
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
+		printf("Worker %d: %d\n", i, software_interrupt_deferred_sigalrm_max[i]);
+	}
+	fflush(stdout);
+}
 
 /***************************************
  * Externs
@@ -55,10 +69,7 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 {
 	/* Signal was sent directly by the kernel, so forward to other threads */
 	if (signal_info->si_code == SI_KERNEL) {
-		software_interrupt_SIGALRM_kernel_count++;
-#ifdef LOG_PREEMPTION
-		debuglog("Kernel SIGALRM: %d!\n", software_interrupt_SIGALRM_kernel_count);
-#endif
+		atomic_fetch_add(&software_interrupt_SIGALRM_kernel_count, 1);
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
@@ -83,10 +94,7 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 			}
 		}
 	} else {
-		software_interrupt_SIGALRM_thread_count++;
-#ifdef LOG_PREEMPTION
-		debuglog("Thread SIGALRM: %d!\n", software_interrupt_SIGALRM_thread_count);
-#endif
+		atomic_fetch_add(&software_interrupt_SIGALRM_thread_count, 1);
 		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 		assert(signal_info->si_code == SI_TKILL);
 	}
@@ -101,33 +109,26 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 static inline void
 sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox *current_sandbox)
 {
-	sigalrm_propagate_workers(signal_info);
+	/* A worker thread received a SIGALRM when interrupts were disabled, so defer until they are reenabled */
+	if (!software_interrupt_is_enabled()) {
+		// Don't increment if kernel? The first worker gets tons of these...
+		atomic_fetch_add(&software_interrupt_deferred_sigalrm, 1);
+		return;
+	}
 
-	/* NOOP if software interrupts not enabled */
-	if (!software_interrupt_is_enabled()) return;
+	/* A worker thread received a SIGALRM while running a preemptable sandbox, so preempt */
+	assert(current_sandbox->ctxt.preemptable);
+	software_interrupt_disable();
 
-	/*
-	 * if a SIGALRM fires while the worker thread is between sandboxes doing runtime tasks such as processing
-	 * the epoll loop, performing completion queue cleanup, etc. current_sandbox might be NULL. In this case,
-	 * we should just allow return to allow the worker thread to run the main loop until it loads a new sandbox.
-	 *
-	 * TODO: Consider if this should be an invarient and the worker thread should disable software
-	 * interrupts when doing this work. Issue #95
-	 */
-	if (!current_sandbox) return;
-
-	/*
-	 * if a SIGALRM fires while the worker thread executing cleanup of a sandbox, it might be in a RETURNED
-	 * state. In this case, we should just allow return to allow the sandbox to complete cleanup, as it is
-	 * about to switch to a new sandbox.
-	 *
-	 * TODO: Consider if this should be an invarient and the worker thread should disable software
-	 * interrupts when doing this work. Issue #95 with above
-	 */
-	if (current_sandbox->state == SANDBOX_RETURNED) return;
+	assert(current_sandbox != NULL);
+	assert(current_sandbox->state != SANDBOX_RETURNED);
 
 	/* Preempt */
 	local_runqueue_preempt(user_context);
+
+	/* We have to call current_sandbox_get because the argument potentially points to what
+	 * was just preempted */
+	if (current_sandbox_get()->ctxt.preemptable) software_interrupt_enable();
 
 	return;
 }
@@ -150,7 +151,7 @@ sigusr1_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 	/* Extra checks to verify that preemption properly set context state */
 	assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
 
-	software_interrupt_SIGUSR_count++;
+	atomic_fetch_add(&software_interrupt_SIGUSR_count, 1);
 
 #ifdef LOG_PREEMPTION
 	debuglog("Total SIGUSR1 Received: %d\n", software_interrupt_SIGUSR_count);
@@ -159,8 +160,6 @@ sigusr1_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 #endif
 
 	arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
-
-	software_interrupt_enable();
 
 	return;
 }
@@ -187,10 +186,13 @@ software_interrupt_validate_worker()
 static inline void
 software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 {
+	/* If the runtime has preemption disabled, and we receive a signal, panic */
 	if (unlikely(!runtime_preemption_enabled)) {
 		panic("Unexpectedly invoked signal handlers with preemption disabled\n");
 	}
 
+	assert(software_interrupt_signal_depth < 2);
+	atomic_fetch_add(&software_interrupt_signal_depth, 1);
 	software_interrupt_validate_worker();
 
 	ucontext_t *    user_context    = (ucontext_t *)user_context_raw;
@@ -198,20 +200,26 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
-		return sigalrm_handler(signal_info, user_context, current_sandbox);
+		sigalrm_handler(signal_info, user_context, current_sandbox);
+		break;
 	}
 	case SIGUSR1: {
-		return sigusr1_handler(signal_info, user_context, current_sandbox);
+		sigusr1_handler(signal_info, user_context, current_sandbox);
+		break;
 	}
 	default: {
-		if (signal_info->si_code == SI_TKILL) {
+		switch (signal_info->si_code) {
+		case SI_TKILL:
 			panic("Unexpectedly received signal %d from a thread kill, but we have no handler\n",
 			      signal_type);
-		} else if (signal_info->si_code == SI_KERNEL) {
+		case SI_KERNEL:
 			panic("Unexpectedly received signal %d from the kernel, but we have no handler\n", signal_type);
+		default:
+			panic("Anomolous Signal\n");
 		}
 	}
 	}
+	atomic_fetch_sub(&software_interrupt_signal_depth, 1);
 }
 
 /********************
@@ -271,9 +279,17 @@ software_interrupt_initialize(void)
 	signal_action.sa_sigaction = software_interrupt_handle_signals;
 	signal_action.sa_flags     = SA_SIGINFO | SA_RESTART;
 
+	/* all threads created by the calling thread will have signal blocked */
+
+	// TODO: Unclear about this...
+	sigemptyset(&signal_action.sa_mask);
+	// sigaddset(&signal_action.sa_mask, SIGALRM);
+	// sigaddset(&signal_action.sa_mask, SIGUSR1);
+
 	for (int i = 0;
 	     i < (sizeof(software_interrupt_supported_signals) / sizeof(software_interrupt_supported_signals[0]));
 	     i++) {
+		// TODO: Setup masks
 		int return_code = sigaction(software_interrupt_supported_signals[i], &signal_action, NULL);
 		if (return_code) {
 			perror("sigaction");

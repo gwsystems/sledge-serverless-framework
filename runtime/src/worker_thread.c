@@ -43,6 +43,7 @@ __thread int worker_thread_idx;
 static inline void
 worker_thread_execute_epoll_loop(void)
 {
+	assert(software_interrupt_is_disabled);
 	while (true) {
 		struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 		int                descriptor_count = epoll_wait(worker_thread_epoll_file_descriptor, epoll_events,
@@ -63,9 +64,7 @@ worker_thread_execute_epoll_loop(void)
 				assert(sandbox);
 
 				if (sandbox->state == SANDBOX_BLOCKED) {
-					software_interrupt_disable();
 					sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
-					software_interrupt_enable();
 				}
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
 				/* Mystery: This seems to never fire. Why? Issue #130 */
@@ -112,13 +111,17 @@ worker_thread_execute_epoll_loop(void)
 void *
 worker_thread_main(void *argument)
 {
+	/* The base worker thread should start with software interrupts disabled */
+	assert(software_interrupt_is_disabled);
+
+	/* Set base context as running */
+	worker_thread_base_context.variant = ARCH_CONTEXT_VARIANT_RUNNING;
+
 	/* Index was passed via argument */
 	worker_thread_idx = *(int *)argument;
 
-	/* Initialize Base Context as unused
-	 * The SP and IP are populated during the first FAST switch away
-	 */
-	arch_context_init(&worker_thread_base_context, 0, 0);
+	/* Set my priority */
+	// runtime_set_pthread_prio(pthread_self(), 0);
 
 	/* Initialize Runqueue Variant */
 	switch (runtime_scheduler) {
@@ -135,35 +138,30 @@ worker_thread_main(void *argument)
 	/* Initialize Completion Queue */
 	local_completion_queue_initialize();
 
-	/* Initialize Flags */
-	software_interrupt_is_disabled = false;
+	/* Initialize epoll */
+	worker_thread_epoll_file_descriptor = epoll_create1(0);
+	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
 
-	/* Unmask signals */
+	/* Unmask signals, unless the runtime has disabled preemption */
 	if (runtime_preemption_enabled) {
 		software_interrupt_unmask_signal(SIGALRM);
 		software_interrupt_unmask_signal(SIGUSR1);
 	}
 
-	/* Initialize epoll */
-	worker_thread_epoll_file_descriptor = epoll_create1(0);
-	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
-
 	/* Begin Worker Execution Loop */
 	struct sandbox *next_sandbox;
 	while (true) {
+		assert(!software_interrupt_is_enabled());
+
 		/* Assumption: current_sandbox should be unset at start of loop */
 		assert(current_sandbox_get() == NULL);
 
 		worker_thread_execute_epoll_loop();
 
 		/* Switch to a sandbox if one is ready to run */
-		software_interrupt_disable();
 		next_sandbox = local_runqueue_get_next();
-		if (next_sandbox != NULL) {
-			sandbox_switch_to(next_sandbox);
-		} else {
-			software_interrupt_enable();
-		};
+		if (next_sandbox != NULL) { sandbox_switch_to(next_sandbox); }
+		assert(!software_interrupt_is_enabled());
 
 		/* Clear the completion queue */
 		local_completion_queue_free();

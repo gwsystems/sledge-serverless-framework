@@ -10,12 +10,16 @@
 #include <stdlib.h>
 
 #include "debuglog.h"
+#include "runtime.h"
+#include "worker_thread.h"
 
 /************
  * Externs  *
  ***********/
 
-extern __thread volatile sig_atomic_t software_interrupt_is_disabled;
+extern __thread volatile sig_atomic_t         software_interrupt_is_disabled;
+extern _Atomic __thread volatile sig_atomic_t software_interrupt_deferred_sigalrm;
+extern _Atomic volatile sig_atomic_t          software_interrupt_deferred_sigalrm_max[RUNTIME_WORKER_THREAD_CORE_COUNT];
 
 /*************************
  * Public Static Inlines *
@@ -37,6 +41,13 @@ software_interrupt_enable(void)
 {
 	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 1, 0) == false) {
 		panic("Recursive call to software_interrupt_enable\n");
+	}
+
+	if (software_interrupt_deferred_sigalrm > 0) {
+		// TODO: Atomic set?
+		software_interrupt_deferred_sigalrm_max[worker_thread_idx] = software_interrupt_deferred_sigalrm;
+		software_interrupt_deferred_sigalrm                        = 0;
+		// TODO: REPLAY sigalrm;
 	}
 }
 
@@ -106,3 +117,4 @@ void software_interrupt_initialize(void);
 void software_interrupt_arm_timer(void);
 void software_interrupt_disarm_timer(void);
 void software_interrupt_set_interval_duration(uint64_t cycles);
+void software_interrupt_deferred_sigalrm_max_print(void);

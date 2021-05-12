@@ -1,5 +1,8 @@
 #pragma once
 
+#include "arch/common.h"
+#include "software_interrupt.h"
+
 /*
  * This header is the single entry point into the arch_context code.
  * It includes processor independent code and conditionally includes architecture
@@ -53,6 +56,9 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
 
 	/* Restore mcontext */
 	memcpy(active_context, &sandbox_context->mctx, sizeof(mcontext_t));
+
+	/* Reenable software interrupts if we restored a preemptable sandbox */
+	if (sandbox_context->preemptable) software_interrupt_enable();
 }
 
 
@@ -73,9 +79,8 @@ arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *activ
 	/* Assumption: The base context should never be modified */
 	assert(sandbox_context != &worker_thread_base_context);
 
-	/* Transitioning from {Unused, Running} -> Slow */
-	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_UNUSED
-	       || sandbox_context->variant == ARCH_CONTEXT_VARIANT_RUNNING);
+	/* Transitioning from Running -> Slow */
+	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_RUNNING);
 	sandbox_context->variant = ARCH_CONTEXT_VARIANT_SLOW;
 
 	/* Copy mcontext */

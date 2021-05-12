@@ -42,5 +42,4 @@ current_sandbox_yield()
 	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
 	runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	arch_context_switch(current_context, &worker_thread_base_context);
-	software_interrupt_enable();
 }
