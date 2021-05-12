@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "arch/context.h"
 #include "client_socket.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
@@ -111,24 +112,18 @@ void
 local_runqueue_minheap_preempt(ucontext_t *user_context)
 {
 	assert(user_context != NULL);
-
-	/* Prevent nested preemption */
-	software_interrupt_disable();
+	assert(!software_interrupt_is_enabled());
 
 	struct sandbox *current_sandbox = current_sandbox_get();
 
 	/* If current_sandbox is null, there's nothing to preempt, so let the "main" scheduler run its course. */
-	if (current_sandbox == NULL) {
-		software_interrupt_enable();
-		return;
-	};
+	if (current_sandbox == NULL) return;
 
 	/* The current sandbox should be the head of the runqueue */
 	assert(local_runqueue_minheap_is_empty() == false);
 
-	bool     should_enable_software_interrupt = true;
-	uint64_t local_deadline                   = priority_queue_peek(local_runqueue_minheap);
-	uint64_t global_deadline                  = global_request_scheduler_peek();
+	uint64_t local_deadline  = priority_queue_peek(local_runqueue_minheap);
+	uint64_t global_deadline = global_request_scheduler_peek();
 	/* If we're able to get a sandbox request with a tighter deadline, preempt the current context and run it */
 	struct sandbox_request *sandbox_request = NULL;
 	if (global_deadline < local_deadline) {
@@ -179,11 +174,10 @@ local_runqueue_minheap_preempt(ucontext_t *user_context)
 		 * TODO: Review the interrupt logic here. Issue #63
 		 */
 		runtime_worker_threads_deadline[worker_thread_idx] = next_sandbox->absolute_deadline;
+		assert(!software_interrupt_is_enabled());
 		arch_context_restore_new(&user_context->uc_mcontext, &next_sandbox->ctxt);
-		should_enable_software_interrupt = false;
 	}
 done:
-	if (should_enable_software_interrupt) software_interrupt_enable();
 	return;
 err_sandbox_allocate:
 	client_socket_send(sandbox_request->socket_descriptor, 503);
@@ -199,10 +193,9 @@ err:
 void
 local_runqueue_minheap_initialize()
 {
+	assert(software_interrupt_is_disabled);
 	/* Initialize local state */
-	software_interrupt_disable();
 	local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_priority);
-	software_interrupt_enable();
 
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,

@@ -16,6 +16,30 @@ __thread struct sandbox_context_cache local_sandbox_context_cache = {
 	.module_indirect_table = NULL,
 };
 
+static inline void
+current_sandbox_enable_preemption(struct sandbox *sandbox)
+{
+#ifdef LOG_PREEMPTION
+	debuglog("Sandbox %lu - enabling preemption\n", sandbox->id);
+	fflush(stderr);
+#endif
+	assert(sandbox->ctxt.preemptable == false);
+	sandbox->ctxt.preemptable = true;
+	software_interrupt_enable();
+}
+
+static inline void
+current_sandbox_disable_preemption(struct sandbox *sandbox)
+{
+#ifdef LOG_PREEMPTION
+	debuglog("Sandbox %lu - disabling preemption\n", sandbox->id);
+	fflush(stderr);
+#endif
+	assert(sandbox->ctxt.preemptable == true);
+	software_interrupt_disable();
+	sandbox->ctxt.preemptable = false;
+}
+
 /**
  * Sandbox execution logic
  * Handles setup, request parsing, WebAssembly initialization, function execution, response building and
@@ -24,15 +48,13 @@ __thread struct sandbox_context_cache local_sandbox_context_cache = {
 void
 current_sandbox_start(void)
 {
+	assert(!software_interrupt_is_enabled());
+
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING);
 
 	char *error_message = "";
-
-	assert(!software_interrupt_is_enabled());
-	arch_context_init(&sandbox->ctxt, 0, 0);
-	software_interrupt_enable();
 
 	sandbox_initialize_stdio(sandbox);
 
@@ -50,8 +72,10 @@ current_sandbox_start(void)
 	sandbox_setup_arguments(sandbox);
 
 	/* Executing the function */
-	int32_t argument_count        = module_get_argument_count(current_module);
-	sandbox->return_value         = module_main(current_module, argument_count, sandbox->arguments_offset);
+	int32_t argument_count = module_get_argument_count(current_module);
+	current_sandbox_enable_preemption(sandbox);
+	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
+	current_sandbox_disable_preemption(sandbox);
 	sandbox->completion_timestamp = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
@@ -63,8 +87,6 @@ current_sandbox_start(void)
 	http_total_increment_2xx();
 
 	sandbox->response_timestamp = __getcycles();
-
-	software_interrupt_disable();
 
 	assert(sandbox->state == SANDBOX_RUNNING);
 	sandbox_close_http(sandbox);
@@ -86,7 +108,6 @@ err:
 	/* Send a 400 error back to the client */
 	client_socket_send(sandbox->client_socket_descriptor, 400);
 
-	software_interrupt_disable();
 	sandbox_close_http(sandbox);
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);
 	goto done;

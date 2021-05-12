@@ -254,33 +254,26 @@ sandbox_switch_to(struct sandbox *next_sandbox)
 	assert(next_sandbox != NULL);
 	struct arch_context *next_context = &next_sandbox->ctxt;
 
-	/* Get the old sandbox we're switching from */
-	struct sandbox *current_sandbox = current_sandbox_get();
+	/* Get the old sandbox we're switching from.
+	 * This is null if switching from base context
+	 */
+	struct sandbox *     current_sandbox = current_sandbox_get();
+	struct arch_context *current_context = NULL;
+	if (current_sandbox != NULL) current_context = &current_sandbox->ctxt;
+
+	assert(next_sandbox != current_sandbox);
 
 	/* Update the worker's absolute deadline */
 	runtime_worker_threads_deadline[worker_thread_idx] = next_sandbox->absolute_deadline;
 
 	if (current_sandbox == NULL) {
 		/* Switching from "Base Context" */
-
-		sandbox_set_as_running(next_sandbox, next_sandbox->state);
-
 #ifdef LOG_CONTEXT_SWITCHES
 		debuglog("Base Context (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", &worker_thread_base_context,
 		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id, next_context,
 		         arch_context_variant_print(next_context->variant));
 #endif
-		/* Assumption: If a slow context switch, current sandbox should be set to the target */
-		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
-		       || &current_sandbox_get()->ctxt == next_context);
-
-		arch_context_switch(NULL, next_context);
 	} else {
-		/* Set the current sandbox to the next */
-		assert(next_sandbox != current_sandbox);
-
-		struct arch_context *current_context = &current_sandbox->ctxt;
-
 #ifdef LOG_CONTEXT_SWITCHES
 		debuglog("Sandbox %lu (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", current_sandbox->id,
 		         &current_sandbox->ctxt, arch_context_variant_print(current_sandbox->ctxt.variant),
@@ -288,17 +281,8 @@ sandbox_switch_to(struct sandbox *next_sandbox)
 #endif
 
 		sandbox_exit(current_sandbox);
-
-		sandbox_set_as_running(next_sandbox, next_sandbox->state);
-
-#ifndef NDEBUG
-		assert(next_context->variant != ARCH_CONTEXT_VARIANT_SLOW
-		       || &current_sandbox_get()->ctxt == next_context);
-#endif
-
-		/* Switch to the associated context. */
-		arch_context_switch(current_context, next_context);
 	}
 
-	software_interrupt_enable();
+	sandbox_set_as_running(next_sandbox, next_sandbox->state);
+	arch_context_switch(current_context, next_context);
 }

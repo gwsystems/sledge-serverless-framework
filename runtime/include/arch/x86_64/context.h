@@ -1,8 +1,7 @@
 #pragma once
 
 #include "arch/common.h"
-
-#define ARCH_SIG_JMP_OFF 8
+#include "software_interrupt.h"
 
 /**
  * Initializes a context, zeros out registers, and sets the Instruction and
@@ -15,12 +14,15 @@ static inline void
 arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
 	assert(actx != NULL);
+	assert(!software_interrupt_is_enabled());
 
 	if (ip == 0 && sp == 0) {
 		actx->variant = ARCH_CONTEXT_VARIANT_UNUSED;
 	} else {
 		actx->variant = ARCH_CONTEXT_VARIANT_FAST;
 	}
+
+	actx->preemptable = false;
 
 	if (sp) {
 		/*
@@ -57,6 +59,7 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 static inline void
 arch_context_restore_new(mcontext_t *active_context, struct arch_context *sandbox_context)
 {
+	assert(!software_interrupt_is_enabled());
 	assert(active_context != NULL);
 	assert(sandbox_context != NULL);
 
@@ -98,8 +101,8 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	if (a == NULL) a = &worker_thread_base_context;
 	if (b == NULL) b = &worker_thread_base_context;
 
-	/* A Transition {Unused, Running} -> Fast */
-	assert(a->variant == ARCH_CONTEXT_VARIANT_UNUSED || a->variant == ARCH_CONTEXT_VARIANT_RUNNING);
+	/* A Transition {Running} -> Fast */
+	assert(a->variant == ARCH_CONTEXT_VARIANT_RUNNING);
 
 	/* B Transition {Fast, Slow} -> Running */
 	assert(b->variant == ARCH_CONTEXT_VARIANT_FAST || b->variant == ARCH_CONTEXT_VARIANT_SLOW);
@@ -112,6 +115,13 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 
 	reg_t *a_registers = a->regs, *b_registers = b->regs;
 	assert(a_registers && b_registers);
+
+	/* If fast switching back to a sandbox context marked as preemptable, reenable
+	 * interrupts before jumping. If this is a slow context switch, defer renabling until
+	 * arch_mcontext_restore
+	 * TODO: What if we receive a signal inside the inline assemly?
+	 */
+	if (b->variant == ARCH_CONTEXT_VARIANT_FAST && b->preemptable) software_interrupt_enable();
 
 	asm volatile(
 	  /* Create a new stack frame */
@@ -140,6 +150,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	   * Fast Path
 	   * We can just write update the stack pointer and jump to the target instruction
 	   */
+	  "movq $3, (%%rdx)\n\t"    /* b->variant = ARCH_CONTEXT_VARIANT_RUNNING; */
 	  "movq (%%rbx), %%rsp\n\t" /* stack_pointer = b_registers[0] (stack_pointer) */
 	  "jmpq *8(%%rbx)\n\t"      /* immediate jump to b_registers[1] (instruction_pointer) */
 
@@ -150,10 +161,10 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 
 	  /*
 	   * Slow Path
-	   * If the variant is ARCH_CONTEXT_VARIANT_SLOW, that means the sandbox was preempted and we need to
-	   * fallback to a full mcontext-based context switch. We do this by invoking
-	   * arch_context_restore_preempted, which fires a SIGUSR1 signal. The SIGUSR1 signal handler
-	   * executes the mcontext-based context switch.
+	   * If the context we're switching to is ARCH_CONTEXT_VARIANT_SLOW, that means the sandbox was
+	   * preempted and we need to restore its context via a full mcontext-based context switch. We do
+	   * this by invoking arch_context_restore_preempted, which fires a SIGUSR1 signal. The SIGUSR1
+	   * signal handler executes the mcontext-based context switch.
 	   */
 	  "1:\n\t"
 	  "call arch_context_restore_preempted\n\t"
@@ -163,16 +174,6 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	   * This label is saved as the IP of a context during a fastpath context switch
 	   */
 	  "2:\n\t"
-	  "movq $3, (%%rdx)\n\t" /* b->variant = ARCH_CONTEXT_VARIANT_RUNNING; */
-	  ".align 8\n\t"
-
-	  /*
-	   * During slowpath context switches caused by preemption, the caller function
-	   * arch_context_restore sets the variant to running in C and then restores at label
-	   * 3 using the address of label 2 plus an offset equal to ARCH_SIG_JMP_OFF
-	   * This must always equal the value in the .align instruction above!
-	   */
-	  "3:\n\t"
 	  "popq %%rbp\n\t" /* base_pointer = stack[--stack_len]; Base Pointer is restored */
 	  :
 	  : "a"(a_registers), "b"(b_registers), "c"(&a->variant), "d"(&b->variant)
