@@ -101,9 +101,6 @@ runtime_initialize(void)
 	/* Configure Signals */
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, runtime_cleanup);
-	/* These should only be unmasked by workers */
-	software_interrupt_mask_signal(SIGUSR1);
-	software_interrupt_mask_signal(SIGALRM);
 
 	http_parser_settings_initialize();
 	admissions_control_initialize();

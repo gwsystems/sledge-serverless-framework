@@ -25,8 +25,7 @@
  * Process Globals *
  ******************/
 
-static const int software_interrupt_supported_signals[] = { SIGALRM, SIGUSR1 };
-static uint64_t  software_interrupt_interval_duration_in_cycles;
+static uint64_t software_interrupt_interval_duration_in_cycles;
 
 /******************
  * Thread Globals *
@@ -284,18 +283,18 @@ software_interrupt_initialize(void)
 	signal_action.sa_flags     = SA_SIGINFO | SA_RESTART;
 
 	/* all threads created by the calling thread will have signal blocked */
-
-	// TODO: Unclear about this...
+	/* TODO: What does sa_mask do? I have to call software_interrupt_mask_signal below */
 	sigemptyset(&signal_action.sa_mask);
-	// sigaddset(&signal_action.sa_mask, SIGALRM);
-	// sigaddset(&signal_action.sa_mask, SIGUSR1);
+	sigaddset(&signal_action.sa_mask, SIGALRM);
+	sigaddset(&signal_action.sa_mask, SIGUSR1);
 
-	for (int i = 0;
-	     i < (sizeof(software_interrupt_supported_signals) / sizeof(software_interrupt_supported_signals[0]));
-	     i++) {
-		// TODO: Setup masks
-		int return_code = sigaction(software_interrupt_supported_signals[i], &signal_action, NULL);
-		if (return_code) {
+	const int    supported_signals[]   = { SIGALRM, SIGUSR1 };
+	const size_t supported_signals_len = 2;
+
+	for (int i = 0; i < supported_signals_len; i++) {
+		int signal = supported_signals[i];
+		software_interrupt_mask_signal(signal);
+		if (sigaction(signal, &signal_action, NULL)) {
 			perror("sigaction");
 			exit(1);
 		}

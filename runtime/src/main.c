@@ -348,10 +348,10 @@ main(int argc, char **argv)
 	runtime_allocate_available_cores();
 	runtime_configure();
 	runtime_initialize();
+	software_interrupt_initialize();
 
 	listener_thread_initialize();
 	runtime_start_runtime_worker_threads();
-	software_interrupt_initialize();
 	software_interrupt_arm_timer();
 
 #ifdef LOG_MODULE_LOADING

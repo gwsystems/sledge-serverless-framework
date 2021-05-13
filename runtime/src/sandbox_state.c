@@ -7,9 +7,7 @@
 #include "debuglog.h"
 #include "sandbox_state.h"
 
-// TODO: Double check this
 const bool sandbox_state_is_terminal[SANDBOX_STATE_COUNT] = {
-
 	[SANDBOX_UNINITIALIZED] = false,   [SANDBOX_ALLOCATED] = false,      [SANDBOX_INITIALIZED] = true,
 	[SANDBOX_SET_AS_RUNNABLE] = false, [SANDBOX_RUNNABLE] = true,        [SANDBOX_SET_AS_RUNNING] = false,
 	[SANDBOX_RUNNING] = true,          [SANDBOX_SET_AS_BLOCKED] = false, [SANDBOX_BLOCKED] = true,
