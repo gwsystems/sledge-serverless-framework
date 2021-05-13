@@ -67,14 +67,3 @@ local_runqueue_get_next()
 	assert(local_runqueue.get_next_fn != NULL);
 	return local_runqueue.get_next_fn();
 };
-
-/**
- * Preempt the current sandbox according to the scheduler variant
- * @param context
- */
-void
-local_runqueue_preempt(ucontext_t *context)
-{
-	assert(local_runqueue.preempt_fn != NULL);
-	return local_runqueue.preempt_fn(context);
-};

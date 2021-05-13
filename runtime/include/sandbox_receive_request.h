@@ -8,13 +8,13 @@
 #include <unistd.h>
 
 #include "current_sandbox.h"
-#include "current_sandbox_block.h"
 #include "debuglog.h"
 #include "http_parser.h"
 #include "http_request.h"
 #include "http_parser_settings.h"
 #include "likely.h"
 #include "sandbox_types.h"
+#include "scheduler.h"
 
 /**
  * Receive and Parse the Request for the current sandbox
@@ -44,7 +44,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 		if (recved < 0) {
 			if (errno == EAGAIN) {
-				current_sandbox_block();
+				scheduler_block();
 				continue;
 			} else {
 				/* All other errors */

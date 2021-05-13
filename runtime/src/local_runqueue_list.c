@@ -88,17 +88,6 @@ local_runqueue_list_append(struct sandbox *sandbox_to_append)
 	ps_list_head_append_d(&local_runqueue_list, sandbox_to_append);
 }
 
-/**
- * Conditionally checks to see if current sandbox should be preempted.
- * FIFO doesn't preempt, so just return.
- */
-void
-local_runqueue_list_preempt(ucontext_t *user_context)
-{
-	return;
-}
-
-
 void
 local_runqueue_list_initialize()
 {
@@ -108,7 +97,6 @@ local_runqueue_list_initialize()
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_list_append,
 		                                .is_empty_fn = local_runqueue_list_is_empty,
 		                                .delete_fn   = local_runqueue_list_remove,
-		                                .get_next_fn = local_runqueue_list_get_next,
-		                                .preempt_fn  = local_runqueue_list_preempt };
+		                                .get_next_fn = local_runqueue_list_get_next };
 	local_runqueue_initialize(&config);
 };

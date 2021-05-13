@@ -1,11 +1,11 @@
 #include "current_sandbox.h"
-#include "current_sandbox_yield.h"
 #include "sandbox_functions.h"
 #include "sandbox_receive_request.h"
 #include "sandbox_send_response.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_returned.h"
 #include "sandbox_setup_arguments.h"
+#include "scheduler.h"
 
 // /* current sandbox that is active.. */
 __thread struct sandbox *worker_thread_current_sandbox = NULL;
@@ -95,7 +95,7 @@ current_sandbox_start(void)
 done:
 	/* Cleanup connection and exit sandbox */
 	generic_thread_dump_lock_overhead();
-	current_sandbox_yield();
+	scheduler_yield();
 
 	/* This assert prevents a segfault discussed in
 	 * https://github.com/phanikishoreg/awsm-Serverless-Framework/issues/66
