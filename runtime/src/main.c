@@ -20,6 +20,7 @@
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox_types.h"
+#include "scheduler.h"
 #include "software_interrupt.h"
 #include "worker_thread.h"
 
@@ -33,7 +34,6 @@ const uint32_t runtime_first_worker_processor  = 1;
 
 FILE *runtime_sandbox_perf_log = NULL;
 
-enum RUNTIME_SCHEDULER       runtime_scheduler       = RUNTIME_SCHEDULER_EDF;
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 int                          runtime_worker_core_count;
 
@@ -170,13 +170,13 @@ runtime_configure()
 	char *scheduler_policy = getenv("SLEDGE_SCHEDULER");
 	if (scheduler_policy == NULL) scheduler_policy = "EDF";
 	if (strcmp(scheduler_policy, "EDF") == 0) {
-		runtime_scheduler = RUNTIME_SCHEDULER_EDF;
+		scheduler = SCHEDULER_EDF;
 	} else if (strcmp(scheduler_policy, "FIFO") == 0) {
-		runtime_scheduler = RUNTIME_SCHEDULER_FIFO;
+		scheduler = SCHEDULER_FIFO;
 	} else {
 		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
 	}
-	printf("\tScheduler Policy: %s\n", runtime_print_scheduler(runtime_scheduler));
+	printf("\tScheduler Policy: %s\n", scheduler_print(scheduler));
 
 	/* Sigalrm Handler Technique */
 	char *sigalrm_policy = getenv("SLEDGE_SIGALRM_HANDLER");
@@ -184,8 +184,7 @@ runtime_configure()
 	if (strcmp(sigalrm_policy, "BROADCAST") == 0) {
 		runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 	} else if (strcmp(sigalrm_policy, "TRIAGED") == 0) {
-		if (unlikely(runtime_scheduler != RUNTIME_SCHEDULER_EDF))
-			panic("triaged sigalrm handlers are only valid with EDF\n");
+		if (unlikely(scheduler != SCHEDULER_EDF)) panic("triaged sigalrm handlers are only valid with EDF\n");
 		runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_TRIAGED;
 	} else {
 		panic("Invalid sigalrm policy: %s. Must be {BROADCAST|TRIAGED}\n", sigalrm_policy);

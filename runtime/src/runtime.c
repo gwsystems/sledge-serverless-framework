@@ -21,6 +21,7 @@
 #include "module.h"
 #include "runtime.h"
 #include "sandbox_request.h"
+#include "scheduler.h"
 #include "software_interrupt.h"
 
 /***************************
@@ -95,16 +96,7 @@ runtime_initialize(void)
 	sandbox_count_initialize();
 
 	/* Setup Scheduler */
-	switch (runtime_scheduler) {
-	case RUNTIME_SCHEDULER_EDF:
-		global_request_scheduler_minheap_initialize();
-		break;
-	case RUNTIME_SCHEDULER_FIFO:
-		global_request_scheduler_deque_initialize();
-		break;
-	default:
-		panic("Invalid scheduler policy set: %u\n", runtime_scheduler);
-	}
+	scheduler_initialize();
 
 	/* Configure Signals */
 	signal(SIGPIPE, SIG_IGN);

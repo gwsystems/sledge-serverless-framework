@@ -56,7 +56,6 @@ struct sandbox {
 	/* Duration of time (in cycles) that the sandbox is in each state */
 	uint64_t initializing_duration;
 	uint64_t runnable_duration;
-	uint64_t preempted_duration;
 	uint64_t running_duration;
 	uint64_t blocked_duration;
 	uint64_t returned_duration;

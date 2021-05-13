@@ -52,17 +52,7 @@ worker_thread_main(void *argument)
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 0);
 
-	/* Initialize Runqueue Variant */
-	switch (runtime_scheduler) {
-	case RUNTIME_SCHEDULER_EDF:
-		local_runqueue_minheap_initialize();
-		break;
-	case RUNTIME_SCHEDULER_FIFO:
-		local_runqueue_list_initialize();
-		break;
-	default:
-		panic("Invalid scheduler policy set: %u\n", runtime_scheduler);
-	}
+	scheduler_runqueue_initialize();
 
 	/* Initialize Completion Queue */
 	local_completion_queue_initialize();
@@ -78,7 +68,7 @@ worker_thread_main(void *argument)
 	}
 
 	/* Begin Worker Execution Loop */
-	struct sandbox *next_sandbox;
+	struct sandbox *next_sandbox = NULL;
 	while (true) {
 		assert(!software_interrupt_is_enabled());
 
