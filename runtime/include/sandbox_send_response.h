@@ -9,11 +9,11 @@
 #include <unistd.h>
 
 #include "current_sandbox.h"
-#include "current_sandbox_block.h"
 #include "http.h"
 #include "http_total.h"
 #include "likely.h"
 #include "sandbox_types.h"
+#include "scheduler.h"
 #include "panic.h"
 
 /**
@@ -105,7 +105,7 @@ sandbox_send_response(struct sandbox *sandbox)
 		           response_cursor - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN)
-				current_sandbox_block();
+				scheduler_block();
 			else {
 				perror("write");
 				return -1;

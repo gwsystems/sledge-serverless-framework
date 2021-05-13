@@ -18,6 +18,7 @@
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox_types.h"
+#include "scheduler.h"
 #include "software_interrupt.h"
 
 /*******************
@@ -124,11 +125,7 @@ sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox
 	assert(current_sandbox->state != SANDBOX_RETURNED);
 
 	/* Preempt */
-	local_runqueue_preempt(user_context);
-
-	/* We have to call current_sandbox_get because the argument potentially points to what
-	 * was just preempted */
-	if (current_sandbox_get()->ctxt.preemptable) software_interrupt_enable();
+	scheduler_preempt(user_context);
 
 	return;
 }
@@ -204,6 +201,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		break;
 	}
 	case SIGUSR1: {
+		assert(!software_interrupt_is_enabled());
 		sigusr1_handler(signal_info, user_context, current_sandbox);
 		break;
 	}
@@ -220,6 +218,12 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	}
 	}
 	atomic_fetch_sub(&software_interrupt_signal_depth, 1);
+
+	/* Reenable software interrupts if we restored a preemptable sandbox
+	 * We explicitly call current_sandbox_get becaue it might have been changed by a handler
+	 */
+	current_sandbox = current_sandbox_get();
+	if (current_sandbox && current_sandbox->ctxt.preemptable) software_interrupt_enable();
 }
 
 /********************

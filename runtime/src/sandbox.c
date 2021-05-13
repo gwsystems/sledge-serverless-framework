@@ -1,25 +1,12 @@
-#include <arpa/inet.h>
 #include <assert.h>
-#include <pthread.h>
-#include <signal.h>
 #include <sys/mman.h>
 
-#include "admissions_control.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
-#include "http_parser_settings.h"
-#include "http_total.h"
-#include "local_completion_queue.h"
-#include "local_runqueue.h"
-#include "likely.h"
 #include "panic.h"
-#include "runtime.h"
-#include "sandbox_exit.h"
 #include "sandbox_functions.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_initialized.h"
-#include "sandbox_set_as_running.h"
-#include "worker_thread.h"
 
 /**
  * Close the sandbox's ith io_handle
@@ -239,50 +226,4 @@ err_free_sandbox_failed:
 err_free_stack_failed:
 	/* Errors freeing memory is a fatal error */
 	panic("Failed to free Sandbox %lu\n", sandbox->id);
-}
-
-/**
- * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in SANDBOX_RETURNED state
- * @param next_sandbox The Sandbox Context to switch to
- */
-void
-sandbox_switch_to(struct sandbox *next_sandbox)
-{
-	/* Assumption: The caller disables interrupts */
-	assert(!software_interrupt_is_enabled());
-
-	assert(next_sandbox != NULL);
-	struct arch_context *next_context = &next_sandbox->ctxt;
-
-	/* Get the old sandbox we're switching from.
-	 * This is null if switching from base context
-	 */
-	struct sandbox *     current_sandbox = current_sandbox_get();
-	struct arch_context *current_context = NULL;
-	if (current_sandbox != NULL) current_context = &current_sandbox->ctxt;
-
-	assert(next_sandbox != current_sandbox);
-
-	/* Update the worker's absolute deadline */
-	runtime_worker_threads_deadline[worker_thread_idx] = next_sandbox->absolute_deadline;
-
-	if (current_sandbox == NULL) {
-		/* Switching from "Base Context" */
-#ifdef LOG_CONTEXT_SWITCHES
-		debuglog("Base Context (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", &worker_thread_base_context,
-		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id, next_context,
-		         arch_context_variant_print(next_context->variant));
-#endif
-	} else {
-#ifdef LOG_CONTEXT_SWITCHES
-		debuglog("Sandbox %lu (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", current_sandbox->id,
-		         &current_sandbox->ctxt, arch_context_variant_print(current_sandbox->ctxt.variant),
-		         next_sandbox->id, &next_sandbox->ctxt, arch_context_variant_print(next_context->variant));
-#endif
-
-		sandbox_exit(current_sandbox);
-	}
-
-	sandbox_set_as_running(next_sandbox, next_sandbox->state);
-	arch_context_switch(current_context, next_context);
 }
