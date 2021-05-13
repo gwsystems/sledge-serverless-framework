@@ -38,39 +38,17 @@ local_runqueue_list_remove_and_return()
 }
 
 /**
- * Execute the sandbox at the head of the thread local runqueue
- * If the runqueue is empty, pull a fresh batch of sandbox requests, instantiate them, and then execute the new head
+ * Get the next sandbox and then insert at tail to "round robin"
  * @return the sandbox to execute or NULL if none are available
  */
 struct sandbox *
 local_runqueue_list_get_next()
 {
-	struct sandbox_request *sandbox_request;
-
-	// If our local runqueue is empty, try to pull and allocate a sandbox request from the global request scheduler
-	if (local_runqueue_is_empty()) {
-		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
-
-		struct sandbox *sandbox = sandbox_allocate(sandbox_request);
-		if (!sandbox) goto err_allocate;
-
-		sandbox->state = SANDBOX_RUNNABLE;
-		local_runqueue_add(sandbox);
-
-	done:
-		return sandbox;
-	err_allocate:
-		client_socket_send(sandbox_request->socket_descriptor, 503);
-		client_socket_close(sandbox_request->socket_descriptor, &sandbox->client_address);
-		free(sandbox_request);
-	err:
-		sandbox = NULL;
-		goto done;
-	}
+	if (local_runqueue_list_is_empty()) return NULL;
 
 	/* Execute Round Robin Scheduling Logic */
 	struct sandbox *next_sandbox = local_runqueue_list_remove_and_return();
-	assert(next_sandbox->state != SANDBOX_RETURNED);
+	assert(next_sandbox == NULL || next_sandbox->state != SANDBOX_RETURNED);
 	local_runqueue_add(next_sandbox);
 
 	return next_sandbox;
@@ -84,6 +62,7 @@ local_runqueue_list_get_next()
 void
 local_runqueue_list_append(struct sandbox *sandbox_to_append)
 {
+	assert(sandbox_to_append != NULL);
 	assert(ps_list_singleton_d(sandbox_to_append));
 	ps_list_head_append_d(&local_runqueue_list, sandbox_to_append);
 }

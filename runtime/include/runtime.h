@@ -28,12 +28,6 @@
 #define RUNTIME_RELATIVE_DEADLINE_US_MAX  3600000000 /* One Hour. Fits in uint32_t */
 #define RUNTIME_WORKER_THREAD_CORE_COUNT  (NCORES > 1 ? NCORES - 1 : NCORES)
 
-enum RUNTIME_SCHEDULER
-{
-	RUNTIME_SCHEDULER_FIFO = 0,
-	RUNTIME_SCHEDULER_EDF  = 1
-};
-
 enum RUNTIME_SIGALRM_HANDLER
 {
 	RUNTIME_SIGALRM_HANDLER_BROADCAST = 0,
@@ -44,7 +38,6 @@ extern bool                         runtime_preemption_enabled;
 extern uint32_t                     runtime_processor_speed_MHz;
 extern uint32_t                     runtime_quantum_us;
 extern FILE *                       runtime_sandbox_perf_log;
-extern enum RUNTIME_SCHEDULER       runtime_scheduler;
 extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
 extern pthread_t                    runtime_worker_threads[];
 extern uint32_t                     runtime_worker_threads_count;
@@ -61,17 +54,6 @@ extern void  expand_memory(void);
 INLINE char *get_function_from_table(uint32_t idx, uint32_t type_id);
 INLINE char *get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check);
 extern void  stub_init(int32_t offset);
-
-static inline char *
-runtime_print_scheduler(enum RUNTIME_SCHEDULER variant)
-{
-	switch (variant) {
-	case RUNTIME_SCHEDULER_FIFO:
-		return "FIFO";
-	case RUNTIME_SCHEDULER_EDF:
-		return "EDF";
-	}
-}
 
 static inline char *
 runtime_print_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)

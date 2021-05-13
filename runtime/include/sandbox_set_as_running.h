@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 #include "arch/getcycles.h"
+#include "panic.h"
+#include "software_interrupt.h"
 #include "sandbox_types.h"
 
 static inline void
@@ -22,17 +24,12 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->runnable_duration += duration_of_last_state;
 		break;
 	}
-	case SANDBOX_PREEMPTED: {
-		sandbox->preempted_duration += duration_of_last_state;
-		break;
-	}
 	default: {
 		panic("Sandbox %lu | Illegal transition from %s to Running\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
 
-	current_sandbox_set(sandbox);
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RUNNING;
 

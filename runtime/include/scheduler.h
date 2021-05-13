@@ -5,52 +5,142 @@
 #include <stdint.h>
 
 #include "client_socket.h"
+#include "current_sandbox.h"
 #include "global_request_scheduler.h"
+#include "global_request_scheduler_deque.h"
+#include "global_request_scheduler_minheap.h"
 #include "local_runqueue.h"
+#include "local_runqueue_minheap.h"
+#include "local_runqueue_list.h"
+#include "panic.h"
 #include "sandbox_request.h"
 #include "sandbox_exit.h"
 #include "sandbox_functions.h"
 #include "sandbox_types.h"
 #include "sandbox_set_as_blocked.h"
-#include "sandbox_set_as_preempted.h"
 #include "sandbox_set_as_runnable.h"
 #include "sandbox_set_as_running.h"
 #include "worker_thread_execute_epoll_loop.h"
 
+enum SCHEDULER
+{
+	SCHEDULER_FIFO = 0,
+	SCHEDULER_EDF  = 1
+};
+
+extern enum SCHEDULER scheduler;
+
 static inline struct sandbox *
-scheduler_get_next()
+scheduler_edf_get_next()
 {
 	assert(!software_interrupt_is_enabled());
 
 	/* Get the deadline of the sandbox at the head of the local request queue */
-	struct sandbox *local          = local_runqueue_get_next();
-	uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
+	struct sandbox *        local          = local_runqueue_get_next();
+	uint64_t                local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
+	struct sandbox_request *request        = NULL;
 
 	uint64_t global_deadline = global_request_scheduler_peek();
 
 	/* Try to pull and allocate from the global queue if earlier
 	 * This will be placed at the head of the local runqueue */
 	if (global_deadline < local_deadline) {
-		struct sandbox_request *request = NULL;
-		int return_code                 = global_request_scheduler_remove_if_earlier(&request, local_deadline);
-		if (return_code == 0) {
+		if (global_request_scheduler_remove_if_earlier(&request, local_deadline) == 0) {
 			assert(request != NULL);
 			assert(request->absolute_deadline < local_deadline);
 			struct sandbox *global = sandbox_allocate(request);
-			if (!global) {
-				client_socket_send(request->socket_descriptor, 503);
-				client_socket_close(request->socket_descriptor, &request->socket_address);
-				free(request);
-				debuglog("scheduler failed to allocate sandbox\n");
-			} else {
-				assert(global->state == SANDBOX_INITIALIZED);
-				sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
-			}
+			if (!global) goto err_allocate;
+
+			assert(global->state == SANDBOX_INITIALIZED);
+			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+			local_runqueue_add(global);
 		}
 	}
 
-	/* Return what is at the head of the local runqueue or NULL if empty */
+/* Return what is at the head of the local runqueue or NULL if empty */
+done:
 	return local_runqueue_get_next();
+err_allocate:
+	client_socket_send(request->socket_descriptor, 503);
+	client_socket_close(request->socket_descriptor, &request->socket_address);
+	free(request);
+	goto done;
+}
+
+static inline struct sandbox *
+scheduler_fifo_get_next()
+{
+	assert(!software_interrupt_is_enabled());
+
+	struct sandbox *        sandbox         = local_runqueue_get_next();
+	struct sandbox_request *sandbox_request = NULL;
+
+	/* If the local runqueue is empty, pull from global request scheduler */
+	if (sandbox == NULL) {
+		struct sandbox_request *sandbox_request;
+		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
+
+		sandbox = sandbox_allocate(sandbox_request);
+		if (!sandbox) goto err_allocate;
+
+		sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
+		local_runqueue_add(sandbox);
+	};
+
+done:
+	return sandbox;
+err_allocate:
+	client_socket_send(sandbox_request->socket_descriptor, 503);
+	client_socket_close(sandbox_request->socket_descriptor, &sandbox->client_address);
+	free(sandbox_request);
+err:
+	sandbox = NULL;
+	goto done;
+}
+
+static inline struct sandbox *
+scheduler_get_next()
+{
+	switch (scheduler) {
+	case SCHEDULER_EDF:
+		return scheduler_edf_get_next();
+	case SCHEDULER_FIFO:
+		return scheduler_fifo_get_next();
+	default:
+		panic("Unimplemented\n");
+	}
+}
+
+static inline void
+scheduler_initialize()
+{
+	/* Setup Scheduler */
+	switch (scheduler) {
+	case SCHEDULER_EDF:
+		global_request_scheduler_minheap_initialize();
+		break;
+	case SCHEDULER_FIFO:
+		global_request_scheduler_deque_initialize();
+		break;
+	default:
+		panic("Invalid scheduler policy: %u\n", scheduler);
+	}
+}
+
+static inline void
+scheduler_runqueue_initialize()
+{
+	/* Setup Scheduler */
+	switch (scheduler) {
+	case SCHEDULER_EDF:
+		local_runqueue_minheap_initialize();
+		break;
+	case SCHEDULER_FIFO:
+		local_runqueue_list_initialize();
+		break;
+	default:
+		panic("Invalid scheduler policy: %u\n", scheduler);
+	}
 }
 
 /**
@@ -61,6 +151,10 @@ scheduler_get_next()
 static inline void
 scheduler_preempt(ucontext_t *user_context)
 {
+	// If FIFO, just return
+	if (scheduler == SCHEDULER_FIFO) return;
+
+	assert(scheduler == SCHEDULER_EDF);
 	assert(user_context != NULL);
 	assert(!software_interrupt_is_enabled());
 
@@ -78,18 +172,30 @@ scheduler_preempt(ucontext_t *user_context)
 	if (current == next) return;
 
 	/* Save the context of the currently executing sandbox before switching from it */
-	sandbox_set_as_preempted(current, SANDBOX_RUNNING);
+	sandbox_set_as_runnable(current, SANDBOX_RUNNING);
 	arch_mcontext_save(&current->ctxt, &user_context->uc_mcontext);
 
 	/* Update current_sandbox to the next sandbox */
 	assert(next->state == SANDBOX_RUNNABLE);
 	sandbox_set_as_running(next, SANDBOX_RUNNABLE);
+	current_sandbox_set(next);
 
 	/* Update the current deadline of the worker thread */
 	runtime_worker_threads_deadline[worker_thread_idx] = next->absolute_deadline;
 
 	/* Restore the context of this sandbox */
 	arch_context_restore_new(&user_context->uc_mcontext, &next->ctxt);
+}
+
+static inline char *
+scheduler_print(enum SCHEDULER variant)
+{
+	switch (variant) {
+	case SCHEDULER_FIFO:
+		return "FIFO";
+	case SCHEDULER_EDF:
+		return "EDF";
+	}
 }
 
 /**
@@ -114,6 +220,9 @@ scheduler_switch_to(struct sandbox *next_sandbox)
 
 	assert(next_sandbox != current_sandbox);
 
+	/* If not the current sandbox (which would be in running state), should be runnable */
+	assert(next_sandbox->state == SANDBOX_RUNNABLE);
+
 	/* Update the worker's absolute deadline */
 	runtime_worker_threads_deadline[worker_thread_idx] = next_sandbox->absolute_deadline;
 
@@ -135,6 +244,7 @@ scheduler_switch_to(struct sandbox *next_sandbox)
 	}
 
 	sandbox_set_as_running(next_sandbox, next_sandbox->state);
+	current_sandbox_set(next_sandbox);
 	arch_context_switch(current_context, next_context);
 }
 

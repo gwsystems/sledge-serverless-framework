@@ -15,6 +15,7 @@
 #include "module_database.h"
 #include "panic.h"
 #include "runtime.h"
+#include "scheduler.h"
 
 const int JSON_MAX_ELEMENT_COUNT = 16;
 const int JSON_MAX_ELEMENT_SIZE  = 1024;
@@ -540,7 +541,7 @@ module_new_from_json(char *file_name)
 			      ADMISSIONS_CONTROL_GRANULARITY);
 #else
 		/* relative-deadline-us is required if scheduler is EDF */
-		if (runtime_scheduler == RUNTIME_SCHEDULER_EDF && relative_deadline_us == 0)
+		if (scheduler == SCHEDULER_EDF && relative_deadline_us == 0)
 			panic("relative_deadline_us is required\n");
 #endif
 

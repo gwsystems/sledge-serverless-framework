@@ -10,9 +10,6 @@
 #include "panic.h"
 #include "priority_queue.h"
 #include "sandbox_functions.h"
-#include "sandbox_set_as_preempted.h"
-#include "sandbox_set_as_runnable.h"
-#include "sandbox_set_as_running.h"
 #include "software_interrupt.h"
 #include "runtime.h"
 

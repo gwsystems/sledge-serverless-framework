@@ -7,17 +7,14 @@
 #include "debuglog.h"
 #include "sandbox_state.h"
 
+// TODO: Double check this
 const bool sandbox_state_is_terminal[SANDBOX_STATE_COUNT] = {
 
-	[SANDBOX_UNINITIALIZED] = false, [SANDBOX_ALLOCATED] = false,
-	[SANDBOX_INITIALIZED] = true,    [SANDBOX_SET_AS_RUNNABLE] = false,
-	[SANDBOX_RUNNABLE] = true,       [SANDBOX_SET_AS_RUNNING] = false,
-	[SANDBOX_RUNNING] = true,        [SANDBOX_SET_AS_PREEMPTED] = false,
-	[SANDBOX_PREEMPTED] = true,      [SANDBOX_SET_AS_BLOCKED] = false,
-	[SANDBOX_BLOCKED] = true,        [SANDBOX_SET_AS_RETURNED] = false,
-	[SANDBOX_RETURNED] = true,       [SANDBOX_SET_AS_COMPLETE] = false,
-	[SANDBOX_COMPLETE] = true,       [SANDBOX_SET_AS_ERROR] = false,
-	[SANDBOX_ERROR] = true
+	[SANDBOX_UNINITIALIZED] = false,   [SANDBOX_ALLOCATED] = false,      [SANDBOX_INITIALIZED] = true,
+	[SANDBOX_SET_AS_RUNNABLE] = false, [SANDBOX_RUNNABLE] = true,        [SANDBOX_SET_AS_RUNNING] = false,
+	[SANDBOX_RUNNING] = true,          [SANDBOX_SET_AS_BLOCKED] = false, [SANDBOX_BLOCKED] = true,
+	[SANDBOX_SET_AS_RETURNED] = false, [SANDBOX_RETURNED] = true,        [SANDBOX_SET_AS_COMPLETE] = false,
+	[SANDBOX_COMPLETE] = true,         [SANDBOX_SET_AS_ERROR] = false,   [SANDBOX_ERROR] = true
 };
 
 const char *sandbox_state_labels[SANDBOX_STATE_COUNT] = {
@@ -30,8 +27,6 @@ const char *sandbox_state_labels[SANDBOX_STATE_COUNT] = {
 	[SANDBOX_RUNNABLE]           = "Runnable",
 	[SANDBOX_SET_AS_RUNNING]     = "Transitioning to Running",
 	[SANDBOX_RUNNING]            = "Running",
-	[SANDBOX_SET_AS_PREEMPTED]   = "Transitioning to Preempted",
-	[SANDBOX_PREEMPTED]          = "Preempted",
 	[SANDBOX_SET_AS_BLOCKED]     = "Transitioning to Blocked",
 	[SANDBOX_BLOCKED]            = "Blocked",
 	[SANDBOX_SET_AS_RETURNED]    = "Transitioning to Returned",

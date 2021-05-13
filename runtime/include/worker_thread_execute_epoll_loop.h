@@ -43,6 +43,7 @@ worker_thread_execute_epoll_loop(void)
 
 				if (sandbox->state == SANDBOX_BLOCKED) {
 					sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
+					local_runqueue_add(sandbox);
 				}
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
 				/* Mystery: This seems to never fire. Why? Issue #130 */

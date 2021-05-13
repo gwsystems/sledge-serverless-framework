@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 #include "arch/getcycles.h"
-#include "local_runqueue.h"
 #include "panic.h"
 #include "software_interrupt.h"
 #include "sandbox_types.h"
@@ -40,13 +39,16 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->blocked_duration += duration_of_last_state;
 		break;
 	}
+	case SANDBOX_RUNNING: {
+		sandbox->running_duration += duration_of_last_state;
+		break;
+	}
 	default: {
 		panic("Sandbox %lu | Illegal transition from %s to Runnable\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
 
-	local_runqueue_add(sandbox);
 	sandbox->last_state_change_timestamp = now;
 	sandbox->state                       = SANDBOX_RUNNABLE;
 
