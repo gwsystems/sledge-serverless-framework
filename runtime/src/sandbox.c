@@ -94,7 +94,6 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 {
 	assert(sandbox);
 	assert(sandbox->module);
-	assert(!software_interrupt_is_enabled());
 
 	errno      = 0;
 	char *addr = mmap(NULL, sandbox->module->stack_size + /* guard page */ PAGE_SIZE, PROT_NONE,
@@ -128,9 +127,6 @@ err_stack_allocation_failed:
 struct sandbox *
 sandbox_allocate(struct sandbox_request *sandbox_request)
 {
-	/* Assumption: Caller has disabled software interrupts */
-	assert(!software_interrupt_is_enabled());
-
 	/* Validate Arguments */
 	assert(sandbox_request != NULL);
 	module_validate(sandbox_request->module);

@@ -40,7 +40,6 @@ void
 admissions_info_update(struct admissions_info *self, uint64_t execution_duration)
 {
 #ifdef ADMISSIONS_CONTROL
-	assert(!software_interrupt_is_enabled());
 	struct perf_window *perf_window = &self->perf_window;
 
 	LOCK_LOCK(&self->perf_window.lock);

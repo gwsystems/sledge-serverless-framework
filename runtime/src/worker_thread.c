@@ -40,9 +40,6 @@ __thread int worker_thread_idx;
 void *
 worker_thread_main(void *argument)
 {
-	/* The base worker thread should start with software interrupts disabled */
-	assert(software_interrupt_is_disabled);
-
 	/* Set base context as running */
 	worker_thread_base_context.variant = ARCH_CONTEXT_VARIANT_RUNNING;
 
@@ -70,8 +67,6 @@ worker_thread_main(void *argument)
 	/* Begin Worker Execution Loop */
 	struct sandbox *next_sandbox = NULL;
 	while (true) {
-		assert(!software_interrupt_is_enabled());
-
 		/* Assumption: current_sandbox should be unset at start of loop */
 		assert(current_sandbox_get() == NULL);
 
@@ -80,7 +75,6 @@ worker_thread_main(void *argument)
 		/* Switch to a sandbox if one is ready to run */
 		next_sandbox = scheduler_get_next();
 		if (next_sandbox != NULL) { scheduler_switch_to(next_sandbox); }
-		assert(!software_interrupt_is_enabled());
 
 		/* Clear the completion queue */
 		local_completion_queue_free();

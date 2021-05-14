@@ -27,7 +27,6 @@ static inline void
 sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
 	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;

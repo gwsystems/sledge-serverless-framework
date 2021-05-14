@@ -10,7 +10,6 @@
 #include "sandbox_state.h"
 #include "sandbox_summarize_page_allocations.h"
 #include "sandbox_types.h"
-#include "software_interrupt.h"
 
 /**
  * Transitions a sandbox from the SANDBOX_RETURNED state to the SANDBOX_COMPLETE state.
@@ -23,7 +22,6 @@ static inline void
 sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
 	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
@@ -42,18 +40,22 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	uint64_t sandbox_id = sandbox->id;
-	sandbox->state      = SANDBOX_COMPLETE;
-	sandbox_print_perf(sandbox);
-	sandbox_summarize_page_allocations(sandbox);
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_COMPLETE;
+
+	/* State Change Bookkeeping */
+	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_COMPLETE);
+	runtime_sandbox_total_increment(SANDBOX_COMPLETE);
+	runtime_sandbox_total_decrement(last_state);
+
 	/* Admissions Control Post Processing */
 	admissions_info_update(&sandbox->module->admissions_info, sandbox->running_duration);
 	admissions_control_subtract(sandbox->admissions_estimate);
+
+	/* Terminal State Logging */
+	sandbox_print_perf(sandbox);
+	sandbox_summarize_page_allocations(sandbox);
+
 	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
-
-	/* State Change Bookkeeping */
-	sandbox_state_log_transition(sandbox_id, last_state, SANDBOX_COMPLETE);
-	runtime_sandbox_total_increment(SANDBOX_COMPLETE);
-	runtime_sandbox_total_decrement(last_state);
 }

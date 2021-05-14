@@ -21,14 +21,12 @@ sandbox_exit(struct sandbox *exiting_sandbox)
 		/*
 		 * We draw a distinction between RETURNED and COMPLETED because a sandbox cannot add itself to the
 		 * completion queue
+		 * TODO: I think this executes when running inside the sandbox, as it hasn't yet yielded
 		 */
 		sandbox_set_as_complete(exiting_sandbox, SANDBOX_RETURNED);
 		break;
 	case SANDBOX_BLOCKED:
-		/* Cooperative yield, so just break */
-		break;
 	case SANDBOX_ERROR:
-		/* Terminal State, so just break */
 		break;
 	default:
 		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",

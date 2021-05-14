@@ -17,48 +17,12 @@
  * Externs  *
  ***********/
 
-extern __thread volatile sig_atomic_t         software_interrupt_is_disabled;
 extern _Atomic __thread volatile sig_atomic_t software_interrupt_deferred_sigalrm;
 extern _Atomic volatile sig_atomic_t          software_interrupt_deferred_sigalrm_max[RUNTIME_WORKER_THREAD_CORE_COUNT];
 
 /*************************
  * Public Static Inlines *
  ************************/
-
-static inline void
-software_interrupt_disable(void)
-{
-	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 0, 1) == false) {
-		panic("Recursive call to software_interrupt_disable\n");
-	}
-}
-
-/**
- * Enables signals
- */
-static inline void
-software_interrupt_enable(void)
-{
-	if (__sync_bool_compare_and_swap(&software_interrupt_is_disabled, 1, 0) == false) {
-		panic("Recursive call to software_interrupt_enable\n");
-	}
-
-	if (software_interrupt_deferred_sigalrm > 0) {
-		// TODO: Atomic set?
-		software_interrupt_deferred_sigalrm_max[worker_thread_idx] = software_interrupt_deferred_sigalrm;
-		software_interrupt_deferred_sigalrm                        = 0;
-		// TODO: REPLAY sigalrm;
-	}
-}
-
-/**
- * @returns boolean if signals are enabled
- */
-static inline int
-software_interrupt_is_enabled(void)
-{
-	return (software_interrupt_is_disabled == 0);
-}
 
 /**
  * Masks a signal on the current thread

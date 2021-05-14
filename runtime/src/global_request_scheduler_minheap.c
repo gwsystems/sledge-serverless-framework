@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 
 #include "global_request_scheduler.h"
 #include "listener_thread.h"
@@ -33,7 +34,6 @@ global_request_scheduler_minheap_add(void *sandbox_request)
 int
 global_request_scheduler_minheap_remove(struct sandbox_request **removed_sandbox_request)
 {
-	assert(!software_interrupt_is_enabled());
 	return priority_queue_dequeue(global_request_scheduler_minheap, (void **)removed_sandbox_request);
 }
 
@@ -46,7 +46,6 @@ int
 global_request_scheduler_minheap_remove_if_earlier(struct sandbox_request **removed_sandbox_request,
                                                    uint64_t                 target_deadline)
 {
-	assert(!software_interrupt_is_enabled());
 	return priority_queue_dequeue_if_earlier(global_request_scheduler_minheap, (void **)removed_sandbox_request,
 	                                         target_deadline);
 }

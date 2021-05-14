@@ -85,7 +85,6 @@ priority_queue_is_empty(struct priority_queue *self)
 {
 	assert(self != NULL);
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
-	assert(listener_thread_is_running() || !software_interrupt_is_enabled());
 
 	return self->size == 0;
 }
@@ -164,7 +163,6 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 	assert(self->get_priority_fn != NULL);
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 	assert(!listener_thread_is_running());
-	assert(!software_interrupt_is_enabled());
 
 	bool update_highest_value = parent_index == 1;
 
@@ -211,7 +209,6 @@ priority_queue_dequeue_if_earlier_nolock(struct priority_queue *self, void **deq
 	assert(dequeued_element != NULL);
 	assert(self->get_priority_fn != NULL);
 	assert(!listener_thread_is_running());
-	assert(!software_interrupt_is_enabled());
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 
 	int return_code;
@@ -289,7 +286,6 @@ static inline void
 priority_queue_free(struct priority_queue *self)
 {
 	assert(self != NULL);
-	assert(listener_thread_is_running() || !software_interrupt_is_enabled());
 
 	free(self);
 }
@@ -303,7 +299,6 @@ priority_queue_length_nolock(struct priority_queue *self)
 {
 	assert(self != NULL);
 	assert(!listener_thread_is_running());
-	assert(!software_interrupt_is_enabled());
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 
 	return self->size;
@@ -332,7 +327,6 @@ priority_queue_enqueue_nolock(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
 	assert(value != NULL);
-	assert(listener_thread_is_running() || !software_interrupt_is_enabled());
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 
 	int rc;
@@ -377,7 +371,6 @@ priority_queue_delete_nolock(struct priority_queue *self, void *value)
 	assert(self != NULL);
 	assert(value != NULL);
 	assert(!listener_thread_is_running());
-	assert(!software_interrupt_is_enabled());
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 
 	for (int i = 1; i <= self->size; i++) {
@@ -444,7 +437,6 @@ priority_queue_top_nolock(struct priority_queue *self, void **dequeued_element)
 	assert(dequeued_element != NULL);
 	assert(self->get_priority_fn != NULL);
 	assert(!listener_thread_is_running());
-	assert(!software_interrupt_is_enabled());
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 
 	int return_code;

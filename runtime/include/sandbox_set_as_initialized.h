@@ -7,7 +7,6 @@
 #include "arch/context.h"
 #include "current_sandbox.h"
 #include "ps_list.h"
-#include "software_interrupt.h"
 #include "sandbox_request.h"
 #include "sandbox_types.h"
 
@@ -22,7 +21,6 @@ static inline void
 sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sandbox_request,
                            uint64_t allocation_timestamp)
 {
-	assert(!software_interrupt_is_enabled());
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_ALLOCATED);
 	assert(sandbox_request != NULL);

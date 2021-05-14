@@ -1,7 +1,6 @@
 #pragma once
 
 #include "arch/common.h"
-#include "software_interrupt.h"
 
 /*
  * This header is the single entry point into the arch_context code.
@@ -42,8 +41,6 @@
 static inline void
 arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_context)
 {
-	assert(!software_interrupt_is_enabled());
-
 	assert(active_context != NULL);
 	assert(sandbox_context != NULL);
 
@@ -67,9 +64,6 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
 static inline void
 arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *active_context)
 {
-	/* Assumption: Only called indirectly via signal handler, so interrupts should be disabled */
-	assert(!software_interrupt_is_enabled());
-
 	assert(sandbox_context != NULL);
 	assert(active_context != NULL);
 
