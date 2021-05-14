@@ -48,8 +48,7 @@ local_runqueue_list_get_next()
 
 	/* Execute Round Robin Scheduling Logic */
 	struct sandbox *next_sandbox = local_runqueue_list_remove_and_return();
-	assert(next_sandbox == NULL || next_sandbox->state != SANDBOX_RETURNED);
-	local_runqueue_add(next_sandbox);
+	assert(next_sandbox->state == SANDBOX_RUNNABLE);
 
 	return next_sandbox;
 }

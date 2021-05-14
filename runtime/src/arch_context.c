@@ -4,7 +4,6 @@
 #include <stdlib.h>
 
 #include "panic.h"
-#include "software_interrupt.h"
 
 /**
  * Called by the inline assembly in arch_context_switch to send a SIGUSR1 in order to restore a previously preempted
@@ -14,7 +13,6 @@
  */
 void __attribute__((noinline)) __attribute__((noreturn)) arch_context_restore_preempted(void)
 {
-	assert(!software_interrupt_is_enabled());
 	pthread_kill(pthread_self(), SIGUSR1);
 	panic("Unexpectedly reached code after sending self SIGUSR1\n");
 }

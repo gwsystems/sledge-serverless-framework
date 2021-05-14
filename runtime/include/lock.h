@@ -5,7 +5,6 @@
 
 #include "arch/getcycles.h"
 #include "runtime.h"
-#include "software_interrupt.h"
 
 typedef ck_spinlock_mcs_t lock_t;
 
@@ -30,7 +29,6 @@ typedef ck_spinlock_mcs_t lock_t;
  */
 
 #define LOCK_LOCK_WITH_BOOKKEEPING(lock, unique_variable_name)                                                         \
-	assert(listener_thread_is_running() || !software_interrupt_is_enabled());                                      \
 	struct ck_spinlock_mcs _hygiene_##unique_variable_name##_node;                                                 \
 	uint64_t               _hygiene_##unique_variable_name##_pre = __getcycles();                                  \
 	ck_spinlock_mcs_lock((lock), &(_hygiene_##unique_variable_name##_node));                                       \
@@ -45,8 +43,7 @@ typedef ck_spinlock_mcs_t lock_t;
  * @param lock - the address of the lock
  * @param unique_variable_name - a unique prefix to hygienically namespace an associated lock/unlock pair
  */
-#define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, unique_variable_name)                  \
-	assert(listener_thread_is_running() || !software_interrupt_is_enabled()); \
+#define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, unique_variable_name) \
 	ck_spinlock_mcs_unlock(lock, &(_hygiene_##unique_variable_name##_node));
 
 /**

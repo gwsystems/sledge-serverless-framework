@@ -34,7 +34,6 @@ static uint64_t software_interrupt_interval_duration_in_cycles;
 __thread _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_kernel_count = 0;
 __thread _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_thread_count = 0;
 __thread _Atomic static volatile sig_atomic_t software_interrupt_SIGUSR_count         = 0;
-__thread volatile sig_atomic_t                software_interrupt_is_disabled          = 1;
 __thread _Atomic volatile sig_atomic_t        software_interrupt_deferred_sigalrm     = 0;
 __thread _Atomic volatile sig_atomic_t        software_interrupt_signal_depth         = 0;
 
@@ -79,6 +78,7 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 			/* If using EDF, conditionally send signals. If not, broadcast */
 			switch (runtime_sigalrm_handler) {
 			case RUNTIME_SIGALRM_HANDLER_TRIAGED: {
+				assert(scheduler == SCHEDULER_EDF);
 				uint64_t local_deadline  = runtime_worker_threads_deadline[i];
 				uint64_t global_deadline = global_request_scheduler_peek();
 				if (global_deadline < local_deadline) pthread_kill(runtime_worker_threads[i], SIGALRM);
@@ -98,66 +98,6 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 		assert(signal_info->si_code == SI_TKILL);
 	}
-}
-
-/**
- * SIGALRM is the preemption signal that occurs every quantum of execution
- * @param signal_info data structure containing signal info
- * @param user_context userland context
- * @param current_sandbox the sanbox active on the worker thread
- */
-static inline void
-sigalrm_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox *current_sandbox)
-{
-	/* A worker thread received a SIGALRM when interrupts were disabled, so defer until they are reenabled */
-	if (!software_interrupt_is_enabled()) {
-		// Don't increment if kernel? The first worker gets tons of these...
-		atomic_fetch_add(&software_interrupt_deferred_sigalrm, 1);
-		return;
-	}
-
-	/* A worker thread received a SIGALRM while running a preemptable sandbox, so preempt */
-	assert(current_sandbox->ctxt.preemptable);
-	software_interrupt_disable();
-
-	assert(current_sandbox != NULL);
-	assert(current_sandbox->state != SANDBOX_RETURNED);
-
-	/* Preempt */
-	scheduler_preempt(user_context);
-
-	return;
-}
-
-/**
- * SIGUSR1 restores a preempted sandbox using mcontext
- * @param signal_info data structure containing signal info
- * @param user_context userland context
- * @param current_sandbox the sanbox active on the worker thread
- */
-static inline void
-sigusr1_handler(siginfo_t *signal_info, ucontext_t *user_context, struct sandbox *current_sandbox)
-{
-	/* Assumption: Caller disables interrupt before triggering SIGUSR1 */
-	assert(!software_interrupt_is_enabled());
-
-	/* Assumption: Caller sets current_sandbox to the preempted sandbox */
-	assert(current_sandbox);
-
-	/* Extra checks to verify that preemption properly set context state */
-	assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
-
-	atomic_fetch_add(&software_interrupt_SIGUSR_count, 1);
-
-#ifdef LOG_PREEMPTION
-	debuglog("Total SIGUSR1 Received: %d\n", software_interrupt_SIGUSR_count);
-	debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
-	         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
-#endif
-
-	arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
-
-	return;
 }
 
 /**
@@ -182,27 +122,49 @@ software_interrupt_validate_worker()
 static inline void
 software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 {
-	/* If the runtime has preemption disabled, and we receive a signal, panic */
-	if (unlikely(!runtime_preemption_enabled)) {
-		panic("Unexpectedly invoked signal handlers with preemption disabled\n");
-	}
+	/* Only workers should receive signals */
+	assert(!listener_thread_is_running());
 
-	assert(software_interrupt_signal_depth < 2);
+	/* Signals should be masked if runtime has disabled them */
+	assert(runtime_preemption_enabled);
+
+	/* Signals should not nest */
+	/* TODO: Better atomic instruction here to check and set? */
+	assert(software_interrupt_signal_depth == 0);
 	atomic_fetch_add(&software_interrupt_signal_depth, 1);
-	software_interrupt_validate_worker();
 
 	ucontext_t *    user_context    = (ucontext_t *)user_context_raw;
 	struct sandbox *current_sandbox = current_sandbox_get();
 
 	switch (signal_type) {
 	case SIGALRM: {
-		sigalrm_handler(signal_info, user_context, current_sandbox);
-		break;
+		sigalrm_propagate_workers(signal_info);
+		if (current_sandbox == NULL || current_sandbox->ctxt.preemptable == false) {
+			/* Cannot preempt, so defer signal
+			 * TODO: First worker gets tons of kernel sigalrms, should these be treated the same?
+			 * When current_sandbox is NULL, we are looping through the scheduler, so sigalrm is redundant
+			 * Maybe track time of last scheduling decision? i.e. when scheduler_get_next was last called.
+			 */
+			atomic_fetch_add(&software_interrupt_deferred_sigalrm, 1);
+		} else {
+			/* A worker thread received a SIGALRM while running a preemptable sandbox, so preempt */
+			assert(current_sandbox->state == SANDBOX_RUNNING);
+			scheduler_preempt(user_context);
+		}
+		goto done;
 	}
 	case SIGUSR1: {
-		assert(!software_interrupt_is_enabled());
-		sigusr1_handler(signal_info, user_context, current_sandbox);
-		break;
+		assert(current_sandbox);
+		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
+
+		atomic_fetch_add(&software_interrupt_SIGUSR_count, 1);
+#ifdef LOG_PREEMPTION
+		debuglog("Total SIGUSR1 Received: %d\n", software_interrupt_SIGUSR_count);
+		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
+		         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
+#endif
+		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
+		goto done;
 	}
 	default: {
 		switch (signal_info->si_code) {
@@ -216,13 +178,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		}
 	}
 	}
+done:
 	atomic_fetch_sub(&software_interrupt_signal_depth, 1);
-
-	/* Reenable software interrupts if we restored a preemptable sandbox
-	 * We explicitly call current_sandbox_get becaue it might have been changed by a handler
-	 */
-	current_sandbox = current_sandbox_get();
-	if (current_sandbox && current_sandbox->ctxt.preemptable) software_interrupt_enable();
 }
 
 /********************

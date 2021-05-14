@@ -6,8 +6,8 @@
 #include "sandbox_set_as_returned.h"
 #include "sandbox_setup_arguments.h"
 #include "scheduler.h"
+#include "software_interrupt.h"
 
-// /* current sandbox that is active.. */
 __thread struct sandbox *worker_thread_current_sandbox = NULL;
 
 __thread struct sandbox_context_cache local_sandbox_context_cache = {
@@ -20,12 +20,24 @@ static inline void
 current_sandbox_enable_preemption(struct sandbox *sandbox)
 {
 #ifdef LOG_PREEMPTION
-	debuglog("Sandbox %lu - enabling preemption\n", sandbox->id);
+	debuglog("Sandbox %lu - enabling preemption - Missed %d SIGALRM\n", sandbox->id,
+	         software_interrupt_deferred_sigalrm);
 	fflush(stderr);
 #endif
-	assert(sandbox->ctxt.preemptable == false);
-	sandbox->ctxt.preemptable = true;
-	software_interrupt_enable();
+	if (__sync_bool_compare_and_swap(&sandbox->ctxt.preemptable, 0, 1) == false) {
+		panic("Recursive call to current_sandbox_enable_preemption\n");
+	}
+
+	if (software_interrupt_deferred_sigalrm > 0) {
+		/* Update Max */
+		if (software_interrupt_deferred_sigalrm > software_interrupt_deferred_sigalrm_max[worker_thread_idx]) {
+			software_interrupt_deferred_sigalrm_max[worker_thread_idx] =
+			  software_interrupt_deferred_sigalrm;
+		}
+
+		software_interrupt_deferred_sigalrm = 0;
+		// TODO: Replay. Does the replay need to be before or after enabling preemption?
+	}
 }
 
 static inline void
@@ -35,9 +47,9 @@ current_sandbox_disable_preemption(struct sandbox *sandbox)
 	debuglog("Sandbox %lu - disabling preemption\n", sandbox->id);
 	fflush(stderr);
 #endif
-	assert(sandbox->ctxt.preemptable == true);
-	software_interrupt_disable();
-	sandbox->ctxt.preemptable = false;
+	if (__sync_bool_compare_and_swap(&sandbox->ctxt.preemptable, 1, 0) == false) {
+		panic("Recursive call to current_sandbox_disable_preemption\n");
+	}
 }
 
 /**
@@ -48,8 +60,6 @@ current_sandbox_disable_preemption(struct sandbox *sandbox)
 void
 current_sandbox_start(void)
 {
-	assert(!software_interrupt_is_enabled());
-
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING);

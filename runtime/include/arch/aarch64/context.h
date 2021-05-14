@@ -6,7 +6,6 @@
 
 #include "arch/common.h"
 #include "current_sandbox.h"
-#include "software_interrupt.h"
 
 #define ARCH_SIG_JMP_OFF 0x100 /* Based on code generated! */
 
@@ -22,7 +21,6 @@ static inline void
 arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 {
 	assert(actx != NULL);
-	assert(!software_interrupt_is_enabled());
 
 	if (ip == 0 && sp == 0) {
 		actx->variant = ARCH_CONTEXT_VARIANT_UNUSED;
@@ -46,9 +44,6 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 static inline int
 arch_context_switch(struct arch_context *a, struct arch_context *b)
 {
-	/* Assumption: Software Interrupts are disabled by caller */
-	assert(!software_interrupt_is_enabled());
-
 #ifndef NDEBUG
 	/*
 	 * Assumption: In the case of a slow context switch, the caller
@@ -84,12 +79,6 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 
 	reg_t *a_registers = a->regs, *b_registers = b->regs;
 	assert(a_registers && b_registers);
-
-	/* If switching back to a sandbox context marked as preemptable, reenable
-	 * interrupts before jumping
-	 * TODO: What if we receive a signal inside the inline assembly?
-	 */
-	if (b->preemptable) software_interrupt_enable();
 
 	asm volatile("mov x0, sp\n\t"
 	             "adr x1, reset%=\n\t"

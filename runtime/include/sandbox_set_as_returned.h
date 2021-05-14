@@ -9,12 +9,11 @@
 #include "sandbox_functions.h"
 #include "sandbox_state.h"
 #include "sandbox_types.h"
-#include "software_interrupt.h"
 
 /**
  * Transitions a sandbox to the SANDBOX_RETURNED state.
  * This occurs when a sandbox is executing and runs to completion.
- * Automatically removes the sandbox from the runqueue and unmaps linear memory.
+ * Automatically removes the sandbox from the runqueue and frees linear memory.
  * Because the stack is still in use, freeing the stack is deferred until later
  * @param sandbox the blocking sandbox
  * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
@@ -24,7 +23,6 @@ static inline void
 sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-	assert(!software_interrupt_is_enabled());
 
 	uint64_t now                    = __getcycles();
 	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;

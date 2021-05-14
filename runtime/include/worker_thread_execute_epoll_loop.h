@@ -11,7 +11,6 @@
 #include "sandbox_set_as_runnable.h"
 #include "sandbox_state.h"
 #include "sandbox_types.h"
-#include "software_interrupt.h"
 #include "worker_thread.h"
 
 
@@ -21,7 +20,6 @@
 static inline void
 worker_thread_execute_epoll_loop(void)
 {
-	assert(!software_interrupt_is_enabled());
 	while (true) {
 		struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 		int                descriptor_count = epoll_wait(worker_thread_epoll_file_descriptor, epoll_events,
@@ -43,7 +41,6 @@ worker_thread_execute_epoll_loop(void)
 
 				if (sandbox->state == SANDBOX_BLOCKED) {
 					sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
-					local_runqueue_add(sandbox);
 				}
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
 				/* Mystery: This seems to never fire. Why? Issue #130 */

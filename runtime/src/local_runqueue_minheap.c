@@ -10,7 +10,6 @@
 #include "panic.h"
 #include "priority_queue.h"
 #include "sandbox_functions.h"
-#include "software_interrupt.h"
 #include "runtime.h"
 
 __thread static struct priority_queue *local_runqueue_minheap;
@@ -33,8 +32,6 @@ local_runqueue_minheap_is_empty()
 void
 local_runqueue_minheap_add(struct sandbox *sandbox)
 {
-	assert(!software_interrupt_is_enabled());
-
 	int return_code = priority_queue_enqueue_nolock(local_runqueue_minheap, sandbox);
 	/* TODO: propagate RC to caller. Issue #92 */
 	if (return_code == -ENOSPC) panic("Thread Runqueue is full!\n");
@@ -47,7 +44,6 @@ local_runqueue_minheap_add(struct sandbox *sandbox)
 static void
 local_runqueue_minheap_delete(struct sandbox *sandbox)
 {
-	assert(!software_interrupt_is_enabled());
 	assert(sandbox != NULL);
 
 	int rc = priority_queue_delete_nolock(local_runqueue_minheap, sandbox);
@@ -65,8 +61,6 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 struct sandbox *
 local_runqueue_minheap_get_next()
 {
-	assert(!software_interrupt_is_enabled());
-
 	/* Get the deadline of the sandbox at the head of the local request queue */
 	struct sandbox *next = NULL;
 	int             rc   = priority_queue_top_nolock(local_runqueue_minheap, (void **)&next);
@@ -82,7 +76,6 @@ local_runqueue_minheap_get_next()
 void
 local_runqueue_minheap_initialize()
 {
-	assert(software_interrupt_is_disabled);
 	/* Initialize local state */
 	local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_priority);
 
