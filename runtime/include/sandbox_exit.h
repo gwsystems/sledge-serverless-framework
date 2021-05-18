@@ -22,6 +22,7 @@ sandbox_exit(struct sandbox *exiting_sandbox)
 		 * We draw a distinction between RETURNED and COMPLETED because a sandbox cannot add itself to the
 		 * completion queue
 		 * TODO: I think this executes when running inside the sandbox, as it hasn't yet yielded
+		 * See Issue #224 at https://github.com/gwsystems/sledge-serverless-framework/issues/224
 		 */
 		sandbox_set_as_complete(exiting_sandbox, SANDBOX_RETURNED);
 		break;
