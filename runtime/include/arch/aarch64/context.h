@@ -2,7 +2,6 @@
 #if defined(AARCH64) || defined(aarch64)
 
 #include <assert.h>
-#include <stdint.h>
 
 #include "arch/common.h"
 #include "current_sandbox.h"
