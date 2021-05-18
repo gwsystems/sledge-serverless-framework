@@ -67,19 +67,24 @@ err_allocate:
 static inline struct sandbox *
 scheduler_fifo_get_next()
 {
-	struct sandbox *        sandbox         = local_runqueue_get_next();
+	struct sandbox *sandbox = local_runqueue_get_next();
+
 	struct sandbox_request *sandbox_request = NULL;
 
-	/* If the local runqueue is empty, pull from global request scheduler */
 	if (sandbox == NULL) {
-		struct sandbox_request *sandbox_request;
+		/* If the local runqueue is empty, pull from global request scheduler */
 		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
 
 		sandbox = sandbox_allocate(sandbox_request);
 		if (!sandbox) goto err_allocate;
 
 		sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
-	};
+	} else if (sandbox == current_sandbox_get()) {
+		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */
+		local_runqueue_list_rotate();
+		sandbox = local_runqueue_get_next();
+	}
+
 
 done:
 	return sandbox;
@@ -143,11 +148,6 @@ scheduler_runqueue_initialize()
 static inline void
 scheduler_preempt(ucontext_t *user_context)
 {
-	/* 	If FIFO, just return
-	 * TODO: Should this RR? */
-	if (scheduler == SCHEDULER_FIFO) return;
-
-	assert(scheduler == SCHEDULER_EDF);
 	assert(user_context != NULL);
 
 	/* Process epoll to make sure that all runnable jobs are considered for execution */
@@ -160,7 +160,7 @@ scheduler_preempt(ucontext_t *user_context)
 	struct sandbox *next = scheduler_get_next();
 	assert(next != NULL);
 
-	/* If current equals return, we are already running earliest deadline, so resume execution */
+	/* If current equals next, no switch is necessary, so resume execution */
 	if (current == next) return;
 
 #ifdef LOG_PREEMPTION
@@ -175,10 +175,37 @@ scheduler_preempt(ucontext_t *user_context)
 	assert(next->state == SANDBOX_RUNNABLE);
 	sandbox_set_as_running(next, SANDBOX_RUNNABLE);
 
-	/* A sandbox cannot be preempted by a slow context because this was in the
-	 * runqueue during the last scheduling decision. */
-	assert(next->ctxt.variant == ARCH_CONTEXT_VARIANT_FAST);
-	arch_context_restore_new(&user_context->uc_mcontext, &next->ctxt);
+	switch (next->ctxt.variant) {
+	case ARCH_CONTEXT_VARIANT_FAST: {
+		arch_context_restore_new(&user_context->uc_mcontext, &next->ctxt);
+		break;
+	}
+	case ARCH_CONTEXT_VARIANT_SLOW: {
+		/* Our scheduler restores a fast context when switching to a sandbox that cooperatively yielded
+		 * (probably by blocking) or when switching to a freshly allocated sandbox that hasn't yet run.
+		 * These conditions can occur in either EDF or FIFO.
+		 *
+		 * A scheduler restores a slow context when switching to a sandbox that was preempted previously.
+		 * Under EDF, a sandbox is only ever preempted by an earlier deadline that either had blocked and since
+		 * become runnable or was just freshly allocated. This means that such EDF preemption context switches
+		 * should always use a fast context.
+		 *
+		 * This is not true under FIFO, where there is no innate ordering between sandboxes. A runqueue is
+		 * normally only a single sandbox, but it may have multiple sandboxes when one blocks and the worker
+		 * pulls an addition request. When the blocked sandbox becomes runnable, the executing sandbox can be
+		 * preempted yielding a slow context. This means that FIFO preemption context switches might cause
+		 * either a fast or a slow context to be restored during "round robin" execution.
+		 */
+		assert(scheduler != SCHEDULER_EDF);
+
+		arch_mcontext_restore(&user_context->uc_mcontext, &next->ctxt);
+		break;
+	}
+	default: {
+		panic("Unexpectedly tried to switch to a context in %s state\n",
+		      arch_context_variant_print(next->ctxt.variant));
+	}
+	}
 }
 
 static inline char *
