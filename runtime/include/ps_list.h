@@ -83,6 +83,18 @@ ps_list_ll_empty(struct ps_list *l)
 }
 
 static inline int
+ps_list_ll_one_node(struct ps_list *l)
+{
+	return l->n != l && l->n == l->p;
+}
+
+static inline int
+ps_list_head_one_node(struct ps_list_head *lh)
+{
+	return ps_list_ll_one_node(&lh->l);
+}
+
+static inline int
 ps_list_head_empty(struct ps_list_head *lh)
 {
 	return ps_list_ll_empty(&lh->l);

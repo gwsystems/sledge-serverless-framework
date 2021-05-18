@@ -1,4 +1,5 @@
 #include "client_socket.h"
+#include "current_sandbox.h"
 #include "global_request_scheduler.h"
 #include "local_runqueue_list.h"
 #include "local_runqueue.h"
@@ -20,7 +21,7 @@ local_runqueue_list_get_head()
 }
 
 /**
- * Removes the thread from the thread-local runqueue
+ * Removes the sandbox from the thread-local runqueue
  * @param sandbox sandbox
  */
 void
@@ -38,24 +39,7 @@ local_runqueue_list_remove_and_return()
 }
 
 /**
- * Get the next sandbox and then insert at tail to "round robin"
- * @return the sandbox to execute or NULL if none are available
- */
-struct sandbox *
-local_runqueue_list_get_next()
-{
-	if (local_runqueue_list_is_empty()) return NULL;
-
-	/* Execute Round Robin Scheduling Logic */
-	struct sandbox *next_sandbox = local_runqueue_list_remove_and_return();
-	assert(next_sandbox->state == SANDBOX_RUNNABLE);
-
-	return next_sandbox;
-}
-
-
-/**
- * Append a sandbox to the runqueue
+ * Append a sandbox to the tail of the runqueue
  * @returns the appended sandbox
  */
 void
@@ -64,6 +48,30 @@ local_runqueue_list_append(struct sandbox *sandbox_to_append)
 	assert(sandbox_to_append != NULL);
 	assert(ps_list_singleton_d(sandbox_to_append));
 	ps_list_head_append_d(&local_runqueue_list, sandbox_to_append);
+}
+
+/* Remove sandbox from head of runqueue and add it to tail */
+void
+local_runqueue_list_rotate()
+{
+	/* If runqueue is size one, skip round robin logic since tail equals head */
+	if (ps_list_head_one_node(&local_runqueue_list)) return;
+
+	struct sandbox *sandbox_at_head = local_runqueue_list_remove_and_return();
+	assert(sandbox_at_head->state == SANDBOX_RUNNING || sandbox_at_head->state == SANDBOX_RUNNABLE);
+	local_runqueue_list_append(sandbox_at_head);
+}
+
+/**
+ * Get the next sandbox
+ * @return the sandbox to execute or NULL if none are available
+ */
+struct sandbox *
+local_runqueue_list_get_next()
+{
+	if (local_runqueue_list_is_empty()) return NULL;
+
+	return local_runqueue_list_get_head();
 }
 
 void
