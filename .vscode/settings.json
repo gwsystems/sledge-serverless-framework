@@ -85,7 +85,9 @@
 		"sandbox_set_as_error.h": "c",
 		"likely.h": "c",
 		"debuglog.h": "c",
-		"worker_thread_execute_epoll_loop.h": "c"
+		"worker_thread_execute_epoll_loop.h": "c",
+		"sandbox_set_as_running.h": "c",
+		"sandbox_summarize_page_allocations.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,
