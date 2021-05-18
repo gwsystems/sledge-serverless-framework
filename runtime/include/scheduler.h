@@ -108,7 +108,6 @@ scheduler_get_next()
 static inline void
 scheduler_initialize()
 {
-	/* Setup Scheduler */
 	switch (scheduler) {
 	case SCHEDULER_EDF:
 		global_request_scheduler_minheap_initialize();
@@ -124,7 +123,6 @@ scheduler_initialize()
 static inline void
 scheduler_runqueue_initialize()
 {
-	/* Setup Scheduler */
 	switch (scheduler) {
 	case SCHEDULER_EDF:
 		local_runqueue_minheap_initialize();
