@@ -123,46 +123,35 @@ run_experiments() {
 	fi
 
 	# TODO: Check that workload is in spec.json
-	local -ir batch_size=1
+	local -ir batch_size=20
 	local -i batch_id=0
 	local -i roll=0
-	local -ir total_iterations=100
+	local -ir total_iterations=1000
 	local -ir worker_max=5
 
-	printf "Running Experiments\n"
+	printf "Running Experiments: "
 
 	# Select a random workload using the workload mix and run command, writing output to disk
 	for ((i = 0; i < total_iterations; i += batch_size)); do
 		# Block waiting for a worker to finish if we are at our max
-		worker_count=$(($(ps --no-headers -o pid --ppid=$$ | wc -w) - 1))
-		# ((worker_count > worker_max)) && {
-		# 	echo "More subprocesses than expected"
-		# 	exit 1
-		# }
-		while ((worker_count >= worker_max)); do
-			wait -n
-			worker_count=$(($(ps --no-headers -o pid --ppid=$$ | wc -w) - 1))
+		while (($(pgrep --count hey) >= worker_max)); do
+			wait -n $(pgrep hey | tr '\n' ' ')
 		done
 		roll=$((RANDOM % total))
 		((batch_id++))
 		for workload in "${workloads[@]}"; do
 			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
-				# echo "hey -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -d ${body[$workload]}\n http://${hostname}:${port[$workload]}"
-
 				hey -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -d "${body[$workload]}\n" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 				break
 			fi
 		done
 	done
-	while ((worker_count > 0)); do
-		wait -n
-		worker_count=$(($(ps --no-headers -o pid --ppid=$$ | wc -w) - 1))
-	done
+	wait -f $(pgrep hey | tr '\n' ' ')
 	printf "[OK]\n"
 
 	for workload in "${workloads[@]}"; do
 		tail --quiet -n +2 "$results_directory/${workload}"_*.csv >> "$results_directory/${workload}.csv"
-		# rm "$results_directory/${workload}"_*.csv
+		rm "$results_directory/${workload}"_*.csv
 	done
 
 	return 0
