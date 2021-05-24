@@ -1,71 +1,61 @@
 #!/bin/bash
-# Executes the runtime in GDB
-# Substitutes the absolute path from the container with a path relatively derived from the location of this script
-# This allows debugging outside of the Docker container
-# Also disables pagination and stopping on SIGUSR1
 
-experiment_directory=$(pwd)
-echo "$experiment_directory"
-project_directory=$(cd ../../../.. && pwd)
-binary_directory=$(cd "$project_directory"/bin && pwd)
-did_pass=true
+__run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
+__run_sh__bash_libraries_relative_path="../../../bash_libraries"
+__run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
+export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
-if [ "$1" != "-d" ]; then
-	PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
-	sleep 1
-else
-	echo "Running under gdb"
-fi
+source csv_to_dat.sh || exit 1
+source framework.sh || exit 1
+source get_result_count.sh || exit 1
+source panic.sh || exit 1
+source path_join.sh || exit 1
 
-expected_result="$(cat ./expected_result.txt)"
+# Validate that required tools are in path
+declare -a required_binaries=(curl)
+validate_dependencies() {
+	for required_binary in "${required_binaries[@]}"; do
+		if ! command -v "$required_binary" > /dev/null; then
+			echo "$required_binary is not present." >> "$results_directory/results.txt"
+			exit 1
+		fi
+	done
+}
 
-# Retry 5 times in case the runtime startup is slow
-retries=5
-for ((i = 0; i < retries; i++)); do
-	result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@hyde.pnm" localhost:10000 2> /dev/null)
-	if [[ "$result" == "$expected_result" ]]; then
-		break
-	fi
+experiment_main() {
+	local -r hostname="$1"
+	local -r results_directory="$2"
 
-	if ((i == 4)); then
-		echo "Retries exhaused"
-		exit 1
-	fi
+	validate_dependencies
 
-	sleep 1
-done
+	local -r expected_result="$(cat ./expected_result.txt)"
+	local -i success_count=0
+	local -ir total_count=10
 
-success_count=0
-total_count=50
+	for ((i = 0; i < total_count; i++)); do
+		result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@hyde.pnm" "$hostname:10000" 2> /dev/null)
+		if [[ "$result" == "$expected_result" ]]; then
+			((success_count++))
+		else
+			{
+				echo "FAIL"
+				echo "Expected:"
+				echo "$expected_result"
+				echo "==============================================="
+				echo "Was:"
+				echo "$result"
+			} >> "$results_directory/results.txt"
+			break
+		fi
+	done
 
-for ((i = 0; i < total_count; i++)); do
-	result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@hyde.pnm" localhost:10000 2> /dev/null)
-	# echo "$result"
-	if [[ "$result" == "$expected_result" ]]; then
-		success_count=$((success_count + 1))
+	echo "$success_count / $total_count" >> "$results_directory/results.txt"
+
+	if ((success_count == total_count)); then
+		return 0
 	else
-		echo "FAIL"
-		echo "Expected:"
-		echo "$expected_result"
-		echo "==============================================="
-		echo "Was:"
-		echo "$result"
-		did_pass=false
-		break
+		return 1
 	fi
-done
+}
 
-echo "$success_count / $total_count"
-
-if [ "$1" != "-d" ]; then
-	sleep 5
-	echo -n "Running Cleanup: "
-	pkill sledgert > /dev/null 2> /dev/null
-	echo "[DONE]"
-fi
-
-if $did_pass; then
-	exit 0
-else
-	exit 1
-fi
+main "$@"
