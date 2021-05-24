@@ -211,6 +211,11 @@ __framework_sh__start_runtime() {
 			;;
 	esac
 
+	# Pad with a sleep to allow runtime to initialize before startup tasks run
+	# This should be improved adding some sort of ping/ping heartbeat to the runtime
+	# so the script can spin until initializaiton is complete
+	sleep 1
+
 	printf "[OK]\n"
 	return 0
 }
@@ -312,7 +317,9 @@ __framework_sh__unset_env_file() {
 __framework_sh__run_both() {
 	local short_name
 	shopt -s nullglob
+	local -i envfiles_found=0
 	for envfile in "$__framework_sh__application_directory"/*.env; do
+		((envfiles_found++))
 		short_name="$(basename "${envfile/.env/}")"
 		printf "Running %s\n" "$short_name"
 		__framework_sh__load_env_file "$envfile"
@@ -335,8 +342,9 @@ __framework_sh__run_both() {
 		}
 
 		__framework_sh__unset_env_file "$envfile"
-
 	done
+
+	((envfiles_found == 0)) && echo "No *.env files found. Nothing to run!"
 
 	return 0
 }
