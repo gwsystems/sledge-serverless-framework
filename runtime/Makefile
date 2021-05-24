@@ -10,10 +10,10 @@ PAGE_SIZE := $(shell getconf PAGESIZE)
 
 # Compiler Settings
 CC=clang
-CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
+# CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 
 # CC_OPTIONS for Debugging
-# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE
+CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE
 
 # CFI Sanitizer
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -flto -fvisibility=default -fsanitize=cfi 
@@ -56,7 +56,7 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_REQUEST_ALLOCATION
-# CFLAGS += -DLOG_PREEMPTION
+CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_MODULE_LOADING
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
