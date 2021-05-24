@@ -287,7 +287,7 @@ __framework_sh__run_debug() {
 
 __framework_sh__run_client() {
 	experiment_main "$__framework_sh__target" "$RESULTS_DIRECTORY" || {
-		panic "Error calling process_results $RESULTS_DIRECTORY"
+		panic "Error calling experiment_main $RESULTS_DIRECTORY"
 		return 1
 	}
 

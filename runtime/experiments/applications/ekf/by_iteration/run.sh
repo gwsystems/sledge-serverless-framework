@@ -1,59 +1,158 @@
 #!/bin/bash
-# Executes the runtime in GDB
-# Substitutes the absolute path from the container with a path relatively derived from the location of this script
-# This allows debugging outside of the Docker container
-# Also disables pagination and stopping on SIGUSR1
 
-experiment_directory=$(pwd)
-echo "$experiment_directory"
-runtime_directory=$(cd ../../../.. && pwd)
-binary_directory=$(cd "$runtime_directory"/bin && pwd)
-log="$experiment_directory/log.csv"
+# Add bash_libraries directory to path
+__run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
+__run_sh__bash_libraries_relative_path="../../../bash_libraries"
+__run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
+export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
-did_pass=true
+source csv_to_dat.sh || exit 1
+source framework.sh || exit 1
+# source generate_gnuplots.sh || exit 1
+source get_result_count.sh || exit 1
+source panic.sh || exit 1
+source path_join.sh || exit 1
 
 # Copy data if not here
-if [[ ! -f "./initial_state.dat" ]]; then
-	cp "$runtime_directory"/tests/TinyEKF/extras/c/ekf_raw.dat ./initial_state.dat
+if  [[ ! -f "$__run_sh__base_path/initial_state.dat" ]]; then
+	pushd "$__run_sh__base_path" || exit 1
+	pushd "../../../../tests/TinyEKF/extras/c/" || exit 1
+	cp ekf_raw.dat "$__run_sh__base_path/initial_state.dat" || exit 1
+	popd || exit 1
+	popd || exit 1
 fi
 
-if [ "$1" != "-d" ]; then
-	SLEDGE_SANDBOX_PERF_LOG=$log PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" > rt.log 2>&1 &
-	sleep 2
-else
-	echo "Running under gdb"
-fi
+run_functional_tests() {
+	local hostname="$1"
+	local results_directory="$2"
 
-success_count=0
-total_count=50
+	local -i success_count=0
+	local -ir total_count=50
 
-for ((i = 0; i < total_count; i++)); do
-	echo "$i"
-	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@initial_state.dat" localhost:10000 2> /dev/null > ./one_iteration_res.dat
-	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@one_iteration_res.dat" localhost:10001 2> /dev/null > ./two_iterations_res.dat
-	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@two_iterations_res.dat" localhost:10002 2> /dev/null > ./three_iterations_res.dat
-	if diff -s one_iteration_res.dat one_iteration.dat && diff -s two_iterations_res.dat two_iterations.dat && diff -s three_iterations_res.dat three_iterations.dat; then
-		success_count=$((success_count + 1))
-		rm *_res.dat
+	echo -n "Functional Tests: "
+
+	for ((i = 0; i < total_count; i++)); do
+		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@initial_state.dat" "$hostname":10000 2> /dev/null > /tmp/one_iteration_res.dat
+		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@/tmp/one_iteration_res.dat" "$hostname":10001 2> /dev/null > /tmp/two_iterations_res.dat
+		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@/tmp/two_iterations_res.dat" "$hostname":10002 2> /dev/null > /tmp/three_iterations_res.dat
+
+		if diff -s /tmp/one_iteration_res.dat one_iteration.dat > /dev/null && diff -s /tmp/two_iterations_res.dat two_iterations.dat > /dev/null && diff -s /tmp/three_iterations_res.dat three_iterations.dat > /dev/null; then
+			((success_count++))
+		fi
+
+		rm /tmp/*_res.dat
+	done
+
+	echo "$success_count / $total_count" >> "$results_directory/results.txt"
+
+	if ((success_count == total_count)); then
+		echo "[OK]"
+		return 0
 	else
-		echo "FAIL"
-		did_pass=false
-		rm *_res.dat
-		break
+		echo "[Fail]"
+		return 1
 	fi
-done
+}
 
-echo "$success_count / $total_count"
+declare -a workloads=(initial_state one_iteration two_iterations)
+declare -A port=(
+	[initial_state]=10000
+	[one_iteration]=10001
+	[two_iterations]=10002
+)
 
-if [ "$1" != "-d" ]; then
-	sleep 5
-	echo -n "Running Cleanup: "
-	pkill sledgert > /dev/null 2> /dev/null
-	echo "[DONE]"
-fi
+run_perf_tests() {
+	local hostname="$1"
+	local results_directory="$2"
 
-if $did_pass; then
-	exit 0
-else
-	exit 1
-fi
+	local -ir total_iterations=100
+	local -ir worker_max=10
+	local -ir batch_size=10
+	local -i batch_id=0
+
+	echo -n "Perf Tests: "
+	for workload in "${workloads[@]}"; do
+		batch_id=0
+		for ((i = 0; i < total_iterations; i += batch_size)); do
+			# Block waiting for a worker to finish if we are at our max
+			while (($(pgrep --count hey) >= worker_max)); do
+				wait -n $(pgrep hey | tr '\n' ' ')
+			done
+			((batch_id++))
+
+			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "./${workload}.dat" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" &
+		done
+		wait -f $(pgrep hey | tr '\n' ' ')
+	done
+	echo "[OK]"
+
+	for workload in "${workloads[@]}"; do
+		tail --quiet -n +2 "$results_directory/${workload}"_*.csv >> "$results_directory/${workload}.csv"
+		rm "$results_directory/${workload}"_*.csv
+	done
+}
+
+# Process the experimental results and generate human-friendly results for success rate, throughput, and latency
+process_results() {
+	if (($# != 1)); then
+		error_msg "invalid number of arguments ($#, expected 1)"
+		return 1
+	elif ! [[ -d "$1" ]]; then
+		error_msg "directory $1 does not exist"
+		return 1
+	fi
+
+	local -r results_directory="$1"
+
+	printf "Processing Results: "
+
+	# Write headers to CSVs
+	printf "Payload,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
+
+	for workload in "${workloads[@]}"; do
+
+		# Filter on 200s, subtract DNS time, convert from s to ms, and sort
+		awk -F, '$7 == 200 {print (($1 - $2) * 1000)}' < "$results_directory/$workload.csv" \
+			| sort -g > "$results_directory/$workload-response.csv"
+
+		oks=$(wc -l < "$results_directory/$workload-response.csv")
+		((oks == 0)) && continue # If all errors, skip line
+
+		# Generate Latency Data for csv
+		awk '
+			BEGIN {
+				sum = 0
+				p50 = int('"$oks"' * 0.5)
+				p90 = int('"$oks"' * 0.9)
+				p99 = int('"$oks"' * 0.99)
+				p100 = '"$oks"'
+				printf "'"$workload"',"
+			}
+			NR==p50  {printf "%1.4f,",  $0}
+			NR==p90  {printf "%1.4f,",  $0}
+			NR==p99  {printf "%1.4f,",  $0}
+			NR==p100 {printf "%1.4f\n", $0}
+		' < "$results_directory/$workload-response.csv" >> "$results_directory/latency.csv"
+
+		# Delete scratch file used for sorting/counting
+		rm -rf "$results_directory/$workload-response.csv"
+	done
+
+	# Transform csvs to dat files for gnuplot
+	csv_to_dat "$results_directory/latency.csv"
+
+	printf "[OK]\n"
+	return 0
+}
+
+experiment_main() {
+	local -r hostname="$1"
+	local -r results_directory="$2"
+
+	run_functional_tests "$hostname" "$results_directory" || return 1
+	run_perf_tests "$hostname" "$results_directory" || return 1
+	process_results "$results_directory" || return 1
+
+}
+
+main "$@"
