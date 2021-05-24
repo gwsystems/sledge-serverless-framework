@@ -120,18 +120,18 @@ jobs:
         run: |
           ./test.sh ocr_fivebyeight
         if: success() || failure()
-      - name: OCR by Word
-        run: |
-          ./test.sh ocr_by_word
-        if: success() || failure()
-      - name: OCR by Font
-        run: |
-          ./test.sh ocr_by_font
-        if: success() || failure()
-      - name: OCR by DPI
-        run: |
-          ./test.sh ocr_by_dpi
-        if: success() || failure()
+      # - name: OCR by Word
+      #   run: |
+      #     ./test.sh ocr_by_word
+      #   if: success() || failure()
+      # - name: OCR by Font
+      #   run: |
+      #     ./test.sh ocr_by_font
+      #   if: success() || failure()
+      # - name: OCR by DPI
+      #   run: |
+      #     ./test.sh ocr_by_dpi
+      #   if: success() || failure()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache EKF
         uses: actions/cache@v2
@@ -143,10 +143,10 @@ jobs:
         run: |
           ./test.sh ekf_one_iteration
         if: success() || failure()
-      - name: EKF by Iteration
-        run: |
-          ./test.sh ekf_by_iteration
-        if: success() || failure()
+      # - name: EKF by Iteration
+      #   run: |
+      #     ./test.sh ekf_by_iteration
+      #   if: success() || failure()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Image Classification
         run: |
@@ -157,23 +157,23 @@ jobs:
         run: |
           ./test.sh image_resize
         if: success() || failure()
-      - name: Image Resize by Resolution
-        run: |
-          ./test.sh image_resize_by_resolution
-        if: success() || failure()
-      - name: License Plate Detection by Plate Count
-        run: |
-          ./test.sh lpd_by_plate_count
-        if: success() || failure()
-      - name: Bimodal
-        run: |
-          ./test.sh bimodal
-        if: success() || failure()
-      - name: Concurrency
-        run: |
-          ./test.sh concurrency
-        if: success() || failure()
-      - name: Payload
-        run: |
-          ./test.sh payload
-        if: success() || failure()
+      # - name: Image Resize by Resolution
+      #   run: |
+      #     ./test.sh image_resize_by_resolution
+      #   if: success() || failure()
+      # - name: License Plate Detection by Plate Count
+      #   run: |
+      #     ./test.sh lpd_by_plate_count
+      #   if: success() || failure()
+      # - name: Bimodal
+      #   run: |
+      #     ./test.sh bimodal
+      #   if: success() || failure()
+      # - name: Concurrency
+      #   run: |
+      #     ./test.sh concurrency
+      #   if: success() || failure()
+      # - name: Payload
+      #   run: |
+      #     ./test.sh payload
+      #   if: success() || failure()

@@ -9,17 +9,22 @@ fi
 
 base_dir=$(pwd)
 
-# Excludes long running "experiments" that clog up CI
-# In the future, we need to better differentiate between tests and experiments. A test should check for functionally correct behavior
-# across our scheduling varients and execute quickly.
 declare -ra tests=(
 	ocr_hyde
 	ocr_handwriting
 	ocr_fivebyeight
+	ocr_by_word
+	ocr_by_font
+	ocr_by_dpi
 	ekf_by_iteration
 	ekf_one_iteration
 	image_classification
 	image_resize
+	image_resize_by_resolution
+	lpd_by_plate_count
+	bimodal
+	concurrency
+	payload
 )
 
 declare -a failed_tests=()
