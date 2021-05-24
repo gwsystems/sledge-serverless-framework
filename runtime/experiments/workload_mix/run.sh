@@ -49,13 +49,13 @@ run_samples() {
 	local -ir perf_window_buffer_size
 
 	printf "Running Samples: "
-	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fibonacci_40 samples failed with $?"
 		return 1
 	}
 
-	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fibonacci_10 samples failed with $?"
 		return 1
@@ -123,11 +123,11 @@ run_experiments() {
 	fi
 
 	# TODO: Check that workload is in spec.json
-	local -ir batch_size=20
+	local -ir batch_size=1
 	local -i batch_id=0
 	local -i roll=0
 	local -ir total_iterations=1000
-	local -ir worker_max=5
+	local -ir worker_max=50
 
 	printf "Running Experiments: "
 
@@ -141,7 +141,7 @@ run_experiments() {
 		((batch_id++))
 		for workload in "${workloads[@]}"; do
 			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
-				hey -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -d "${body[$workload]}\n" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -d "${body[$workload]}\n" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 				break
 			fi
 		done
@@ -177,8 +177,8 @@ process_results() {
 	local -ar payloads=(fibonacci_10 fibonacci_40)
 	for payload in "${payloads[@]}"; do
 
-		# Filter on 200s, convert from s to ms, and sort
-		awk -F, '$7 == 200 {print ($1 * 1000)}' < "$results_directory/$payload.csv" \
+		# Filter on 200s, subtract DNS time, convert from s to ms, and sort
+		awk -F, '$7 == 200 {print (($1 - $2) * 1000)}' < "$results_directory/$payload.csv" \
 			| sort -g > "$results_directory/$payload-response.csv"
 
 		oks=$(wc -l < "$results_directory/$payload-response.csv")
