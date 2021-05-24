@@ -26,8 +26,6 @@ experiment_main() {
 	local -r hostname="$1"
 	local -r results_directory="$2"
 
-	sleep 2
-
 	validate_dependencies
 
 	local -r expected_result="$(cat ./expected_result.txt)"
@@ -35,10 +33,11 @@ experiment_main() {
 	local -i success_count=0
 	local -ir total_count=10
 
+	local result
 	for ((i = 0; i < total_count; i++)); do
 		result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@5x8.pnm" "$hostname:10000" 2> /dev/null)
 		if [[ "$result" == "$expected_result" ]]; then
-			success_count=$((success_count + 1))
+			((success_count++))
 		else
 			{
 				echo "FAIL"
