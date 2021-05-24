@@ -1,75 +1,190 @@
 #!/bin/bash
-# Executes the runtime in GDB
-# Substitutes the absolute path from the container with a path relatively derived from the location of this script
-# This allows debugging outside of the Docker container
-# Also disables pagination and stopping on SIGUSR1
 
-experiment_directory=$(pwd)
-echo "$experiment_directory"
-project_directory=$(cd ../../../.. && pwd)
-binary_directory=$(cd "$project_directory"/bin && pwd)
-log="$experiment_directory/log.csv"
+__run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
+__run_sh__bash_libraries_relative_path="../../../bash_libraries"
+__run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
+export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
-if [ "$1" != "-d" ]; then
-	SLEDGE_SANDBOX_PERF_LOG=$log PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
-	sleep 3
-else
-	echo "Running under gdb"
-fi
+source csv_to_dat.sh || exit 1
+source framework.sh || exit 1
+# source generate_gnuplots.sh || exit 1
+source get_result_count.sh || exit 1
+source panic.sh || exit 1
+source path_join.sh || exit 1
 
-success_count=0
-total_count=100
+declare  -ar workloads=(small medium large)
+declare  -Ar port=(
+	[small]=10000
+	[medium]=10001
+	[large]=10002
+)
 
-for ((i = 0; i < total_count; i++)); do
-	ext="$RANDOM"
-
-	# Small
-	if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "result_${ext}_small.png" localhost:10000 2> /dev/null 1> /dev/null; then
-		pixel_differences="$(compare -identify -metric AE "result_${ext}_small.png" expected_result_small.png null: 2>&1 > /dev/null)"
-		if [[ "$pixel_differences" != "0" ]]; then
-			echo "Small FAIL"
-			echo "$pixel_differences pixel differences detected"
+# Validate that required tools are in path
+declare -a required_binaries=(curl)
+validate_dependencies() {
+	for required_binary in "${required_binaries[@]}"; do
+		if ! command -v "$required_binary" > /dev/null; then
+			echo "$required_binary is not present."
 			exit 1
 		fi
-	else
-		echo "curl failed with ${?}. See man curl for meaning."
-	fi
+	done
+}
 
-	# Medium
-	if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "result_${ext}_medium.png" localhost:10001 2> /dev/null 1> /dev/null; then
-		pixel_differences="$(compare -identify -metric AE "result_${ext}_medium.png" expected_result_medium.png null: 2>&1 > /dev/null)"
-		if [[ "$pixel_differences" != "0" ]]; then
-			echo "Medium FAIL"
-			echo "$pixel_differences pixel differences detected"
-			exit 1
+run_functional_tests() {
+	local hostname="$1"
+	local results_directory="$2"
+
+	local -i success_count=0
+	local -ir total_count=10
+
+	echo -n "Functional Tests: "
+
+	for ((i = 0; i < total_count; i++)); do
+		ext="$RANDOM"
+
+		# Small
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "/tmp/result_${ext}_small.png" "${hostname}:10000" 2> /dev/null 1> /dev/null; then
+			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_small.png" expected_result_small.png null: 2>&1 > /dev/null)"
+			rm -f "/tmp/result_${ext}_small.png"
+			if [[ "$pixel_differences" != "0" ]]; then
+				echo "Small FAIL" >> "$results_directory/result.txt"
+				echo "$pixel_differences pixel differences detected" >> "$results_directory/result.txt"
+				continue
+			fi
+		else
+			echo "curl failed with ${?}. See man curl for meaning." >> "$results_directory/result.txt"
+			continue
 		fi
-	else
-		echo "curl failed with ${?}. See man curl for meaning."
-	fi
 
-	# Large
-	if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "result_${ext}_large.png" localhost:10002 2> /dev/null 1> /dev/null; then
-		pixel_differences="$(compare -identify -metric AE "result_${ext}_large.png" expected_result_large.png null: 2>&1 > /dev/null)"
-		if [[ "$pixel_differences" != "0" ]]; then
-			echo "Large FAIL"
-			echo "$pixel_differences pixel differences detected"
-			exit 1
+		# Medium
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "/tmp/result_${ext}_medium.png" "${hostname}:10001" 2> /dev/null 1> /dev/null; then
+			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_medium.png" expected_result_medium.png null: 2>&1 > /dev/null)"
+			rm -f "/tmp/result_${ext}_medium.png"
+			if [[ "$pixel_differences" != "0" ]]; then
+				echo "Medium FAIL" >> "$results_directory/result.txt"
+				echo "$pixel_differences pixel differences detected" >> "$results_directory/result.txt"
+				continue
+			fi
+		else
+			echo "curl failed with ${?}. See man curl for meaning." >> "$results_directory/result.txt"
+			continue
 		fi
-	else
-		echo "curl failed with ${?}. See man curl for meaning."
+
+		# Large
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "/tmp/result_${ext}_large.png" "${hostname}:10002" 2> /dev/null 1> /dev/null; then
+			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_large.png" expected_result_large.png null: 2>&1 > /dev/null)"
+			rm -f "/tmp/result_${ext}_large.png"
+			if [[ "$pixel_differences" != "0" ]]; then
+				echo "Large FAIL" >> "$results_directory/result.txt"
+				echo "$pixel_differences pixel differences detected" >> "$results_directory/result.txt"
+				continue
+			fi
+		else
+			echo "curl failed with ${?}. See man curl for meaning." >> "$results_directory/result.txt"
+			continue
+		fi
+
+		((success_count++))
+	done
+
+	echo "$success_count / $total_count" >> "$results_directory/result.txt"
+
+	echo "[OK]"
+}
+
+run_perf_tests() {
+	local hostname="$1"
+	local results_directory="$2"
+
+	local -ir total_iterations=100
+	local -ir worker_max=10
+	local -ir batch_size=10
+	local -i batch_id=0
+
+	echo -n "Perf Tests: "
+	for workload in "${workloads[@]}"; do
+		batch_id=0
+		for ((i = 0; i < total_iterations; i += batch_size)); do
+			# Block waiting for a worker to finish if we are at our max
+			while (($(pgrep --count hey) >= worker_max)); do
+				wait -n $(pgrep hey | tr '\n' ' ')
+			done
+			((batch_id++))
+
+			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "shrinking_man_${workload}.jpg" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+		done
+		wait -f $(pgrep hey | tr '\n' ' ')
+	done
+	printf "[OK]\n"
+
+	for workload in "${workloads[@]}"; do
+		tail --quiet -n +2 "$results_directory/${workload}"_*.csv >> "$results_directory/${workload}.csv"
+		rm "$results_directory/${workload}"_*.csv
+	done
+}
+
+process_results() {
+	if (($# != 1)); then
+		error_msg "invalid number of arguments ($#, expected 1)"
+		return 1
+	elif ! [[ -d "$1" ]]; then
+		error_msg "directory $1 does not exist"
+		return 1
 	fi
 
-	success_count=$((success_count + 1))
-done
+	local -r results_directory="$1"
 
-echo "$success_count / $total_count"
-rm -f result_*.png
+	printf "Processing Results: "
 
-if [ "$1" != "-d" ]; then
-	sleep 5
-	echo -n "Running Cleanup: "
-	pkill sledgert > /dev/null 2> /dev/null
-	echo "[DONE]"
-fi
+	# Write headers to CSVs
+	printf "Payload,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
 
-exit 0
+	for workload in "${workloads[@]}"; do
+
+		# Filter on 200s, subtract DNS time, convert from s to ms, and sort
+		awk -F, '$7 == 200 {print (($1 - $2) * 1000)}' < "$results_directory/$workload.csv" \
+			| sort -g > "$results_directory/$workload-response.csv"
+
+		oks=$(wc -l < "$results_directory/$workload-response.csv")
+		((oks == 0)) && continue # If all errors, skip line
+
+		# Generate Latency Data for csv
+		awk '
+			BEGIN {
+				sum = 0
+				p50 = int('"$oks"' * 0.5)
+				p90 = int('"$oks"' * 0.9)
+				p99 = int('"$oks"' * 0.99)
+				p100 = '"$oks"'
+				printf "'"$workload"',"
+			}
+			NR==p50  {printf "%1.4f,",  $0}
+			NR==p90  {printf "%1.4f,",  $0}
+			NR==p99  {printf "%1.4f,",  $0}
+			NR==p100 {printf "%1.4f\n", $0}
+		' < "$results_directory/$workload-response.csv" >> "$results_directory/latency.csv"
+
+		# Delete scratch file used for sorting/counting
+		rm -rf "$results_directory/$workload-response.csv"
+	done
+
+	# Transform csvs to dat files for gnuplot
+	csv_to_dat "$results_directory/latency.csv"
+
+	printf "[OK]\n"
+	return 0
+}
+
+experiment_main() {
+	local -r hostname="$1"
+	local -r results_directory="$2"
+
+	validate_dependencies
+
+	run_functional_tests "$hostname" "$results_directory" || return 1
+	run_perf_tests "$hostname" "$results_directory" || return 1
+	process_results "$results_directory" || return 1
+
+}
+
+main "$@"
