@@ -1,54 +1,62 @@
 #!/bin/bash
-# Executes the runtime in GDB
-# Substitutes the absolute path from the container with a path relatively derived from the location of this script
-# This allows debugging outside of the Docker container
-# Also disables pagination and stopping on SIGUSR1
 
-experiment_directory=$(pwd)
-echo "$experiment_directory"
-project_directory=$(cd ../../../.. && pwd)
-binary_directory=$(cd "$project_directory"/bin && pwd)
-did_pass=true
+# Add bash_libraries directory to path
+__run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
+__run_sh__bash_libraries_relative_path="../../../bash_libraries"
+__run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
+export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
+
+source csv_to_dat.sh || exit 1
+source framework.sh || exit 1
+source get_result_count.sh || exit 1
+source panic.sh || exit 1
+source path_join.sh || exit 1
 
 # Copy data if not here
-if [[ ! -f "./ekf_raw.dat" ]]; then
-	cp ../../../tests/TinyEKF/extras/c/ekf_raw.dat ./ekf_raw.dat
+if  [[ ! -f "$__run_sh__base_path/initial_state.dat" ]]; then
+	pushd "$__run_sh__base_path" || exit 1
+	pushd "../../../../tests/TinyEKF/extras/c/" || exit 1
+	cp ekf_raw.dat "$__run_sh__base_path/initial_state.dat" || exit 1
+	popd || exit 1
+	popd || exit 1
 fi
 
-if [ "$1" != "-d" ]; then
-	PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
-	sleep 1
-else
-	echo "Running under gdb"
-fi
+run_functional_tests() {
+	local -r hostname="$1"
+	local -r results_directory="$2"
+	local -i success_count=0
+	local -ir total_count=50
 
-expected_result="$(tr -d '\0' < ./expected_result.dat)"
+	local expected_result
+	expected_result="$(tr -d '\0' < ./expected_result.dat)"
 
-success_count=0
-total_count=50
+	for ((i = 0; i < total_count; i++)); do
+		result="$(curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@ekf_raw.dat" localhost:10000 2> /dev/null | tr -d '\0')"
+		if [[ "$expected_result" == "$result" ]]; then
+			((success_count++))
+		else
+			echo "Failed on $i:"
+			echo "$result"
+			break
+		fi
+	done
 
-for ((i = 0; i < total_count; i++)); do
-	result="$(curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@ekf_raw.dat" localhost:10000 2> /dev/null | tr -d '\0')"
-	if [[ "$expected_result" == "$result" ]]; then
-		success_count=$((success_count + 1))
+	echo "$success_count / $total_count"
+
+	if ((success_count == total_count)); then
+		echo "[OK]"
+		return 0
 	else
-		echo "FAIL"
-		did_pass=false
-		break
+		echo "[Fail]"
+		return 1
 	fi
-done
+}
 
-echo "$success_count / $total_count"
+experiment_main() {
+	local -r hostname="$1"
+	local -r results_directory="$2"
 
-if [ "$1" != "-d" ]; then
-	sleep 5
-	echo -n "Running Cleanup: "
-	pkill sledgert > /dev/null 2> /dev/null
-	echo "[DONE]"
-fi
+	run_functional_tests "$hostname" "$results_directory" || return 1
+}
 
-if $did_pass; then
-	exit 0
-else
-	exit 1
-fi
+main "$@"
