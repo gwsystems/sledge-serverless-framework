@@ -1,57 +1,74 @@
 #!/bin/bash
-# Executes the runtime in GDB
-# Substitutes the absolute path from the container with a path relatively derived from the location of this script
-# This allows debugging outside of the Docker container
-# Also disables pagination and stopping on SIGUSR1
 
-experiment_directory=$(pwd)
-echo "$experiment_directory"
-project_directory=$(cd ../../../.. && pwd)
-binary_directory=$(cd "$project_directory"/bin && pwd)
+__run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
+__run_sh__bash_libraries_relative_path="../../../bash_libraries"
+__run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
+export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
+
+__run_sh__project_base_relative_path="../../../../.."
+__run_sh__project_base_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__project_base_relative_path" && pwd)
+
+source csv_to_dat.sh || exit 1
+source framework.sh || exit 1
+source get_result_count.sh || exit 1
+source panic.sh || exit 1
+source path_join.sh || exit 1
 
 # Copy Flower Image if not here
 if [[ ! -f "./flower.jpg" ]]; then
-	cp ../../../../tests/sod/bin/flower.jpg ./flower.jpg
+	cp "$__run_sh__project_base_absolute_path/runtime/tests/sod/bin/flower.jpg" ./flower.jpg
 fi
 
-if [ "$1" != "-d" ]; then
-	PATH="$binary_directory:$PATH" LD_LIBRARY_PATH="$binary_directory:$LD_LIBRARY_PATH" sledgert "$experiment_directory/spec.json" &
-	sleep 3
-else
-	echo "Running under gdb"
-fi
-
-success_count=0
-total_count=10
-
-for ((i = 0; i < total_count; i++)); do
-	echo "$i"
-	ext="$RANDOM"
-
-	if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "result_$ext.png" localhost:10000 2> /dev/null 1> /dev/null; then
-
-		pixel_differences="$(compare -identify -metric AE "result_$ext.png" expected_result.png null: 2>&1 > /dev/null)"
-
-		if [[ "$pixel_differences" == "0" ]]; then
-			success_count=$((success_count + 1))
-		else
-			echo "FAIL"
-			echo "$pixel_differences pixel differences detected"
+# Validate that required tools are in path
+declare -a required_binaries=(curl compare)
+validate_dependencies() {
+	for required_binary in "${required_binaries[@]}"; do
+		if ! command -v "$required_binary" > /dev/null; then
+			echo "$required_binary is not present."
 			exit 1
 		fi
-	else
-		echo "curl failed with ${?}. See man curl for meaning."
-	fi
-done
+	done
+}
 
-echo "$success_count / $total_count"
-rm result_*.png
+experiment_main() {
+	local -r hostname="$1"
+	local -r results_directory="$2"
 
-if [ "$1" != "-d" ]; then
-	sleep 5
-	echo -n "Running Cleanup: "
-	pkill sledgert > /dev/null 2> /dev/null
-	echo "[DONE]"
-fi
+	local -i success_count=0
+	local -ri total_count=10
 
-exit 0
+	local tmpfs_dir=/tmp/sledge_imageresize_test/
+	[[ -d "$tmpfs_dir" ]] && {
+		panic "tmpfs directory exists. Aborting"
+		return 1
+	}
+	mkdir $tmpfs_dir
+
+	for ((i = 0; i < total_count; i++)); do
+		ext="$RANDOM"
+
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "$tmpfs_dir/result_$ext.png" "$hostname:10000" 2> /dev/null 1> /dev/null; then
+
+			pixel_differences="$(compare -identify -metric AE "$tmpfs_dir/result_$ext.png" expected_result.png null: 2>&1 > /dev/null)"
+
+			if [[ "$pixel_differences" == "0" ]]; then
+				success_count=$((success_count + 1))
+			else
+				{
+					echo "FAIL"
+					echo "$pixel_differences pixel differences detected"
+				} | tee -a "$results_directory/result.txt"
+				return 1
+			fi
+		else
+			echo "curl failed with ${?}. See man curl for meaning." | tee -a "$results_directory/result.txt"
+		fi
+	done
+
+	echo "$success_count / $total_count" | tee -a "$results_directory/result.txt"
+	rm -r "$tmpfs_dir"
+
+	return 0
+}
+
+main "$@"
