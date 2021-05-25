@@ -7,28 +7,10 @@ export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
 source csv_to_dat.sh || exit 1
 source framework.sh || exit 1
-# source generate_gnuplots.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
-
-declare  -ar workloads=(small medium large)
-declare  -Ar port=(
-	[small]=10000
-	[medium]=10001
-	[large]=10002
-)
-
-# Validate that required tools are in path
-declare -a required_binaries=(curl)
-validate_dependencies() {
-	for required_binary in "${required_binaries[@]}"; do
-		if ! command -v "$required_binary" > /dev/null; then
-			echo "$required_binary is not present."
-			exit 1
-		fi
-	done
-}
+source validate_dependencies.sh || exit 1
 
 run_functional_tests() {
 	local hostname="$1"
@@ -100,6 +82,7 @@ run_perf_tests() {
 	local -ir worker_max=10
 	local -ir batch_size=10
 	local -i batch_id=0
+	local pids
 
 	echo -n "Perf Tests: "
 	for workload in "${workloads[@]}"; do
@@ -113,7 +96,8 @@ run_perf_tests() {
 
 			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "shrinking_man_${workload}.jpg" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 		done
-		wait -f $(pgrep hey | tr '\n' ' ')
+		pids=$(pgrep hey | tr '\n' ' ')
+		[[ -n $pids ]] && wait -f $pids
 	done
 	printf "[OK]\n"
 
@@ -179,12 +163,19 @@ experiment_main() {
 	local -r hostname="$1"
 	local -r results_directory="$2"
 
-	validate_dependencies
-
 	run_functional_tests "$hostname" "$results_directory" || return 1
 	run_perf_tests "$hostname" "$results_directory" || return 1
 	process_results "$results_directory" || return 1
 
 }
+
+validate_dependencies curl
+
+declare -ar workloads=(small medium large)
+declare -Ar port=(
+	[small]=10000
+	[medium]=10001
+	[large]=10002
+)
 
 main "$@"

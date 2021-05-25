@@ -68,7 +68,7 @@ ocr_by_word() {
 		make gocr -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/by_word" || exit 1
-	./install.sh || exit 1
+	# ./install.sh || exit 1
 	./run.sh || failed_tests+=("ocr_by_word")
 	popd || exit 1
 	return 0
@@ -79,7 +79,7 @@ ocr_by_font() {
 		make gocr -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/by_font" || exit 1
-	./install.sh || exit 1
+	# ./install.sh || exit 1
 	./run.sh || failed_tests+=("ocr_by_font")
 	popd || exit 1
 	return 0
@@ -90,7 +90,7 @@ ocr_by_dpi() {
 		make gocr -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/by_dpi" || exit 1
-	./install.sh || exit 1
+	# ./install.sh || exit 1
 	./run.sh || failed_tests+=("ocr_by_dpi")
 	popd || exit 1
 	return 0
@@ -102,7 +102,7 @@ ekf_by_iteration() {
 		make tinyekf -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ekf/by_iteration" || exit 1
-	./run.sh || failed_tests+=("ocr_by_dpi")
+	./run.sh || failed_tests+=("ekf_by_iteration")
 	popd || exit 1
 	return 0
 }
@@ -133,7 +133,7 @@ image_resize() {
 		make sod -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/imageresize/test" || exit 1
-	./install.sh || exit 1
+	# ./install.sh || exit 1
 	./run.sh || failed_tests+=("image_resize")
 	popd || exit 1
 	return 0
@@ -144,7 +144,7 @@ image_resize_by_resolution() {
 		make sod -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/imageresize/by_resolution" || exit 1
-	./install.sh || exit 1
+	# ./install.sh || exit 1
 	./run.sh || failed_tests+=("image_resize_resolution")
 	popd || exit 1
 	return 0
@@ -166,7 +166,7 @@ bimodal() {
 		make rttests -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/bimodal/" || exit 1
-	./install.sh || exit 1
+	# ./install.sh || exit 1
 	./run.sh || failed_tests+=("bimodal")
 	popd || exit 1
 	return 0
@@ -178,7 +178,7 @@ concurrency() {
 		make rttests -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/concurrency/" || exit 1
-	./install.sh || exit 1
+	# ./install.sh || exit 1
 	./run.sh || failed_tests+=("concurrency")
 	popd || exit 1
 	return 0
@@ -194,7 +194,7 @@ payload() {
 	fi
 	# TODO: Make Dependency "work1k_wasm.so" "work10k_wasm.so" "work100k_wasm.so" "work1m_wasm.so"
 	pushd "$base_dir/runtime/experiments/payload/" || exit 1
-	./install.sh || exit 1
+	# ./install.sh || exit 1
 	./run.sh || failed_tests+=("payload")
 	popd || exit 1
 	return 0
@@ -207,6 +207,7 @@ main() {
 	if (($# == 0)); then
 		# If no arguments are provided, run all tests
 		for test in "${tests[@]}"; do
+			echo "[[$test]]"
 			"$test"
 		done
 

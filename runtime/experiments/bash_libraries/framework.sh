@@ -286,10 +286,7 @@ __framework_sh__run_debug() {
 }
 
 __framework_sh__run_client() {
-	experiment_main "$__framework_sh__target" "$RESULTS_DIRECTORY" || {
-		panic "Error calling experiment_main $RESULTS_DIRECTORY"
-		return 1
-	}
+	experiment_main "$__framework_sh__target" "$RESULTS_DIRECTORY" || return 1
 
 	return 0
 }
@@ -331,13 +328,14 @@ __framework_sh__run_both() {
 		}
 
 		__framework_sh__run_client || {
-			panic "Error calling __framework_sh__run_client"
+			__framework_sh__unset_env_file "$envfile"
 			__framework_sh__stop_runtime
 			return 1
 		}
 
 		__framework_sh__stop_runtime || {
 			panic "Error calling __framework_sh__stop_runtime"
+			__framework_sh__unset_env_file "$envfile"
 			return 1
 		}
 
@@ -424,18 +422,18 @@ main() {
 			;;
 	esac
 
-	exit "$?"
+	return "$?"
 }
 
 __framework_sh__stop_runtime() {
 	printf "Stopping Runtime: "
 	# Ignoring RC of 1, as it indicates no matching process
-	sudo pkill sledgert > /dev/null 2> /dev/null
+	pkill sledgert > /dev/null 2> /dev/null
 	(($? > 1)) && {
 		printf "[ERR]\npkill sledgrt: %d\n" $?
 		exit 1
 	}
-	sudo pkill hey > /dev/null 2> /dev/null
+	pkill hey > /dev/null 2> /dev/null
 	(($? > 1)) && {
 		printf "[ERR]\npkill hey: %d\n" $?
 		exit 1

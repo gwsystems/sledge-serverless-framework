@@ -13,22 +13,7 @@ source framework.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
-
-# Copy Flower Image if not here
-if [[ ! -f "./flower.jpg" ]]; then
-	cp "$__run_sh__project_base_absolute_path/runtime/tests/sod/bin/flower.jpg" ./flower.jpg
-fi
-
-# Validate that required tools are in path
-declare -a required_binaries=(curl compare)
-validate_dependencies() {
-	for required_binary in "${required_binaries[@]}"; do
-		if ! command -v "$required_binary" > /dev/null; then
-			echo "$required_binary is not present."
-			exit 1
-		fi
-	done
-}
+source validate_dependencies.sh || exit 1
 
 experiment_main() {
 	local -r hostname="$1"
@@ -70,5 +55,12 @@ experiment_main() {
 
 	return 0
 }
+
+validate_dependencies curl compare
+
+# Copy Flower Image if not here
+if [[ ! -f "./flower.jpg" ]]; then
+	cp "$__run_sh__project_base_absolute_path/runtime/tests/sod/bin/flower.jpg" ./flower.jpg
+fi
 
 main "$@"

@@ -7,44 +7,10 @@ export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
 source csv_to_dat.sh || exit 1
 source framework.sh || exit 1
-# source generate_gnuplots.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
-
-declare -a workloads=(lpd1 lpd2 lpd4)
-
-declare -Ar port=(
-	[lpd1]=10000
-	[lpd2]=10001
-	[lpd4]=10002
-)
-
-# Validate that required tools are in path
-declare -a required_binaries=(curl)
-validate_dependencies() {
-	for required_binary in "${required_binaries[@]}"; do
-		if ! command -v "$required_binary" > /dev/null; then
-			echo "$required_binary is not present."
-			exit 1
-		fi
-	done
-}
-
-# Sort the images by the number of labeled plates
-declare -a lpd1_images=()
-declare -a lpd2_images=()
-declare -a lpd4_images=()
-while IFS= read -r image_data; do
-	image_file="${image_data/csv/png}"
-	# Each line of csv data represents a labeled plate on the image
-	case $(wc "$image_data" -l | cut -d\  -f1) in
-		1) lpd1_images+=("$image_file") ;;
-		2) lpd2_images+=("$image_file") ;;
-		4) lpd4_images+=("$image_file") ;;
-		*) panic "Unexpected number of plates" ;;
-	esac
-done < <(ls ./images/*.csv)
+source validate_dependencies.sh || exit 1
 
 get_random_image() {
 	local workload="$1"
@@ -139,6 +105,7 @@ run_perf_tests() {
 	local -ir batch_size=10
 	local -i batch_id=0
 	local random_image
+	local pids
 
 	printf "Perf Tests: \n"
 	for workload in "${workloads[@]}"; do
@@ -153,7 +120,8 @@ run_perf_tests() {
 			get_random_image "$workload" random_image
 			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "${random_image}" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 		done
-		wait -f $(pgrep hey | tr '\n' ' ')
+		pids=$(pgrep hey | tr '\n' ' ')
+		[[ -n $pids ]] && wait -f $pids
 	done
 	printf "[OK]\n"
 
@@ -164,8 +132,6 @@ run_perf_tests() {
 }
 
 experiment_main() {
-	validate_dependencies
-
 	local -r hostname="$1"
 	local -r results_directory="$2"
 
@@ -173,5 +139,30 @@ experiment_main() {
 	run_perf_tests "$hostname" "$results_directory" || return 1
 	process_results "$results_directory" || return 1
 }
+
+validate_dependencies curl
+
+declare -a workloads=(lpd1 lpd2 lpd4)
+
+declare -Ar port=(
+	[lpd1]=10000
+	[lpd2]=10001
+	[lpd4]=10002
+)
+
+# Sort the images by the number of labeled plates
+declare -a lpd1_images=()
+declare -a lpd2_images=()
+declare -a lpd4_images=()
+while IFS= read -r image_data; do
+	image_file="${image_data/csv/png}"
+	# Each line of csv data represents a labeled plate on the image
+	case $(wc "$image_data" -l | cut -d\  -f1) in
+		1) lpd1_images+=("$image_file") ;;
+		2) lpd2_images+=("$image_file") ;;
+		4) lpd4_images+=("$image_file") ;;
+		*) panic "Unexpected number of plates" ;;
+	esac
+done < <(ls ./images/*.csv)
 
 main "$@"

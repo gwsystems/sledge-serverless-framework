@@ -128,6 +128,7 @@ run_experiments() {
 	local -i roll=0
 	local -ir total_iterations=1000
 	local -ir worker_max=50
+	local pids
 
 	printf "Running Experiments: "
 
@@ -146,7 +147,8 @@ run_experiments() {
 			fi
 		done
 	done
-	wait -f $(pgrep hey | tr '\n' ' ')
+	pids=$(pgrep hey | tr '\n' ' ')
+	[[ -n $pids ]] && wait -f $pids
 	printf "[OK]\n"
 
 	for workload in "${workloads[@]}"; do

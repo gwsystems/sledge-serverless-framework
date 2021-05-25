@@ -8,19 +8,9 @@ export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
 source csv_to_dat.sh || exit 1
 source framework.sh || exit 1
-# source generate_gnuplots.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
-
-# Copy data if not here
-if  [[ ! -f "$__run_sh__base_path/initial_state.dat" ]]; then
-	pushd "$__run_sh__base_path" || exit 1
-	pushd "../../../../tests/TinyEKF/extras/c/" || exit 1
-	cp ekf_raw.dat "$__run_sh__base_path/initial_state.dat" || exit 1
-	popd || exit 1
-	popd || exit 1
-fi
 
 run_functional_tests() {
 	local hostname="$1"
@@ -29,37 +19,36 @@ run_functional_tests() {
 	local -i success_count=0
 	local -ir total_count=50
 
-	echo -n "Functional Tests: "
+	local tmpfs_dir=/tmp/sledge_ekf_by_iteration
+	[[ -d "$tmpfs_dir" ]] && {
+		echo "$tmpfs_dir directory exists. Delete via rm -r $tmpfs_dir and rerun."
+		return 1
+	}
+	mkdir "$tmpfs_dir" || {
+		echo "Failed to create tmp directory"
+		return 1
+	}
 
 	for ((i = 0; i < total_count; i++)); do
-		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@initial_state.dat" "$hostname":10000 2> /dev/null > /tmp/one_iteration_res.dat
-		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@/tmp/one_iteration_res.dat" "$hostname":10001 2> /dev/null > /tmp/two_iterations_res.dat
-		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@/tmp/two_iterations_res.dat" "$hostname":10002 2> /dev/null > /tmp/three_iterations_res.dat
+		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@initial_state.dat" "$hostname":10000 2> /dev/null > "$tmpfs_dir/one_iteration_res.dat"
+		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@$tmpfs_dir/one_iteration_res.dat" "$hostname":10001 2> /dev/null > "$tmpfs_dir/two_iterations_res.dat"
+		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@$tmpfs_dir/two_iterations_res.dat" "$hostname":10002 2> /dev/null > "$tmpfs_dir/three_iterations_res.dat"
 
-		if diff -s /tmp/one_iteration_res.dat one_iteration.dat > /dev/null && diff -s /tmp/two_iterations_res.dat two_iterations.dat > /dev/null && diff -s /tmp/three_iterations_res.dat three_iterations.dat > /dev/null; then
+		if diff -s "$tmpfs_dir/one_iteration_res.dat" one_iteration.dat > /dev/null \
+			&& diff -s "$tmpfs_dir/two_iterations_res.dat" two_iterations.dat > /dev/null \
+			&& diff -s "$tmpfs_dir/three_iterations_res.dat" three_iterations.dat > /dev/null; then
 			((success_count++))
 		fi
 
-		rm /tmp/*_res.dat
 	done
 
-	echo "$success_count / $total_count" >> "$results_directory/results.txt"
-
+	rm -r "$tmpfs_dir"
 	if ((success_count == total_count)); then
-		echo "[OK]"
 		return 0
 	else
-		echo "[Fail]"
 		return 1
 	fi
 }
-
-declare -a workloads=(initial_state one_iteration two_iterations)
-declare -A port=(
-	[initial_state]=10000
-	[one_iteration]=10001
-	[two_iterations]=10002
-)
 
 run_perf_tests() {
 	local hostname="$1"
@@ -69,6 +58,7 @@ run_perf_tests() {
 	local -ir worker_max=10
 	local -ir batch_size=10
 	local -i batch_id=0
+	local pids
 
 	echo -n "Perf Tests: "
 	for workload in "${workloads[@]}"; do
@@ -82,7 +72,8 @@ run_perf_tests() {
 
 			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "./${workload}.dat" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" &
 		done
-		wait -f $(pgrep hey | tr '\n' ' ')
+		pids=$(pgrep hey | tr '\n' ' ')
+		[[ -n $pids ]] && wait -f $pids
 	done
 	echo "[OK]"
 
@@ -153,6 +144,23 @@ experiment_main() {
 	run_perf_tests "$hostname" "$results_directory" || return 1
 	process_results "$results_directory" || return 1
 
+	return 0
 }
+
+# Copy data if not here
+if  [[ ! -f "$__run_sh__base_path/initial_state.dat" ]]; then
+	pushd "$__run_sh__base_path" || exit 1
+	pushd "../../../../tests/TinyEKF/extras/c/" || exit 1
+	cp ekf_raw.dat "$__run_sh__base_path/initial_state.dat" || exit 1
+	popd || exit 1
+	popd || exit 1
+fi
+
+declare -a workloads=(initial_state one_iteration two_iterations)
+declare -A port=(
+	[initial_state]=10000
+	[one_iteration]=10001
+	[two_iterations]=10002
+)
 
 main "$@"
