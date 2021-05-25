@@ -11,18 +11,7 @@ source framework.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
-
-# Validate that required tools are in path
-declare -a required_binaries=(curl shuf pango-view pngtopnm diff)
-
-validate_dependencies() {
-	for required_binary in "${required_binaries[@]}"; do
-		if ! command -v "$required_binary" > /dev/null; then
-			echo "$required_binary is not present."
-			exit 1
-		fi
-	done
-}
+source validate_dependencies.sh || exit 1
 
 experiment_main() {
 	local -ir iteration_count=100
@@ -38,8 +27,6 @@ experiment_main() {
 		panic "directory \"$2\" does not exist"
 		return 1
 	fi
-
-	validate_dependencies
 
 	local -r hostname="$1"
 	local -r results_directory="$2"
@@ -129,5 +116,7 @@ experiment_main() {
 	# Transform csvs to dat files for gnuplot
 	csv_to_dat "$results_directory/success.csv" "$results_directory/latency.csv"
 }
+
+validate_dependencies curl shuf pango-view pngtopnm diff
 
 main "$@"

@@ -10,23 +10,11 @@ source framework.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
-
-# Validate that required tools are in path
-declare -a required_binaries=(curl)
-validate_dependencies() {
-	for required_binary in "${required_binaries[@]}"; do
-		if ! command -v "$required_binary" > /dev/null; then
-			echo "$required_binary is not present." >> "$results_directory/results.txt"
-			exit 1
-		fi
-	done
-}
+source validate_dependencies.sh || exit 1
 
 experiment_main() {
 	local -r hostname="$1"
 	local -r results_directory="$2"
-
-	validate_dependencies
 
 	local -r expected_result="$(cat ./expected_result.txt)"
 
@@ -60,5 +48,7 @@ experiment_main() {
 	fi
 
 }
+
+validate_dependencies curl
 
 main "$@"

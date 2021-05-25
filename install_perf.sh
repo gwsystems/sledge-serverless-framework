@@ -3,12 +3,12 @@
 # If already installed, just return
 command -v perf && {
 	echo "perf is already installed."
-	exit 0
+	return 0
 }
 
 [[ "$(whoami)" != "root" ]] && {
 	echo "Expected to run as root"
-	exit 1
+	return 1
 }
 
 # Under WSL2, perf has to be installed from source
@@ -22,5 +22,3 @@ if  grep --silent 'WSL2' <(uname -r); then
 else
 	apt-get install "linux-tools-$(uname -r)" linux-tools-generic -y
 fi
-
-exit 0
