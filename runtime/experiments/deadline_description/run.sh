@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 # Add bash_libraries directory to path
 __run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
 __run_sh__bash_libraries_relative_path="../bash_libraries"
@@ -14,7 +12,8 @@ source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
 
-declare -a workloads=(ekf resize lpd gocr)
+# declare -a workloads=(ekf resize lpd gocr)
+declare -a workloads=(ekf resize lpd)
 
 profile() {
 	local hostname="$1"
@@ -74,34 +73,35 @@ calculate_relative_deadline() {
 	awk "BEGIN { printf \"%.0f\n\", ($baseline * $multiplier)}"
 }
 
-generate_relative_deadline() {
-	local -r results_directory="$1"
-	local -r workload="$2"
-
-	local baseline
-	local multiplier
-	local relative_deadline
-
-	local -ri percentile=90
-
-	baseline="$(get_baseline_execution "$results_directory" "$workload" $percentile)"
-	multiplier="$(get_random_from_interval 1.5 2.0)"
-	relative_deadline=$(calculate_relative_deadline "$baseline" "$multiplier")
-	echo "$relative_deadline"
-}
-
 generate_spec() {
 	local results_directory="$1"
 
-	# Run initial test run to get CDF of execution time for each app
-	# I have to do this out-of-band on the
+	# Multiplier Interval and Expected Execution Percentile is currently the same for all workloads
+	local -r multiplier_interval_lower_bound="1.5"
+	local -r multiplier_interval_upper_bound="2.0"
+	local -ri percentile=90
+	((percentile < 50 || percentile > 99)) && panic "Percentile should be between 50 and 99 inclusive, was $percentile"
 
-	local ekf_relative_deadline="$(generate_relative_deadline "$results_directory" ekf)"
-	local resize_relative_deadline="$(generate_relative_deadline "$results_directory" resize)"
-	local lpd_relative_deadline="$(generate_relative_deadline "$results_directory" lpd)"
+	local -A multiplier=()
+	local -A baseline_execution=()
+	local -A relative_deadline=()
+
+	for workload in "${workloads[@]}"; do
+		multiplier["$workload"]="$(get_random_from_interval $multiplier_interval_lower_bound $multiplier_interval_upper_bound)"
+		baseline_execution["$workload"]="$(get_baseline_execution "$results_directory" "$workload" $percentile)"
+		relative_deadline["$workload"]="$(calculate_relative_deadline "${baseline_execution[$workload]}" "${multiplier[$workload]}")"
+		{
+			echo "$workload"
+			printf "\tbaseline: %s\n" "${baseline_execution[$workload]}"
+			printf "\tmultiplier: %s\n" "${multiplier[$workload]}"
+			printf "\tdeadline: %s\n" "${relative_deadline[$workload]}"
+		} >> "$results_directory/log.txt"
+	done
+
+	# TODO:  Excluding gocr because of difficulty used gocr with hey
 
 	# Our JSON format is not spec complaint. I have to hack in a wrapping array before jq and delete it afterwards
-	# Excluding gocr because of difficulty used gocr with hey
+	# expected-execution-us and admissions-percentile is only used by admissions control
 	{
 		echo "["
 		cat ./spec.json
@@ -109,17 +109,22 @@ generate_spec() {
 	} | jq "\
 	[ \
 		.[] | \
-		if (.name == \"ekf\") then . + { \"relative-deadline-us\": $ekf_relative_deadline} else . end | \
-		if (.name == \"resize\") then . + { \"relative-deadline-us\": $resize_relative_deadline} else . end | \
-		if (.name == \"lpd\") then . + { \"relative-deadline-us\": $lpd_relative_deadline} else . end \
+		if (.name == \"ekf\") then . + { \
+			\"relative-deadline-us\": ${relative_deadline[ekf]},\
+			\"expected-execution-us\": ${baseline_execution[ekf]},\
+			\"admissions-percentile\": $percentile
+		} else . end | \
+		if (.name == \"resize\") then . + { \
+			\"relative-deadline-us\": ${relative_deadline[resize]},\
+			\"expected-execution-us\": ${baseline_execution[resize]},\
+			\"admissions-percentile\": $percentile
+		} else . end | \
+		if (.name == \"lpd\") then . + { \
+			\"relative-deadline-us\": ${relative_deadline[lpd]},\
+			\"expected-execution-us\": ${baseline_execution[lpd]},\
+			\"admissions-percentile\": $percentile
+		} else . end \
 	]" | tail -n +2 | head -n-1 > "$results_directory/spec.json"
-
-	# Get the baseline execution using a target in this CDF
-	# generate a relative deadline per module
-	# Use JQ to template baseline as "expected-execution-us" and deadline at "relative-deadline-us"
-	# Execute experiment with deadlines and workload mix (all equal for now)
-	# Capture "sandbox state" log and perhaps other logs?
-
 }
 
 # Process the experimental results and generate human-friendly results for success rate, throughput, and latency
