@@ -156,10 +156,8 @@ run_experiments() {
 		((batch_id++))
 		for workload in "${workloads[@]}"; do
 			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
-				set -x
 				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$workload]} "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 				break
-				unset -x
 			fi
 		done
 	done
