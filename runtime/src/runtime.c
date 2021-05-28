@@ -131,7 +131,7 @@ runtime_call_setrlimit(int id, rlim_t c, rlim_t m)
 }
 
 void
-runtime_pthread_prio(pthread_t thread, unsigned int nice)
+runtime_set_pthread_prio(pthread_t thread, unsigned int nice)
 {
 	struct sched_param sp;
 	int                policy;
