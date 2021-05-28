@@ -47,7 +47,7 @@ worker_thread_main(void *argument)
 	worker_thread_idx = *(int *)argument;
 
 	/* Set my priority */
-	// runtime_set_pthread_prio(pthread_self(), 0);
+	runtime_set_pthread_prio(pthread_self(), 1);
 
 	scheduler_runqueue_initialize();
 
