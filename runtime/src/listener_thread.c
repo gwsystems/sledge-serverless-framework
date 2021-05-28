@@ -80,7 +80,7 @@ listener_thread_main(void *dummy)
 	generic_thread_initialize();
 
 	/* Set my priority */
-	// runtime_set_pthread_prio(pthread_self(), 0);
+	runtime_set_pthread_prio(pthread_self(), 1);
 
 	while (true) {
 		/*
