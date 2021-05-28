@@ -5,7 +5,7 @@
 #include "generic_thread.h"
 #include "module.h"
 
-#define LISTENER_THREAD_CORE_ID 0
+#define LISTENER_THREAD_CORE_ID 1
 
 extern pthread_t listener_thread_id;
 
