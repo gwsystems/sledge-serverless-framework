@@ -90,11 +90,15 @@ envsetup() {
 
 	# Run the sledge-dev:latest image as a background container named sledge-dev with the project directly mounted at /sledge
 	echo "Creating the build container ${SYS_DOC_NAMETAG} from the image ${SYS_DOC_DEVNAMETAG}"
+
+	host_dir="$(cd "$(dirname "${0}")" && pwd -P || exit 1)"
+	echo "Bind mounting $host_dir at $HOST_SYS_MOUNT"
+
 	docker run \
 		--privileged \
 		--name=${SYS_DOC_DEVNAME} \
 		--detach \
-		--mount type=bind,src="$(cd "$(dirname "${0}")" && pwd -P || exit 1),target=/${SYS_NAME}" \
+		--mount type=bind,source="$host_dir",target="$HOST_SYS_MOUNT" \
 		"${SYS_DOC_DEVNAMETAG}" /bin/sleep 99999999 > /dev/null
 
 	# Execute the make install command on the sledge-dev image to build the project
