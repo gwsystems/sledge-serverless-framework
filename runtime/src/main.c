@@ -25,11 +25,11 @@
 #include "worker_thread.h"
 
 /* Conditionally used by debuglog when NDEBUG is not set */
-int32_t        debuglog_file_descriptor        = -1;
-uint32_t       runtime_processor_speed_MHz     = 0;
-uint32_t       runtime_total_online_processors = 0;
-uint32_t       runtime_worker_threads_count    = 0;
-const uint32_t runtime_first_worker_processor  = 2;
+int32_t  debuglog_file_descriptor        = -1;
+uint32_t runtime_first_worker_processor  = 1;
+uint32_t runtime_processor_speed_MHz     = 0;
+uint32_t runtime_total_online_processors = 0;
+uint32_t runtime_worker_threads_count    = 0;
 
 
 FILE *runtime_sandbox_perf_log = NULL;
@@ -57,12 +57,23 @@ runtime_usage(char *cmd)
 void
 runtime_allocate_available_cores()
 {
+	uint32_t max_possible_workers;
+
 	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
 	printf("\tCore Count: %u\n", runtime_total_online_processors);
-	uint32_t max_possible_workers = runtime_total_online_processors - 2;
 
-	if (runtime_total_online_processors < 2) panic("Runtime requires at least two cores!");
+	/* If more than two cores are available, leave core 0 free to run OS tasks */
+	if (runtime_total_online_processors > 2) {
+		runtime_first_worker_processor = 2;
+		max_possible_workers           = runtime_total_online_processors - 2;
+	} else if (runtime_total_online_processors == 2) {
+		runtime_first_worker_processor = 1;
+		max_possible_workers           = runtime_total_online_processors - 1;
+	} else {
+		panic("Runtime requires at least two cores!");
+	}
+
 
 	/* Number of Workers */
 	char *worker_count_raw = getenv("SLEDGE_NWORKERS");
