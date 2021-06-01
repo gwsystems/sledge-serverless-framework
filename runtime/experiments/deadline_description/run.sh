@@ -89,6 +89,14 @@ generate_spec() {
 	for workload in "${workloads[@]}"; do
 		multiplier["$workload"]="$(get_random_from_interval $multiplier_interval_lower_bound $multiplier_interval_upper_bound)"
 		baseline_execution["$workload"]="$(get_baseline_execution "$results_directory" "$workload" $percentile)"
+		[[ -z "${baseline_execution[$workload]}" ]] && {
+			panic "Failed to get baseline execution for $workload"
+			exit 1
+		}
+		[[ -z "${multiplier[$workload]}" ]] && {
+			panic "Failed to generate multiplier for $workload"
+			exit 1
+		}
 		relative_deadline["$workload"]="$(calculate_relative_deadline "${baseline_execution[$workload]}" "${multiplier[$workload]}")"
 		{
 			echo "$workload"
@@ -132,7 +140,7 @@ process_results() {
 	local results_directory="$1"
 
 	for workload in "${workloads[@]}"; do
-		# Filter on 200s, subtract DNS time, convert from s to ns, and sort
+		# Filter on 200s, subtract DNS time, convert from s to us, and sort
 		awk -F, '$7 == 200 {print (($1 - $2) * 1000000)}' < "$results_directory/$workload/benchmark.csv" \
 			| sort -g > "$results_directory/$workload/response_times_sorted.csv"
 	done
