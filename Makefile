@@ -1,8 +1,16 @@
+SHELL:=/bin/bash
+ARCH:=$(shell arch)
+
 COMPILER=awsm
 ROOT=${ROOT:-$(cd "$(dirname ${BASH_SOURCE:-$0})" && pwd)}
+WASMCEPTION_URL=https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
 
+# TODO: Add ARM release build
 .PHONY: build
 build:
+ifeq ($(ARCH),x86_64)
+	pushd /sledge/awsm/wasmception && wget ${WASMCEPTION_URL} -O wasmception.tar.gz && tar xvfz wasmception.tar.gz && rm wasmception.tar.gz && popd
+endif
 	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
 	@cd ${COMPILER} && cargo build --release && cd ${ROOT}
 
