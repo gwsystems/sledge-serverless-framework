@@ -61,11 +61,11 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
           echo "/root/.cargo/bin:$PATH" >> $GITHUB_PATH
-      - name: Get wasmception
-        run: |
-          wget $WASMCEPTION_URL -O wasmception.tar.gz
-          mkdir -p awsm/wasmception
-          tar xvfz wasmception.tar.gz -C awsm/wasmception
+      # - name: Get wasmception
+      #   run: |
+      #     wget $WASMCEPTION_URL -O wasmception.tar.gz
+      #     mkdir -p awsm/wasmception
+      #     tar xvfz wasmception.tar.gz -C awsm/wasmception
       # - name: Get WASI-SDK
       #   run: |
       #     curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && sudo dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb

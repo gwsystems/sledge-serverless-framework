@@ -9,7 +9,7 @@ WASMCEPTION_URL=https://github.com/gwsystems/wasmception/releases/download/v0.2.
 .PHONY: build
 build:
 ifeq ($(ARCH),x86_64)
-	cd /sledge/awsm/wasmception && wget ${WASMCEPTION_URL} -O wasmception.tar.gz && tar xvfz wasmception.tar.gz && rm wasmception.tar.gz
+	cd ./awsm/wasmception && wget ${WASMCEPTION_URL} -O wasmception.tar.gz && tar xvfz wasmception.tar.gz && rm wasmception.tar.gz
 endif
 	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
 	@cd ${COMPILER} && cargo build --release && cd ${ROOT}
