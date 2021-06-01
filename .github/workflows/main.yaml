@@ -112,6 +112,12 @@ jobs:
         run: |
           ./test.sh ocr_hyde
         if: success() || failure()
+      - name: Upload Hyde Logs on Failure
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: hyde-logs
+          path: ./runtime/experiments/applications/ocr/hyde/res/**/
       - name: Handwriting
         run: |
           ./test.sh ocr_handwriting
