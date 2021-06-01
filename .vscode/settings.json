@@ -95,13 +95,11 @@
 		"**/.hg": true,
 		"**/CVS": true,
 		"**/.DS_Store": true,
-		"awsm/wasmception": true
 	},
 	"C_Cpp.default.cStandard": "c17",
 	"C_Cpp.exclusionPolicy": "checkFilesAndFolders",
 	"C_Cpp.experimentalFeatures": "Enabled",
 	"C_Cpp.files.exclude": {
-		"awsm/wasmception": true,
 		"**/.vscode": true
 	},
 	"shellformat.effectLanguages": [
