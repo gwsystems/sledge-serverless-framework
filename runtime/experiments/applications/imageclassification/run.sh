@@ -13,7 +13,6 @@ source path_join.sh || exit 1
 source validate_dependencies.sh || exit 1
 
 get_random_image() {
-	# local workload="$1"
 	local -n __random_image="$1"
 
 	__random_image="${cifar10_images[$((RANDOM % ${#cifar10_images[@]}))]}"
@@ -22,7 +21,6 @@ get_random_image() {
 run_functional_tests() {
 	local hostname="$1"
 	local results_directory="$2"
-	# same_image="./images/bmp/airplane5.bmp"
 
 	printf "Func Tests: \n"
 
@@ -34,21 +32,6 @@ run_functional_tests() {
 	
 	echo "$same_image" >> "${results_directory}/cifar10_same.txt"
 	curl --data-binary "@$same_image" -s "${hostname}:10001" >> "${results_directory}/cifar10_same.txt"
-
-	# file_type=bmp
-	# # file_type=png
-
-	# for class in airplane automobile bird cat deer dog frog horse ship truck; do
-	# 	for instance in 1 2 3 4 5 6 7 8 9 10; do
-	# 		echo "Classifying $class$instance.$file_type" >> "${results_directory}/cifar10_rand.txt"
-	# 		curl -H 'Expect:' -H "Content-Type: Image/$file_type" --data-binary "@images/$file_type/$class$instance.$file_type" localhost:10000 >> "${results_directory}/cifar10_rand.txt" 
-	# 	done
-	# 	{
-	# 		echo "==== ERROR RATE: x/10 ===="  # the 'x' is to be coded
-	# 		echo ""
-	# 		echo ""
-	# 	} >> "${results_directory}/cifar10_rand.txt"
-	# done
 
 	printf "[OK]\n"
 }
@@ -80,7 +63,6 @@ run_perf_tests() {
 				image=$same_image
 			fi
 			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "${image}" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
-			# curl --data-binary "@$image" --output - "${hostname}:${port[$workload]}" >> "${results_directory}/${workload}-2.txt"
 		done
 		pids=$(pgrep hey | tr '\n' ' ')
 		[[ -n $pids ]] && wait -f $pids
