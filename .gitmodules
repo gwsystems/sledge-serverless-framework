@@ -1,6 +1,6 @@
 [submodule "awsm"]
 path = awsm
-url = https://github.com/gwsystems/aWsm
+url = https://github.com/lyuxiaosu/aWsm.git 
 ignore = dirty
 [submodule "http-parser"]
 path = runtime/thirdparty/http-parser
