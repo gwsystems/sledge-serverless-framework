@@ -103,7 +103,7 @@ envsetup() {
 
 	# Execute the make install command on the sledge-dev image to build the project
 	echo "Building ${SYS_NAME}"
-	docker exec \
+	docker exec -u 0 \
 		--tty \
 		--workdir "${HOST_SYS_MOUNT}" \
 		${SYS_DOC_DEVNAME} make install
@@ -144,7 +144,7 @@ envrun() {
 	fi
 
 	echo "Running shell"
-	docker exec --tty --interactive --workdir "${HOST_SYS_MOUNT}" ${SYS_DOC_NAME} /bin/bash
+	docker exec -u 0 --tty --interactive --workdir "${HOST_SYS_MOUNT}" ${SYS_DOC_NAME} /bin/bash
 }
 
 # Stops and removes the sledge "runtime" container
