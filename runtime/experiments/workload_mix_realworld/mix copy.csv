@@ -1,0 +1,19 @@
+# EKF errors out. Use this when fixed.
+500,ekf_1.5
+500,ekf_1.6
+500,ekf_1.7
+500,ekf_1.8
+500,ekf_1.9
+500,ekf_2.0
+5,lpd_1.5
+5,lpd_1.6
+5,lpd_1.7
+5,lpd_1.8
+5,lpd_1.9
+5,lpd_2.0
+1,resize_1.5
+1,resize_1.6
+1,resize_1.7
+1,resize_1.8
+1,resize_1.9
+1,resize_2.0

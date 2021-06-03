@@ -12,8 +12,11 @@ source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
 
+# TODO:  Excluding gocr because of difficulty used gocr with hey
+# Please keep the element ordered alphabetically!
 # declare -a workloads=(ekf resize lpd gocr)
-declare -a workloads=(ekf resize lpd)
+declare -a workloads=(ekf lpd resize)
+declare -a multiples=(1.5 1.6 1.7 1.8 1.9 2.0)
 
 profile() {
 	local hostname="$1"
@@ -61,12 +64,6 @@ get_baseline_execution() {
 	' < "$response_times_file"
 }
 
-get_random_from_interval() {
-	local -r lower="$1"
-	local -r upper="$2"
-	awk "BEGIN { \"date +%N\" | getline seed; srand(seed); print rand() * ($upper - $lower) + $lower}"
-}
-
 calculate_relative_deadline() {
 	local -r baseline="$1"
 	local -r multiplier="$2"
@@ -77,62 +74,45 @@ generate_spec() {
 	local results_directory="$1"
 
 	# Multiplier Interval and Expected Execution Percentile is currently the same for all workloads
-	local -r multiplier_interval_lower_bound="1.5"
-	local -r multiplier_interval_upper_bound="2.0"
 	local -ri percentile=90
 	((percentile < 50 || percentile > 99)) && panic "Percentile should be between 50 and 99 inclusive, was $percentile"
 
-	local -A multiplier=()
 	local -A baseline_execution=()
-	local -A relative_deadline=()
+	local -i port=10000
+	local relative_deadline
 
 	for workload in "${workloads[@]}"; do
-		multiplier["$workload"]="$(get_random_from_interval $multiplier_interval_lower_bound $multiplier_interval_upper_bound)"
 		baseline_execution["$workload"]="$(get_baseline_execution "$results_directory" "$workload" $percentile)"
 		[[ -z "${baseline_execution[$workload]}" ]] && {
 			panic "Failed to get baseline execution for $workload"
 			exit 1
 		}
-		[[ -z "${multiplier[$workload]}" ]] && {
-			panic "Failed to generate multiplier for $workload"
-			exit 1
-		}
-		relative_deadline["$workload"]="$(calculate_relative_deadline "${baseline_execution[$workload]}" "${multiplier[$workload]}")"
-		{
-			echo "$workload"
-			printf "\tbaseline: %s\n" "${baseline_execution[$workload]}"
-			printf "\tmultiplier: %s\n" "${multiplier[$workload]}"
-			printf "\tdeadline: %s\n" "${relative_deadline[$workload]}"
-		} >> "$results_directory/log.txt"
+
+		# Generates unique module specs on different ports using the different multiples
+		for multiple in "${multiples[@]}"; do
+			relative_deadline=$(calculate_relative_deadline "${baseline_execution[$workload]}" "${multiple}")
+			jq ". + { \
+			\"admissions-percentile\": $percentile,\
+			\"expected-execution-us\": ${baseline_execution[${workload}]},\
+			\"name\": \"${workload}_${multiple}\",\
+			\"port\": $port,\
+			\"relative-deadline-us\": $relative_deadline}" \
+				< "./${workload}/template.json" \
+				> "./${workload}/result_${multiple}.json"
+			((port++))
+		done
+
+		# Merges all of the multiple specs for a single module
+		jq -s '.' ./"${workload}"/result_*.json > "./${workload}/workload_result.json"
+		rm ./"${workload}"/result_*.json
+
 	done
 
-	# TODO:  Excluding gocr because of difficulty used gocr with hey
-
+	# Merges all of the specs for all modules
 	# Our JSON format is not spec complaint. I have to hack in a wrapping array before jq and delete it afterwards
 	# expected-execution-us and admissions-percentile is only used by admissions control
-	{
-		echo "["
-		cat ./spec.json
-		echo "]"
-	} | jq "\
-	[ \
-		.[] | \
-		if (.name == \"ekf\") then . + { \
-			\"relative-deadline-us\": ${relative_deadline[ekf]},\
-			\"expected-execution-us\": ${baseline_execution[ekf]},\
-			\"admissions-percentile\": $percentile
-		} else . end | \
-		if (.name == \"resize\") then . + { \
-			\"relative-deadline-us\": ${relative_deadline[resize]},\
-			\"expected-execution-us\": ${baseline_execution[resize]},\
-			\"admissions-percentile\": $percentile
-		} else . end | \
-		if (.name == \"lpd\") then . + { \
-			\"relative-deadline-us\": ${relative_deadline[lpd]},\
-			\"expected-execution-us\": ${baseline_execution[lpd]},\
-			\"admissions-percentile\": $percentile
-		} else . end \
-	]" | tail -n +2 | head -n-1 > "$results_directory/spec.json"
+	jq -s '. | flatten' ./*/workload_result.json | tail -n +2 | head -n-1 > "$results_directory/spec.json"
+	rm ./*/workload_result*.json
 }
 
 # Process the experimental results and generate human-friendly results for success rate, throughput, and latency

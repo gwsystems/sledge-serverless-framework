@@ -24,6 +24,29 @@ if ! command -v hey > /dev/null; then
 	exit 1
 fi
 
+declare -a workloads=()
+declare -A port=()
+
+# Example of stripping off multiple suffix from variable in format string_multiple
+# test="ekf_12223.23343"
+# ${test%%_+([[:digit:]]).+([[:digit:]])}
+declare -Ar body=(
+	[ekf]="-D ./ekf/ekf_raw.dat"
+	[resize]="-D ./resize/shrinking_man_large.jpg"
+	[lpd]="-D ./lpd/Cars0.png"
+)
+
+initialize_globals() {
+	while read -r line; do
+		# Read into buffer array, splitting on commas
+		readarray -t -d, buffer < <(echo -n "$line")
+		workload="${buffer[1]}"
+		# Update workload mix structures
+		workloads+=("$workload")
+		port+=(["$workload"]=$(get_port "$workload"))
+	done < mix.csv
+}
+
 # Sends requests until the per-module perf window buffers are full
 # This ensures that Sledge has accurate estimates of execution time
 run_samples() {
@@ -50,31 +73,27 @@ run_samples() {
 
 	printf "Running Samples: "
 
-	# EKF
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" 1> /dev/null 2> /dev/null || {
-		printf "[ERR]\n"
-		panic "ekf samples failed with $?"
-		return 1
-	}
-
-	# Resize
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c 1 -cpus 1 -t 0 -o csv -m GET -D "./resize/shrinking_man_large.jpg" "http://${hostname}:10001" 1> /dev/null 2> /dev/null || {
-		printf "[ERR]\n"
-		panic "resize samples failed with $?"
-		return 1
-	}
-
-	# lpd
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c 1 -cpus 1 -t 0 -o csv -m GET -D "./lpd/Cars0.png" "http://${hostname}:10002" 1> /dev/null 2> /dev/null || {
-		printf "[ERR]\n"
-		panic "resize samples failed with $?"
-		return 1
-	}
-
-	# TODO: gocr
+	local workload_base
+	for workload in "${workloads[@]}"; do
+		workload_base="${workload%%_+([[:digit:]]).+([[:digit:]])}"
+		hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c 1 -cpus 1 -t 0 -o csv -m GET -D "${body[$workload_base]}" "http://${hostname}:${port[$workload]}" 1> /dev/null 2> /dev/null || {
+			printf "[ERR]\n"
+			panic "$workload samples failed with $?"
+			return 1
+		}
+	done
 
 	printf "[OK]\n"
 	return 0
+}
+
+get_port() {
+	local name="$1"
+	{
+		echo "["
+		cat ./spec.json
+		echo "]"
+	} | jq ".[] | select(.name == \"$name\") | .port"
 }
 
 # Execute the fib10 and fib40 experiments sequentially and concurrently
@@ -95,20 +114,6 @@ run_experiments() {
 	local hostname="$1"
 	local results_directory="$2"
 
-	local -a workloads=()
-
-	local -Ar port=(
-		[ekf]=10000
-		[resize]=10001
-		[lpd]=10002
-	)
-
-	local -Ar body=(
-		[ekf]="-D ./ekf/initial_state.dat"
-		[resize]="-D ./resize/shrinking_man_large.jpg"
-		[lpd]="-D ./lpd/Cars0.png"
-	)
-
 	local -A floor=()
 	local -A length=()
 	local -i total=0
@@ -116,14 +121,14 @@ run_experiments() {
 	local -a buffer=()
 	local workload=""
 	local -i odds=0
+
+	# Update workload mix structures
 	while read -r line; do
 		# Read into buffer array, splitting on commas
 		readarray -t -d, buffer < <(echo -n "$line")
 		# Use human friendly names
 		odds="${buffer[0]}"
 		workload="${buffer[1]}"
-		# Update workload mix structures
-		workloads+=("$workload")
 		floor+=(["$workload"]=$total)
 		length+=(["$workload"]=$odds)
 		((total += odds))
@@ -137,10 +142,10 @@ run_experiments() {
 	fi
 
 	# TODO: Check that workload is in spec.json
-	local -ir batch_size=1
+	local -ir batch_size=100
 	local -i batch_id=0
 	local -i roll=0
-	local -ir total_iterations=10000
+	local -ir total_iterations=100000
 	local -ir worker_max=50
 	local pids
 
@@ -166,8 +171,8 @@ run_experiments() {
 	printf "[OK]\n"
 
 	for workload in "${workloads[@]}"; do
-		tail --quiet -n +2 "$results_directory/${workload}"_*.csv >> "$results_directory/${workload}.csv"
-		rm "$results_directory/${workload}"_*.csv
+		tail --quiet -n +2 "$results_directory"/"${workload}"_*.csv >> "$results_directory"/"${workload}".csv
+		rm "$results_directory"/"${workload}"_*.csv
 	done
 
 	return 0
@@ -190,14 +195,14 @@ process_results() {
 	# Write headers to CSVs
 	printf "Payload,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
 
-	local -ar payloads=(ekf resize lpd)
-	for payload in "${payloads[@]}"; do
+	# local -ar payloads=(ekf resize lpd)
+	for workloads in "${workloads[@]}"; do
 
 		# Filter on 200s, subtract DNS time, convert from s to ms, and sort
-		awk -F, '$7 == 200 {print (($1 - $2) * 1000)}' < "$results_directory/$payload.csv" \
-			| sort -g > "$results_directory/$payload-response.csv"
+		awk -F, '$7 == 200 {print (($1 - $2) * 1000)}' < "$results_directory/$workloads.csv" \
+			| sort -g > "$results_directory/$workloads-response.csv"
 
-		oks=$(wc -l < "$results_directory/$payload-response.csv")
+		oks=$(wc -l < "$results_directory/$workloads-response.csv")
 		((oks == 0)) && continue # If all errors, skip line
 
 		# Generate Latency Data for csv
@@ -208,16 +213,16 @@ process_results() {
 				p90 = int('"$oks"' * 0.9)
 				p99 = int('"$oks"' * 0.99)
 				p100 = '"$oks"'
-				printf "'"$payload"',"
+				printf "'"$workloads"',"
 			}
 			NR==p50  {printf "%1.4f,",  $0}
 			NR==p90  {printf "%1.4f,",  $0}
 			NR==p99  {printf "%1.4f,",  $0}
 			NR==p100 {printf "%1.4f\n", $0}
-		' < "$results_directory/$payload-response.csv" >> "$results_directory/latency.csv"
+		' < "$results_directory/$workloads-response.csv" >> "$results_directory/latency.csv"
 
 		# Delete scratch file used for sorting/counting
-		rm -rf "$results_directory/$payload-response.csv"
+		rm -rf "$results_directory/$workloads-response.csv"
 	done
 
 	# Transform csvs to dat files for gnuplot
@@ -232,6 +237,7 @@ experiment_main() {
 	local -r target_hostname="$1"
 	local -r results_directory="$2"
 
+	initialize_globals
 	run_samples "$target_hostname" || return 1
 	run_experiments "$target_hostname" "$results_directory" || return 1
 	process_results "$results_directory" || return 1
