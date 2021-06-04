@@ -14,15 +14,12 @@ export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
 source csv_to_dat.sh || exit 1
 source framework.sh || exit 1
-# source generate_gnuplots.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
+source validate_dependencies.sh || exit 1
 
-if ! command -v hey > /dev/null; then
-	echo "hey is not present."
-	exit 1
-fi
+validate_dependencies hey jq
 
 declare -a workloads=()
 declare -A port=()
@@ -99,11 +96,11 @@ run_experiments() {
 	fi
 
 	# TODO: Check that workload is in spec.json
-	local -ir batch_size=100
+	local -ir batch_size=10
 	local -i batch_id=0
 	local -i roll=0
-	local -ir total_iterations=100000
-	local -ir worker_max=50
+	local -ir total_iterations=10000
+	local -ir worker_max=5
 	local pids
 
 	printf "Running Experiments: "
@@ -224,8 +221,17 @@ process_results() {
 }
 
 experiment_server_post() {
-	mv "$__run_sh__base_path/perf.log" "$RESULTS_DIRECTORY/perf.log"
-	process_results "$RESULTS_DIRECTORY" || return 1
+	local -r results_directory="$1"
+
+	# Only process data if SLEDGE_SANDBOX_PERF_LOG was set when running sledgert
+	if [[ -n "$SLEDGE_SANDBOX_PERF_LOG" ]]; then
+		if [[ -f "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" ]]; then
+			mv "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" "$results_directory/perf.log"
+			process_results "$results_directory" || return 1
+		else
+			echo "Perf Log was set, but perf.log not found!"
+		fi
+	fi
 }
 
 # Client Code
@@ -240,4 +246,4 @@ experiment_client() {
 }
 
 initialize_globals
-main "$@"
+framework_init "$@"

@@ -112,4 +112,4 @@ experiment_client() {
 # Validate that required tools are in path
 validate_dependencies curl shuf pango-view pngtopnm diff
 
-main "$@"
+framework_init "$@"

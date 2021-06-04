@@ -165,4 +165,4 @@ while IFS= read -r image_data; do
 	esac
 done < <(ls ./images/*.csv)
 
-main "$@"
+framework_init "$@"

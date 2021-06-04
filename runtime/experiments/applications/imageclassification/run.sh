@@ -151,4 +151,4 @@ declare -Ar port=(
 # Sort the images by the number of labeled plates
 declare -a cifar10_images=(./images/bmp/*)
 
-main "$@"
+framework_init "$@"

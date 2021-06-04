@@ -184,5 +184,4 @@ experiment_client() {
 	return 0
 }
 
-# Delegating to main provided by framework
-main "$@"
+framework_init "$@"

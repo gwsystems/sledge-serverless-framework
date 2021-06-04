@@ -163,4 +163,4 @@ declare -A port=(
 	[two_iterations]=10002
 )
 
-main "$@"
+framework_init "$@"

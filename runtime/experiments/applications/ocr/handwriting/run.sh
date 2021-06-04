@@ -49,4 +49,4 @@ experiment_client() {
 
 validate_dependencies curl
 
-main "$@"
+framework_init "$@"

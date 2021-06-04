@@ -3,16 +3,70 @@ if [ -n "$__framework_sh__" ]; then return; fi
 __framework_sh__=$(date)
 
 #
-# This framework simplifies the scripting of experiments
+# This framework simplifies the scripting of experiments.
 #
-# To use, import the framework source file and pass all arguments to the provided main function
-# source "framework.sh"
+# It is designed around the idea of static experiments composed of one or more variants expressed by 
+# environment variables written to .env files. The default behavior is localhost mode, which runs a background 
+# server daemon and then execute a client driver script. If multiple .env files are defined, the framework
+# automatically sets environment variables, starts the runtime as a background process, executes the client driver, 
+# stops the runtime, and clears the environment variables. The framework allows you to run the same logic on separate
+# client and server hosts. It also provides various options to run under perf, gdb, valgrind, etc.
 #
-# main "$@"
+# To keep experiments relatively uniform, I suggest adding a single run.sh file inside your experiment.
 #
-# In your script, implement the following functions above main:
-# - experiment_client
+# Your run.sh file should be started with the following snippet, which sources the framework.sh file 
+# and delegates all external arguments to the framework via the framework_init function. The first few lines are 
+# used to temporary add the directory containing BASH library scripts to your PATH environment variable. You may
+# need to modify __run_sh__bash_libraries_relative_path to adjust the relative path depending on the location
+# of your experimental directory. 
 #
+###############################################################################################################################
+# #!/bin/bash
+# __run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
+# __run_sh__bash_libraries_relative_path="../bash_libraries"
+# __run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
+# export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
+#
+# source framework.sh || exit 1
+#
+# framework_init "$@"
+###############################################################################################################################
+#
+# Use chmod +x run.sh to make your script executable, and then run ./run.sh --help to test it. 
+# You should see help information if successful.
+#
+# At this point, your script can run the server with defaults usings the --debug, --perf, --serve, and --valgrind
+#
+# To run a client or the default localhost mode that runs a client and a server on the same machine, you have to 
+# implement a function called experiment_client in run.sh above your call to framework_init.
+#
+# This function receives two arguments: 
+# - a results directory where you should intermediate files and reports / charts
+# - a target hostname where you should target requests
+#
+# This function is called once per experimental variant, and the results directory is adjusted accordingly to
+# keep your data organized.
+#
+# If your server logs data that you need to process, you can execute post-processing logic by implementing
+# experiment_server_post, which gets called once per variant after the server background task terminates
+#
+# If you want to do one time setup before executing any variants, perform this logic in run.sh before calling
+# framework_init.
+#
+# In addition to framework.sh, the bash_libraries directory contains a number of utility functions that are useful
+# for cleaning and refactoring your data and error handling. Feel free to contribute utility functions to this
+# directory if you write bash functions that you believe are reusable!
+#
+# It is also a good idea to look at the other experiments to get ideas for your script.
+#
+# If you are using VSCode, you have a number of extensions that help with bash development. This includes:
+# - Bash IDE - an IntelliSense langauge server for bash
+# - shell-format - Auto-format on save for bash
+# - ShellCheck - an excellent linter for shell scripts.
+#
+# If you are not using VSCode, you may need to manually run shfmt against your script to keep formatting consistent
+#
+# Happy Scripting!
 
 source "fn_exists.sh" || exit 1
 source "path_join.sh" || exit 1
@@ -22,14 +76,14 @@ __framework_sh__usage() {
 	echo "$0 [options...]"
 	echo ""
 	echo "Options:"
-	echo "  -t,--target=<target url> Execute as client against remote URL"
-	echo "  -e,--envfile=<file name> Load an Env File. No path and pass filename with *.env extension"
-	echo "  -s,--serve               Serve but do not run client"
 	echo "  -d,--debug               Debug under GDB but do not run client"
-	echo "  -v,--valgrind            Debug under Valgrind but do not run client"
-	echo "  -p,--perf                Run under perf. Limited to running on a baremetal Linux host!"
+	echo "  -e,--envfile=<file name> Load an Env File. No path and pass filename with *.env extension"
 	echo "  -h,--help                Display usage information"
-	echo "  -n,--name=name           Provide a unique name for this experimental run. Defaults to timestamp"
+	echo "  -n,--name=<experiment>   Provide a unique name for this experimental run. Defaults to timestamp"
+	echo "  -p,--perf                Run under perf. Limited to running on a baremetal Linux host!"
+	echo "  -s,--serve               Serve but do not run client"
+	echo "  -t,--target=<target url> Execute as client against remote URL"
+	echo "  -v,--valgrind            Debug under Valgrind but do not run client"
 }
 
 # Declares application level global state
@@ -107,10 +161,6 @@ __framework_sh__parse_arguments() {
 				shift
 				;;
 			-n=* | --name=*)
-				if [[ -d "$__framework_sh__application_directory/res/${i#*=}/" ]]; then
-					echo "Experiment ${i#*=} already exists. Pick a unique name!"
-					exit 1
-				fi
 				echo "Set experiment name to ${i#*=}"
 				__framework_sh__experiment_name="${i#*=}"
 				shift
@@ -136,6 +186,24 @@ __framework_sh__parse_arguments() {
 		esac
 	done
 
+	if [[ -z "$__framework_sh__envfile" ]]; then
+		if [[ -d "$__framework_sh__application_directory/res/$__framework_sh__experiment_name/" ]]; then
+			echo "Experiment $__framework_sh__experiment_name already exists. Pick a unique name!"
+			exit 1
+		fi
+	else
+		if [[ ! -f "$__framework_sh__envfile" ]]; then
+			echo "$__framework_sh__envfile not found!!!"
+			exit 1
+		fi
+		short_name="$(basename "${__framework_sh__envfile/.env/}")"
+		echo "$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$short_name/"
+		if [[ -d "$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$short_name/" ]]; then
+			echo "Variant $short_name was already run in experiment ${__framework_sh__experiment_name}."
+			exit 1
+		fi
+	fi
+
 	# default to both if no arguments were passed
 	if [[ -z "$__framework_sh__role" ]]; then
 		__framework_sh__role="both"
@@ -149,10 +217,7 @@ __framework_sh__parse_arguments() {
 
 # Log hardware and software info for the execution
 __framework_sh__log_environment() {
-	if ! command -v git &> /dev/null; then
-		echo "git could not be found"
-		exit
-	fi
+	validate_dependencies git
 	echo "*******"
 	echo "* Git *"
 	echo "*******"
@@ -216,7 +281,7 @@ __framework_sh__start_runtime() {
 			;;
 		"foreground")
 			sledgert "$specification"
-			fn_exists experiment_server_post && experiment_server_post
+			fn_exists experiment_server_post && experiment_server_post "$RESULTS_DIRECTORY"
 			;;
 	esac
 
@@ -252,27 +317,20 @@ __framework_sh__run_server() {
 }
 
 __framework_sh__run_perf() {
-	if ! command -v perf; then
-		echo "perf is not present."
-		exit 1
-	fi
-
+	validate_dependencies perf
 	perf record -g -s sledgert "$__framework_sh__application_directory/spec.json"
-	fn_exists experiment_server_post && experiment_server_post
+	fn_exists experiment_server_post && experiment_server_post "$RESULTS_DIRECTORY"
 }
 
 __framework_sh__run_valgrind() {
-	if ! command -v valgrind; then
-		echo "valgrind is not present."
-		exit 1
-	fi
-
+	validate_dependencies valgrind
 	valgrind --leak-check=full sledgert "$__framework_sh__application_directory/spec.json"
-	fn_exists experiment_server_post && experiment_server_post
+	fn_exists experiment_server_post && experiment_server_post "$RESULTS_DIRECTORY"
 }
 
 # Starts the Sledge Runtime under GDB
 __framework_sh__run_debug() {
+	validate_dependencies gdb
 	# shellcheck disable=SC2155
 	local project_directory=$(cd ../.. && pwd)
 
@@ -294,7 +352,7 @@ __framework_sh__run_debug() {
 			sledgert
 	fi
 
-	fn_exists experiment_server_post && experiment_server_post
+	fn_exists experiment_server_post && experiment_server_post "$RESULTS_DIRECTORY"
 	return 0
 }
 
@@ -306,7 +364,7 @@ __framework_sh__run_client() {
 
 __framework_sh__load_env_file() {
 	local envfile="$1"
-	if [[ -f "$envfile" ]]; then
+	if [[ -n "$envfile" ]] && [[ -f "$envfile" ]]; then
 		while read -r line; do
 			echo export "${line?}"
 			export "${line?}"
@@ -324,44 +382,58 @@ __framework_sh__unset_env_file() {
 	fi
 }
 
-__framework_sh__run_both() {
+__framework_sh__run_env() {
+	local envfile="$1"
 	local short_name
-	shopt -s nullglob
-	local -i envfiles_found=0
-	for envfile in "$__framework_sh__application_directory"/*.env; do
-		((envfiles_found++))
-		short_name="$(basename "${envfile/.env/}")"
-		printf "Running %s\n" "$short_name"
-		__framework_sh__load_env_file "$envfile"
-		__framework_sh__create_and_export_results_directory "$short_name"
 
-		__framework_sh__run_server background || {
-			panic "Error calling __framework_sh__run_server"
-			return 1
-		}
+	short_name="$(basename "${envfile/.env/}")"
+	printf "Running %s\n" "$short_name"
+	__framework_sh__load_env_file "$envfile"
+	__framework_sh__create_and_export_results_directory "$short_name"
 
-		__framework_sh__run_client || {
-			__framework_sh__unset_env_file "$envfile"
-			__framework_sh__stop_runtime
-			return 1
-		}
+	__framework_sh__run_server background || {
+		panic "Error calling __framework_sh__run_server"
+		return 1
+	}
 
-		__framework_sh__stop_runtime || {
-			panic "Error calling __framework_sh__stop_runtime"
-			__framework_sh__unset_env_file "$envfile"
-			return 1
-		}
-
+	__framework_sh__run_client || {
 		__framework_sh__unset_env_file "$envfile"
-	done
+		__framework_sh__stop_runtime
+		return 1
+	}
 
-	((envfiles_found == 0)) && echo "No *.env files found. Nothing to run!"
+	__framework_sh__stop_runtime || {
+		panic "Error calling __framework_sh__stop_runtime"
+		__framework_sh__unset_env_file "$envfile"
+		return 1
+	}
+
+	__framework_sh__unset_env_file "$envfile"
+}
+
+# If envfile explicitly passed, just run that. Otherwise, run all
+__framework_sh__run_both() {
+	shopt -s nullglob
+
+	if [[ -n "$__framework_sh__envfile" ]]; then
+		__framework_sh__run_env "$__framework_sh__envfile"
+	else
+		local -i envfiles_found=0
+		for envfile in "$__framework_sh__application_directory"/*.env; do
+			((envfiles_found++))
+			__framework_sh__run_env "$envfile"
+		done
+		((envfiles_found == 0)) && {
+			echo "No *.env files found. Nothing to run!"
+			exit 1
+		}
+	fi
 
 	return 0
 }
 
 # Optionally accepts a subdirectory
-# This is intended to namespace distinct runtime configs run in a single command
+# This is intended to namespace distinct runtime configs under a single namespace
 __framework_sh__create_and_export_results_directory() {
 	if (($# > 1)); then
 		printf "[ERR]\n"
@@ -370,21 +442,7 @@ __framework_sh__create_and_export_results_directory() {
 	fi
 
 	local -r subdirectory=${1:-""}
-	local dir=""
-
-	# If we are running both client, and server, we need to namespace by scheduler since we run both variants
-	case "$__framework_sh__role" in
-		"both")
-			dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$subdirectory"
-			;;
-		"client" | "server" | "debug" | "perf" | "valgrind")
-			dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name"
-			;;
-		*)
-			panic "${FUNCNAME[0]} Unexpected $__framework_sh__role"
-			return 1
-			;;
-	esac
+	local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$subdirectory"
 
 	mkdir -p "$dir" || {
 		panic "mkdir -p $dir"
@@ -395,38 +453,41 @@ __framework_sh__create_and_export_results_directory() {
 }
 
 # Responsible for ensuring that the experiment file meets framework assumptions
-__framework_sh__validate_experiment() {
+__framework_sh__validate_client() {
 	if [[ $(type -t experiment_client) != "function" ]]; then
 		panic "function experiment_client was not defined"
 		return 1
 	fi
-
 }
 
-main() {
-	__framework_sh__validate_experiment || exit 1
+framework_init() {
 	__framework_sh__initialize_globals || exit 1
 	__framework_sh__parse_arguments "$@" || exit 1
 	__framework_sh__create_and_export_results_directory || exit 1
-	[[ -n "$__framework_sh__envfile" ]] && __framework_sh__load_env_file "$__framework_sh__application_directory/$__framework_sh__envfile"
 
 	case $__framework_sh__role in
 		both)
+			__framework_sh__validate_client || exit 1
 			__framework_sh__run_both
 			;;
 		server)
+			[[ -n "$__framework_sh__envfile" ]] && __framework_sh__load_env_file "$__framework_sh__application_directory/$__framework_sh__envfile"
 			__framework_sh__run_server foreground
 			;;
 		debug)
+			[[ -n "$__framework_sh__envfile" ]] && __framework_sh__load_env_file "$__framework_sh__application_directory/$__framework_sh__envfile"
 			__framework_sh__run_debug
 			;;
 		perf)
+			[[ -n "$__framework_sh__envfile" ]] && __framework_sh__load_env_file "$__framework_sh__application_directory/$__framework_sh__envfile"
 			__framework_sh__run_perf
 			;;
 		valgrind)
+			[[ -n "$__framework_sh__envfile" ]] && __framework_sh__load_env_file "$__framework_sh__application_directory/$__framework_sh__envfile"
 			__framework_sh__run_valgrind
 			;;
 		client)
+			__framework_sh__validate_client || exit 1
 			__framework_sh__run_client
 			;;
 		*)
@@ -452,6 +513,6 @@ __framework_sh__stop_runtime() {
 		exit 1
 	}
 
-	fn_exists experiment_server_post && experiment_server_post
+	fn_exists experiment_server_post && experiment_server_post "$RESULTS_DIRECTORY"
 	printf "[OK]\n"
 }
