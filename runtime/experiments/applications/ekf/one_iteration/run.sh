@@ -59,4 +59,4 @@ if  [[ ! -f "$__run_sh__base_path/initial_state.dat" ]]; then
 	popd || exit 1
 fi
 
-main "$@"
+framework_init "$@"

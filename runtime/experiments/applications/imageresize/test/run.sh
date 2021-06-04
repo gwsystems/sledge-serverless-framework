@@ -63,4 +63,4 @@ if [[ ! -f "./flower.jpg" ]]; then
 	cp "$__run_sh__project_base_absolute_path/runtime/tests/sod/bin/flower.jpg" ./flower.jpg
 fi
 
-main "$@"
+framework_init "$@"

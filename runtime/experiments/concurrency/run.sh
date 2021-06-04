@@ -187,4 +187,4 @@ experiment_client() {
 	return 0
 }
 
-main "$@"
+framework_init "$@"

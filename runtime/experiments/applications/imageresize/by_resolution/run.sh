@@ -178,4 +178,4 @@ declare -Ar port=(
 	[large]=10002
 )
 
-main "$@"
+framework_init "$@"

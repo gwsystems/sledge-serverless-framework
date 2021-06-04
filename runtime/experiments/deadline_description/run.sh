@@ -120,8 +120,17 @@ process_results() {
 }
 
 experiment_server_post() {
-	mv "$__run_sh__base_path/perf.log" "$RESULTS_DIRECTORY/perf.log"
-	process_results "$RESULTS_DIRECTORY"
+	local -r results_directory="$1"
+
+	# Only process data if SLEDGE_SANDBOX_PERF_LOG was set when running sledgert
+	if [[ -n "$SLEDGE_SANDBOX_PERF_LOG" ]]; then
+		if [[ -f "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" ]]; then
+			mv "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" "$results_directory/perf.log"
+			process_results "$results_directory" || return 1
+		else
+			echo "Perf Log was set, but perf.log not found!"
+		fi
+	fi
 }
 
 experiment_client() {
@@ -131,4 +140,4 @@ experiment_client() {
 	profile "$hostname" "$results_directory" || return 1
 }
 
-main "$@"
+framework_init "$@"
