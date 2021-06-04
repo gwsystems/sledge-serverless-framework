@@ -224,8 +224,8 @@ runtime_configure()
 		printf("\tSandbox Performance Log: %s\n", runtime_sandbox_perf_log_path);
 		runtime_sandbox_perf_log = fopen(runtime_sandbox_perf_log_path, "w");
 		if (runtime_sandbox_perf_log == NULL) { perror("sandbox perf log"); }
-		fprintf(runtime_sandbox_perf_log, "id,function,state,deadline,actual,queued,initializing,runnable,"
-		                                  "running,blocked,returned,memory\n");
+		fprintf(runtime_sandbox_perf_log, "id,module,port,state,deadline,actual,queued,initializing,runnable,"
+		                                  "running,blocked,returned,proc_MHz,memory\n");
 	} else {
 		printf("\tSandbox Performance Log: Disabled\n");
 	}
