@@ -13,7 +13,7 @@ source panic.sh || exit 1
 source path_join.sh || exit 1
 source validate_dependencies.sh || exit 1
 
-experiment_main() {
+experiment_client() {
 	local -ir iteration_count=100
 	local -ra word_counts=(1 10 100)
 

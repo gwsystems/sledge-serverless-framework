@@ -22,27 +22,17 @@ profile() {
 	local hostname="$1"
 	local -r results_directory="$2"
 
-	echo "$results_directory/ekf/benchmark.csv"
-
 	# ekf
-	mkdir "$results_directory/ekf"
-	hey -disable-compression -disable-keepalive -disable-redirects -n 16 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" > /dev/null
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" > "$results_directory/ekf/benchmark.csv"
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" > /dev/null
 
 	# Resize
-	mkdir "$results_directory/resize"
-	hey -disable-compression -disable-keepalive -disable-redirects -n 16 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./resize/shrinking_man_large.jpg" "http://${hostname}:10001" > /dev/null
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./resize/shrinking_man_large.jpg" "http://${hostname}:10001" > "$results_directory/resize/benchmark.csv"
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./resize/shrinking_man_large.jpg" "http://${hostname}:10001" > /dev/null
 
 	# lpd
-	mkdir "$results_directory/lpd"
-	hey -disable-compression -disable-keepalive -disable-redirects -n 16 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./lpd/Cars0.png" "http://${hostname}:10002" > /dev/null
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./lpd/Cars0.png" "http://${hostname}:10002" > "$results_directory/lpd/benchmark.csv"
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./lpd/Cars0.png" "http://${hostname}:10002" > /dev/null
 
 	# gocr - Hit error. Commented out temporarily
-	# mkdir "$results_directory/gocr"
-	# hey -disable-compression -disable-keepalive -disable-redirects -n 16 -c 1 -cpus 1 -t 0 -o csv -H 'Expect:' -H "Content-Type: text/plain" -m GET -D "./gocr/hyde.pnm" "http://${hostname}:10003" > /dev/null
-	# hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./gocr/hyde.pnm" "http://${hostname}:10003" > "$results_directory/gocr/benchmark.csv"
+	# hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./gocr/hyde.pnm" "http://${hostname}:10003" > /dev/null
 }
 
 get_baseline_execution() {
@@ -120,9 +110,8 @@ process_results() {
 	local results_directory="$1"
 
 	for workload in "${workloads[@]}"; do
-		# Filter on 200s, subtract DNS time, convert from s to us, and sort
-		awk -F, '$7 == 200 {print (($1 - $2) * 1000000)}' < "$results_directory/$workload/benchmark.csv" \
-			| sort -g > "$results_directory/$workload/response_times_sorted.csv"
+		mkdir "$results_directory/$workload"
+		awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $6 / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/response_times_sorted.csv"
 	done
 
 	generate_spec "$results_directory"
@@ -130,12 +119,16 @@ process_results() {
 	return 0
 }
 
-experiment_main() {
+experiment_server_post() {
+	mv "$__run_sh__base_path/perf.log" "$RESULTS_DIRECTORY/perf.log"
+	process_results "$RESULTS_DIRECTORY"
+}
+
+experiment_client() {
 	local -r hostname="$1"
 	local -r results_directory="$2"
 
 	profile "$hostname" "$results_directory" || return 1
-	process_results "$results_directory"
 }
 
 main "$@"

@@ -250,7 +250,7 @@ process_results() {
 }
 
 # Expected Symbol used by the framework
-experiment_main() {
+experiment_client() {
 	local -r target_hostname="$1"
 	local -r results_directory="$2"
 

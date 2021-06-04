@@ -136,7 +136,7 @@ process_results() {
 	return 0
 }
 
-experiment_main() {
+experiment_client() {
 	local -r hostname="$1"
 	local -r results_directory="$2"
 
