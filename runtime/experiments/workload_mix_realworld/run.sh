@@ -44,47 +44,7 @@ initialize_globals() {
 		# Update workload mix structures
 		workloads+=("$workload")
 		port+=(["$workload"]=$(get_port "$workload"))
-	done < mix.csv
-}
-
-# Sends requests until the per-module perf window buffers are full
-# This ensures that Sledge has accurate estimates of execution time
-run_samples() {
-	if (($# != 1)); then
-		panic "invalid number of arguments \"$1\""
-		return 1
-	elif [[ -z "$1" ]]; then
-		panic "hostname \"$1\" was empty"
-		return 1
-	fi
-
-	local hostname="${1}"
-
-	# Scrape the perf window size from the source if possible
-	# TODO: Make a util function
-	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../include/perf_window_t.h)"
-	local -i perf_window_buffer_size
-	if ! perf_window_buffer_size=$(grep "#define PERF_WINDOW_BUFFER_SIZE" < "$perf_window_path" | cut -d\  -f3); then
-		printf "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../include/perf_window.h\n"
-		printf "Defaulting to 16\n"
-		perf_window_buffer_size=16
-	fi
-	local -ir perf_window_buffer_size
-
-	printf "Running Samples: "
-
-	local workload_base
-	for workload in "${workloads[@]}"; do
-		workload_base="${workload%%_+([[:digit:]]).+([[:digit:]])}"
-		hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c 1 -cpus 1 -t 0 -o csv -m GET -D "${body[$workload_base]}" "http://${hostname}:${port[$workload]}" 1> /dev/null 2> /dev/null || {
-			printf "[ERR]\n"
-			panic "$workload samples failed with $?"
-			return 1
-		}
-	done
-
-	printf "[OK]\n"
-	return 0
+	done < "$__run_sh__base_path/mix.csv"
 }
 
 get_port() {
@@ -96,9 +56,6 @@ get_port() {
 	} | jq ".[] | select(.name == \"$name\") | .port"
 }
 
-# Execute the fib10 and fib40 experiments sequentially and concurrently
-# $1 (hostname)
-# $2 (results_directory) - a directory where we will store our results
 run_experiments() {
 	if (($# != 2)); then
 		panic "invalid number of arguments \"$1\""
@@ -161,7 +118,7 @@ run_experiments() {
 		((batch_id++))
 		for workload in "${workloads[@]}"; do
 			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
-				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$workload]} "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$workload]} "http://${hostname}:${port[$workload]}" > /dev/null 2> /dev/null &
 				break
 			fi
 		done
@@ -170,15 +127,9 @@ run_experiments() {
 	[[ -n $pids ]] && wait -f $pids
 	printf "[OK]\n"
 
-	for workload in "${workloads[@]}"; do
-		tail --quiet -n +2 "$results_directory"/"${workload}"_*.csv >> "$results_directory"/"${workload}".csv
-		rm "$results_directory"/"${workload}"_*.csv
-	done
-
 	return 0
 }
 
-# Process the experimental results and generate human-friendly results for success rate, throughput, and latency
 process_results() {
 	if (($# != 1)); then
 		error_msg "invalid number of arguments ($#, expected 1)"
@@ -192,20 +143,56 @@ process_results() {
 
 	printf "Processing Results: "
 
+	local -a metrics=(total queued initializing runnable running blocked returned)
+
+	local -A fields=(
+		[total]=6
+		[queued]=7
+		[initializing]=8
+		[runnable]=9
+		[running]=10
+		[blocked]=11
+		[returned]=12
+	)
+
 	# Write headers to CSVs
-	printf "Payload,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
+	for metric in "${metrics[@]}"; do
+		printf "module,p50,p90,p99,p100\n" >> "$results_directory/$metric.csv"
+	done
+	printf "module,p50,p90,p99,p100\n" >> "$results_directory/memalloc.csv"
 
-	# local -ar payloads=(ekf resize lpd)
-	for workloads in "${workloads[@]}"; do
+	for workload in "${workloads[@]}"; do
+		mkdir "$results_directory/$workload"
 
-		# Filter on 200s, subtract DNS time, convert from s to ms, and sort
-		awk -F, '$7 == 200 {print (($1 - $2) * 1000)}' < "$results_directory/$workloads.csv" \
-			| sort -g > "$results_directory/$workloads-response.csv"
+		# TODO: Only include Complete
 
-		oks=$(wc -l < "$results_directory/$workloads-response.csv")
+		for metric in "${metrics[@]}"; do
+			awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $'"${fields[$metric]}"' / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/${metric}_sorted.csv"
+			oks=$(wc -l < "$results_directory/$workload/${metric}_sorted.csv")
+			((oks == 0)) && continue # If all errors, skip line
+			awk '
+				BEGIN {
+					sum = 0
+					p50 = int('"$oks"' * 0.5)
+					p90 = int('"$oks"' * 0.9)
+					p99 = int('"$oks"' * 0.99)
+					p100 = '"$oks"'
+					printf "'"$workload"',"
+				}
+				NR==p50  {printf "%1.0f,",  $0}
+				NR==p90  {printf "%1.0f,",  $0}
+				NR==p99  {printf "%1.0f,",  $0}
+				NR==p100 {printf "%1.0f\n", $0}
+			' < "$results_directory/$workload/${metric}_sorted.csv" >> "$results_directory/${metric}.csv"
+
+			# Delete scratch file used for sorting/counting
+			# rm -rf "$results_directory/$workload/${metric}_sorted.csv"
+		done
+
+		# Memory Allocation
+		awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $14)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/memalloc_sorted.csv"
+		oks=$(wc -l < "$results_directory/$workload/memalloc_sorted.csv")
 		((oks == 0)) && continue # If all errors, skip line
-
-		# Generate Latency Data for csv
 		awk '
 			BEGIN {
 				sum = 0
@@ -213,36 +200,44 @@ process_results() {
 				p90 = int('"$oks"' * 0.9)
 				p99 = int('"$oks"' * 0.99)
 				p100 = '"$oks"'
-				printf "'"$workloads"',"
+				printf "'"$workload"',"
 			}
-			NR==p50  {printf "%1.4f,",  $0}
-			NR==p90  {printf "%1.4f,",  $0}
-			NR==p99  {printf "%1.4f,",  $0}
-			NR==p100 {printf "%1.4f\n", $0}
-		' < "$results_directory/$workloads-response.csv" >> "$results_directory/latency.csv"
+			NR==p50  {printf "%1.0f,",  $0}
+			NR==p90  {printf "%1.0f,",  $0}
+			NR==p99  {printf "%1.0f,",  $0}
+			NR==p100 {printf "%1.0f\n", $0}
+		' < "$results_directory/$workload/memalloc_sorted.csv" >> "$results_directory/memalloc.csv"
 
 		# Delete scratch file used for sorting/counting
-		rm -rf "$results_directory/$workloads-response.csv"
+		# rm -rf "$results_directory/$workload/memalloc_sorted.csv"
+
 	done
 
 	# Transform csvs to dat files for gnuplot
-	csv_to_dat "$results_directory/latency.csv"
+	for metric in "${metrics[@]}"; do
+		csv_to_dat "$results_directory/$metric.csv"
+	done
+	csv_to_dat "$results_directory/memalloc.csv"
 
 	printf "[OK]\n"
 	return 0
 }
 
+experiment_server_post() {
+	mv "$__run_sh__base_path/perf.log" "$RESULTS_DIRECTORY/perf.log"
+	process_results "$RESULTS_DIRECTORY" || return 1
+}
+
+# Client Code
 # Expected Symbol used by the framework
-experiment_main() {
+experiment_client() {
 	local -r target_hostname="$1"
 	local -r results_directory="$2"
 
-	initialize_globals
-	run_samples "$target_hostname" || return 1
 	run_experiments "$target_hostname" "$results_directory" || return 1
-	process_results "$results_directory" || return 1
 
 	return 0
 }
 
+initialize_globals
 main "$@"
