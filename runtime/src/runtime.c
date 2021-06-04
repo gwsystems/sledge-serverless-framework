@@ -101,6 +101,8 @@ runtime_initialize(void)
 	/* Configure Signals */
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, runtime_cleanup);
+	signal(SIGINT, runtime_cleanup);
+	signal(SIGQUIT, runtime_cleanup);
 
 	http_parser_settings_initialize();
 	admissions_control_initialize();
