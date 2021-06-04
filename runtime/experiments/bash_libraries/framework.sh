@@ -11,9 +11,10 @@ __framework_sh__=$(date)
 # main "$@"
 #
 # In your script, implement the following functions above main:
-# - experiment_main
+# - experiment_client
 #
 
+source "fn_exists.sh" || exit 1
 source "path_join.sh" || exit 1
 source "panic.sh" || exit 1
 
@@ -28,14 +29,17 @@ __framework_sh__usage() {
 	echo "  -v,--valgrind            Debug under Valgrind but do not run client"
 	echo "  -p,--perf                Run under perf. Limited to running on a baremetal Linux host!"
 	echo "  -h,--help                Display usage information"
+	echo "  -n,--name=name           Provide a unique name for this experimental run. Defaults to timestamp"
 }
 
 # Declares application level global state
 __framework_sh__initialize_globals() {
 	# timestamp is used to name the results directory for a particular test run
+	# This can be manually overridden via the name argument
 	# shellcheck disable=SC2155
 	# shellcheck disable=SC2034
 	declare -gir __framework_sh__timestamp=$(date +%s)
+	declare -g __framework_sh__experiment_name="$__framework_sh__timestamp"
 
 	# Globals used by parse_arguments
 	declare -g __framework_sh__target=""
@@ -100,6 +104,15 @@ __framework_sh__parse_arguments() {
 					return 1
 				fi
 				__framework_sh__role=valgrind
+				shift
+				;;
+			-n=* | --name=*)
+				if [[ -d "$__framework_sh__application_directory/res/${i#*=}/" ]]; then
+					echo "Experiment ${i#*=} already exists. Pick a unique name!"
+					exit 1
+				fi
+				echo "Set experiment name to ${i#*=}"
+				__framework_sh__experiment_name="${i#*=}"
 				shift
 				;;
 			-e=* | --envfile=*)
@@ -175,27 +188,22 @@ __framework_sh__log_environment() {
 # $3 - JSON specification
 __framework_sh__start_runtime() {
 	printf "Starting Runtime: "
-	if (($# != 3)); then
+	if (($# != 2)); then
 		printf "[ERR]\n"
 		panic "invalid number of arguments \"$1\""
 		return 1
-	elif ! [[ -d "$1" ]]; then
+	elif ! [[ $1 =~ ^(foreground|background)$ ]]; then
 		printf "[ERR]\n"
-		panic "directory \"$1\" does not exist"
+		panic "expected foreground or background was \"$1\""
 		return 1
-	elif ! [[ $2 =~ ^(foreground|background)$ ]]; then
+	elif [[ ! -f "$2" || "$2" != *.json ]]; then
 		printf "[ERR]\n"
-		panic "expected foreground or background was \"$2\""
-		return 1
-	elif [[ ! -f "$3" || "$3" != *.json ]]; then
-		printf "[ERR]\n"
-		panic "\"$3\" does not exist or is not a JSON"
+		panic "\"$2\" does not exist or is not a JSON"
 		return 1
 	fi
 
-	local -r scheduler="$1"
-	local -r how_to_run="$2"
-	local -r specification="$3"
+	local -r how_to_run="$1"
+	local -r specification="$2"
 
 	local -r log_name=log.txt
 	local log="$RESULTS_DIRECTORY/${log_name}"
@@ -208,6 +216,7 @@ __framework_sh__start_runtime() {
 			;;
 		"foreground")
 			sledgert "$specification"
+			fn_exists experiment_server_post && experiment_server_post
 			;;
 	esac
 
@@ -233,9 +242,9 @@ __framework_sh__run_server() {
 
 	local -r how_to_run="$1"
 
-	__framework_sh__start_runtime "$RESULTS_DIRECTORY" "$how_to_run" "$__framework_sh__application_directory/spec.json" || {
+	__framework_sh__start_runtime "$how_to_run" "$__framework_sh__application_directory/spec.json" || {
 		echo "__framework_sh__start_runtime RC: $?"
-		panic "Error calling __framework_sh__start_runtime $RESULTS_DIRECTORY $how_to_run $__framework_sh__application_directory/spec.json"
+		panic "Error calling __framework_sh__start_runtime $how_to_run $__framework_sh__application_directory/spec.json"
 		return 1
 	}
 
@@ -249,6 +258,7 @@ __framework_sh__run_perf() {
 	fi
 
 	perf record -g -s sledgert "$__framework_sh__application_directory/spec.json"
+	fn_exists experiment_server_post && experiment_server_post
 }
 
 __framework_sh__run_valgrind() {
@@ -258,6 +268,7 @@ __framework_sh__run_valgrind() {
 	fi
 
 	valgrind --leak-check=full sledgert "$__framework_sh__application_directory/spec.json"
+	fn_exists experiment_server_post && experiment_server_post
 }
 
 # Starts the Sledge Runtime under GDB
@@ -282,11 +293,13 @@ __framework_sh__run_debug() {
 			--eval-command="run $__framework_sh__application_directory/spec.json" \
 			sledgert
 	fi
+
+	fn_exists experiment_server_post && experiment_server_post
 	return 0
 }
 
 __framework_sh__run_client() {
-	experiment_main "$__framework_sh__target" "$RESULTS_DIRECTORY" || return 1
+	experiment_client "$__framework_sh__target" "$RESULTS_DIRECTORY" || return 1
 
 	return 0
 }
@@ -362,10 +375,10 @@ __framework_sh__create_and_export_results_directory() {
 	# If we are running both client, and server, we need to namespace by scheduler since we run both variants
 	case "$__framework_sh__role" in
 		"both")
-			dir="$__framework_sh__application_directory/res/$__framework_sh__timestamp/$subdirectory"
+			dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$subdirectory"
 			;;
 		"client" | "server" | "debug" | "perf" | "valgrind")
-			dir="$__framework_sh__application_directory/res/$__framework_sh__timestamp"
+			dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name"
 			;;
 		*)
 			panic "${FUNCNAME[0]} Unexpected $__framework_sh__role"
@@ -383,8 +396,8 @@ __framework_sh__create_and_export_results_directory() {
 
 # Responsible for ensuring that the experiment file meets framework assumptions
 __framework_sh__validate_experiment() {
-	if [[ $(type -t experiment_main) != "function" ]]; then
-		panic "function experiment_main was not defined"
+	if [[ $(type -t experiment_client) != "function" ]]; then
+		panic "function experiment_client was not defined"
 		return 1
 	fi
 
@@ -438,5 +451,7 @@ __framework_sh__stop_runtime() {
 		printf "[ERR]\npkill hey: %d\n" $?
 		exit 1
 	}
+
+	fn_exists experiment_server_post && experiment_server_post
 	printf "[OK]\n"
 }

@@ -29,7 +29,7 @@ run_functional_tests() {
 		echo "${image}" >> "${results_directory}/cifar10_rand.txt"
 		curl --data-binary "@${image}" -s "${hostname}:10000" >> "${results_directory}/cifar10_rand.txt"
 	done
-	
+
 	echo "$same_image" >> "${results_directory}/cifar10_same.txt"
 	curl --data-binary "@$same_image" -s "${hostname}:10001" >> "${results_directory}/cifar10_same.txt"
 
@@ -56,7 +56,7 @@ run_perf_tests() {
 				wait -n "$(pgrep hey | tr '\n' ' ')"
 			done
 			((batch_id++))
-			
+
 			if [ "$workload" = "cifar10_rand" ]; then
 				get_random_image image
 			else
@@ -74,7 +74,6 @@ run_perf_tests() {
 		rm "$results_directory/${workload}"_*.csv
 	done
 }
-
 
 # Process the experimental results and generate human-friendly results for success rate, throughput, and latency
 process_results() {
@@ -129,7 +128,7 @@ process_results() {
 	return 0
 }
 
-experiment_main() {
+experiment_client() {
 	local -r hostname="$1"
 	local -r results_directory="$2"
 	local same_image # for the cifar10_same workload

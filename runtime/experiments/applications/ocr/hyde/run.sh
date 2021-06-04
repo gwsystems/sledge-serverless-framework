@@ -12,7 +12,7 @@ source panic.sh || exit 1
 source path_join.sh || exit 1
 source validate_dependencies.sh || exit 1
 
-experiment_main() {
+experiment_client() {
 	local -r hostname="$1"
 	local -r results_directory="$2"
 
