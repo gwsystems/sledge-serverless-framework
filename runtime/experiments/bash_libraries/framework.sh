@@ -5,20 +5,20 @@ __framework_sh__=$(date)
 #
 # This framework simplifies the scripting of experiments.
 #
-# It is designed around the idea of static experiments composed of one or more variants expressed by 
-# environment variables written to .env files. The default behavior is localhost mode, which runs a background 
+# It is designed around the idea of static experiments composed of one or more variants expressed by
+# environment variables written to .env files. The default behavior is localhost mode, which runs a background
 # server daemon and then execute a client driver script. If multiple .env files are defined, the framework
-# automatically sets environment variables, starts the runtime as a background process, executes the client driver, 
+# automatically sets environment variables, starts the runtime as a background process, executes the client driver,
 # stops the runtime, and clears the environment variables. The framework allows you to run the same logic on separate
 # client and server hosts. It also provides various options to run under perf, gdb, valgrind, etc.
 #
 # To keep experiments relatively uniform, I suggest adding a single run.sh file inside your experiment.
 #
-# Your run.sh file should be started with the following snippet, which sources the framework.sh file 
-# and delegates all external arguments to the framework via the framework_init function. The first few lines are 
+# Your run.sh file should be started with the following snippet, which sources the framework.sh file
+# and delegates all external arguments to the framework via the framework_init function. The first few lines are
 # used to temporary add the directory containing BASH library scripts to your PATH environment variable. You may
 # need to modify __run_sh__bash_libraries_relative_path to adjust the relative path depending on the location
-# of your experimental directory. 
+# of your experimental directory.
 #
 ###############################################################################################################################
 # #!/bin/bash
@@ -32,15 +32,15 @@ __framework_sh__=$(date)
 # framework_init "$@"
 ###############################################################################################################################
 #
-# Use chmod +x run.sh to make your script executable, and then run ./run.sh --help to test it. 
+# Use chmod +x run.sh to make your script executable, and then run ./run.sh --help to test it.
 # You should see help information if successful.
 #
 # At this point, your script can run the server with defaults usings the --debug, --perf, --serve, and --valgrind
 #
-# To run a client or the default localhost mode that runs a client and a server on the same machine, you have to 
+# To run a client or the default localhost mode that runs a client and a server on the same machine, you have to
 # implement a function called experiment_client in run.sh above your call to framework_init.
 #
-# This function receives two arguments: 
+# This function receives two arguments:
 # - a results directory where you should intermediate files and reports / charts
 # - a target hostname where you should target requests
 #
@@ -71,6 +71,7 @@ __framework_sh__=$(date)
 source "fn_exists.sh" || exit 1
 source "path_join.sh" || exit 1
 source "panic.sh" || exit 1
+source "validate_dependencies.sh" || exit 1
 
 __framework_sh__usage() {
 	echo "$0 [options...]"
