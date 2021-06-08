@@ -13,10 +13,10 @@ source panic.sh || exit 1
 source path_join.sh || exit 1
 source validate_dependencies.sh || exit 1
 
-# TODO:  Excluding gocr because of difficulty used gocr with hey
+validate_dependencies awk hey jq
+
 # Please keep the element ordered alphabetically!
-# declare -a workloads=(ekf resize lpd gocr)
-declare -a workloads=(ekf lpd resize cifar10)
+declare -a workloads=(cifar10 ekf gocr lpd resize)
 declare -a multiples=(1.5 1.6 1.7 1.8 1.9 2.0)
 
 profile() {
@@ -35,8 +35,8 @@ profile() {
 	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./lpd/Cars0.png" "http://${hostname}:10002" > /dev/null
 	printf "[lpd: OK]\n"
 
-	# gocr - Hit error. Commented out temporarily
-	# hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./gocr/hyde.pnm" "http://${hostname}:10003" > /dev/null
+	# gocr
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./gocr/hyde.pnm" "http://${hostname}:10003" > /dev/null
 	printf "[gocr: OK]\n"
 
 	# cifar10
