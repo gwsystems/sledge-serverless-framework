@@ -31,6 +31,7 @@ declare -Ar body=(
 	[ekf]="-D ./ekf/ekf_raw.dat"
 	[resize]="-D ./resize/shrinking_man_large.jpg"
 	[lpd]="-D ./lpd/Cars0.png"
+	[cifar10]="-D ./cifar10/airplane1.bmp"
 )
 
 initialize_globals() {
