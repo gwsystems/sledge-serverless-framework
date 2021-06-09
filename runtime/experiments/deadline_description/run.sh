@@ -11,6 +11,7 @@ source framework.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
+source validate_dependencies.sh || exit 1
 
 # TODO:  Excluding gocr because of difficulty used gocr with hey
 # Please keep the element ordered alphabetically!
