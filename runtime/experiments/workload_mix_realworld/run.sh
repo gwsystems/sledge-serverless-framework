@@ -31,6 +31,7 @@ declare -Ar body=(
 	[ekf]="-D ./ekf/ekf_raw.dat"
 	[resize]="-D ./resize/shrinking_man_large.jpg"
 	[lpd]="-D ./lpd/Cars0.png"
+	[cifar10]="-D ./cifar10/airplane1.bmp"
 )
 
 initialize_globals() {
@@ -115,7 +116,8 @@ run_experiments() {
 		((batch_id++))
 		for workload in "${workloads[@]}"; do
 			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
-				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$workload]} "http://${hostname}:${port[$workload]}" > /dev/null 2> /dev/null &
+				workload_class=$(echo "$workload"| cut -d'_' -f 1)
+				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$workload_class]} "http://${hostname}:${port[$workload]}" > /dev/null 2> /dev/null &
 				break
 			fi
 		done
