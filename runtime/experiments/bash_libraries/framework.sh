@@ -71,6 +71,7 @@ __framework_sh__=$(date)
 source "fn_exists.sh" || exit 1
 source "path_join.sh" || exit 1
 source "panic.sh" || exit 1
+source "type_checks.sh" || exit 1
 source "validate_dependencies.sh" || exit 1
 
 __framework_sh__usage() {
@@ -364,33 +365,34 @@ __framework_sh__run_client() {
 }
 
 __framework_sh__load_env_file() {
-	local envfile="$1"
-	if [[ -n "$envfile" ]] && [[ -f "$envfile" ]]; then
-		while read -r line; do
-			echo export "${line?}"
-			export "${line?}"
-		done < "$envfile"
-	fi
+	local envfile="${1:?envfile not defined}"
+	[[ ! -f "$envfile" ]] && echo "envfile not found" && return 1
+
+	local short_name
+	short_name="$(basename "${envfile/.env/}")"
+	printf "Running %s\n" "$short_name"
+
+	while read -r line; do
+		echo export "${line?}"
+		export "${line?}"
+	done < "$envfile"
+
+	__framework_sh__create_and_export_results_directory "$short_name"
 }
 
 __framework_sh__unset_env_file() {
-	local envfile="$1"
-	if [[ -f "$envfile" ]]; then
-		while read -r line; do
-			echo unset "${line//=*/}"
-			unset "${line//=*/}"
-		done < "$envfile"
-	fi
+	local envfile="${1:?envfile not defined}"
+	[[ ! -f "$envfile" ]] && echo "envfile not found" && return 1
+
+	while read -r line; do
+		echo unset "${line//=*/}"
+		unset "${line//=*/}"
+	done < "$envfile"
 }
 
-__framework_sh__run_env() {
-	local envfile="$1"
-	local short_name
-
-	short_name="$(basename "${envfile/.env/}")"
-	printf "Running %s\n" "$short_name"
+__framework_sh__run_both_env() {
+	local envfile="${1:?envfile not defined}"
 	__framework_sh__load_env_file "$envfile"
-	__framework_sh__create_and_export_results_directory "$short_name"
 
 	__framework_sh__run_server background || {
 		panic "Error calling __framework_sh__run_server"
@@ -417,12 +419,12 @@ __framework_sh__run_both() {
 	shopt -s nullglob
 
 	if [[ -n "$__framework_sh__envfile" ]]; then
-		__framework_sh__run_env "$__framework_sh__envfile"
+		__framework_sh__run_both_env "$__framework_sh__envfile"
 	else
 		local -i envfiles_found=0
 		for envfile in "$__framework_sh__application_directory"/*.env; do
 			((envfiles_found++))
-			__framework_sh__run_env "$envfile"
+			__framework_sh__run_both_env "$envfile"
 		done
 		((envfiles_found == 0)) && {
 			echo "No *.env files found. Nothing to run!"
@@ -436,13 +438,8 @@ __framework_sh__run_both() {
 # Optionally accepts a subdirectory
 # This is intended to namespace distinct runtime configs under a single namespace
 __framework_sh__create_and_export_results_directory() {
-	if (($# > 1)); then
-		printf "[ERR]\n"
-		panic "Invalid number of arguments. Saw $#. Expected 0 or 1."
-		return 1
-	fi
-
 	local -r subdirectory=${1:-""}
+
 	local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$subdirectory"
 
 	mkdir -p "$dir" || {

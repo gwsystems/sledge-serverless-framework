@@ -101,11 +101,11 @@ run_experiments() {
 	fi
 
 	# TODO: Check that workload is in spec.json
-	local -ir batch_size=10
+	local -ir batch_size=1
 	local -i batch_id=0
 	local -i roll=0
 	local -ir total_iterations=10000
-	local -ir worker_max=5
+	local -ir worker_max=30
 	local pids
 
 	printf "Running Experiments: "
@@ -114,6 +114,7 @@ run_experiments() {
 	for ((i = 0; i < total_iterations; i += batch_size)); do
 		# Block waiting for a worker to finish if we are at our max
 		while (($(pgrep --count hey) >= worker_max)); do
+			#shellcheck disable=SC2046
 			wait -n $(pgrep hey | tr '\n' ' ')
 		done
 		roll=$((RANDOM % total))
@@ -188,7 +189,7 @@ process_results() {
 			' < "$results_directory/$workload/${metric}_sorted.csv" >> "$results_directory/${metric}.csv"
 
 			# Delete scratch file used for sorting/counting
-			rm -rf "$results_directory/$workload/${metric}_sorted.csv"
+			# rm -rf "$results_directory/$workload/${metric}_sorted.csv"
 		done
 
 		# Memory Allocation
@@ -211,10 +212,10 @@ process_results() {
 		' < "$results_directory/$workload/memalloc_sorted.csv" >> "$results_directory/memalloc.csv"
 
 		# Delete scratch file used for sorting/counting
-		rm -rf "$results_directory/$workload/memalloc_sorted.csv"
+		# rm -rf "$results_directory/$workload/memalloc_sorted.csv"
 
 		# Delete directory
-		rm -rf "${results_directory:?}/${workload:?}"
+		# rm -rf "${results_directory:?}/${workload:?}"
 
 	done
 
