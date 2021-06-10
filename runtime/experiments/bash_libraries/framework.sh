@@ -5,20 +5,20 @@ __framework_sh__=$(date)
 #
 # This framework simplifies the scripting of experiments.
 #
-# It is designed around the idea of static experiments composed of one or more variants expressed by 
-# environment variables written to .env files. The default behavior is localhost mode, which runs a background 
+# It is designed around the idea of static experiments composed of one or more variants expressed by
+# environment variables written to .env files. The default behavior is localhost mode, which runs a background
 # server daemon and then execute a client driver script. If multiple .env files are defined, the framework
-# automatically sets environment variables, starts the runtime as a background process, executes the client driver, 
+# automatically sets environment variables, starts the runtime as a background process, executes the client driver,
 # stops the runtime, and clears the environment variables. The framework allows you to run the same logic on separate
 # client and server hosts. It also provides various options to run under perf, gdb, valgrind, etc.
 #
 # To keep experiments relatively uniform, I suggest adding a single run.sh file inside your experiment.
 #
-# Your run.sh file should be started with the following snippet, which sources the framework.sh file 
-# and delegates all external arguments to the framework via the framework_init function. The first few lines are 
+# Your run.sh file should be started with the following snippet, which sources the framework.sh file
+# and delegates all external arguments to the framework via the framework_init function. The first few lines are
 # used to temporary add the directory containing BASH library scripts to your PATH environment variable. You may
 # need to modify __run_sh__bash_libraries_relative_path to adjust the relative path depending on the location
-# of your experimental directory. 
+# of your experimental directory.
 #
 ###############################################################################################################################
 # #!/bin/bash
@@ -32,15 +32,15 @@ __framework_sh__=$(date)
 # framework_init "$@"
 ###############################################################################################################################
 #
-# Use chmod +x run.sh to make your script executable, and then run ./run.sh --help to test it. 
+# Use chmod +x run.sh to make your script executable, and then run ./run.sh --help to test it.
 # You should see help information if successful.
 #
 # At this point, your script can run the server with defaults usings the --debug, --perf, --serve, and --valgrind
 #
-# To run a client or the default localhost mode that runs a client and a server on the same machine, you have to 
+# To run a client or the default localhost mode that runs a client and a server on the same machine, you have to
 # implement a function called experiment_client in run.sh above your call to framework_init.
 #
-# This function receives two arguments: 
+# This function receives two arguments:
 # - a results directory where you should intermediate files and reports / charts
 # - a target hostname where you should target requests
 #
@@ -71,6 +71,8 @@ __framework_sh__=$(date)
 source "fn_exists.sh" || exit 1
 source "path_join.sh" || exit 1
 source "panic.sh" || exit 1
+source "type_checks.sh" || exit 1
+source "validate_dependencies.sh" || exit 1
 
 __framework_sh__usage() {
 	echo "$0 [options...]"
@@ -363,33 +365,34 @@ __framework_sh__run_client() {
 }
 
 __framework_sh__load_env_file() {
-	local envfile="$1"
-	if [[ -n "$envfile" ]] && [[ -f "$envfile" ]]; then
-		while read -r line; do
-			echo export "${line?}"
-			export "${line?}"
-		done < "$envfile"
-	fi
+	local envfile="${1:?envfile not defined}"
+	[[ ! -f "$envfile" ]] && echo "envfile not found" && return 1
+
+	local short_name
+	short_name="$(basename "${envfile/.env/}")"
+	printf "Running %s\n" "$short_name"
+
+	while read -r line; do
+		echo export "${line?}"
+		export "${line?}"
+	done < "$envfile"
+
+	__framework_sh__create_and_export_results_directory "$short_name"
 }
 
 __framework_sh__unset_env_file() {
-	local envfile="$1"
-	if [[ -f "$envfile" ]]; then
-		while read -r line; do
-			echo unset "${line//=*/}"
-			unset "${line//=*/}"
-		done < "$envfile"
-	fi
+	local envfile="${1:?envfile not defined}"
+	[[ ! -f "$envfile" ]] && echo "envfile not found" && return 1
+
+	while read -r line; do
+		echo unset "${line//=*/}"
+		unset "${line//=*/}"
+	done < "$envfile"
 }
 
-__framework_sh__run_env() {
-	local envfile="$1"
-	local short_name
-
-	short_name="$(basename "${envfile/.env/}")"
-	printf "Running %s\n" "$short_name"
+__framework_sh__run_both_env() {
+	local envfile="${1:?envfile not defined}"
 	__framework_sh__load_env_file "$envfile"
-	__framework_sh__create_and_export_results_directory "$short_name"
 
 	__framework_sh__run_server background || {
 		panic "Error calling __framework_sh__run_server"
@@ -416,12 +419,12 @@ __framework_sh__run_both() {
 	shopt -s nullglob
 
 	if [[ -n "$__framework_sh__envfile" ]]; then
-		__framework_sh__run_env "$__framework_sh__envfile"
+		__framework_sh__run_both_env "$__framework_sh__envfile"
 	else
 		local -i envfiles_found=0
 		for envfile in "$__framework_sh__application_directory"/*.env; do
 			((envfiles_found++))
-			__framework_sh__run_env "$envfile"
+			__framework_sh__run_both_env "$envfile"
 		done
 		((envfiles_found == 0)) && {
 			echo "No *.env files found. Nothing to run!"
@@ -435,13 +438,8 @@ __framework_sh__run_both() {
 # Optionally accepts a subdirectory
 # This is intended to namespace distinct runtime configs under a single namespace
 __framework_sh__create_and_export_results_directory() {
-	if (($# > 1)); then
-		printf "[ERR]\n"
-		panic "Invalid number of arguments. Saw $#. Expected 0 or 1."
-		return 1
-	fi
-
 	local -r subdirectory=${1:-""}
+
 	local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$subdirectory"
 
 	mkdir -p "$dir" || {

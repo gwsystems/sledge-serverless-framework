@@ -47,6 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	fonts-roboto \
 	gnuplot \
 	imagemagick \
+	jq \
 	libz3-4 \
 	netpbm \
 	pango1.0-tools \

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Needed for trimming trailing "deadline description" suffix. lpd_1.8 -> lpd
+shopt -s extglob
+
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
 # Success - The percentage of requests that complete by their deadlines
 # 	TODO: Does this handle non-200s?
@@ -28,10 +31,11 @@ declare -A port=()
 # test="ekf_12223.23343"
 # ${test%%_+([[:digit:]]).+([[:digit:]])}
 declare -Ar body=(
-	[ekf]="-D ./ekf/ekf_raw.dat"
-	[resize]="-D ./resize/shrinking_man_large.jpg"
-	[lpd]="-D ./lpd/Cars0.png"
 	[cifar10]="-D ./cifar10/airplane1.bmp"
+	[ekf]="-D ./ekf/ekf_raw.dat"
+	[gocr]="-D ./gocr/hyde.pnm"
+	[lpd]="-D ./lpd/Cars0.png"
+	[resize]="-D ./resize/shrinking_man_large.jpg"
 )
 
 initialize_globals() {
@@ -97,11 +101,11 @@ run_experiments() {
 	fi
 
 	# TODO: Check that workload is in spec.json
-	local -ir batch_size=10
+	local -ir batch_size=1
 	local -i batch_id=0
 	local -i roll=0
 	local -ir total_iterations=10000
-	local -ir worker_max=5
+	local -ir worker_max=30
 	local pids
 
 	printf "Running Experiments: "
@@ -110,14 +114,17 @@ run_experiments() {
 	for ((i = 0; i < total_iterations; i += batch_size)); do
 		# Block waiting for a worker to finish if we are at our max
 		while (($(pgrep --count hey) >= worker_max)); do
+			#shellcheck disable=SC2046
 			wait -n $(pgrep hey | tr '\n' ' ')
 		done
 		roll=$((RANDOM % total))
 		((batch_id++))
 		for workload in "${workloads[@]}"; do
+			shortname="${workload%%_+([[:digit:]]).+([[:digit:]])}"
 			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
-				workload_class=$(echo "$workload"| cut -d'_' -f 1)
-				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$workload_class]} "http://${hostname}:${port[$workload]}" > /dev/null 2> /dev/null &
+				# We require word splitting on the value returned by the body associative array
+				#shellcheck disable=SC2086
+				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$shortname]} "http://${hostname}:${port[$workload]}" > /dev/null 2> /dev/null &
 				break
 			fi
 		done
@@ -130,15 +137,12 @@ run_experiments() {
 }
 
 process_results() {
-	if (($# != 1)); then
-		error_msg "invalid number of arguments ($#, expected 1)"
-		return 1
-	elif ! [[ -d "$1" ]]; then
+	local -r results_directory="${1:?results_directory not set}"
+
+	if ! [[ -d "$results_directory" ]]; then
 		error_msg "directory $1 does not exist"
 		return 1
 	fi
-
-	local -r results_directory="$1"
 
 	printf "Processing Results: "
 
@@ -209,6 +213,9 @@ process_results() {
 
 		# Delete scratch file used for sorting/counting
 		# rm -rf "$results_directory/$workload/memalloc_sorted.csv"
+
+		# Delete directory
+		# rm -rf "${results_directory:?}/${workload:?}"
 
 	done
 
