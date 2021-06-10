@@ -220,9 +220,9 @@ process_results() {
 		awk '
 			BEGIN {
 				sum = 0
-				p50 = int('"$oks"' * 0.5)
-				p90 = int('"$oks"' * 0.9)
-				p99 = int('"$oks"' * 0.99)
+				p50 = int('"$oks"' * 0.5) + 1
+				p90 = int('"$oks"' * 0.9) + 1
+				p99 = int('"$oks"' * 0.99) + 1
 				p100 = '"$oks"'
 				printf "'"$payload"',"
 			}

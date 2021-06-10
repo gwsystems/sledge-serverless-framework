@@ -58,7 +58,7 @@ get_baseline_execution() {
 
 	# Generate Latency Data for csv
 	awk '
-		BEGIN {idx = int('"$oks"' * ('"$percentile"' / 100))}
+		BEGIN {idx = int('"$oks"' * ('"$percentile"' / 100)) + 1}
 		NR==idx  {printf "%1.4f\n", $0}
 	' < "$response_times_file"
 }
@@ -131,9 +131,9 @@ process_results() {
 		awk '
 			BEGIN {
 				sum = 0
-				p50 = int('"$oks"' * 0.5)
-				p90 = int('"$oks"' * 0.9)
-				p99 = int('"$oks"' * 0.99)
+				p50 = int('"$oks"' * 0.5) + 1
+				p90 = int('"$oks"' * 0.9) + 1
+				p99 = int('"$oks"' * 0.99) + 1
 				p100 = '"$oks"'
 				printf "'"$workload"',"
 			}

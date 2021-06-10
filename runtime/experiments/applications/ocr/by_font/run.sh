@@ -90,9 +90,9 @@ experiment_client() {
 		awk '
 			BEGIN {
 				sum = 0
-				p50_idx = int('"$oks"' * 0.5)
-				p90_idx = int('"$oks"' * 0.9)
-				p99_idx = int('"$oks"' * 0.99)
+				p50_idx = int('"$oks"' * 0.5) + 1
+				p90_idx = int('"$oks"' * 0.9) + 1
+				p99_idx = int('"$oks"' * 0.99) + 1
 				p100_idx = '"$oks"'
 				printf "'"$font_file"',"
 			}
