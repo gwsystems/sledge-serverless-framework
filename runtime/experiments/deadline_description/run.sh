@@ -142,6 +142,8 @@ process_results() {
 			NR==p99  {printf "%1.4f,",  $0}
 			NR==p100 {printf "%1.4f\n", $0}
 		' < "$results_directory/$workload/execution_times_sorted.csv" >> "$results_directory/execution_time.csv"
+
+		csv_to_dat "$results_directory/execution_time.csv"
 	done
 
 	generate_spec "$results_directory"
