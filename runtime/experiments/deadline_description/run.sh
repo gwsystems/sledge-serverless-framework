@@ -49,7 +49,7 @@ get_baseline_execution() {
 	local -r module="$2"
 	local -ir percentile="$3"
 
-	local response_times_file="$results_directory/$module/response_times_sorted.csv"
+	local response_times_file="$results_directory/$module/execution_times_sorted.csv"
 
 	# Skip empty results
 	local -i oks
@@ -118,9 +118,30 @@ generate_spec() {
 process_results() {
 	local results_directory="$1"
 
+	printf "Payload,p50,p90,p99,p100\n" >> "$results_directory/execution_time.csv"
+
 	for workload in "${workloads[@]}"; do
 		mkdir "$results_directory/$workload"
-		awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $6 / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/response_times_sorted.csv"
+		awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $6 / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/execution_times_sorted.csv"
+
+		oks=$(wc -l < "$results_directory/$workload/execution_times_sorted.csv")
+		((oks == 0)) && continue # If all errors, skip line
+
+		# Generate Latency Data for csv
+		awk '
+			BEGIN {
+				sum = 0
+				p50 = int('"$oks"' * 0.5)
+				p90 = int('"$oks"' * 0.9)
+				p99 = int('"$oks"' * 0.99)
+				p100 = '"$oks"'
+				printf "'"$workload"',"
+			}
+			NR==p50  {printf "%1.4f,",  $0}
+			NR==p90  {printf "%1.4f,",  $0}
+			NR==p99  {printf "%1.4f,",  $0}
+			NR==p100 {printf "%1.4f\n", $0}
+		' < "$results_directory/$workload/execution_times_sorted.csv" >> "$results_directory/execution_time.csv"
 	done
 
 	generate_spec "$results_directory"
