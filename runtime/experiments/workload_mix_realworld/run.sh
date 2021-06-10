@@ -172,21 +172,26 @@ process_results() {
 		for metric in "${metrics[@]}"; do
 			awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $'"${fields[$metric]}"' / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/${metric}_sorted.csv"
 			oks=$(wc -l < "$results_directory/$workload/${metric}_sorted.csv")
-			((oks == 0)) && continue # If all errors, skip line
-			awk '
-				BEGIN {
-					sum = 0
-					p50 = int('"$oks"' * 0.5) + 1
-					p90 = int('"$oks"' * 0.9) + 1
-					p99 = int('"$oks"' * 0.99) + 1
-					p100 = '"$oks"'
-					printf "'"$workload"',"
-				}
-				NR==p50  {printf "%1.0f,",  $0}
-				NR==p90  {printf "%1.0f,",  $0}
-				NR==p99  {printf "%1.0f,",  $0}
-				NR==p100 {printf "%1.0f\n", $0}
-			' < "$results_directory/$workload/${metric}_sorted.csv" >> "$results_directory/${metric}.csv"
+			if ((oks == 0)); then
+				# We might not have actually run every variant depending on iterations and workload mix
+				# Insert a degenerate row if this is the case
+				echo "$workload,*,*,*,*" >> "$results_directory/${metric}.csv"
+			else
+				awk '
+					BEGIN {
+						sum = 0
+						p50 = int('"$oks"' * 0.5) + 1
+						p90 = int('"$oks"' * 0.9) + 1
+						p99 = int('"$oks"' * 0.99) + 1
+						p100 = '"$oks"'
+						printf "'"$workload"',"
+					}
+					NR==p50  {printf "%1.0f,",  $0}
+					NR==p90  {printf "%1.0f,",  $0}
+					NR==p99  {printf "%1.0f,",  $0}
+					NR==p100 {printf "%1.0f\n", $0}
+				' < "$results_directory/$workload/${metric}_sorted.csv" >> "$results_directory/${metric}.csv"
+			fi
 
 			# Delete scratch file used for sorting/counting
 			# rm -rf "$results_directory/$workload/${metric}_sorted.csv"
