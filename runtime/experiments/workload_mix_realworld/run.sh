@@ -104,7 +104,7 @@ run_experiments() {
 	local -ir batch_size=1
 	local -i batch_id=0
 	local -i roll=0
-	local -ir total_iterations=10000
+	local -ir total_iterations=100000
 	local -ir worker_max=50
 	local pids
 
@@ -196,13 +196,13 @@ process_results() {
 							printf "*,"
 					}
 					NR==p90  {
-						if (result_count > 10)
+						if (result_count >= 10)
 							printf "%1.0f,",  $0
 						else 
 							printf "*,"
 					}
 					NR==p99  {
-						if (result_count > 100)
+						if (result_count >= 100)
 							printf "%1.0f,",  $0
 						else 
 							printf "*,"
