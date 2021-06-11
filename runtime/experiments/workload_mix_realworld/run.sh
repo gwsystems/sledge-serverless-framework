@@ -180,7 +180,7 @@ process_results() {
 				awk '
 					BEGIN {
 						result_count='"$oks"'
-						workload='"$workload"'
+						workload="'"$workload"'"
 						sum = 0
 						# We have to add one because awk uses 1-based indexing
 						p50 = int(result_count * 0.5) + 1
