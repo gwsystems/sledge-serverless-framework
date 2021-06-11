@@ -49,7 +49,6 @@ profile() {
 get_baseline_execution() {
 	local -r results_directory="$1"
 	local -r module="$2"
-	local -ir percentile="$3"
 
 	local response_times_file="$results_directory/$module/execution_times_sorted.csv"
 
