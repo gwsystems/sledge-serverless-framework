@@ -104,8 +104,8 @@ run_experiments() {
 	local -ir batch_size=1
 	local -i batch_id=0
 	local -i roll=0
-	local -ir total_iterations=10000
-	local -ir worker_max=30
+	local -ir total_iterations=100000
+	local -ir worker_max=50
 	local pids
 
 	printf "Running Experiments: "
