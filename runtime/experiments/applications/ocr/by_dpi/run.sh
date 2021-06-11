@@ -10,6 +10,7 @@ source framework.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
+source percentiles_table.sh || exit 1
 source validate_dependencies.sh || exit 1
 
 experiment_client() {
@@ -62,7 +63,8 @@ experiment_client() {
 	# Process Results
 	# Write Headers to CSV files
 	printf "DPI,Success_Rate\n" >> "$results_directory/success.csv"
-	printf "DPI,min,mean,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
+	percentiles_table_header "$results_directory/latency.csv" "dpi"
+
 	for dpi in "${dpis[@]}"; do
 		# Skip empty results
 		oks=$(wc -l < "$results_directory/${dpi}_time.txt")
@@ -83,26 +85,8 @@ experiment_client() {
 		awk -F, '{print ($0 * 1000)}' < "$results_directory/${dpi}_time.txt" | sort -g > "$results_directory/${dpi}_time_sorted.txt"
 
 		# Generate Latency Data for csv
-		awk '
-			BEGIN {
-				sum = 0
-				p50_idx = int('"$oks"' * 0.5) + 1
-				p90_idx = int('"$oks"' * 0.9) + 1
-				p99_idx = int('"$oks"' * 0.99) + 1
-				p100_idx = '"$oks"'
-				printf "'"$dpi"',"
-			}
-			             {sum += $0}
-			NR==1        {min  = $0}
-			NR==p50_idx  {p50  = $0}
-			NR==p90_idx  {p90  = $0}
-			NR==p99_idx  {p99  = $0}
-			NR==p100_idx {p100 = $0}
-			END {
-				mean = sum / NR
-				printf "%1.4f,%1.4f,%1.4f,%1.4f,%1.4f,%1.4f\n", min, mean, p50, p90, p99, p100
-			}
-		' < "$results_directory/${dpi}_time_sorted.txt" >> "$results_directory/latency.csv"
+		percentiles_table_row "$results_directory/${dpi}_time_sorted.txt" "$results_directory/latency.csv" "$dpi"
+
 	done
 
 	# Transform csvs to dat files for gnuplot
