@@ -91,6 +91,7 @@ generate_spec() {
 		# Generates unique module specs on different ports using the different multiples
 		for multiple in "${multiples[@]}"; do
 			relative_deadline=$(calculate_relative_deadline "${baseline_execution[$workload]}" "${multiple}")
+			echo "$multiple,${relative_deadline}" >> "$results_directory/deadlines.csv"
 			jq ". + { \
 			\"admissions-percentile\": $percentile,\
 			\"expected-execution-us\": ${baseline_execution[${workload}]},\
