@@ -187,7 +187,7 @@ process_results() {
 						p90 = int(result_count * 0.9) + 1
 						p99 = int(result_count * 0.99) + 1
 						p100 = result_count
-						printf "%s,%d", workload, result_count
+						printf "%s,%d,", workload, result_count
 					}
 					NR==p50  {
 						if (result_count > 0)
