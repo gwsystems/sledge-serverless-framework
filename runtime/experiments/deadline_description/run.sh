@@ -16,16 +16,18 @@ source validate_dependencies.sh || exit 1
 validate_dependencies awk hey jq
 
 # Please keep the element ordered alphabetically!
-declare -a workloads=(cifar10 ekf gocr lpd resize)
-declare -a multiples=(1.5 1.6 1.7 1.8 1.9 2.0)
+# declare -a workloads=(cifar10 ekf gocr lpd resize)
+declare -a workloads=(cifar10 gocr lpd resize)
+declare -a multiples=(1.5 2.0 3.0 4.0)
+declare -ri percentile=50
 
 profile() {
 	local hostname="$1"
 	local -r results_directory="$2"
 
 	# ekf
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" > /dev/null
-	printf "[ekf: OK]\n"
+	# hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" > /dev/null
+	# printf "[ekf: OK]\n"
 
 	# Resize
 	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./resize/shrinking_man_large.jpg" "http://${hostname}:10001" > /dev/null
@@ -73,7 +75,6 @@ generate_spec() {
 	local results_directory="$1"
 
 	# Multiplier Interval and Expected Execution Percentile is currently the same for all workloads
-	local -ri percentile=90
 	((percentile < 50 || percentile > 99)) && panic "Percentile should be between 50 and 99 inclusive, was $percentile"
 
 	local -A baseline_execution=()
@@ -81,7 +82,7 @@ generate_spec() {
 	local relative_deadline
 
 	for workload in "${workloads[@]}"; do
-		baseline_execution["$workload"]="$(get_baseline_execution "$results_directory" "$workload" $percentile)"
+		baseline_execution["$workload"]="$(get_baseline_execution "$results_directory" "$workload" "$percentile")"
 		[[ -z "${baseline_execution[$workload]}" ]] && {
 			panic "Failed to get baseline execution for $workload"
 			exit 1
