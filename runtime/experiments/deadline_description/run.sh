@@ -11,6 +11,7 @@ source framework.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
+source percentiles_table.sh || exit 1
 source validate_dependencies.sh || exit 1
 
 validate_dependencies awk hey jq
@@ -119,7 +120,7 @@ generate_spec() {
 process_results() {
 	local results_directory="$1"
 
-	printf "Payload,p50,p90,p99,p100\n" >> "$results_directory/execution_time.csv"
+	percentiles_table_header "$results_directory/execution_time.csv" "Payload"
 
 	for workload in "${workloads[@]}"; do
 		mkdir "$results_directory/$workload"
@@ -129,23 +130,10 @@ process_results() {
 		((oks == 0)) && continue # If all errors, skip line
 
 		# Generate Latency Data for csv
-		awk '
-			BEGIN {
-				sum = 0
-				p50 = int('"$oks"' * 0.5) + 1
-				p90 = int('"$oks"' * 0.9) + 1
-				p99 = int('"$oks"' * 0.99) + 1
-				p100 = '"$oks"'
-				printf "'"$workload"',"
-			}
-			NR==p50  {printf "%1.4f,",  $0}
-			NR==p90  {printf "%1.4f,",  $0}
-			NR==p99  {printf "%1.4f,",  $0}
-			NR==p100 {printf "%1.4f\n", $0}
-		' < "$results_directory/$workload/execution_times_sorted.csv" >> "$results_directory/execution_time.csv"
-
-		csv_to_dat "$results_directory/execution_time.csv"
+		percentiles_table_row "$results_directory/$workload/execution_times_sorted.csv" "$results_directory/execution_time.csv" "$workload"
 	done
+
+	csv_to_dat "$results_directory/execution_time.csv"
 
 	generate_spec "$results_directory"
 
