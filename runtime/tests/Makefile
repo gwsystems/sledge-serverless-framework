@@ -4,10 +4,16 @@ TESTS=fibonacci empty work work1k work10k work100k work1m forever filesys sockse
 
 TESTSRT=$(TESTS:%=%_rt)
 
-.PHONY: all clean rttests tinyekf cifar10 gocr sod
+.PHONY: all clean rttests tinyekf cifar10 gocr sod asc_add
 
 all: rttests tinyekf cifar10 gocr sod
 	@echo "Test Compilation done!"
+
+asc_add:
+	cd asc_add && npm i && npm run asbuild
+	${AWSM_NAME} --inline-constant-globals --runtime-globals ./asc_add/build/untouched.wasm -o ./asc_add/build/ascadd_wasm.bc
+	${CC} --shared -fPIC ${OPTFLAGS} -I${SLEDGE_RT_INC} -D${USE_MEM} ./asc_add/build/dummy.bc ./asc_add/build/ascadd_wasm.bc ${SLEDGE_MEMC} ${SLEDGE_WASMISA} -o ./asc_add/build/ascadd_wasm.so
+	@cp ./asc_add/build/ascadd_wasm.so ${SLEDGE_BIN_DIR} 
 
 rttests: $(TESTSRT)
 
