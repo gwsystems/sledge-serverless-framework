@@ -21,6 +21,7 @@ source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
 source validate_dependencies.sh || exit 1
+source percentiles_table.sh || exit 1
 
 validate_dependencies hey jq
 
@@ -104,7 +105,7 @@ run_experiments() {
 	local -ir batch_size=1
 	local -i batch_id=0
 	local -i roll=0
-	local -ir total_iterations=100000
+	local -ir total_iterations=10000
 	local -ir worker_max=50
 	local pids
 
@@ -160,61 +161,18 @@ process_results() {
 
 	# Write headers to CSVs
 	for metric in "${metrics[@]}"; do
-		printf "module,cnt,p50,p90,p99,p100\n" >> "$results_directory/$metric.csv"
+		percentiles_table_header "$results_directory/$metric.csv" "module"
 	done
-	printf "module,cnt,p50,p90,p99,p100\n" >> "$results_directory/memalloc.csv"
+	percentiles_table_header "$results_directory/memalloc.csv" "module"
 
 	for workload in "${workloads[@]}"; do
 		mkdir "$results_directory/$workload"
 
 		# TODO: Only include Complete
-
 		for metric in "${metrics[@]}"; do
-			awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $'"${fields[$metric]}"' / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/${metric}_sorted.csv"
-			oks=$(wc -l < "$results_directory/$workload/${metric}_sorted.csv")
-			if ((oks == 0)); then
-				# We might not have actually run every variant depending on iterations and workload mix
-				# Insert a degenerate row if this is the case
-				echo "$workload,0,*,*,*,*" >> "$results_directory/${metric}.csv"
-			else
-				awk '
-					BEGIN {
-						result_count='"$oks"'
-						workload="'"$workload"'"
-						sum = 0
-						# We have to add one because awk uses 1-based indexing
-						p50 = int(result_count * 0.5) + 1
-						p90 = int(result_count * 0.9) + 1
-						p99 = int(result_count * 0.99) + 1
-						p100 = result_count
-						printf "%s,%d,", workload, result_count
-					}
-					NR==p50  {
-						if (result_count > 0)
-							printf "%1.0f,",  $0
-						else 
-							printf "*,"
-					}
-					NR==p90  {
-						if (result_count >= 10)
-							printf "%1.0f,",  $0
-						else 
-							printf "*,"
-					}
-					NR==p99  {
-						if (result_count >= 100)
-							printf "%1.0f,",  $0
-						else 
-							printf "*,"
-					}
-					NR==p100 {
-						if (result_count > 1)
-							printf "%1.0f\n", $0
-						else
-							printf "*,"
-					}
-				' < "$results_directory/$workload/${metric}_sorted.csv" >> "$results_directory/${metric}.csv"
-			fi
+			awk -F, '$2 == "'"$workload"'" {printf("%.4f\n", $'"${fields[$metric]}"' / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/${metric}_sorted.csv"
+
+			percentiles_table_row "$results_directory/$workload/${metric}_sorted.csv" "$results_directory/${metric}.csv" "$workload"
 
 			# Delete scratch file used for sorting/counting
 			# rm -rf "$results_directory/$workload/${metric}_sorted.csv"
@@ -222,22 +180,8 @@ process_results() {
 
 		# Memory Allocation
 		awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $14)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/memalloc_sorted.csv"
-		oks=$(wc -l < "$results_directory/$workload/memalloc_sorted.csv")
-		((oks == 0)) && continue # If all errors, skip line
-		awk '
-			BEGIN {
-				sum = 0
-				p50 = int('"$oks"' * 0.5) + 1
-				p90 = int('"$oks"' * 0.9) + 1
-				p99 = int('"$oks"' * 0.99) + 1
-				p100 = '"$oks"'
-				printf "'"$workload"',"
-			}
-			NR==p50  {printf "%1.0f,",  $0}
-			NR==p90  {printf "%1.0f,",  $0}
-			NR==p99  {printf "%1.0f,",  $0}
-			NR==p100 {printf "%1.0f\n", $0}
-		' < "$results_directory/$workload/memalloc_sorted.csv" >> "$results_directory/memalloc.csv"
+
+		percentiles_table_row "$results_directory/$workload/memalloc_sorted.csv" "$results_directory/memalloc.csv" "$workload" "%1.0f"
 
 		# Delete scratch file used for sorting/counting
 		# rm -rf "$results_directory/$workload/memalloc_sorted.csv"

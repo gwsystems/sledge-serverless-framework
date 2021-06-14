@@ -124,7 +124,7 @@ process_results() {
 
 	for workload in "${workloads[@]}"; do
 		mkdir "$results_directory/$workload"
-		awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $6 / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/execution_times_sorted.csv"
+		awk -F, '$2 == "'"$workload"'" {printf("%.4f\n", $6 / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/execution_times_sorted.csv"
 
 		oks=$(wc -l < "$results_directory/$workload/execution_times_sorted.csv")
 		((oks == 0)) && continue # If all errors, skip line

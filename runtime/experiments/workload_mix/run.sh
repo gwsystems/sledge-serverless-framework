@@ -20,10 +20,7 @@ source panic.sh || exit 1
 source path_join.sh || exit 1
 source percentiles_table.sh || exit 1
 
-if ! command -v hey > /dev/null; then
-	echo "hey is not present."
-	exit 1
-fi
+validate_dependencies hey
 
 # Sends requests until the per-module perf window buffers are full
 # This ensures that Sledge has accurate estimates of execution time

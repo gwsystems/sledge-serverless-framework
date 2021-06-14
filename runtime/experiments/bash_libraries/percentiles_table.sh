@@ -36,6 +36,7 @@ percentiles_table_row() {
 	local -r table_file="${2:?table_file not set}"
 	check_file table_file
 	local -r row_label="${3:?row_label not set}"
+	local -r format_string="${4:-%1.4f}"
 
 	# Count the number of results
 	local -i sample_size
@@ -50,6 +51,7 @@ percentiles_table_row() {
 			BEGIN {
 				sample_size='"$sample_size"'
 				row_label="'"$row_label"'"
+				format_string="'"$format_string"'"
 				invalid_number_symbol="*"
 				sum = 0
 				p50_idx = int(sample_size * 0.5)
@@ -60,47 +62,15 @@ percentiles_table_row() {
 
 			# Empty pattern matches all rows
 			             { sum += $0 }
-			NR==1 		 { min = $0 }
-			NR==p50_idx  { p50 = sample_size >= 3   ? $0 : 0 }
-			NR==p90_idx  { p90 = sample_size >= 10  ? $0 : 0 }
-			NR==p99_idx  { p99 = sample_size >= 100 ? $0 : 0 }
-			NR==p100_idx { p100 = sample_size > 0   ? $0 : 0 }
+			NR==1 		 { min = sample_size  > 0   ? sprintf(format_string, $0) : invalid_number_symbol }
+			NR==p50_idx  { p50 = sample_size >= 3   ? sprintf(format_string, $0) : invalid_number_symbol }
+			NR==p90_idx  { p90 = sample_size >= 10  ? sprintf(format_string, $0) : invalid_number_symbol }
+			NR==p99_idx  { p99 = sample_size >= 100 ? sprintf(format_string, $0) : invalid_number_symbol }
+			NR==p100_idx { p100 = sample_size > 0   ? sprintf(format_string, $0) : invalid_number_symbol }
 
 			END {
-				mean = sum / NR
-
-				printf "%s,", row_label
-				printf "%d,", sample_size
-				if (min > 0) {
-					printf "%1.4f,", min
-				} else {
-					printf "%s,", invalid_number_symbol
-				}
-				if (mean > 0) {
-					printf "%1.4f,", mean
-				} else {
-					printf "%s,", invalid_number_symbol
-				}
-				if (p50 > 0) {
-					printf "%1.4f,", p50
-				} else {
-					printf "%s,", invalid_number_symbol
-				}
-				if (p90 > 0) {
-					printf "%1.4f,", p90
-				} else {
-					printf "%s,", invalid_number_symbol
-				}
-				if (p99 > 0) {
-					printf "%1.4f,", p99
-				} else {
-					printf "%s,", invalid_number_symbol
-				}
-				if (p100 > 0) {
-					printf "%1.4f\n", p100
-				} else {
-					printf "%s\n", invalid_number_symbol
-				}
+				mean = sample_size > 0 ? sprintf(format_string, sum / NR) : invalid_number_symbol
+				printf "%s,%d,%s,%s,%s,%s,%s,%s\n", row_label, sample_size, min, mean, p50, p90, p99, p100
 			}
 		' < "$columnar_data_file" >> "$table_file"
 	fi
