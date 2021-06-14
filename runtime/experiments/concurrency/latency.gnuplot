@@ -13,7 +13,9 @@ set yrange [0:]
 
 set style histogram columnstacked
 
-plot 'latency.dat' using 1:2 title 'p50', \
-     'latency.dat' using 1:3 title 'p90', \
-     'latency.dat' using 1:4 title 'p99', \
-     'latency.dat' using 1:5 title 'p100', \
+plot 'latency.dat' using 1:8 title 'p100', \
+     'latency.dat' using 1:7 title 'p99', \
+     'latency.dat' using 1:6 title 'p90', \
+     'latency.dat' using 1:5 title 'p50', \
+     'latency.dat' using 1:4 title 'mean', \
+     'latency.dat' using 1:3 title 'min', \

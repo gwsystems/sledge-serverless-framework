@@ -13,6 +13,7 @@ source framework.sh || exit 1
 source generate_gnuplots.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
+source percentiles_table.sh || exit 1
 source path_join.sh || exit 1
 
 if ! command -v hey > /dev/null; then
@@ -110,7 +111,7 @@ process_results() {
 	# Write headers to CSVs
 	printf "Concurrency,Success_Rate\n" >> "$results_directory/success.csv"
 	printf "Concurrency,Throughput\n" >> "$results_directory/throughput.csv"
-	printf "Con,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
+	percentiles_table_header "$results_directory/latency.csv" "Con"
 
 	for conn in ${concurrency[*]}; do
 
@@ -143,20 +144,7 @@ process_results() {
 		printf "%d,%f\n" "$conn" "$throughput" >> "$results_directory/throughput.csv"
 
 		# Generate Latency Data for csv
-		awk '
-		BEGIN {
-			sum = 0
-			p50 = int('"$oks"' * 0.5)
-			p90 = int('"$oks"' * 0.9)
-			p99 = int('"$oks"' * 0.99)
-			p100 = '"$oks"'
-			printf "'"$conn"',"
-		}
-		NR==p50 {printf "%1.4f,", $0}
-		NR==p90 {printf "%1.4f,", $0}
-		NR==p99 {printf "%1.4f,", $0}
-		NR==p100 {printf "%1.4f\n", $0}
-	' < "$results_directory/con$conn-response.csv" >> "$results_directory/latency.csv"
+		percentiles_table_row "$results_directory/con$conn-response.csv" "$results_directory/latency.csv" "$conn"
 
 		# Delete scratch file used for sorting/counting
 		rm -rf "$results_directory/con$conn-response.csv"

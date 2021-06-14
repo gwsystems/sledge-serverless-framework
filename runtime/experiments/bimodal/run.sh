@@ -18,6 +18,7 @@ source framework.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
+source percentiles_table.sh || exit 1
 
 if ! command -v hey > /dev/null; then
 	echo "hey is not present."
@@ -176,7 +177,7 @@ process_results() {
 	# Write headers to CSVs
 	printf "Payload,Success_Rate\n" >> "$results_directory/success.csv"
 	printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
-	printf "Payload,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
+	percentiles_table_header "$results_directory/latency.csv"
 
 	# The four types of results that we are capturing.
 	# fib10 and fib 40 are run sequentially.
@@ -217,23 +218,10 @@ process_results() {
 		printf "%s,%f\n" "$payload" "$throughput" >> "$results_directory/throughput.csv"
 
 		# Generate Latency Data for csv
-		awk '
-			BEGIN {
-				sum = 0
-				p50 = int('"$oks"' * 0.5)
-				p90 = int('"$oks"' * 0.9)
-				p99 = int('"$oks"' * 0.99)
-				p100 = '"$oks"'
-				printf "'"$payload"',"
-			}
-			NR==p50  {printf "%1.4f,",  $0}
-			NR==p90  {printf "%1.4f,",  $0}
-			NR==p99  {printf "%1.4f,",  $0}
-			NR==p100 {printf "%1.4f\n", $0}
-		' < "$results_directory/$payload-response.csv" >> "$results_directory/latency.csv"
+		percentiles_table_row "$results_directory/$payload-response.csv" "$results_directory/latency.csv" "$payload"
 
 		# Delete scratch file used for sorting/counting
-		# rm -rf "$results_directory/$payload-response.csv"
+		rm -rf "$results_directory/$payload-response.csv"
 	done
 
 	# Transform csvs to dat files for gnuplot

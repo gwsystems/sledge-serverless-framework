@@ -11,21 +11,24 @@ source framework.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
+source percentiles_table.sh || exit 1
 source validate_dependencies.sh || exit 1
 
 validate_dependencies awk hey jq
 
 # Please keep the element ordered alphabetically!
-declare -a workloads=(cifar10 ekf gocr lpd resize)
-declare -a multiples=(1.5 1.6 1.7 1.8 1.9 2.0)
+# declare -a workloads=(cifar10 ekf gocr lpd resize)
+declare -a workloads=(cifar10 gocr lpd resize)
+declare -a multiples=(1.5 2.0 3.0 4.0)
+declare -ri percentile=50
 
 profile() {
 	local hostname="$1"
 	local -r results_directory="$2"
 
 	# ekf
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" > /dev/null
-	printf "[ekf: OK]\n"
+	# hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" > /dev/null
+	# printf "[ekf: OK]\n"
 
 	# Resize
 	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./resize/shrinking_man_large.jpg" "http://${hostname}:10001" > /dev/null
@@ -47,9 +50,8 @@ profile() {
 get_baseline_execution() {
 	local -r results_directory="$1"
 	local -r module="$2"
-	local -ir percentile="$3"
 
-	local response_times_file="$results_directory/$module/response_times_sorted.csv"
+	local response_times_file="$results_directory/$module/execution_times_sorted.csv"
 
 	# Skip empty results
 	local -i oks
@@ -58,7 +60,7 @@ get_baseline_execution() {
 
 	# Generate Latency Data for csv
 	awk '
-		BEGIN {idx = int('"$oks"' * ('"$percentile"' / 100))}
+		BEGIN {idx = int('"$oks"' * ('"$percentile"' / 100)) + 1}
 		NR==idx  {printf "%1.4f\n", $0}
 	' < "$response_times_file"
 }
@@ -73,7 +75,6 @@ generate_spec() {
 	local results_directory="$1"
 
 	# Multiplier Interval and Expected Execution Percentile is currently the same for all workloads
-	local -ri percentile=90
 	((percentile < 50 || percentile > 99)) && panic "Percentile should be between 50 and 99 inclusive, was $percentile"
 
 	local -A baseline_execution=()
@@ -81,7 +82,7 @@ generate_spec() {
 	local relative_deadline
 
 	for workload in "${workloads[@]}"; do
-		baseline_execution["$workload"]="$(get_baseline_execution "$results_directory" "$workload" $percentile)"
+		baseline_execution["$workload"]="$(get_baseline_execution "$results_directory" "$workload" "$percentile")"
 		[[ -z "${baseline_execution[$workload]}" ]] && {
 			panic "Failed to get baseline execution for $workload"
 			exit 1
@@ -90,6 +91,7 @@ generate_spec() {
 		# Generates unique module specs on different ports using the different multiples
 		for multiple in "${multiples[@]}"; do
 			relative_deadline=$(calculate_relative_deadline "${baseline_execution[$workload]}" "${multiple}")
+			echo "${workload}_${multiple},${relative_deadline}" >> "$results_directory/deadlines.csv"
 			jq ". + { \
 			\"admissions-percentile\": $percentile,\
 			\"expected-execution-us\": ${baseline_execution[${workload}]},\
@@ -118,10 +120,20 @@ generate_spec() {
 process_results() {
 	local results_directory="$1"
 
+	percentiles_table_header "$results_directory/execution_time.csv" "Payload"
+
 	for workload in "${workloads[@]}"; do
 		mkdir "$results_directory/$workload"
-		awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $6 / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/response_times_sorted.csv"
+		awk -F, '$2 == "'"$workload"'" {printf("%.4f\n", $6 / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/execution_times_sorted.csv"
+
+		oks=$(wc -l < "$results_directory/$workload/execution_times_sorted.csv")
+		((oks == 0)) && continue # If all errors, skip line
+
+		# Generate Latency Data for csv
+		percentiles_table_row "$results_directory/$workload/execution_times_sorted.csv" "$results_directory/execution_time.csv" "$workload"
 	done
+
+	csv_to_dat "$results_directory/execution_time.csv"
 
 	generate_spec "$results_directory"
 
