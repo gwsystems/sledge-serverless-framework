@@ -11,10 +11,11 @@ __run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run
 export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
 # Source libraries from bash_libraries directory
-source "path_join.sh" || exit 1
-source "framework.sh" || exit 1
-source "get_result_count.sh" || exit 1
-source "generate_gnuplots.sh" || exit 1
+source path_join.sh || exit 1
+source framework.sh || exit 1
+source get_result_count.sh || exit 1
+source generate_gnuplots.sh || exit 1
+source percentiles_table.sh || exit 1
 
 if ! command -v hey > /dev/null; then
 	echo "hey is not present."
@@ -111,7 +112,7 @@ process_results() {
 
 	printf "Payload,Success_Rate\n" >> "$results_directory/success.csv"
 	printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
-	printf "Payload,p50,p90,p99,p100\n" >> "$results_directory/latency.csv"
+	percentiles_table_header "$results_directory/latency.csv" "Payload"
 
 	for payload in ${payloads[*]}; do
 		# Calculate Success Rate for csv
@@ -137,20 +138,7 @@ process_results() {
 		printf "%d,%f\n" "$payload" "$throughput" >> "$results_directory/throughput.csv"
 
 		# Generate Latency Data for csv
-		awk '
-		BEGIN {
-			sum = 0
-			p50 = int('"$oks"' * 0.5) + 1
-			p90 = int('"$oks"' * 0.9) + 1
-			p99 = int('"$oks"' * 0.99) + 1
-			p100 = '"$oks"'
-			printf "'"$payload"',"
-		}
-		NR==p50 {printf "%1.4f,", $0}
-		NR==p90 {printf "%1.4f,", $0}
-		NR==p99 {printf "%1.4f,", $0}
-		NR==p100 {printf "%1.4f\n", $0}
-	' < "$results_directory/$payload-response.csv" >> "$results_directory/latency.csv"
+		percentiles_table_row "$results_directory/$payload-response.csv" "$results_directory/latency.csv" "$payload"
 
 		# Delete scratch file used for sorting/counting
 		rm -rf "$results_directory/$payload-response.csv"
