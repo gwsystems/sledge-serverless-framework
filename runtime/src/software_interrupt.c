@@ -47,6 +47,11 @@ software_interrupt_deferred_sigalrm_max_print()
 		printf("Worker %d: %d\n", i, software_interrupt_deferred_sigalrm_max[i]);
 	}
 	fflush(stdout);
+}
+
+void
+software_interrupt_cleanup()
+{
 	if (software_interrupt_deferred_sigalrm_max) free((void *)software_interrupt_deferred_sigalrm_max);
 }
 
@@ -59,6 +64,7 @@ extern pthread_t *runtime_worker_threads;
 /**************************
  * Private Static Inlines *
  *************************/
+
 
 /**
  * A POSIX signal is delivered to only one thread.

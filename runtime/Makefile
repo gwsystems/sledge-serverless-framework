@@ -81,8 +81,6 @@ BINARY_NAME=sledgert
 
 # Sets a flag equal to the processor architecture
 CFLAGS += -D${ARCH}
-# CFLAGS += -DNCORES=${TOTAL_CORES}
-# CFLAGS += -DPAGE_SIZE=$(PAGE_SIZE)
 
 # Sandboxes running on Sledge always use WebAssembly linear memory
 CFLAGS += -DUSE_MEM_VM

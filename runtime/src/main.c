@@ -259,9 +259,7 @@ log_compiletime_config()
 	printf("\tArchitecture: %s\n", "x86_64");
 #endif
 
-#ifdef PAGE_SIZE
 	printf("\tPage Size: %lu\n", PAGE_SIZE);
-#endif
 
 #ifdef LOG_HTTP_PARSER
 	printf("\tLog HTTP Parser: Enabled\n");

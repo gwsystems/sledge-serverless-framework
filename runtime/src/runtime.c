@@ -47,6 +47,7 @@ runtime_cleanup()
 	if (runtime_worker_threads) free(runtime_worker_threads);
 
 	software_interrupt_deferred_sigalrm_max_print();
+	software_interrupt_cleanup();
 	exit(EXIT_SUCCESS);
 }
 

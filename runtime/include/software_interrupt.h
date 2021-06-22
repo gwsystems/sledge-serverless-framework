@@ -82,3 +82,4 @@ void software_interrupt_arm_timer(void);
 void software_interrupt_disarm_timer(void);
 void software_interrupt_set_interval_duration(uint64_t cycles);
 void software_interrupt_deferred_sigalrm_max_print(void);
+void software_interrupt_cleanup();
