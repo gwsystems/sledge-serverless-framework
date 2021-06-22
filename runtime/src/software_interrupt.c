@@ -79,7 +79,7 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			/* All threads should have been initialized */
 			assert(runtime_worker_threads[i] != 0);
-			
+
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
 			/* If using EDF, conditionally send signals. If not, broadcast */

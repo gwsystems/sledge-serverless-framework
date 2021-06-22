@@ -57,6 +57,7 @@ worker_thread_main(void *argument)
 
 	/* Initialize epoll */
 	worker_thread_epoll_file_descriptor = epoll_create1(0);
+	printf("~~~~~~~~~~~~~~~Worker FD: %p \n", &worker_thread_epoll_file_descriptor);
 	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
 
 	/* Unmask signals, unless the runtime has disabled preemption */
