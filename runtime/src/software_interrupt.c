@@ -37,7 +37,7 @@ __thread _Atomic static volatile sig_atomic_t software_interrupt_SIGUSR_count   
 __thread _Atomic volatile sig_atomic_t        software_interrupt_deferred_sigalrm     = 0;
 __thread _Atomic volatile sig_atomic_t        software_interrupt_signal_depth         = 0;
 
-_Atomic volatile sig_atomic_t * software_interrupt_deferred_sigalrm_max;
+_Atomic volatile sig_atomic_t *software_interrupt_deferred_sigalrm_max;
 
 void
 software_interrupt_deferred_sigalrm_max_print()
@@ -47,16 +47,14 @@ software_interrupt_deferred_sigalrm_max_print()
 		printf("Worker %d: %d\n", i, software_interrupt_deferred_sigalrm_max[i]);
 	}
 	fflush(stdout);
-	if(software_interrupt_deferred_sigalrm_max) {
-		free((void*)software_interrupt_deferred_sigalrm_max);
-	}
+	if (software_interrupt_deferred_sigalrm_max) free((void *)software_interrupt_deferred_sigalrm_max);
 }
 
 /***************************************
  * Externs
  **************************************/
 
-extern pthread_t * runtime_worker_threads;
+extern pthread_t *runtime_worker_threads;
 
 /**************************
  * Private Static Inlines *
