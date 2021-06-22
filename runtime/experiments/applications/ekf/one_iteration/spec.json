@@ -1,6 +1,6 @@
 {
   "active": true,
-  "name": "resize",
+  "name": "ekf",
   "path": "ekf_wasm.so",
   "port": 10000,
   "expected-execution-us": 5000,

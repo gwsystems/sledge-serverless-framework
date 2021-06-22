@@ -4,9 +4,7 @@
 #include <stdio.h>
 
 
-#ifndef PAGE_SIZE
 #define PAGE_SIZE (unsigned long)(1 << 12)
-#endif
 
 /* For this family of macros, do NOT pass zero as the pow2 */
 #define round_to_pow2(x, pow2)    (((unsigned long)(x)) & (~((pow2)-1)))
