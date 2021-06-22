@@ -28,10 +28,10 @@
  * Shared Process State    *
  **************************/
 
-pthread_t runtime_worker_threads[RUNTIME_WORKER_THREAD_CORE_COUNT];
-int       runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT] = { 0 };
+pthread_t * runtime_worker_threads;
+int *       runtime_worker_threads_argument;
 /* The active deadline of the sandbox running on each worker thread */
-uint64_t runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT] = { UINT64_MAX };
+uint64_t *  runtime_worker_threads_deadline;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -41,6 +41,10 @@ void
 runtime_cleanup()
 {
 	if (runtime_sandbox_perf_log != NULL) fflush(runtime_sandbox_perf_log);
+
+	if (runtime_worker_threads_deadline) free(runtime_worker_threads_deadline);
+	if (runtime_worker_threads_argument) free(runtime_worker_threads_argument);
+	if (runtime_worker_threads) free(runtime_worker_threads);
 
 	software_interrupt_deferred_sigalrm_max_print();
 	exit(EXIT_SUCCESS);
@@ -91,6 +95,11 @@ runtime_set_resource_limits_to_max()
 void
 runtime_initialize(void)
 {
+	runtime_worker_threads = malloc(runtime_worker_threads_count * sizeof(pthread_t));
+	runtime_worker_threads_argument = calloc(runtime_worker_threads_count, sizeof(int));
+	runtime_worker_threads_deadline = malloc(runtime_worker_threads_count * sizeof(uint64_t));
+	memset(runtime_worker_threads_deadline, UINT8_MAX, runtime_worker_threads_count*sizeof(uint64_t));
+
 	http_total_init();
 	sandbox_request_count_initialize();
 	sandbox_count_initialize();

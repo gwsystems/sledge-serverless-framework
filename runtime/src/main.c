@@ -61,7 +61,7 @@ runtime_allocate_available_cores()
 
 	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
-	printf("\tCore Count: %u\n", runtime_total_online_processors);
+	printf("\tCore Count (Online): %u\n", runtime_total_online_processors);
 
 	/* If more than two cores are available, leave core 0 free to run OS tasks */
 	if (runtime_total_online_processors > 2) {
@@ -259,10 +259,9 @@ log_compiletime_config()
 	printf("\tArchitecture: %s\n", "x86_64");
 #endif
 
-	int ncores = NCORES;
-	printf("\tTotal Cores: %d\n", ncores);
-	int page_size = PAGE_SIZE;
-	printf("\tPage Size: %d\n", page_size);
+#ifdef PAGE_SIZE
+	printf("\tPage Size: %lu\n", PAGE_SIZE);
+#endif
 
 #ifdef LOG_HTTP_PARSER
 	printf("\tLog HTTP Parser: Enabled\n");
@@ -346,7 +345,7 @@ main(int argc, char **argv)
 
 	printf("Runtime Environment:\n");
 
-	memset(runtime_worker_threads, 0, sizeof(pthread_t) * RUNTIME_WORKER_THREAD_CORE_COUNT);
+	// memset(runtime_worker_threads, 0, sizeof(pthread_t) * RUNTIME_WORKER_THREAD_CORE_COUNT);
 
 	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");

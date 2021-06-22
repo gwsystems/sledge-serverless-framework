@@ -18,7 +18,7 @@
  ***********/
 
 extern _Atomic __thread volatile sig_atomic_t software_interrupt_deferred_sigalrm;
-extern _Atomic volatile sig_atomic_t          software_interrupt_deferred_sigalrm_max[RUNTIME_WORKER_THREAD_CORE_COUNT];
+extern _Atomic volatile sig_atomic_t *        software_interrupt_deferred_sigalrm_max;
 
 /*************************
  * Public Static Inlines *

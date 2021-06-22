@@ -8,15 +8,6 @@
 #include "likely.h"
 #include "types.h"
 
-#ifndef NCORES
-#warning "NCORES not defined in Makefile. Defaulting to 2"
-#define NCORES 2
-#endif
-
-#if NCORES == 1
-#error "RUNTIME MINIMUM REQUIREMENT IS 2 CORES"
-#endif
-
 #define RUNTIME_EXPECTED_EXECUTION_US_MAX 3600000000
 #define RUNTIME_HTTP_REQUEST_SIZE_MAX     100000000 /* 100 MB */
 #define RUNTIME_HTTP_RESPONSE_SIZE_MAX    100000000 /* 100 MB */
@@ -26,7 +17,6 @@
 #define RUNTIME_MAX_WORKER_COUNT          32 /* Static buffer size for per-worker globals */
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
 #define RUNTIME_RELATIVE_DEADLINE_US_MAX  3600000000 /* One Hour. Fits in uint32_t */
-#define RUNTIME_WORKER_THREAD_CORE_COUNT  (NCORES > 1 ? NCORES - 1 : NCORES)
 
 enum RUNTIME_SIGALRM_HANDLER
 {
@@ -39,10 +29,10 @@ extern uint32_t                     runtime_processor_speed_MHz;
 extern uint32_t                     runtime_quantum_us;
 extern FILE *                       runtime_sandbox_perf_log;
 extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
-extern pthread_t                    runtime_worker_threads[];
+extern pthread_t *                  runtime_worker_threads;
 extern uint32_t                     runtime_worker_threads_count;
-extern int                          runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT];
-extern uint64_t                     runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT];
+extern int *                        runtime_worker_threads_argument;
+extern uint64_t *                   runtime_worker_threads_deadline;
 
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);

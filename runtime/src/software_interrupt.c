@@ -37,7 +37,7 @@ __thread _Atomic static volatile sig_atomic_t software_interrupt_SIGUSR_count   
 __thread _Atomic volatile sig_atomic_t        software_interrupt_deferred_sigalrm     = 0;
 __thread _Atomic volatile sig_atomic_t        software_interrupt_signal_depth         = 0;
 
-_Atomic volatile sig_atomic_t software_interrupt_deferred_sigalrm_max[RUNTIME_WORKER_THREAD_CORE_COUNT] = { 0 };
+_Atomic volatile sig_atomic_t * software_interrupt_deferred_sigalrm_max;
 
 void
 software_interrupt_deferred_sigalrm_max_print()
@@ -47,13 +47,16 @@ software_interrupt_deferred_sigalrm_max_print()
 		printf("Worker %d: %d\n", i, software_interrupt_deferred_sigalrm_max[i]);
 	}
 	fflush(stdout);
+	if(software_interrupt_deferred_sigalrm_max) {
+		free((void*)software_interrupt_deferred_sigalrm_max);
+	}
 }
 
 /***************************************
  * Externs
  **************************************/
 
-extern pthread_t runtime_worker_threads[];
+extern pthread_t * runtime_worker_threads;
 
 /**************************
  * Private Static Inlines *
@@ -71,9 +74,6 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 		atomic_fetch_add(&software_interrupt_SIGALRM_kernel_count, 1);
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			if (pthread_self() == runtime_worker_threads[i]) continue;
-
-			/* All threads should have been initialized */
-			assert(runtime_worker_threads[i] != 0);
 
 			/* If using EDF, conditionally send signals. If not, broadcast */
 			switch (runtime_sigalrm_handler) {
@@ -256,6 +256,8 @@ software_interrupt_initialize(void)
 			exit(1);
 		}
 	}
+
+	software_interrupt_deferred_sigalrm_max = calloc(runtime_worker_threads_count, sizeof(_Atomic(sig_atomic_t)));
 }
 
 void

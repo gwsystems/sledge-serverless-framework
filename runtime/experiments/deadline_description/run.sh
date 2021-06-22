@@ -18,7 +18,7 @@ validate_dependencies awk hey jq
 
 # Please keep the element ordered alphabetically!
 # declare -a workloads=(cifar10 ekf gocr lpd resize)
-declare -a workloads=(cifar10 gocr lpd resize)
+declare -a workloads=(cifar10 ekf gocr lpd resize)
 declare -a multiples=(1.5 2.0 3.0 4.0)
 declare -ri percentile=50
 
@@ -27,8 +27,8 @@ profile() {
 	local -r results_directory="$2"
 
 	# ekf
-	# hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" > /dev/null
-	# printf "[ekf: OK]\n"
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000" > /dev/null
+	printf "[ekf: OK]\n"
 
 	# Resize
 	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./resize/shrinking_man_large.jpg" "http://${hostname}:10001" > /dev/null
