@@ -96,7 +96,7 @@ runtime_set_resource_limits_to_max()
 void
 runtime_initialize(void)
 {
-	runtime_worker_threads          = malloc(runtime_worker_threads_count * sizeof(pthread_t));
+	runtime_worker_threads          = calloc(runtime_worker_threads_count, sizeof(pthread_t));
 	runtime_worker_threads_argument = calloc(runtime_worker_threads_count, sizeof(int));
 	runtime_worker_threads_deadline = malloc(runtime_worker_threads_count * sizeof(uint64_t));
 	memset(runtime_worker_threads_deadline, UINT8_MAX, runtime_worker_threads_count * sizeof(uint64_t));

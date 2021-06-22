@@ -77,6 +77,9 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 	if (signal_info->si_code == SI_KERNEL) {
 		atomic_fetch_add(&software_interrupt_SIGALRM_kernel_count, 1);
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
+			/* All threads should have been initialized */
+			assert(runtime_worker_threads[i] != 0);
+			
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
 			/* If using EDF, conditionally send signals. If not, broadcast */
