@@ -345,8 +345,6 @@ main(int argc, char **argv)
 
 	printf("Runtime Environment:\n");
 
-	// memset(runtime_worker_threads, 0, sizeof(pthread_t) * RUNTIME_WORKER_THREAD_CORE_COUNT);
-
 	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
 
