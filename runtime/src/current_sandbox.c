@@ -80,8 +80,8 @@ current_sandbox_start(void)
 			goto err;
 		};
 	} else {
-		// copy previous output to sandbox->request_response_data, as the input for the sandbox.
-		// let sandbox->http_request->body points to sandbox->request_response_data
+		/* copy previous output to sandbox->request_response_data, as the input for the sandbox.*/
+		/* let sandbox->http_request->body points to sandbox->request_response_data*/
 		assert(sandbox->previous_function_output != NULL);
 		memcpy(sandbox->request_response_data, sandbox->previous_function_output, sandbox->output_length);
 		sandbox->http_request.body = sandbox->request_response_data;
@@ -104,17 +104,13 @@ current_sandbox_start(void)
 
 
 	struct module * next_module = sandbox->module->next_module;
-	//if (sandbox->current_func_index + 1 < g_chain_length) {
 	if (next_module != NULL) {
-		//uint32_t next_port = g_single_function_flow_table[sandbox->current_func_index + 1];
-		//struct module * next_module = get_module_from_ht(next_port);
-		//generate a new request, copy the current sandbox's output to the next request's buffer, and put it to the global queue
-		
+		/* Generate a new request, copy the current sandbox's output to the next request's buffer, and put it to the global queue */
 		ssize_t output_length = sandbox->request_response_data_length - sandbox->request_length;
 		char * pre_func_output = (char *) malloc(output_length);
 		memcpy(pre_func_output, sandbox->request_response_data + sandbox->request_length, output_length);
 		struct sandbox_request *sandbox_request =
-                                  sandbox_request_allocate(next_module, false, sandbox->request_length, sandbox->current_func_index + 1, 
+                                  sandbox_request_allocate(next_module, false, sandbox->request_length, 
 							   next_module->name, sandbox->client_socket_descriptor,
                                                            (const struct sockaddr *)&sandbox->client_address,
                                                            sandbox->request_arrival_timestamp, true, pre_func_output, output_length);
@@ -128,7 +124,7 @@ current_sandbox_start(void)
 	} else {
 		/* Retrieve the result, construct the HTTP response, and send to client */
 		if (sandbox_send_response(sandbox) < 0) { // if send blocked, remove the sandbox from the local runqueue
-						  // and pause the sandbox
+						  	  // and pause the sandbox
 			error_message = "Unable to build and send client response\n";
 			goto err;
 		};
@@ -139,8 +135,7 @@ current_sandbox_start(void)
 
 		assert(sandbox->state == SANDBOX_RUNNING);
 		sandbox_close_http(sandbox);
-		sandbox_set_as_returned(sandbox, SANDBOX_RUNNING); //request is completed, remove the sandbox from the
-							   //local runqueue
+		sandbox_set_as_returned(sandbox, SANDBOX_RUNNING); //request is completed, remove the sandbox from the local runqueue
 	}
 done:
 	/* Cleanup connection and exit sandbox */

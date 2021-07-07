@@ -177,7 +177,7 @@ listener_thread_main(void *dummy)
 
 				/* Allocate a Sandbox Request */
 				struct sandbox_request *sandbox_request =
-				  sandbox_request_allocate(module, true, 0, 0, module->name, client_socket,
+				  sandbox_request_allocate(module, true, 0, module->name, client_socket,
 				                           (const struct sockaddr *)&client_address,
 				                           request_arrival_timestamp, work_admitted, NULL, 0);
 

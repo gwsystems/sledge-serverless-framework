@@ -33,7 +33,6 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->allocation_timestamp      = allocation_timestamp;
 	sandbox->state                     = SANDBOX_SET_AS_INITIALIZED;
 
-	sandbox->current_func_index = sandbox_request->current_func_index;
 	sandbox->request_from_outside = sandbox_request->request_from_outside;
 	sandbox->previous_function_output = sandbox_request->previous_function_output;
 	sandbox->output_length = sandbox_request->output_length;

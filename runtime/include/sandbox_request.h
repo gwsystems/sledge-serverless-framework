@@ -16,7 +16,6 @@
 struct sandbox_request {
 	uint64_t        id;
 	bool		request_from_outside; /* true is yes, false is no */
-	int current_func_index;
 	struct module * module;
 	char *          arguments;
 	int             socket_descriptor;
@@ -69,10 +68,10 @@ sandbox_request_log_allocation(struct sandbox_request *sandbox_request)
  * @return the new sandbox request
  */
 static inline struct sandbox_request *
-sandbox_request_allocate(struct module *module, bool request_from_outside, ssize_t request_length, int current_func_index, 
-			 char *arguments, int socket_descriptor,
-                         const struct sockaddr *socket_address, uint64_t request_arrival_timestamp,
-                         uint64_t admissions_estimate, char *previous_function_output, ssize_t output_length)
+sandbox_request_allocate(struct module *module, bool request_from_outside, ssize_t request_length, 
+			 char *arguments, int socket_descriptor, const struct sockaddr *socket_address, 
+			 uint64_t request_arrival_timestamp, uint64_t admissions_estimate, 
+			 char *previous_function_output, ssize_t output_length)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)malloc(sizeof(struct sandbox_request));
 	assert(sandbox_request);
@@ -82,7 +81,6 @@ sandbox_request_allocate(struct module *module, bool request_from_outside, ssize
 
 	sandbox_request->module            = module;
 	sandbox_request->request_from_outside = request_from_outside;
-	sandbox_request->current_func_index = current_func_index;
 	sandbox_request->arguments         = arguments;
 	sandbox_request->socket_descriptor = socket_descriptor;
 	memcpy(&sandbox_request->socket_address, socket_address, sizeof(struct sockaddr));
