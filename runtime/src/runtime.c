@@ -19,7 +19,6 @@
 #include "http_parser_settings.h"
 #include "listener_thread.h"
 #include "module.h"
-#include "module_manager.h"
 #include "runtime.h"
 #include "sandbox_request.h"
 #include "scheduler.h"
@@ -99,8 +98,6 @@ runtime_initialize(void)
 	/* Setup Scheduler */
 	scheduler_initialize(); //set function pointers to global_request_scheduler, both EDF and FIFO have a set of functions
 
-	/* Init global module hash table */
-	init_module_ht();
 	/* Configure Signals */
 	signal(SIGPIPE, SIG_IGN); // ignore SIGPIPE
 	signal(SIGTERM, runtime_cleanup); // call runtime_cleanup when get SIGTERM signal

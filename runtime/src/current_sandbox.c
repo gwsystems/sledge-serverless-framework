@@ -6,9 +6,7 @@
 #include "sandbox_set_as_returned.h"
 #include "sandbox_setup_arguments.h"
 #include "scheduler.h"
-#include "workflow.h"
 #include "module.h"
-#include "module_manager.h"
 #include "software_interrupt.h"
 
 __thread struct sandbox *worker_thread_current_sandbox = NULL;
@@ -105,10 +103,11 @@ current_sandbox_start(void)
 	sandbox->completion_timestamp = __getcycles();
 
 
-	if (sandbox->current_func_index + 1 < g_chain_length) {
-		uint32_t next_port = g_single_function_flow_table[sandbox->current_func_index + 1];
-		struct module * next_module = get_module_from_ht(next_port);
-		assert(next_module != NULL); 
+	struct module * next_module = sandbox->module->next_module;
+	//if (sandbox->current_func_index + 1 < g_chain_length) {
+	if (next_module != NULL) {
+		//uint32_t next_port = g_single_function_flow_table[sandbox->current_func_index + 1];
+		//struct module * next_module = get_module_from_ht(next_port);
 		//generate a new request, copy the current sandbox's output to the next request's buffer, and put it to the global queue
 		
 		ssize_t output_length = sandbox->request_response_data_length - sandbox->request_length;

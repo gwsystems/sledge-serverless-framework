@@ -78,6 +78,7 @@ struct module {
 
 	/* Entry Function to invoke serverless function */
 	mod_main_fn_t main;
+	struct module *next_module; /* the next module in the chain */
 };
 
 /*************************

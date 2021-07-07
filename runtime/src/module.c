@@ -12,7 +12,6 @@
 #include "likely.h"
 #include "listener_thread.h"
 #include "module.h"
-#include "module_manager.h"
 #include "module_database.h"
 #include "panic.h"
 #include "runtime.h"
@@ -375,6 +374,7 @@ module_new_from_json(char *file_name)
 	int   module_count    = 0;
 	char *request_headers = NULL;
 	char *reponse_headers = NULL;
+	struct module *tail_module = NULL;
 	for (int i = 0; i < total_tokens; i++) {
 		assert(tokens[i].type == JSMN_OBJECT);
 
@@ -556,12 +556,21 @@ module_new_from_json(char *file_name)
 			                                   relative_deadline_us, port, request_size, response_size,
 			                                   admissions_percentile, expected_execution_us);
 			if (module == NULL) goto module_new_err;
-
+			
 			assert(module);
+
+			if (tail_module == NULL) {
+				tail_module = module;
+				tail_module->next_module = NULL;
+			} else {
+				tail_module->next_module = module;
+				tail_module = module;
+				tail_module->next_module = NULL;
+			}
+			
 			module_set_http_info(module, request_count, request_headers, request_content_type,
 			                     response_count, reponse_headers, response_content_type);
 			module_count++;
-			insert_module_to_ht((uint32_t)port, module);
 		}
 
 		free(request_headers);
