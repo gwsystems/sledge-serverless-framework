@@ -19,6 +19,7 @@
 #include "http_parser_settings.h"
 #include "listener_thread.h"
 #include "module.h"
+#include "module_manager.h"
 #include "runtime.h"
 #include "sandbox_request.h"
 #include "scheduler.h"
@@ -65,12 +66,12 @@ runtime_set_resource_limits_to_max()
 		int resource = resources[i];
 		if (getrlimit(resource, &limit) < 0) panic_err();
 
-		if (limit.rlim_cur == RLIM_INFINITY) {
+		if (limit.rlim_cur == RLIM_INFINITY) { // rlim_cur is soft limit
 			strncpy(lim, "Infinite", uint64_t_max_digits);
 		} else {
 			snprintf(lim, uint64_t_max_digits, "%lu", limit.rlim_cur);
 		}
-		if (limit.rlim_max == RLIM_INFINITY) {
+		if (limit.rlim_max == RLIM_INFINITY) { // rlim_max is hard limit
 			strncpy(max, "Infinite", uint64_t_max_digits);
 		} else {
 			snprintf(max, uint64_t_max_digits, "%lu", limit.rlim_max);
@@ -91,18 +92,21 @@ runtime_set_resource_limits_to_max()
 void
 runtime_initialize(void)
 {
-	http_total_init();
-	sandbox_request_count_initialize();
-	sandbox_count_initialize();
+	http_total_init(); //initilize http requests/error response counter
+	sandbox_request_count_initialize(); //initilize sandbox requests counter
+	sandbox_count_initialize(); //initilize sandbox state counter
 
 	/* Setup Scheduler */
-	scheduler_initialize();
+	scheduler_initialize(); //set function pointers to global_request_scheduler, both EDF and FIFO have a set of functions
 
+	/* Init global module hash table */
+	init_module_ht();
 	/* Configure Signals */
-	signal(SIGPIPE, SIG_IGN);
-	signal(SIGTERM, runtime_cleanup);
+	signal(SIGPIPE, SIG_IGN); // ignore SIGPIPE
+	signal(SIGTERM, runtime_cleanup); // call runtime_cleanup when get SIGTERM signal
 
-	http_parser_settings_initialize();
+	http_parser_settings_initialize(); // set function pointers for http parser lib, when get a http message, some callback
+					   // functions will be called
 	admissions_control_initialize();
 }
 

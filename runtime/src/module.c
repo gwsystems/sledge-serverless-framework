@@ -12,6 +12,7 @@
 #include "likely.h"
 #include "listener_thread.h"
 #include "module.h"
+#include "module_manager.h"
 #include "module_database.h"
 #include "panic.h"
 #include "runtime.h"
@@ -560,6 +561,7 @@ module_new_from_json(char *file_name)
 			module_set_http_info(module, request_count, request_headers, request_content_type,
 			                     response_count, reponse_headers, response_content_type);
 			module_count++;
+			insert_module_to_ht((uint32_t)port, module);
 		}
 
 		free(request_headers);

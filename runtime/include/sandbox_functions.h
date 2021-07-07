@@ -28,6 +28,16 @@ sandbox_close_http(struct sandbox *sandbox)
 	client_socket_close(sandbox->client_socket_descriptor, &sandbox->client_address);
 }
 
+static inline void
+sandbox_remove_from_epoll(struct sandbox *sandbox)
+{
+        assert(sandbox != NULL);
+
+        int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, sandbox->client_socket_descriptor, NULL);
+        if (unlikely(rc < 0)) panic_err();
+
+}
+
 /**
  * Initializes a sandbox fd ready for use with the proper preopen magic
  * @param sandbox
@@ -133,7 +143,7 @@ sandbox_open_http(struct sandbox *sandbox)
 	http_parser_init(&sandbox->http_parser, HTTP_REQUEST);
 
 	/* Set the sandbox as the data the http-parser has access to */
-	sandbox->http_parser.data = sandbox;
+	sandbox->http_parser.data = sandbox; //assign data to sandbox in case to operator it when a callback happended
 
 	/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
 	struct epoll_event accept_evt;

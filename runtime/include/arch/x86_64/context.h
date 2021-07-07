@@ -80,6 +80,8 @@ arch_context_restore_new(mcontext_t *active_context, struct arch_context *sandbo
  *
  * NULL in either of these values indicates the "no sandbox to execute" state,
  * which defaults to resuming execution of main
+ * save the current context to a, and switch to b, if b is fast path, then only restore b's IP 
+ * and SP; if b is slow path, then send a SIGUSER1 to restore a full context of b
  */
 static inline int
 arch_context_switch(struct arch_context *a, struct arch_context *b)

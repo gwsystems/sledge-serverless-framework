@@ -10,10 +10,10 @@ PAGE_SIZE := $(shell getconf PAGESIZE)
 
 # Compiler Settings
 CC=clang
-CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
+#CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 
 # CC_OPTIONS for Debugging
-# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE
+CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE
 
 # CFI Sanitizer
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -flto -fvisibility=default -fsanitize=cfi 
@@ -91,6 +91,7 @@ CFLAGS += -DUSE_MEM_VM
 LDFLAGS += -Wl,--export-dynamic -ldl -lm
 LDFLAGS += -Lthirdparty/dist/lib/
 INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
+INCLUDES += -Iinclude/ -Ithirdparty/ck/include/
 
 # CFILES
 CFILES += src/*.c
@@ -99,6 +100,7 @@ CFILES += src/libc/*.c
 CFILES += src/memory/common.c
 CFILES += src/memory/64bit_nix.c
 CFILES += thirdparty/dist/lib/http_parser.o
+CFILES += thirdparty/dist/lib/libck.a
 
 # Configuring Jasmine
 JSMNCFLAGS += -DJSMN_STATIC

@@ -15,13 +15,17 @@
 
 struct sandbox_request {
 	uint64_t        id;
+	bool		request_from_outside; /* true is yes, false is no */
+	int current_func_index;
 	struct module * module;
 	char *          arguments;
 	int             socket_descriptor;
 	struct sockaddr socket_address;
 	uint64_t        request_arrival_timestamp; /* cycles */
 	uint64_t        absolute_deadline;         /* cycles */
-
+	char * previous_function_output;
+	ssize_t output_length;
+	ssize_t pre_request_length;                    /* previous request length */
 	/*
 	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request
 	 * Calculated by estimated execution time (cycles) * runtime_admissions_granularity / relative deadline (cycles)
@@ -65,9 +69,10 @@ sandbox_request_log_allocation(struct sandbox_request *sandbox_request)
  * @return the new sandbox request
  */
 static inline struct sandbox_request *
-sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
+sandbox_request_allocate(struct module *module, bool request_from_outside, ssize_t request_length, int current_func_index, 
+			 char *arguments, int socket_descriptor,
                          const struct sockaddr *socket_address, uint64_t request_arrival_timestamp,
-                         uint64_t admissions_estimate)
+                         uint64_t admissions_estimate, char *previous_function_output, ssize_t output_length)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)malloc(sizeof(struct sandbox_request));
 	assert(sandbox_request);
@@ -76,11 +81,16 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->id = sandbox_request_count_postfix_increment();
 
 	sandbox_request->module            = module;
+	sandbox_request->request_from_outside = request_from_outside;
+	sandbox_request->current_func_index = current_func_index;
 	sandbox_request->arguments         = arguments;
 	sandbox_request->socket_descriptor = socket_descriptor;
 	memcpy(&sandbox_request->socket_address, socket_address, sizeof(struct sockaddr));
 	sandbox_request->request_arrival_timestamp = request_arrival_timestamp;
 	sandbox_request->absolute_deadline         = request_arrival_timestamp + module->relative_deadline;
+	sandbox_request->previous_function_output = previous_function_output;
+	sandbox_request->output_length = output_length;
+	sandbox_request->pre_request_length = request_length;
 
 	/*
 	 * Admissions Control State

@@ -186,9 +186,12 @@ sandbox_free(struct sandbox *sandbox)
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
 
 	int rc;
+	if (sandbox->previous_function_output != NULL) {
+		free(sandbox->previous_function_output);
+		sandbox->previous_function_output = NULL;
+	}
 
 	module_release(sandbox->module);
-
 	/* Free Sandbox Stack */
 	errno = 0;
 
