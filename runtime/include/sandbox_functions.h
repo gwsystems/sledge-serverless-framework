@@ -145,15 +145,13 @@ sandbox_open_http(struct sandbox *sandbox)
 	/* Set the sandbox as the data the http-parser has access to */
 	sandbox->http_parser.data = sandbox; //assign data to sandbox in case to operator it when a callback happended
 
-	if (sandbox->module->next_module == NULL) {
-		/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
-		struct epoll_event accept_evt;
-		accept_evt.data.ptr = (void *)sandbox;
-		accept_evt.events   = EPOLLIN | EPOLLOUT | EPOLLET;
-		int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_ADD, sandbox->client_socket_descriptor,
+	/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
+	struct epoll_event accept_evt;
+	accept_evt.data.ptr = (void *)sandbox;
+	accept_evt.events   = EPOLLIN | EPOLLOUT | EPOLLET;
+	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_ADD, sandbox->client_socket_descriptor,
 	                   &accept_evt);
-		if (unlikely(rc < 0)) panic_err();
-	}
+	if (unlikely(rc < 0)) panic_err();
 }
 
 /**

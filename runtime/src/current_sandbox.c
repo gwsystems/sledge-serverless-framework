@@ -116,6 +116,7 @@ current_sandbox_start(void)
                                                            sandbox->request_arrival_timestamp, true, pre_func_output, output_length);
                 /* Add to the Global Sandbox Request Scheduler */
                 global_request_scheduler_add(sandbox_request);
+		sandbox_remove_from_epoll(sandbox);
 		sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);
 	} else {
 		/* Retrieve the result, construct the HTTP response, and send to client */
