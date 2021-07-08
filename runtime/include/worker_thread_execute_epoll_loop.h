@@ -24,7 +24,6 @@ worker_thread_execute_epoll_loop(void)
 		struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 		int                descriptor_count = epoll_wait(worker_thread_epoll_file_descriptor, epoll_events,
                                                   RUNTIME_MAX_EPOLL_EVENTS, 0);
-
 		if (descriptor_count < 0) {
 			if (errno == EINTR) continue;
 

@@ -85,7 +85,7 @@ current_sandbox_start(void)
 		assert(sandbox->previous_function_output != NULL);
 		memcpy(sandbox->request_response_data, sandbox->previous_function_output, sandbox->output_length);
 		sandbox->http_request.body = sandbox->request_response_data;
-		sandbox->http_request.body_length = sandbox->output_length;	
+		sandbox->http_request.body_length = sandbox->output_length;
 		sandbox->request_length = sandbox->pre_request_length;
 		sandbox->request_response_data_length = sandbox->request_length;
 	}
@@ -116,11 +116,7 @@ current_sandbox_start(void)
                                                            sandbox->request_arrival_timestamp, true, pre_func_output, output_length);
                 /* Add to the Global Sandbox Request Scheduler */
                 global_request_scheduler_add(sandbox_request);
-		sandbox_remove_from_epoll(sandbox);
 		sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);
-		scheduler_yield();
-		assert(0); 
-		return;
 	} else {
 		/* Retrieve the result, construct the HTTP response, and send to client */
 		if (sandbox_send_response(sandbox) < 0) { // if send blocked, remove the sandbox from the local runqueue

@@ -88,7 +88,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 		sandbox->request_response_data_length += nparsed;
 	}
 
-
+	http_request_print(&sandbox->http_request);
 	sandbox->request_length = sandbox->request_response_data_length;
 
 	rc = 0;
