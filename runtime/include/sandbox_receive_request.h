@@ -61,9 +61,9 @@ sandbox_receive_request(struct sandbox *sandbox)
 			             == NULL)) {
 				debuglog("Failed to log client_address: %s", strerror(errno));
 			}
-
+			uint16_t port = (((struct sockaddr_in6*)&sandbox->client_address)->sin6_port);
 			debuglog("Sandbox %lu: recv returned 0 before a complete request was received\n", sandbox->id);
-			debuglog("Socket: %d. Address: %s\n", fd, client_address_text);
+			debuglog("Socket: %d. Address: %s, Port: %u\n", fd, client_address_text, port);
 			http_request_print(&sandbox->http_request);
 			goto err;
 		}
