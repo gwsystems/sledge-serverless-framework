@@ -114,7 +114,9 @@ current_sandbox_start(void)
 							   next_module->name, sandbox->client_socket_descriptor,
                                                            (const struct sockaddr *)&sandbox->client_address,
                                                            sandbox->request_arrival_timestamp, true, pre_func_output, output_length);
-                /* Add to the Global Sandbox Request Scheduler */
+                /* reset the request id to the same as the current request id */
+		sandbox_request->id = sandbox->id;  
+		/* Add to the Global Sandbox Request Scheduler */
                 global_request_scheduler_add(sandbox_request);
 		sandbox_remove_from_epoll(sandbox);
 		sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);

@@ -183,4 +183,5 @@ sandbox_print_perf(struct sandbox *sandbox)
 	        sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
 	        sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
 	        running_us, blocked_us, returned_us, sandbox->linear_memory_size);
+	fflush(runtime_sandbox_perf_log);
 }

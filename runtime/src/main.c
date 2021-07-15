@@ -226,6 +226,7 @@ runtime_configure()
 		if (runtime_sandbox_perf_log == NULL) { perror("sandbox perf log"); }
 		fprintf(runtime_sandbox_perf_log, "id,function,state,deadline,actual,queued,initializing,runnable,"
 		                                  "running,blocked,returned,memory\n");
+		fflush(runtime_sandbox_perf_log);
 	} else {
 		printf("\tSandbox Performance Log: Disabled\n");
 	}
