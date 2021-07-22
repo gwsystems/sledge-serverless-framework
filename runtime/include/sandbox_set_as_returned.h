@@ -32,7 +32,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
 		sandbox->response_timestamp = now;
-		sandbox->total_time         = now - sandbox->request_arrival_timestamp;
+		sandbox->total_time         = now - sandbox->enqueue_timestamp;
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);

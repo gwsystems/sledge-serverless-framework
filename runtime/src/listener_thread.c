@@ -179,7 +179,8 @@ listener_thread_main(void *dummy)
 				struct sandbox_request *sandbox_request =
 				  sandbox_request_allocate(module, true, 0, module->name, client_socket,
 				                           (const struct sockaddr *)&client_address,
-				                           request_arrival_timestamp, work_admitted, NULL, 0);
+				                           request_arrival_timestamp, request_arrival_timestamp, 
+							   work_admitted, NULL, 0);
 
 				/* Add to the Global Sandbox Request Scheduler */
 				global_request_scheduler_add(sandbox_request);

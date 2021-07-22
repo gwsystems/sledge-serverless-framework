@@ -61,9 +61,11 @@ current_sandbox_disable_preemption(struct sandbox *sandbox)
 void
 current_sandbox_start(void)
 {
+	uint64_t start_execution_timestamp =  __getcycles();
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING);
+	sandbox->start_execution_timestamp = start_execution_timestamp;
 
 	char *error_message = "";
 
@@ -109,11 +111,13 @@ current_sandbox_start(void)
 		ssize_t output_length = sandbox->request_response_data_length - sandbox->request_length;
 		char * pre_func_output = (char *) malloc(output_length);
 		memcpy(pre_func_output, sandbox->request_response_data + sandbox->request_length, output_length);
+	 	uint64_t enqueue_timestamp = __getcycles();	
 		struct sandbox_request *sandbox_request =
                                   sandbox_request_allocate(next_module, false, sandbox->request_length, 
 							   next_module->name, sandbox->client_socket_descriptor,
                                                            (const struct sockaddr *)&sandbox->client_address,
-                                                           sandbox->request_arrival_timestamp, true, pre_func_output, output_length);
+                                                           sandbox->request_arrival_timestamp, enqueue_timestamp, 
+							   true, pre_func_output, output_length);
                 /* reset the request id to the same as the current request id */
 		sandbox_request->id = sandbox->id;  
 		/* Add to the Global Sandbox Request Scheduler */

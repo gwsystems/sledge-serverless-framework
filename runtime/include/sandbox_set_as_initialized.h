@@ -30,6 +30,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->admissions_estimate = sandbox_request->admissions_estimate;
 
 	sandbox->request_arrival_timestamp = sandbox_request->request_arrival_timestamp;
+	sandbox->enqueue_timestamp = sandbox_request->enqueue_timestamp;
 	sandbox->allocation_timestamp      = allocation_timestamp;
 	sandbox->state                     = SANDBOX_SET_AS_INITIALIZED;
 
