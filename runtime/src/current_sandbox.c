@@ -61,11 +61,9 @@ current_sandbox_disable_preemption(struct sandbox *sandbox)
 void
 current_sandbox_start(void)
 {
-	uint64_t start_execution_timestamp =  __getcycles();
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING);
-	sandbox->start_execution_timestamp = start_execution_timestamp;
 
 	char *error_message = "";
 

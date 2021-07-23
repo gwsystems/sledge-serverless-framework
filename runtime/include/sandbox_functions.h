@@ -166,8 +166,6 @@ sandbox_print_perf(struct sandbox *sandbox)
 	if (runtime_sandbox_perf_log == NULL) return;
 
 	uint32_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
-	uint32_t execution_time_ms = (sandbox->completion_timestamp - sandbox->start_execution_timestamp)
-					/ runtime_processor_speed_MHz;
 	uint32_t queued_us     = (sandbox->allocation_timestamp - sandbox->enqueue_timestamp)
 	                     / runtime_processor_speed_MHz;
 	uint32_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
@@ -181,9 +179,8 @@ sandbox_print_perf(struct sandbox *sandbox)
 	 * becomes more intelligent, then peak linear memory size needs to be tracked
 	 * seperately from current linear memory size.
 	 */
-	fprintf(runtime_sandbox_perf_log, "%lu,%s():%d,%s,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n", sandbox->id,
+	fprintf(runtime_sandbox_perf_log, "%lu,%s():%d,%s,%u,%u,%u,%u,%u,%u,%u,%u,%u\n", sandbox->id,
 	        sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
 	        sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
-	        running_us, blocked_us, returned_us, execution_time_ms, sandbox->linear_memory_size);
-	fflush(runtime_sandbox_perf_log);
+	        running_us, blocked_us, returned_us, sandbox->linear_memory_size);
 }

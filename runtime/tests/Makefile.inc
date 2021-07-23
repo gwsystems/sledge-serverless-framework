@@ -3,8 +3,8 @@ ARCH := $(shell uname -m)
 CC=clang # Source -> Native
 WASMCC=wasm32-unknown-unknown-wasm-clang # Source -> WebAssembly
 
-# OPTFLAGS=-O3 -flto
-OPTFLAGS=-O0 -flto -g
+OPTFLAGS=-O3 -flto
+# OPTFLAGS=-O0 -flto -g
 MEMC_64=64bit_nix.c
 # MEMC_NO=no_protection.c
 # MEMC_GEN=generic.c

@@ -51,7 +51,6 @@ struct sandbox {
 
 	uint64_t request_arrival_timestamp;   /* Timestamp when request is received */
 	uint64_t enqueue_timestamp;   /* Timestamp when sandbox request is enqueued */
-	uint64_t start_execution_timestamp;   /* Timestamp when sandbox starts execution */
 	uint64_t allocation_timestamp;        /* Timestamp when sandbox is allocated */
 	uint64_t response_timestamp;          /* Timestamp when response is sent */
 	uint64_t completion_timestamp;        /* Timestamp when sandbox runs to completion */

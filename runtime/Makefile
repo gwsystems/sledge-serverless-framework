@@ -10,10 +10,10 @@ PAGE_SIZE := $(shell getconf PAGESIZE)
 
 # Compiler Settings
 CC=clang
-#CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
+CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 
 # CC_OPTIONS for Debugging
-CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE
+#CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE
 
 # CFI Sanitizer
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -flto -fvisibility=default -fsanitize=cfi 
