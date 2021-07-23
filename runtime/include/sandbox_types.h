@@ -32,7 +32,6 @@ struct sandbox_io_handle {
 struct sandbox {
 	uint64_t        id;
 	bool request_from_outside;
-	int current_func_index; /* indicate the index of next function in the chain */
 	char * previous_function_output; /* the output of the previous function */
 	ssize_t output_length; /* the length of previous_function_output */
 	ssize_t previosu_request_length; /* the length of previous request */

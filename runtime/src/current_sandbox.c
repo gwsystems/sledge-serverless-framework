@@ -93,7 +93,6 @@ current_sandbox_start(void)
 	module_initialize_memory(current_module);
 	sandbox_setup_arguments(sandbox);
 
- 
 	/* Executing the function */
 	int32_t argument_count = module_get_argument_count(current_module);
 	current_sandbox_enable_preemption(sandbox);
