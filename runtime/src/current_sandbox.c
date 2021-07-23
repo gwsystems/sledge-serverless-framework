@@ -69,24 +69,21 @@ current_sandbox_start(void)
 
 	sandbox_initialize_stdio(sandbox);
 
-	sandbox_open_http(sandbox);//add IN/OUT event to epoll
+	sandbox_open_http(sandbox);
 
 	if (sandbox->request_from_outside) {
-		if (sandbox_receive_request(sandbox) < 0) {//read data from client socket to get http request, 
-						           //the result populates http_request structure
-						   	   // if read blocked, then remove the sandbox from the 
-						   	   // local runqueue and pause the sandbox
+		if (sandbox_receive_request(sandbox) < 0) { 
 			error_message = "Unable to receive or parse client request\n";
 			goto err;
 		};
 	} else {
-		/* copy previous output to sandbox->request_response_data, as the input for the sandbox.*/
+		/* copy previous output to sandbox->request_response_data, as the input for the current sandbox.*/
 		/* let sandbox->http_request->body points to sandbox->request_response_data*/
 		assert(sandbox->previous_function_output != NULL);
 		memcpy(sandbox->request_response_data, sandbox->previous_function_output, sandbox->output_length);
 		sandbox->http_request.body = sandbox->request_response_data;
 		sandbox->http_request.body_length = sandbox->output_length;
-		sandbox->request_length = sandbox->pre_request_length;
+		sandbox->request_length = sandbox->previous_request_length;
 		sandbox->request_response_data_length = sandbox->request_length;
 	}
 
@@ -94,7 +91,9 @@ current_sandbox_start(void)
 	struct module *current_module = sandbox_get_module(sandbox);
 	module_initialize_globals(current_module);
 	module_initialize_memory(current_module);
-	sandbox_setup_arguments(sandbox); //this arguments is not the http body content
+	sandbox_setup_arguments(sandbox);
+
+ 
 	/* Executing the function */
 	int32_t argument_count = module_get_argument_count(current_module);
 	current_sandbox_enable_preemption(sandbox);
@@ -116,16 +115,16 @@ current_sandbox_start(void)
                                                            (const struct sockaddr *)&sandbox->client_address,
                                                            sandbox->request_arrival_timestamp, enqueue_timestamp, 
 							   true, pre_func_output, output_length);
-                /* reset the request id to the same as the current request id */
+		/* TODO: all sandboxs in the chain share the same request id, but sandbox_request_allocate() will busy-wait to generate an unique
+		   id, should we optimize it here?*/
 		sandbox_request->id = sandbox->id;  
 		/* Add to the Global Sandbox Request Scheduler */
-                global_request_scheduler_add(sandbox_request);
+		global_request_scheduler_add(sandbox_request);
 		sandbox_remove_from_epoll(sandbox);
 		sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);
 	} else {
 		/* Retrieve the result, construct the HTTP response, and send to client */
-		if (sandbox_send_response(sandbox) < 0) { // if send blocked, remove the sandbox from the local runqueue
-						  	  // and pause the sandbox
+		if (sandbox_send_response(sandbox) < 0) {
 			error_message = "Unable to build and send client response\n";
 			goto err;
 		};
@@ -136,12 +135,12 @@ current_sandbox_start(void)
 
 		assert(sandbox->state == SANDBOX_RUNNING);
 		sandbox_close_http(sandbox);
-		sandbox_set_as_returned(sandbox, SANDBOX_RUNNING); //request is completed, remove the sandbox from the local runqueue
+		sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);
 	}
 done:
 	/* Cleanup connection and exit sandbox */
 	generic_thread_dump_lock_overhead();
-	scheduler_yield(); //put the sandbox to the complete queue
+	scheduler_yield();
 
 	/* This assert prevents a segfault discussed in
 	 * https://github.com/phanikishoreg/awsm-Serverless-Framework/issues/66

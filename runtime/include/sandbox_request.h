@@ -25,7 +25,7 @@ struct sandbox_request {
 	uint64_t        absolute_deadline;         /* cycles */
 	char * previous_function_output;
 	ssize_t output_length;
-	ssize_t pre_request_length;                    /* previous request length */
+	ssize_t previous_request_length;                    /* previous request length */
 	/*
 	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request
 	 * Calculated by estimated execution time (cycles) * runtime_admissions_granularity / relative deadline (cycles)
@@ -90,7 +90,7 @@ sandbox_request_allocate(struct module *module, bool request_from_outside, ssize
 	sandbox_request->absolute_deadline         = request_arrival_timestamp + module->relative_deadline;
 	sandbox_request->previous_function_output = previous_function_output;
 	sandbox_request->output_length = output_length;
-	sandbox_request->pre_request_length = request_length;
+	sandbox_request->previous_request_length = request_length;
 
 	/*
 	 * Admissions Control State

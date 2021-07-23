@@ -19,6 +19,7 @@ global_request_scheduler_minheap_add(void *sandbox_request)
 {
 	assert(sandbox_request);
 	assert(global_request_scheduler_minheap);
+	/* panic is not applicable here because all worker_threads can add a request to the global queue if it's a chain function */
 	//if (unlikely(!listener_thread_is_running())) panic("%s is only callable by the listener thread\n", __func__);
 
 	int return_code = priority_queue_enqueue(global_request_scheduler_minheap, sandbox_request);

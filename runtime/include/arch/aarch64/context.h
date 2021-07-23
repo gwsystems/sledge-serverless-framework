@@ -41,7 +41,7 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
  * which defaults to resuming execution of main
  */
 static inline int
-arch_context_switch(struct arch_context *a, struct arch_context *b) //save context to a and switch to context b
+arch_context_switch(struct arch_context *a, struct arch_context *b)
 {
 #ifndef NDEBUG
 	/*
@@ -61,7 +61,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b) //save conte
 	assert(a != b);
 
 	/* Set any NULLs to worker_thread_base_context to resume execution of main */
-	if (a == NULL) a = &worker_thread_base_context; //NULL indicates the main context of the worker thread before running any sandboxs
+	if (a == NULL) a = &worker_thread_base_context;
 	if (b == NULL) b = &worker_thread_base_context;
 
 	/* A Transition {Unused, Running} -> Fast */

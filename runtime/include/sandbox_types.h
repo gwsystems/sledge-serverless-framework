@@ -35,7 +35,7 @@ struct sandbox {
 	int current_func_index; /* indicate the index of next function in the chain */
 	char * previous_function_output; /* the output of the previous function */
 	ssize_t output_length; /* the length of previous_function_output */
-	ssize_t pre_request_length; /* the length of previous_function_output */
+	ssize_t previosu_request_length; /* the length of previous request */
 	sandbox_state_t state;
 
 	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
@@ -68,7 +68,6 @@ struct sandbox {
 
 	uint64_t absolute_deadline;
 	uint64_t total_time; /* From Request to Response */
-	uint64_t execution_time; /* From running to response */
 
 	/*
 	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request

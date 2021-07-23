@@ -65,12 +65,12 @@ runtime_set_resource_limits_to_max()
 		int resource = resources[i];
 		if (getrlimit(resource, &limit) < 0) panic_err();
 
-		if (limit.rlim_cur == RLIM_INFINITY) { // rlim_cur is soft limit
+		if (limit.rlim_cur == RLIM_INFINITY) {
 			strncpy(lim, "Infinite", uint64_t_max_digits);
 		} else {
 			snprintf(lim, uint64_t_max_digits, "%lu", limit.rlim_cur);
 		}
-		if (limit.rlim_max == RLIM_INFINITY) { // rlim_max is hard limit
+		if (limit.rlim_max == RLIM_INFINITY) {
 			strncpy(max, "Infinite", uint64_t_max_digits);
 		} else {
 			snprintf(max, uint64_t_max_digits, "%lu", limit.rlim_max);
@@ -91,19 +91,18 @@ runtime_set_resource_limits_to_max()
 void
 runtime_initialize(void)
 {
-	http_total_init(); //initilize http requests/error response counter
-	sandbox_request_count_initialize(); //initilize sandbox requests counter
-	sandbox_count_initialize(); //initilize sandbox state counter
+	http_total_init();
+	sandbox_request_count_initialize();
+	sandbox_count_initialize();
 
 	/* Setup Scheduler */
-	scheduler_initialize(); //set function pointers to global_request_scheduler, both EDF and FIFO have a set of functions
+	scheduler_initialize();
 
 	/* Configure Signals */
-	signal(SIGPIPE, SIG_IGN); // ignore SIGPIPE
-	signal(SIGTERM, runtime_cleanup); // call runtime_cleanup when get SIGTERM signal
+	signal(SIGPIPE, SIG_IGN);
+	signal(SIGTERM, runtime_cleanup);
 
-	http_parser_settings_initialize(); // set function pointers for http parser lib, when get a http message, some callback
-					   // functions will be called
+	http_parser_settings_initialize();
 	admissions_control_initialize();
 }
 

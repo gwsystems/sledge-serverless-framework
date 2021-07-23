@@ -143,7 +143,7 @@ sandbox_open_http(struct sandbox *sandbox)
 	http_parser_init(&sandbox->http_parser, HTTP_REQUEST);
 
 	/* Set the sandbox as the data the http-parser has access to */
-	sandbox->http_parser.data = sandbox; //assign data to sandbox in case to operator it when a callback happended
+	sandbox->http_parser.data = sandbox;
 
 	/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
 	struct epoll_event accept_evt;

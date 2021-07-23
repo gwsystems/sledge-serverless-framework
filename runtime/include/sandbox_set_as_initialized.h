@@ -37,7 +37,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->request_from_outside = sandbox_request->request_from_outside;
 	sandbox->previous_function_output = sandbox_request->previous_function_output;
 	sandbox->output_length = sandbox_request->output_length;
-	sandbox->pre_request_length = sandbox_request->pre_request_length;
+	sandbox->previous_request_length = sandbox_request->previous_request_length;
 	/* Initialize the sandbox's context, stack, and instruction pointer */
 	/* stack_start points to the bottom of the usable stack, so add stack_size to get to top */
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_start,
