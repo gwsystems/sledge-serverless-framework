@@ -28,6 +28,9 @@ sandbox_close_http(struct sandbox *sandbox)
 	client_socket_close(sandbox->client_socket_descriptor, &sandbox->client_address);
 }
 
+/**
+ * Remove the client fd from epoll
+ */
 static inline void
 sandbox_remove_from_epoll(struct sandbox *sandbox)
 {

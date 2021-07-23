@@ -76,7 +76,6 @@ sandbox_request_get_priority_fn(void *element)
  */
 void
 global_request_scheduler_minheap_initialize()
-{       /* second parameter is set to true, means we will use lock for this queue since it is a global queue shared by all worker threads */
 	global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_request_get_priority_fn);
 
 	struct global_request_scheduler_config config = {
