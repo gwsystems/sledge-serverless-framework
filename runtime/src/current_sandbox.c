@@ -68,8 +68,11 @@ current_sandbox_start(void)
 	char *error_message = "";
 
 	sandbox_initialize_stdio(sandbox);
+	struct module * next_module = sandbox->module->next_module;
 
-	sandbox_open_http(sandbox);
+	if (sandbox->request_from_outside || next_module == NULL) {
+		sandbox_open_http(sandbox);
+	}
 
 	if (sandbox->request_from_outside) {
 		if (sandbox_receive_request(sandbox) < 0) { 
@@ -101,7 +104,6 @@ current_sandbox_start(void)
 	sandbox->completion_timestamp = __getcycles();
 
 
-	struct module * next_module = sandbox->module->next_module;
 	if (next_module != NULL) {
 		/* Generate a new request, copy the current sandbox's output to the next request's buffer, and put it to the global queue */
 		ssize_t output_length = sandbox->request_response_data_length - sandbox->request_length;
@@ -119,7 +121,9 @@ current_sandbox_start(void)
 		sandbox_request->id = sandbox->id;  
 		/* Add to the Global Sandbox Request Scheduler */
 		global_request_scheduler_add(sandbox_request);
-		sandbox_remove_from_epoll(sandbox);
+		if (sandbox->request_from_outside) {
+			sandbox_remove_from_epoll(sandbox);
+		}
 		sandbox_set_as_returned(sandbox, SANDBOX_RUNNING);
 	} else {
 		/* Retrieve the result, construct the HTTP response, and send to client */
