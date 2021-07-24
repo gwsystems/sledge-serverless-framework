@@ -34,7 +34,7 @@ struct sandbox {
 	bool request_from_outside;
 	char * previous_function_output; /* the output of the previous function */
 	ssize_t output_length; /* the length of previous_function_output */
-	ssize_t previosu_request_length; /* the length of previous request */
+	ssize_t previous_request_length; /* the length of previous request */
 	sandbox_state_t state;
 
 	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */

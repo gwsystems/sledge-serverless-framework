@@ -75,7 +75,7 @@ sandbox_request_get_priority_fn(void *element)
  * Initializes the variant and registers against the polymorphic interface
  */
 void
-global_request_scheduler_minheap_initialize()
+global_request_scheduler_minheap_initialize() {
 	global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_request_get_priority_fn);
 
 	struct global_request_scheduler_config config = {
