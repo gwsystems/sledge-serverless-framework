@@ -58,6 +58,7 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_REQUEST_ALLOCATION
 # CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_MODULE_LOADING
+# CFLAGS += -DOPT_AVOID_GLOBAL_QUEUE
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
 # page is allocated. This helps understand the relationship to memory allocation and execution time.

@@ -371,10 +371,10 @@ module_new_from_json(char *file_name)
 		goto json_parse_err;
 	}
 
-	int   module_count    = 0;
-	char *request_headers = NULL;
-	char *reponse_headers = NULL;
-	struct module *tail_module = NULL;
+	int   	module_count		= 0;
+	char 	*request_headers 	= NULL;
+	char 	*reponse_headers 	= NULL;
+	struct 	module *tail_module 	= NULL;
 	for (int i = 0; i < total_tokens; i++) {
 		assert(tokens[i].type == JSMN_OBJECT);
 
@@ -559,14 +559,9 @@ module_new_from_json(char *file_name)
 			
 			assert(module);
 
-			if (tail_module == NULL) {
-				tail_module = module;
-				tail_module->next_module = NULL;
-			} else {
-				tail_module->next_module = module;
-				tail_module = module;
-				tail_module->next_module = NULL;
-			}
+			if (tail_module != NULL) { tail_module->next_module = module; }
+			tail_module			= module;
+			tail_module->next_module 	= NULL;
 			
 			module_set_http_info(module, request_count, request_headers, request_content_type,
 			                     response_count, reponse_headers, response_content_type);

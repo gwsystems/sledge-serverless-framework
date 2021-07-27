@@ -70,6 +70,10 @@ current_sandbox_start(void)
 	sandbox_initialize_stdio(sandbox);
 	struct module * next_module = sandbox->module->next_module;
 
+	/* 
+	 * Add the client fd to epoll if it is the first or last sandbox in the chain because they 
+	 * need to read and write from/to this fd
+	 */
 	if (sandbox->request_from_outside || next_module == NULL) {
 		sandbox_open_http(sandbox);
 	}
@@ -78,16 +82,18 @@ current_sandbox_start(void)
 		if (sandbox_receive_request(sandbox) < 0) { 
 			error_message = "Unable to receive or parse client request\n";
 			goto err;
-		};
+		}
 	} else {
-		/* copy previous output to sandbox->request_response_data, as the input for the current sandbox.*/
-		/* let sandbox->http_request->body points to sandbox->request_response_data*/
+		/* 
+		 * Copy previous output to sandbox->request_response_data, as the input for the current sandbox.
+		 * Let sandbox->http_request->body points to sandbox->request_response_data
+		 */
 		assert(sandbox->previous_function_output != NULL);
 		memcpy(sandbox->request_response_data, sandbox->previous_function_output, sandbox->output_length);
-		sandbox->http_request.body = sandbox->request_response_data;
-		sandbox->http_request.body_length = sandbox->output_length;
-		sandbox->request_length = sandbox->previous_request_length;
-		sandbox->request_response_data_length = sandbox->request_length;
+		sandbox->http_request.body 		= sandbox->request_response_data;
+		sandbox->http_request.body_length 	= sandbox->output_length;
+		sandbox->request_length 		= sandbox->previous_request_length;
+		sandbox->request_response_data_length 	= sandbox->request_length;
 	}
 
 	/* Initialize sandbox memory */
@@ -107,7 +113,12 @@ current_sandbox_start(void)
 	if (next_module != NULL) {
 		/* Generate a new request, copy the current sandbox's output to the next request's buffer, and put it to the global queue */
 		ssize_t output_length = sandbox->request_response_data_length - sandbox->request_length;
-		char * pre_func_output = (char *) malloc(output_length);
+		char * pre_func_output = (char *)malloc(output_length);
+		if (!pre_func_output) {
+                	fprintf(stderr, "Failed to allocate memory for the previous output: %s\n", strerror(errno));
+                	goto err;
+        	};
+
 		memcpy(pre_func_output, sandbox->request_response_data + sandbox->request_length, output_length);
 	 	uint64_t enqueue_timestamp = __getcycles();	
 		struct sandbox_request *sandbox_request =
@@ -116,11 +127,31 @@ current_sandbox_start(void)
                                                            (const struct sockaddr *)&sandbox->client_address,
                                                            sandbox->request_arrival_timestamp, enqueue_timestamp, 
 							   true, pre_func_output, output_length);
-		/* TODO: all sandboxs in the chain share the same request id, but sandbox_request_allocate() will busy-wait to generate an unique
-		   id, should we optimize it here?*/
-		sandbox_request->id = sandbox->id;  
+		/* TODO: All sandboxs in the chain share the same request id, but sandbox_request_allocate() 
+		 *	 will busy-wait to generate an unique id, should we optimize it here?
+		 */
+		sandbox_request->id = sandbox->id; 
+#ifdef OPT_AVOID_GLOBAL_QUEUE
+		/* TODO: The running time of the current sandbox contains the next sandbox's initialization time, does it matter? */
+		if (sandbox->absolute_deadline == sandbox_request->absolute_deadline) { 
+			/* Put the next sandbox to the local run queue to reduce the overhead of the global queue */
+			struct sandbox *next_sandbox = sandbox_allocate(sandbox_request);
+                	if (!next_sandbox) {
+				free(sandbox_request);
+				goto err;
+			}
+
+                	assert(next_sandbox->state == SANDBOX_INITIALIZED);
+                	sandbox_set_as_runnable(next_sandbox, SANDBOX_INITIALIZED);
+		} else {
+			/* Add to the Global Sandbox Request Scheduler */
+                	global_request_scheduler_add(sandbox_request);
+		}
+#else 
 		/* Add to the Global Sandbox Request Scheduler */
 		global_request_scheduler_add(sandbox_request);
+#endif
+		/* Remove the client fd from epoll if it is the first sandbox in the chain */
 		if (sandbox->request_from_outside) {
 			sandbox_remove_from_epoll(sandbox);
 		}
