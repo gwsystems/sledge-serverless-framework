@@ -55,8 +55,7 @@ worker_thread_main(void *argument)
 	scheduler_runqueue_initialize();
 
 	/* Initialize memory logging, set 100M memory for logging */
-	//mem_log_init2(1024*1024*1024, runtime_sandbox_perf_log);
-	mem_log_init2(1024, runtime_sandbox_perf_log);
+	mem_log_init2(1024*1024*1024, runtime_sandbox_perf_log);
 	/* Initialize Completion Queue */
 	local_completion_queue_initialize();
 
