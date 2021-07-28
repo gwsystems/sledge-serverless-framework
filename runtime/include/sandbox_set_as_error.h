@@ -52,6 +52,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t sandbox_id = sandbox->id;
 	sandbox->state      = SANDBOX_ERROR;
 	sandbox_print_perf(sandbox);
+	sandbox_mem_print_perf(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 	sandbox_free_linear_memory(sandbox);
 	admissions_control_subtract(sandbox->admissions_estimate);

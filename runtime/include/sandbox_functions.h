@@ -7,6 +7,7 @@
 #include "client_socket.h"
 #include "panic.h"
 #include "sandbox_request.h"
+#include "memlogging.h"
 
 /***************************
  * Public API              *
@@ -158,13 +159,16 @@ sandbox_open_http(struct sandbox *sandbox)
 }
 
 /**
- * Prints key performance metrics for a sandbox to runtime_sandbox_perf_log
+ * Prints key performance metrics for a sandbox to runtime_sandbox_perf_log in runtime
  * This is defined by an environment variable
  * @param sandbox
  */
 static inline void
 sandbox_print_perf(struct sandbox *sandbox)
 {
+#ifndef LOG_RUNTIME_FILE_LOG
+	return;
+#endif
 	/* If the log was not defined by an environment variable, early out */
 	if (runtime_sandbox_perf_log == NULL) return;
 
@@ -186,4 +190,36 @@ sandbox_print_perf(struct sandbox *sandbox)
 	        sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
 	        sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
 	        running_us, blocked_us, returned_us, sandbox->linear_memory_size);
+}
+
+/**
+ * Prints key performance metrics for a sandbox to memory in runtime
+ * @param sandbox
+ */
+
+static inline void
+sandbox_mem_print_perf(struct sandbox *sandbox)
+{
+#ifndef LOG_RUNTIME_MEM_LOG
+	return;
+#endif
+	uint32_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
+        uint32_t queued_us     = (sandbox->allocation_timestamp - sandbox->enqueue_timestamp)
+                             / runtime_processor_speed_MHz;
+        uint32_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
+        uint32_t runnable_us     = sandbox->runnable_duration / runtime_processor_speed_MHz;
+        uint32_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
+        uint32_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
+        uint32_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
+
+	/*
+         * Assumption: A sandbox is never able to free pages. If linear memory management
+         * becomes more intelligent, then peak linear memory size needs to be tracked
+         * seperately from current linear memory size.
+         */
+        mem_log("%lu,%s():%d,%s,%u,%u,%u,%u,%u,%u,%u,%u,%u\n", sandbox->id,
+                sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
+                sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
+                running_us, blocked_us, returned_us, sandbox->linear_memory_size);
+
 }

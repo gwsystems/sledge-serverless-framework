@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "current_sandbox.h"
+#include "memlogging.h"
 #include "local_completion_queue.h"
 #include "local_runqueue.h"
 #include "local_runqueue_list.h"
@@ -28,6 +29,7 @@ __thread int worker_thread_epoll_file_descriptor;
 /* Used to index into global arguments and deadlines arrays */
 __thread int worker_thread_idx;
 
+extern FILE *runtime_sandbox_perf_log;
 /***********************
  * Worker Thread Logic *
  **********************/
@@ -52,6 +54,8 @@ worker_thread_main(void *argument)
 
 	scheduler_runqueue_initialize();
 
+	/* Initialize memory logging */
+	mem_log_init2(1024*1024*1024, runtime_sandbox_perf_log);
 	/* Initialize Completion Queue */
 	local_completion_queue_initialize();
 
@@ -64,6 +68,9 @@ worker_thread_main(void *argument)
 		software_interrupt_unmask_signal(SIGALRM);
 		software_interrupt_unmask_signal(SIGUSR1);
 	}
+
+	/* Unmask SIGINT signals */
+	software_interrupt_unmask_signal(SIGINT);
 
 	/* Begin Worker Execution Loop */
 	struct sandbox *next_sandbox = NULL;
