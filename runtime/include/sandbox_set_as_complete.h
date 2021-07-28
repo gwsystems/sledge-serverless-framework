@@ -54,6 +54,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	/* Terminal State Logging */
 	sandbox_print_perf(sandbox);
+	sandbox_mem_print_perf(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 
 	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */

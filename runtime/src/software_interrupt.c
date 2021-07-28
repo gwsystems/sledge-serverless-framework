@@ -20,6 +20,7 @@
 #include "sandbox_types.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
+#include "memlogging.h"
 
 /*******************
  * Process Globals *
@@ -101,6 +102,27 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 }
 
 /**
+ * A POSIX signal is delivered to only one thread.
+ * This function broadcasts the sigint signal to all other worker threads
+ */
+static inline void
+sigint_propagate_workers(siginfo_t *signal_info)
+{
+	/* Signal was sent directly by the kernel, so forward to other threads */
+	if (signal_info->si_code == SI_KERNEL) {
+		for (int i = 0; i < runtime_worker_threads_count; i++) {
+			if (pthread_self() == runtime_worker_threads[i]) continue;
+
+			/* All threads should have been initialized */
+			assert(runtime_worker_threads[i] != 0);
+			pthread_kill(runtime_worker_threads[i], SIGINT);
+		}
+	} else {
+		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
+		assert(signal_info->si_code == SI_TKILL);
+	}
+}
+/**
  * Validates that the thread running the signal handler is a known worker thread
  */
 static inline void
@@ -166,6 +188,13 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
 		goto done;
 	}
+	case SIGINT: {
+		/* Only the thread that receives SIGINT from the kernel will broadcast SIGINT to other worker threads */
+		sigint_propagate_workers(signal_info);
+		dump_log_to_file();
+		/* terminate itself */	
+		pthread_exit(0);	
+	}
 	default: {
 		switch (signal_info->si_code) {
 		case SI_TKILL:
@@ -229,7 +258,7 @@ software_interrupt_disarm_timer(void)
 
 /**
  * Initialize software Interrupts
- * Register softint_handler to execute on SIGALRM and SIGUSR1
+ * Register softint_handler to execute on SIGALRM, SIGINT, and SIGUSR1
  */
 void
 software_interrupt_initialize(void)
@@ -244,9 +273,10 @@ software_interrupt_initialize(void)
 	sigemptyset(&signal_action.sa_mask);
 	sigaddset(&signal_action.sa_mask, SIGALRM);
 	sigaddset(&signal_action.sa_mask, SIGUSR1);
+	sigaddset(&signal_action.sa_mask, SIGINT);
 
-	const int    supported_signals[]   = { SIGALRM, SIGUSR1 };
-	const size_t supported_signals_len = 2;
+	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGINT };
+	const size_t supported_signals_len = 3;
 
 	for (int i = 0; i < supported_signals_len; i++) {
 		int signal = supported_signals[i];
