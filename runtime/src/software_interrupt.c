@@ -137,6 +137,8 @@ software_interrupt_validate_worker()
  * The handler function for Software Interrupts (signals)
  * SIGALRM is executed periodically by an interval timer, causing preemption of the current sandbox
  * SIGUSR1 restores a preempted sandbox
+ * SIGINT recieved by a worker threads and propagate to other worker threads. When one worker thread
+ *        receives a SIGINT that is not from kernel, dump all memory log to a file and then exit.
  * @param signal_type
  * @param signal_info data structure containing signal info
  * @param user_context_raw void* to a user_context struct
@@ -148,7 +150,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	assert(!listener_thread_is_running());
 
 	/* Signals should be masked if runtime has disabled them */
-	assert(runtime_preemption_enabled);
+	/* This is not applicable anymore because the signal might be SIGINT */
+	//assert(runtime_preemption_enabled);
 
 	/* Signals should not nest */
 	/* TODO: Better atomic instruction here to check and set? */
