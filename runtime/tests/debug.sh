@@ -9,11 +9,10 @@ declare project_path="$(
 	pwd
 )"
 echo $project_path
-cd ../../bin
+cd $project_path/runtime/bin
 export LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH"
 gdb --eval-command="handle SIGUSR1 nostop" \
 	--eval-command="set pagination off" \
-	--eval-command="set substitute-path /sledge/runtime $project_path" \
+	--eval-command="set substitute-path /sledge/runtime $project_path/runtime" \
 	--eval-command="run ../tests/my_fibonacci.json" \
 	./sledgert
-cd ../../tests
