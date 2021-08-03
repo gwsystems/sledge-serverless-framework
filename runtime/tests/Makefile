@@ -1,6 +1,6 @@
 include Makefile.inc
 
-TESTS=fibonacci big_fibonacci empty work work1k work10k work100k work1m forever filesys sockserver sockclient empty
+TESTS=fibonacci fibonacci2 fibonacci3 big_fibonacci C-Image-Manip empty work work1k work10k work100k work1m forever filesys sockserver sockclient empty
 
 TESTSRT=$(TESTS:%=%_rt)
 
@@ -40,6 +40,11 @@ sod:
 	@make dir samples.so -C ./sod/
 	@cp ./sod/bin/license_plate_detection.so ${SLEDGE_BIN_DIR}/lpd_wasm.so
 	@cp ./sod/bin/resize_image.so ${SLEDGE_BIN_DIR}/resize_wasm.so
+
+C-Image-Manip:
+	@echo "Making and Installing pngPlay"
+	@make pngPlay.so -C ./C-Image-Manip -f Makefile
+	@cp ./C-Image-Manip/pngPlay.so ${SLEDGE_BIN_DIR}/pngPlay_wasm.so
 
 %_rt:
 	@mkdir -p ${TMP_DIR}
