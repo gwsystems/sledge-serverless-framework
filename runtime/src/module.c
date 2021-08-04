@@ -405,6 +405,7 @@ module_new_from_json(char *file_name)
 		uint32_t expected_execution_us                               = 0;
 		int      admissions_percentile                               = 50;
 		bool     is_active                                           = false;
+		bool     is_tail_module                                      = false;
 		int32_t  request_count                                       = 0;
 		int32_t  response_count                                      = 0;
 		int      j                                                   = 1;
@@ -453,6 +454,15 @@ module_new_from_json(char *file_name)
 				} else {
 					panic("Expected active key to be a JSON boolean, was %s\n", val);
 				}
+			} else if (strcmp(key, "tail_module") == 0) {
+				assert(tokens[i + j + 1].type == JSMN_PRIMITIVE);
+                                if (val[0] == 't') {
+                                        is_tail_module = true;
+                                } else if (val[0] == 'f') {
+                                        is_tail_module = false;
+                                } else {
+                                        panic("Expected tail_module key to be a JSON boolean, was %s\n", val);
+                                }
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
 				int64_t buffer = strtoll(val, NULL, 10);
 				if (buffer < 0 || buffer > (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
@@ -562,7 +572,12 @@ module_new_from_json(char *file_name)
 			if (tail_module != NULL) { tail_module->next_module = module; }
 			tail_module			= module;
 			tail_module->next_module 	= NULL;
-			
+
+			/* if this is the tail module, reset tail_module to NULL to build another new chain */		
+			if (is_tail_module) {
+				tail_module = NULL;
+			}
+	
 			module_set_http_info(module, request_count, request_headers, request_content_type,
 			                     response_count, reponse_headers, response_content_type);
 			module_count++;
