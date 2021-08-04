@@ -26,10 +26,6 @@ mem_log_init2(uint32_t log_size, FILE* file)
 
         log_obj.offset          = 0;
         log_obj.fout            = file;
-        if (!log_obj.fout) {
-                panic("failed to open log file:%s\n", strerror(errno));
-        }
-
 }
 
 /**
@@ -51,11 +47,7 @@ mem_log_init(uint32_t log_size, char const* file)
 	}
 
 	log_obj.offset		= 0;
-	log_obj.fout		= fopen(file, "a+");
-	if (!log_obj.fout) {
-		panic("failed to open log file:%s\n", strerror(errno));
-	}
-
+	log_obj.fout		= fopen(file, "w");
 }
 
 /**
@@ -68,7 +60,9 @@ mem_log(char const * fmt, ...)
 	return;
 #endif
 	assert(log_obj.logger);
-	assert(log_obj.fout);
+	if (!log_obj.fout) {
+		return;
+	}
 
 	va_list va;
 	va_start(va, fmt);
@@ -112,8 +106,11 @@ dump_log_to_file()
 #ifndef LOG_RUNTIME_MEM_LOG
 	return;
 #endif
+	if (!log_obj.fout) {
+                return;
+        }
+
         assert(log_obj.logger);
-	assert(log_obj.fout);
 
 	uint32_t write_bytes = 0;
 	while(write_bytes != log_obj.offset) {

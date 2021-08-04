@@ -203,6 +203,9 @@ sandbox_mem_print_perf(struct sandbox *sandbox)
 #ifndef LOG_RUNTIME_MEM_LOG
 	return;
 #endif
+	/* If the log was not defined by an environment variable, early out */
+        if (runtime_sandbox_perf_log == NULL) return;
+
 	uint32_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
         uint32_t queued_us     = (sandbox->allocation_timestamp - sandbox->enqueue_timestamp)
                              / runtime_processor_speed_MHz;
