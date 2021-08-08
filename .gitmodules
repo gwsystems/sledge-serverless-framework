@@ -31,7 +31,3 @@ branch = sledge
 path = runtime/tests/speechtotext
 url = https://github.com/gwsystems/speechtotext.git
 branch = sledge
-[submodule "runtime/tests/C-Image-Manip"]
-path = runtime/tests/C-Image-Manip
-url = https://github.com/lyuxiaosu/C-Image-Manip.git 
-branch = sledge
