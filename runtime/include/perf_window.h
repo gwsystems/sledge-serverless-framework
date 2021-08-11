@@ -1,22 +1,26 @@
 #pragma once
 
 #include <stdint.h>
+#include <assert.h>
 
 #include "lock.h"
 #include "perf_window_t.h"
 #include "runtime.h"
 #include "worker_thread.h"
+#include "memlogging.h"
+#include "panic.h"
 
 /**
  * Initializes perf window
  * @param self
  */
 static inline void
-perf_window_initialize(struct perf_window *self)
+perf_window_initialize(struct perf_window *self, char* module_name)
 {
 	assert(self != NULL);
 
 	LOCK_INIT(&self->lock);
+	strncpy(self->name, module_name, 32);
 	self->count = 0;
 	memset(&self->by_duration, 0, sizeof(struct execution_node) * PERF_WINDOW_BUFFER_SIZE);
 	memset(&self->by_termination, 0, sizeof(uint16_t) * PERF_WINDOW_BUFFER_SIZE);
@@ -157,4 +161,32 @@ perf_window_get_count(struct perf_window *self)
 	assert(self != NULL);
 
 	return self->count;
+}
+
+/**
+ * Print the items in the perf window
+ */
+static inline void
+perf_window_print(struct perf_window *self) 
+{
+	assert(self != NULL);
+	if (self->count % PERF_WINDOW_BUFFER_SIZE != 0) { return; }
+	/* Not need to hold lock because this operation won't add/delete the array */
+	float min = self->by_duration[0].execution_time/1000.0;
+	float max = self->by_duration[PERF_WINDOW_BUFFER_SIZE-1].execution_time/1000.0;
+	uint64_t sum = 0;
+        float fifty_p = self->by_duration[PERF_WINDOW_BUFFER_SIZE * 50 / 100].execution_time/1000.0;	
+        float seventy_p = self->by_duration[PERF_WINDOW_BUFFER_SIZE * 70 / 100].execution_time/1000.0;	
+        float eighty_p = self->by_duration[PERF_WINDOW_BUFFER_SIZE * 80 / 100].execution_time/1000.0;	
+        float nighty_p = self->by_duration[PERF_WINDOW_BUFFER_SIZE * 90 / 100].execution_time/1000.0;	
+        float nighty_night_p = self->by_duration[PERF_WINDOW_BUFFER_SIZE * 99 / 100].execution_time/1000.0;	
+
+	mem_log("module %s perf window:\n", self->name);
+	for (int i = 0; i < PERF_WINDOW_BUFFER_SIZE; i++) {
+		sum += self->by_duration[i].execution_time;
+                mem_log("%f,", self->by_duration[i].execution_time/1000.0);
+        }
+	mem_log("\n");
+	float avg = (sum/(float)PERF_WINDOW_BUFFER_SIZE)/1000.0;
+	mem_log("min:%f,max:%f,fifty_p:%f,seventy_p:%f,eighty_p:%f,nighty_p:%f,nighty_night_p:%f,avg:%f\n", min,max,fifty_p,seventy_p,eighty_p,nighty_p,nighty_night_p, avg);
 }

@@ -240,7 +240,7 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 
 	/* Admissions Control */
 	uint64_t expected_execution = (uint64_t)expected_execution_us * runtime_processor_speed_MHz;
-	admissions_info_initialize(&module->admissions_info, admissions_percentile, expected_execution,
+	admissions_info_initialize(&module->admissions_info, name, admissions_percentile, expected_execution,
 	                           module->relative_deadline);
 
 	/* Request Response Buffer */

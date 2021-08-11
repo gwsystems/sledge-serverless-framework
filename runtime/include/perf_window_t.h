@@ -5,7 +5,7 @@
 #include "lock.h"
 
 /* Should be Power of 2! */
-#define PERF_WINDOW_BUFFER_SIZE 16
+#define PERF_WINDOW_BUFFER_SIZE 256 
 
 #if ((PERF_WINDOW_BUFFER_SIZE == 0) || (PERF_WINDOW_BUFFER_SIZE & (PERF_WINDOW_BUFFER_SIZE - 1)) != 0)
 #error "PERF_WINDOW_BUFFER_SIZE must be power of 2!"
@@ -24,6 +24,7 @@ struct execution_node {
 };
 
 struct perf_window {
+	char                  name[32];
 	struct execution_node by_duration[PERF_WINDOW_BUFFER_SIZE];
 	uint16_t              by_termination[PERF_WINDOW_BUFFER_SIZE];
 	uint64_t              count;
