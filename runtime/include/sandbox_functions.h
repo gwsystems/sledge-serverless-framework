@@ -215,6 +215,16 @@ sandbox_mem_print_perf(struct sandbox *sandbox)
         uint32_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
         uint32_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
 
+	if (sandbox->module->next_module == NULL) {
+                uint32_t now = __getcycles();
+                bool miss_deadline = now > sandbox->absolute_deadline ? true : false;
+                if (miss_deadline) {
+                        mem_log("%lu miss deadline\n", sandbox->id);
+                } else {
+                        mem_log("%lu meet deadline\n", sandbox->id);
+                }
+        }
+
 	/*
          * Assumption: A sandbox is never able to free pages. If linear memory management
          * becomes more intelligent, then peak linear memory size needs to be tracked
