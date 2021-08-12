@@ -3,6 +3,9 @@
 #include "arch/getcycles.h"
 #include "debuglog.h"
 
+extern uint32_t                     runtime_processor_speed_MHz;
+extern uint32_t                     runtime_quantum_us;
+
 /* Implemented by listener and workers */
 
 __thread uint64_t generic_thread_lock_duration   = 0;
