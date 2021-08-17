@@ -9,20 +9,6 @@
 #include "sandbox_set_as_initialized.h"
 
 /**
- * Close the sandbox's ith io_handle
- * @param sandbox
- * @param sandbox_fd client fd to close
- */
-// void
-// sandbox_close_file_descriptor(struct sandbox *sandbox, int sandbox_fd)
-// {
-// 	if (sandbox_fd >= SANDBOX_MAX_FD_COUNT || sandbox_fd < 0) return;
-// 	/* TODO: Do we actually need to call some sort of close function here? Issue #90 */
-// 	/* Thought: do we need to refcount host fds? */
-// 	sandbox->file_descriptors[sandbox_fd] = -1;
-// }
-
-/**
  * Allocates a WebAssembly sandbox represented by the following layout
  * struct sandbox | Buffer for HTTP Req/Resp | 4GB of Wasm Linear Memory | Guard Page
  * @param module the module that we want to run

@@ -66,8 +66,6 @@ current_sandbox_start(void)
 
 	char *error_message = "";
 
-	sandbox_initialize_stdio(sandbox);
-
 	sandbox_open_http(sandbox);
 
 	if (sandbox_receive_request(sandbox) < 0) {

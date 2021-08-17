@@ -38,9 +38,6 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_start,
 	                  (reg_t)sandbox->stack_start + sandbox->stack_size);
 
-	/* Mark sandbox fds as invalid by setting to -1 */
-	for (int i = 0; i < SANDBOX_MAX_FD_COUNT; i++) sandbox->file_descriptors[i] = -1;
-
 	/* Initialize Parsec control structures */
 	ps_list_init_d(sandbox);
 
