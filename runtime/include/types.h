@@ -21,12 +21,6 @@
 #define PAGE_ALIGNED __attribute__((aligned(PAGE_SIZE)))
 #define WEAK         __attribute__((weak))
 
-/* FIXME: per-module configuration? Issue #101 */
-#define WASM_PAGE_SIZE   (1024 * 64) /* 64KB */
-#define WASM_START_PAGES (1 << 8)    /* 16MB */
-#define WASM_MAX_PAGES   (1 << 15)   /* 4GB */
-#define WASM_STACK_SIZE  (1 << 19)   /* 512KB */
-
 /* These are per module symbols and I'd need to dlsym for each module. instead just use global constants, see above
 macros. The code generator compiles in the starting number of wasm pages, and the maximum number of pages If we try
 and allocate more than max_pages, we should fault */
