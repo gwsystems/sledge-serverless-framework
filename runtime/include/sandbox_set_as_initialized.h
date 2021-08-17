@@ -29,9 +29,9 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->id                  = sandbox_request->id;
 	sandbox->admissions_estimate = sandbox_request->admissions_estimate;
 
-	sandbox->request_arrival_timestamp = sandbox_request->request_arrival_timestamp;
-	sandbox->allocation_timestamp      = allocation_timestamp;
-	sandbox->state                     = SANDBOX_SET_AS_INITIALIZED;
+	sandbox->timestamp_of.request_arrival = sandbox_request->request_arrival_timestamp;
+	sandbox->timestamp_of.allocation      = allocation_timestamp;
+	sandbox->state                        = SANDBOX_SET_AS_INITIALIZED;
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
 	/* stack.start points to the bottom of the usable stack, so add stack_size to get to top */
@@ -47,8 +47,8 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
 	memcpy(&sandbox->client_address, &sandbox_request->socket_address, sizeof(struct sockaddr));
 
-	sandbox->last_state_change_timestamp = allocation_timestamp; /* We use arg to include alloc */
-	sandbox->state                       = SANDBOX_INITIALIZED;
+	sandbox->timestamp_of.last_state_change = allocation_timestamp; /* We use arg to include alloc */
+	sandbox->state                          = SANDBOX_INITIALIZED;
 
 	/* State Change Bookkeeping */
 	sandbox_state_log_transition(sandbox->id, SANDBOX_UNINITIALIZED, SANDBOX_INITIALIZED);

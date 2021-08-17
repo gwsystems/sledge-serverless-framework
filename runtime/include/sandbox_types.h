@@ -35,25 +35,33 @@ struct sandbox_stack {
 	uint32_t size;
 };
 
+struct sandbox_timestamps {
+	uint64_t last_state_change; /* Used for bookkeeping of actual execution time */
+	uint64_t request_arrival;   /* Timestamp when request is received */
+	uint64_t allocation;        /* Timestamp when sandbox is allocated */
+	uint64_t response;          /* Timestamp when response is sent */
+	uint64_t completion;        /* Timestamp when sandbox runs to completion */
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+	uint32_t page_allocations[SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT];
+	size_t   page_allocations_size;
+#endif
+};
+
 struct sandbox {
 	uint64_t        id;
 	sandbox_state_t state;
 	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
 
-	/* Primitives that provide WebAssembly execution  */
+	/* WebAssembly Module State */
+	struct module *module; /* the module this is an instance of */
+
+	/* WebAssembly Instance State  */
 	struct arch_context  ctxt;
 	struct sandbox_stack stack;
 	struct wasm_memory   memory;
 
-	uint64_t request_arrival_timestamp;   /* Timestamp when request is received */
-	uint64_t allocation_timestamp;        /* Timestamp when sandbox is allocated */
-	uint64_t response_timestamp;          /* Timestamp when response is sent */
-	uint64_t completion_timestamp;        /* Timestamp when sandbox runs to completion */
-	uint64_t last_state_change_timestamp; /* Used for bookkeeping of actual execution time */
-#ifdef LOG_SANDBOX_MEMORY_PROFILE
-	uint32_t page_allocation_timestamps[SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT];
-	size_t   page_allocation_timestamps_size;
-#endif
+	struct sandbox_timestamps timestamp_of;
+
 	/* Duration of time (in cycles) that the sandbox is in each state */
 	uint64_t initializing_duration;
 	uint64_t runnable_duration;
@@ -70,7 +78,6 @@ struct sandbox {
 	 */
 	uint64_t admissions_estimate;
 
-	struct module *module; /* the module this is an instance of */
 
 	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */
 	void *  arguments;        /* arguments from request, must be of module->argument_count size. */

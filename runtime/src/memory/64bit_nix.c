@@ -33,9 +33,9 @@ expand_memory(void)
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	// Cache the runtime of the first N page allocations
-	if (likely(sandbox->page_allocation_timestamps_size < SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT)) {
-		sandbox->page_allocation_timestamps[sandbox->page_allocation_timestamps_size++] =
-		  sandbox->running_duration + (uint32_t)(__getcycles() - sandbox->last_state_change_timestamp);
+	if (likely(sandbox->timestamp_of.page_allocations_size < SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT)) {
+		sandbox->timestamp_of.page_allocations[sandbox->timestamp_of.page_allocations_size++] =
+		  sandbox->running_duration + (uint32_t)(__getcycles() - sandbox->timestamp_of.last_state_change);
 	}
 #endif
 

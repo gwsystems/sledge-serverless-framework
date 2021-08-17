@@ -146,10 +146,10 @@ err_stack_allocation_failed:
 	 * This is a degenerate sandbox that never successfully completed initialization, so we need to
 	 * hand jam some things to be able to cleanly transition to ERROR state
 	 */
-	sandbox->state                       = SANDBOX_SET_AS_INITIALIZED;
-	sandbox->last_state_change_timestamp = now;
+	sandbox->state                          = SANDBOX_SET_AS_INITIALIZED;
+	sandbox->timestamp_of.last_state_change = now;
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
-	sandbox->page_allocation_timestamps_size = 0;
+	sandbox->timestamp_of.page_allocations_size = 0;
 #endif
 	ps_list_init_d(sandbox);
 err_memory_allocation_failed:
