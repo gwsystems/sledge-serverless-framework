@@ -75,7 +75,6 @@ struct sandbox {
 	void *  arguments;        /* arguments from request, must be of module->argument_count size. */
 	int32_t return_value;
 
-	int             file_descriptors[SANDBOX_MAX_FD_COUNT];
 	struct sockaddr client_address; /* client requesting connection! */
 	int             client_socket_descriptor;
 

@@ -29,24 +29,6 @@ sandbox_close_http(struct sandbox *sandbox)
 }
 
 /**
- * Initializes a sandbox fd ready for use with the proper preopen magic
- * @param sandbox
- * @return index of handle we preopened or -1 on error (sandbox is null or all io_handles are exhausted)
- */
-static inline int
-sandbox_initialize_file_descriptor(struct sandbox *sandbox)
-{
-	if (!sandbox) return -1;
-	int sandbox_fd;
-	for (sandbox_fd = 0; sandbox_fd < SANDBOX_MAX_FD_COUNT; sandbox_fd++) {
-		if (sandbox->file_descriptors[sandbox_fd] < 0) break;
-	}
-	if (sandbox_fd == SANDBOX_MAX_FD_COUNT) return -1;
-	sandbox->file_descriptors[sandbox_fd] = SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC;
-	return sandbox_fd;
-}
-
-/**
  * Free Linear Memory, leaving stack in place
  * @param sandbox
  */
@@ -70,60 +52,12 @@ sandbox_get_module(struct sandbox *sandbox)
 	return sandbox->module;
 }
 
-/**
- * Resolve a sandbox's fd to the host fd it maps to
- * @param sandbox
- * @param sandbox_fd index into the sandbox's fd table
- * @returns file descriptor or -1 in case of error
- */
-static inline int
-sandbox_get_file_descriptor(struct sandbox *sandbox, int sandbox_fd)
-{
-	if (!sandbox) return -1;
-	if (sandbox_fd >= SANDBOX_MAX_FD_COUNT || sandbox_fd < 0) return -1;
-	return sandbox->file_descriptors[sandbox_fd];
-}
-
 static inline uint64_t
 sandbox_get_priority(void *element)
 {
 	struct sandbox *sandbox = (struct sandbox *)element;
 	return sandbox->absolute_deadline;
 };
-
-/**
- * Maps a sandbox fd to an underlying host fd
- * Returns error condition if the file_descriptor to set does not contain sandbox preopen magic
- * @param sandbox
- * @param sandbox_fd index of the sandbox fd we want to set
- * @param file_descriptor the file descripter we want to set it to
- * @returns the index that was set or -1 in case of error
- */
-static inline int
-sandbox_set_file_descriptor(struct sandbox *sandbox, int sandbox_fd, int host_fd)
-{
-	if (!sandbox) return -1;
-	if (sandbox_fd >= SANDBOX_MAX_FD_COUNT || sandbox_fd < 0) return -1;
-	if (host_fd < 0 || sandbox->file_descriptors[sandbox_fd] != SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC) return -1;
-	sandbox->file_descriptors[sandbox_fd] = host_fd;
-	return sandbox_fd;
-}
-
-/**
- * Map the host stdin, stdout, stderr to the sandbox
- * @param sandbox - the sandbox on which we are initializing stdio
- */
-static inline void
-sandbox_initialize_stdio(struct sandbox *sandbox)
-{
-	int sandbox_fd, rc;
-	for (int host_fd = 0; host_fd <= 2; host_fd++) {
-		sandbox_fd = sandbox_initialize_file_descriptor(sandbox);
-		assert(sandbox_fd == host_fd);
-		rc = sandbox_set_file_descriptor(sandbox, sandbox_fd, host_fd);
-		assert(rc != -1);
-	}
-}
 
 static inline void
 sandbox_open_http(struct sandbox *sandbox)
