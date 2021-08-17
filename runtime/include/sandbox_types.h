@@ -12,6 +12,7 @@
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_state.h"
+#include "wasm_types.h"
 
 #define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) /* upside down LOLLOLLOL 🤣😂🤣*/
 #define SANDBOX_MAX_FD_COUNT                  32
@@ -35,9 +36,7 @@ struct sandbox {
 
 	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
 
-	void *   linear_memory_start;    /* after sandbox struct */
-	uint32_t linear_memory_size;     /* from after sandbox struct */
-	uint64_t linear_memory_max_size; /* 4GB */
+	struct wasm_memory memory;
 
 	void *   stack_start;
 	uint32_t stack_size;
