@@ -94,8 +94,8 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 	/* TODO: Fix leak here. Issue #132 */
 	if (addr_rw == MAP_FAILED) goto err_stack_allocation_failed;
 
-	sandbox->stack_start = addr_rw;
-	sandbox->stack_size  = sandbox->module->stack_size;
+	sandbox->stack.start = addr_rw;
+	sandbox->stack.size  = sandbox->module->stack_size;
 
 done:
 	return 0;
@@ -179,7 +179,7 @@ sandbox_free(struct sandbox *sandbox)
 	errno = 0;
 
 	/* The stack start is the bottom of the usable stack, but we allocated a guard page below this */
-	rc = munmap((char *)sandbox->stack_start - PAGE_SIZE, sandbox->stack_size + PAGE_SIZE);
+	rc = munmap((char *)sandbox->stack.start - PAGE_SIZE, sandbox->stack.size + PAGE_SIZE);
 	if (rc == -1) {
 		debuglog("Failed to unmap stack of Sandbox %lu\n", sandbox->id);
 		goto err_free_stack_failed;

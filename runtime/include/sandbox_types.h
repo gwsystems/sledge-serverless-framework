@@ -30,18 +30,20 @@ struct sandbox_io_handle {
 	int file_descriptor;
 };
 
+struct sandbox_stack {
+	void *   start; /* points to the bottom of the usable stack */
+	uint32_t size;
+};
+
 struct sandbox {
 	uint64_t        id;
 	sandbox_state_t state;
-
 	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
 
-	struct wasm_memory memory;
-
-	void *   stack_start;
-	uint32_t stack_size;
-
-	struct arch_context ctxt; /* register context for context switch. */
+	/* Primitives that provide WebAssembly execution  */
+	struct arch_context  ctxt;
+	struct sandbox_stack stack;
+	struct wasm_memory   memory;
 
 	uint64_t request_arrival_timestamp;   /* Timestamp when request is received */
 	uint64_t allocation_timestamp;        /* Timestamp when sandbox is allocated */
