@@ -34,9 +34,9 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->state                     = SANDBOX_SET_AS_INITIALIZED;
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
-	/* stack_start points to the bottom of the usable stack, so add stack_size to get to top */
+	/* stack.start points to the bottom of the usable stack, so add stack_size to get to top */
 	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_start,
-	                  (reg_t)sandbox->stack_start + sandbox->stack_size);
+	                  (reg_t)sandbox->stack.start + sandbox->stack.size);
 
 	/* Initialize Parsec control structures */
 	ps_list_init_d(sandbox);
