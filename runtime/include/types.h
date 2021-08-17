@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "wasm_types.h"
+
 
 #define PAGE_SIZE (unsigned long)(1 << 12)
 
@@ -43,9 +45,8 @@ struct indirect_table_entry {
 
 /* Cache of Frequently Accessed Members used to avoid pointer chasing */
 struct sandbox_context_cache {
+	struct wasm_memory           memory;
 	struct indirect_table_entry *module_indirect_table;
-	void *                       linear_memory_start;
-	uint32_t                     linear_memory_size;
 };
 
 extern __thread struct sandbox_context_cache local_sandbox_context_cache;

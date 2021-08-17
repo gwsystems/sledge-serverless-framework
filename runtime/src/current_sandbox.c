@@ -11,8 +11,11 @@
 __thread struct sandbox *worker_thread_current_sandbox = NULL;
 
 __thread struct sandbox_context_cache local_sandbox_context_cache = {
-	.linear_memory_start   = NULL,
-	.linear_memory_size    = 0,
+	.memory = {
+		.start = NULL,
+		.size = 0,
+		.max = 0,
+	},
 	.module_indirect_table = NULL,
 };
 

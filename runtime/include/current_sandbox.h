@@ -29,15 +29,17 @@ current_sandbox_set(struct sandbox *sandbox)
 	/* Unpack hierarchy to avoid pointer chasing */
 	if (sandbox == NULL) {
 		local_sandbox_context_cache = (struct sandbox_context_cache){
-			.linear_memory_start   = NULL,
-			.linear_memory_size    = 0,
+			.memory = {
+				.start          = NULL,
+				.size           = 0,
+				.max           = 0,
+			},
 			.module_indirect_table = NULL,
 		};
 		worker_thread_current_sandbox = NULL;
 	} else {
 		local_sandbox_context_cache = (struct sandbox_context_cache){
-			.linear_memory_start   = sandbox->linear_memory_start,
-			.linear_memory_size    = sandbox->linear_memory_size,
+			.memory                = sandbox->memory,
 			.module_indirect_table = sandbox->module->indirect_table,
 		};
 		worker_thread_current_sandbox = sandbox;

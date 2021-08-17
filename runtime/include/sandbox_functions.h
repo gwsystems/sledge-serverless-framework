@@ -35,9 +35,9 @@ sandbox_close_http(struct sandbox *sandbox)
 static inline void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
-	int rc = munmap(sandbox->linear_memory_start, SANDBOX_MAX_MEMORY + PAGE_SIZE);
+	int rc = munmap(sandbox->memory.start, SANDBOX_MAX_MEMORY + PAGE_SIZE);
 	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
-	sandbox->linear_memory_start = NULL;
+	sandbox->memory.start = NULL;
 }
 
 /**
@@ -101,5 +101,5 @@ sandbox_print_perf(struct sandbox *sandbox)
 	        sandbox->module->relative_deadline, sandbox->total_time, queued_duration,
 	        sandbox->initializing_duration, sandbox->runnable_duration, sandbox->running_duration,
 	        sandbox->blocked_duration, sandbox->returned_duration, runtime_processor_speed_MHz,
-	        sandbox->linear_memory_size);
+	        sandbox->memory.size);
 }

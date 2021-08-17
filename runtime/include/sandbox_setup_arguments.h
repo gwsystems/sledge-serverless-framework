@@ -17,8 +17,8 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 	int32_t argument_count = module_get_argument_count(sandbox->module);
 
 	/* whatever gregor has, to be able to pass arguments to a module! */
-	sandbox->arguments_offset = local_sandbox_context_cache.linear_memory_size;
-	assert(local_sandbox_context_cache.linear_memory_start == sandbox->linear_memory_start);
+	sandbox->arguments_offset = local_sandbox_context_cache.memory.size;
+	assert(local_sandbox_context_cache.memory.start == sandbox->memory.start);
 	expand_memory();
 
 	int32_t *array_ptr  = (int32_t *)worker_thread_get_memory_ptr_void(sandbox->arguments_offset,
