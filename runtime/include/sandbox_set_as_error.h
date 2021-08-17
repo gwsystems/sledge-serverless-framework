@@ -36,10 +36,10 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_SET_AS_INITIALIZED:
 		/* Technically, this is a degenerate sandbox that we generate by hand */
-		sandbox->initializing_duration += duration_of_last_state;
+		sandbox->duration_of_state.initializing += duration_of_last_state;
 		break;
 	case SANDBOX_RUNNING: {
-		sandbox->running_duration += duration_of_last_state;
+		sandbox->duration_of_state.running += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		break;
 	}

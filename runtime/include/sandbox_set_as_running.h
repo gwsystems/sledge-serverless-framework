@@ -19,7 +19,7 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
-		sandbox->runnable_duration += duration_of_last_state;
+		sandbox->duration_of_state.runnable += duration_of_last_state;
 		current_sandbox_set(sandbox);
 		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 		/* Does not handle context switch because the caller knows if we need to use fast or slow switched */

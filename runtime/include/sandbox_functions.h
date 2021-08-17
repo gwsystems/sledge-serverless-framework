@@ -99,7 +99,7 @@ sandbox_print_perf(struct sandbox *sandbox)
 	fprintf(runtime_sandbox_perf_log, "%lu,%s,%d,%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u,%u\n", sandbox->id,
 	        sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
 	        sandbox->module->relative_deadline, sandbox->total_time, queued_duration,
-	        sandbox->initializing_duration, sandbox->runnable_duration, sandbox->running_duration,
-	        sandbox->blocked_duration, sandbox->returned_duration, runtime_processor_speed_MHz,
-	        sandbox->memory.size);
+	        sandbox->duration_of_state.initializing, sandbox->duration_of_state.runnable,
+	        sandbox->duration_of_state.running, sandbox->duration_of_state.blocked,
+	        sandbox->duration_of_state.returned, runtime_processor_speed_MHz, sandbox->memory.size);
 }
