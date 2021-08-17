@@ -275,8 +275,7 @@ __framework_sh__start_runtime() {
 	local -r log_name=log.txt
 	local log="$RESULTS_DIRECTORY/${log_name}"
 
-	local -n rc=0
-	local -n sledgert_pid=0
+	local -i sledgert_pid=0
 
 	__framework_sh__log_environment >> "$log"
 
@@ -431,7 +430,7 @@ __framework_sh__run_both() {
 		local -i envfiles_found=0
 		for envfile in "$__framework_sh__application_directory"/*.env; do
 			((envfiles_found++))
-			__framework_sh__run_both_env "$envfile"
+			__framework_sh__run_both_env "$envfile" || exit 1
 		done
 		((envfiles_found == 0)) && {
 			echo "No *.env files found. Nothing to run!"
