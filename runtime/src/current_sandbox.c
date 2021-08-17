@@ -87,7 +87,7 @@ current_sandbox_start(void)
 	current_sandbox_enable_preemption(sandbox);
 	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
 	current_sandbox_disable_preemption(sandbox);
-	sandbox->completion_timestamp = __getcycles();
+	sandbox->timestamp_of.completion = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
 	if (sandbox_send_response(sandbox) < 0) {
@@ -97,7 +97,7 @@ current_sandbox_start(void)
 
 	http_total_increment_2xx();
 
-	sandbox->response_timestamp = __getcycles();
+	sandbox->timestamp_of.response = __getcycles();
 
 	assert(sandbox->state == SANDBOX_RUNNING);
 	sandbox_close_http(sandbox);

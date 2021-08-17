@@ -96,7 +96,7 @@ sandbox_send_response(struct sandbox *sandbox)
 
 	/* Capture Timekeeping data for end-to-end latency */
 	uint64_t end_time   = __getcycles();
-	sandbox->total_time = end_time - sandbox->request_arrival_timestamp;
+	sandbox->total_time = end_time - sandbox->timestamp_of.request_arrival;
 
 	int rc;
 	int sent = 0;

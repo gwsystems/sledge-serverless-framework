@@ -13,7 +13,7 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(sandbox);
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNING;
 
@@ -31,8 +31,8 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	sandbox->last_state_change_timestamp = now;
-	sandbox->state                       = SANDBOX_RUNNING;
+	sandbox->timestamp_of.last_state_change = now;
+	sandbox->state                          = SANDBOX_RUNNING;
 
 	/* State Change Bookkeeping */
 	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RUNNING);

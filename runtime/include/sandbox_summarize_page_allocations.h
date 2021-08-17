@@ -22,8 +22,8 @@ sandbox_summarize_page_allocations(struct sandbox *sandbox)
 
 	fprintf(sandbox_page_allocations_log, "%lu,%lu,%s,", sandbox->id, sandbox->running_duration,
 	        sandbox_state_stringify(sandbox->state));
-	for (size_t i = 0; i < sandbox->page_allocation_timestamps_size; i++)
-		fprintf(sandbox_page_allocations_log, "%u,", sandbox->page_allocation_timestamps[i]);
+	for (size_t i = 0; i < sandbox->timestamp_of.page_allocations_size; i++)
+		fprintf(sandbox_page_allocations_log, "%u,", sandbox->timestamp_of.page_allocations[i]);
 
 	fprintf(sandbox_page_allocations_log, "\n");
 #else
