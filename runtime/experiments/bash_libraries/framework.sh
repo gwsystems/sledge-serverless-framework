@@ -275,22 +275,29 @@ __framework_sh__start_runtime() {
 	local -r log_name=log.txt
 	local log="$RESULTS_DIRECTORY/${log_name}"
 
+	local -n rc=0
+	local -n sledgert_pid=0
+
 	__framework_sh__log_environment >> "$log"
 
 	case "$how_to_run" in
 		"background")
 			sledgert "$specification" >> "$log" 2>> "$log" &
+			sledgert_pid=$!
+			# Pad with a sleep to allow runtime to initialize before startup tasks run
+			# This should be improved adding some sort of ping/ping heartbeat to the runtime
+			# so the script can spin until initializaiton is complete
+			sleep 1
+			if ! kill -0 $sledgert_pid; then
+				printf "[ERR]\n"
+				return 1
+			fi
 			;;
 		"foreground")
 			sledgert "$specification"
 			fn_exists experiment_server_post && experiment_server_post "$RESULTS_DIRECTORY"
 			;;
 	esac
-
-	# Pad with a sleep to allow runtime to initialize before startup tasks run
-	# This should be improved adding some sort of ping/ping heartbeat to the runtime
-	# so the script can spin until initializaiton is complete
-	sleep 1
 
 	printf "[OK]\n"
 	return 0
