@@ -35,7 +35,8 @@ expand_memory(void)
 	// Cache the runtime of the first N page allocations
 	if (likely(sandbox->timestamp_of.page_allocations_size < SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT)) {
 		sandbox->timestamp_of.page_allocations[sandbox->timestamp_of.page_allocations_size++] =
-		  sandbox->running_duration + (uint32_t)(__getcycles() - sandbox->timestamp_of.last_state_change);
+		  sandbox->duration_of_state.running
+		  + (uint32_t)(__getcycles() - sandbox->timestamp_of.last_state_change);
 	}
 #endif
 

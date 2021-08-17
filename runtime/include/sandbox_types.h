@@ -60,25 +60,16 @@ struct sandbox {
 	struct sandbox_stack stack;
 	struct wasm_memory   memory;
 
-	struct sandbox_timestamps timestamp_of;
-
-	/* Duration of time (in cycles) that the sandbox is in each state */
-	uint64_t initializing_duration;
-	uint64_t runnable_duration;
-	uint64_t running_duration;
-	uint64_t blocked_duration;
-	uint64_t returned_duration;
+	/* Scheduling and Temporal State */
+	struct sandbox_timestamps      timestamp_of;
+	struct sandbox_state_durations duration_of_state;
 
 	uint64_t absolute_deadline;
-	uint64_t total_time; /* From Request to Response */
+	uint64_t admissions_estimate; /* estimated execution time (cycles) * runtime_admissions_granularity / relative
+	                                 deadline (cycles) */
+	uint64_t total_time;          /* From Request to Response */
 
-	/*
-	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request
-	 * Calculated by estimated execution time (cycles) * runtime_admissions_granularity / relative deadline (cycles)
-	 */
-	uint64_t admissions_estimate;
-
-
+	/* System Interface State */
 	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */
 	void *  arguments;        /* arguments from request, must be of module->argument_count size. */
 	int32_t return_value;

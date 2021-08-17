@@ -31,7 +31,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_RETURNED: {
 		sandbox->timestamp_of.completion = now;
-		sandbox->returned_duration += duration_of_last_state;
+		sandbox->duration_of_state.returned += duration_of_last_state;
 		break;
 	}
 	default: {
@@ -49,7 +49,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	runtime_sandbox_total_decrement(last_state);
 
 	/* Admissions Control Post Processing */
-	admissions_info_update(&sandbox->module->admissions_info, sandbox->running_duration);
+	admissions_info_update(&sandbox->module->admissions_info, sandbox->duration_of_state.running);
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	/* Terminal State Logging */
