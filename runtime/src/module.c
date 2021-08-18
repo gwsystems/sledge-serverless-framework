@@ -225,7 +225,7 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	module->argument_count = argument_count;
 	module->stack_size     = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
 	debuglog("Stack Size: %u", module->stack_size);
-	module->max_memory        = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
+	module->max_memory        = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MEMORY_PAGES_MAX) : max_memory;
 	module->socket_descriptor = -1;
 	module->port              = port;
 

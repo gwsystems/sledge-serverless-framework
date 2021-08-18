@@ -14,10 +14,6 @@
 #include "sandbox_state.h"
 #include "wasm_types.h"
 
-#define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) /* upside down LOLLOLLOL 🤣😂🤣*/
-#define SANDBOX_MAX_FD_COUNT                  32
-#define SANDBOX_MAX_MEMORY                    (1L << 32) /* 4GB */
-
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 #define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
 #endif
@@ -25,10 +21,6 @@
 /*********************
  * Structs and Types *
  ********************/
-
-struct sandbox_io_handle {
-	int file_descriptor;
-};
 
 struct sandbox_stack {
 	void *   start; /* points to the bottom of the usable stack */
@@ -47,10 +39,42 @@ struct sandbox_timestamps {
 #endif
 };
 
+/*
+ * In-memory buffer used to read requests, buffer write to STDOUT, and write HTTP responses
+ * The HTTP request is read in, updating buffer.length and http_request_length
+ * --------------------------------------------------
+ * | Request        | Empty                         |
+ * --------------------------------------------------
+ * Writes to STDOUT are written starting at http_request_length, updating buffer.length
+ * --------------------------------------------------
+ * | Request        | STDOUT  |  Empty              |
+ * --------------------------------------------------
+ * The HTTP Response is written over the Request (assumes the response is smaller)
+ * --------------------------------------------------
+ * | Response | Gap | STDOUT  |  Empty              |
+ * --------------------------------------------------
+ * And the STDOUT buffer is compacted to immediately follow the response
+ * --------------------------------------------------
+ * | Response | STDOUT  |  Empty                    |
+ * --------------------------------------------------
+ */
+struct sandbox_buffer {
+	ssize_t length; /* Should be <= module->max_request_or_response_size */
+	char    start[1];
+};
+
 struct sandbox {
 	uint64_t        id;
 	sandbox_state_t state;
 	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
+	struct ps_list list;   /* used by ps_list's default name-based MACROS for the scheduling runqueue */
+
+	/* HTTP State */
+	struct sockaddr     client_address; /* client requesting connection! */
+	int                 client_socket_descriptor;
+	http_parser         http_parser;
+	struct http_request http_request;
+	ssize_t             http_request_length;
 
 	/* WebAssembly Module State */
 	struct module *module; /* the module this is an instance of */
@@ -67,33 +91,13 @@ struct sandbox {
 	uint64_t absolute_deadline;
 	uint64_t admissions_estimate; /* estimated execution time (cycles) * runtime_admissions_granularity / relative
 	                                 deadline (cycles) */
-	uint64_t total_time;          /* From Request to Response */
+	uint64_t total_time;          /* Total time from Request to Response */
 
 	/* System Interface State */
 	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */
 	void *  arguments;        /* arguments from request, must be of module->argument_count size. */
 	int32_t return_value;
 
-	struct sockaddr client_address; /* client requesting connection! */
-	int             client_socket_descriptor;
-
-	bool                is_repeat_header;
-	http_parser         http_parser;
-	struct http_request http_request;
-
-	char *  read_buffer;
-	ssize_t read_length, read_size;
-
-	/* Used for the scheduling runqueue as an in-place linked list data structure. */
-	/* The variable name "list" is used for ps_list's default name-based MACROS. */
-	struct ps_list list;
-
-	/*
-	 * The length of the HTTP Request.
-	 * This acts as an offset to the STDOUT of the Sandbox
-	 */
-	ssize_t request_length;
-
-	ssize_t request_response_data_length; /* Should be <= module->max_request_or_response_size */
-	char    request_response_data[1];     /* of request_response_data_length, following sandbox mem.. */
+	/* This contains a Variable Length Array and thus MUST be the final member of this struct */
+	struct sandbox_buffer buffer;
 } PAGE_ALIGNED;

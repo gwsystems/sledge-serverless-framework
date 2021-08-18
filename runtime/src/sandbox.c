@@ -20,8 +20,8 @@ sandbox_allocate_memory(struct module *module)
 	assert(module != NULL);
 
 	char *          error_message = NULL;
-	unsigned long   memory_size   = WASM_PAGE_SIZE * WASM_START_PAGES; /* The initial pages */
-	uint64_t        memory_max    = (uint64_t)SANDBOX_MAX_MEMORY;
+	unsigned long   memory_size   = WASM_PAGE_SIZE * WASM_MEMORY_PAGES_INITIAL; /* The initial pages */
+	uint64_t        memory_max    = (uint64_t)WASM_PAGE_SIZE * WASM_MEMORY_PAGES_MAX;
 	struct sandbox *sandbox       = NULL;
 	unsigned long   sandbox_size  = sizeof(struct sandbox) + module->max_request_or_response_size;
 

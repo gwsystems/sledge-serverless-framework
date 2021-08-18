@@ -135,11 +135,11 @@ wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 
 	if (fd == 1 || fd == 2) {
 		char *buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
-		int   l      = s->module->max_response_size - s->request_response_data_length;
+		int   l      = s->module->max_response_size - s->buffer.length;
 		if (l > buf_size) l = buf_size;
 		if (l == 0) return 0;
-		memcpy(s->request_response_data + s->request_response_data_length, buffer, l);
-		s->request_response_data_length += l;
+		memcpy(s->buffer.start + s->buffer.length, buffer, l);
+		s->buffer.length += l;
 
 		return l;
 	}
@@ -266,8 +266,8 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 		                                                           iovcnt * sizeof(struct wasm_iovec));
 		for (int i = 0; i < iovcnt; i++) {
 			char *b = worker_thread_get_memory_ptr_void(iov[i].base_offset, iov[i].len);
-			memcpy(c->request_response_data + c->request_response_data_length, b, iov[i].len);
-			c->request_response_data_length += iov[i].len;
+			memcpy(c->buffer.start + c->buffer.length, b, iov[i].len);
+			c->buffer.length += iov[i].len;
 			len += iov[i].len;
 		}
 

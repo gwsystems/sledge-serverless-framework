@@ -31,7 +31,7 @@ sandbox_send_response(struct sandbox *sandbox)
 	 * smaller than the HTTP Request header, which allows us to use memmove once without copying
 	 * to an intermediate buffer.
 	 */
-	memset(sandbox->request_response_data, 0, sandbox->request_length);
+	memset(sandbox->buffer.start, 0, sandbox->http_request_length);
 
 	/*
 	 * We use this cursor to keep track of our position in the buffer and later assert that we
@@ -40,42 +40,42 @@ sandbox_send_response(struct sandbox *sandbox)
 	size_t response_cursor = 0;
 
 	/* Append 200 OK */
-	strncpy(sandbox->request_response_data, HTTP_RESPONSE_200_OK, strlen(HTTP_RESPONSE_200_OK));
+	strncpy(sandbox->buffer.start, HTTP_RESPONSE_200_OK, strlen(HTTP_RESPONSE_200_OK));
 	response_cursor += strlen(HTTP_RESPONSE_200_OK);
 
 	/* Content Type */
-	strncpy(sandbox->request_response_data + response_cursor, HTTP_RESPONSE_CONTENT_TYPE,
+	strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_TYPE,
 	        strlen(HTTP_RESPONSE_CONTENT_TYPE));
 	response_cursor += strlen(HTTP_RESPONSE_CONTENT_TYPE);
 
 	/* Custom content type if provided, text/plain by default */
 	if (strlen(sandbox->module->response_content_type) <= 0) {
-		strncpy(sandbox->request_response_data + response_cursor, HTTP_RESPONSE_CONTENT_TYPE_PLAIN,
+		strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_TYPE_PLAIN,
 		        strlen(HTTP_RESPONSE_CONTENT_TYPE_PLAIN));
 		response_cursor += strlen(HTTP_RESPONSE_CONTENT_TYPE_PLAIN);
 	} else {
-		strncpy(sandbox->request_response_data + response_cursor, sandbox->module->response_content_type,
+		strncpy(sandbox->buffer.start + response_cursor, sandbox->module->response_content_type,
 		        strlen(sandbox->module->response_content_type));
 		response_cursor += strlen(sandbox->module->response_content_type);
 	}
 
-	strncpy(sandbox->request_response_data + response_cursor, HTTP_RESPONSE_CONTENT_TYPE_TERMINATOR,
+	strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_TYPE_TERMINATOR,
 	        strlen(HTTP_RESPONSE_CONTENT_TYPE_TERMINATOR));
 	response_cursor += strlen(HTTP_RESPONSE_CONTENT_TYPE_TERMINATOR);
 
 	/* Content Length */
-	strncpy(sandbox->request_response_data + response_cursor, HTTP_RESPONSE_CONTENT_LENGTH,
+	strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_LENGTH,
 	        strlen(HTTP_RESPONSE_CONTENT_LENGTH));
 	response_cursor += strlen(HTTP_RESPONSE_CONTENT_LENGTH);
 
-	size_t body_size = sandbox->request_response_data_length - sandbox->request_length;
+	size_t body_size = sandbox->buffer.length - sandbox->http_request_length;
 
 	char len[10] = { 0 };
 	sprintf(len, "%zu", body_size);
-	strncpy(sandbox->request_response_data + response_cursor, len, strlen(len));
+	strncpy(sandbox->buffer.start + response_cursor, len, strlen(len));
 	response_cursor += strlen(len);
 
-	strncpy(sandbox->request_response_data + response_cursor, HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR,
+	strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR,
 	        strlen(HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR));
 	response_cursor += strlen(HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR);
 
@@ -84,14 +84,14 @@ sandbox_send_response(struct sandbox *sandbox)
 	 * actual data that the program appended to the HTTP Request. If proves to be a bad assumption,
 	 * we have to copy the STDOUT string to a temporary buffer before writing the header
 	 */
-	if (unlikely(response_cursor >= sandbox->request_length)) {
+	if (unlikely(response_cursor >= sandbox->http_request_length)) {
 		panic("Response Cursor: %zd is less that Request Length: %zd\n", response_cursor,
-		      sandbox->request_length);
+		      sandbox->http_request_length);
 	}
 
 	/* Move the Sandbox's Data after the HTTP Response Data */
-	memmove(sandbox->request_response_data + response_cursor,
-	        sandbox->request_response_data + sandbox->request_length, body_size);
+	memmove(sandbox->buffer.start + response_cursor, sandbox->buffer.start + sandbox->http_request_length,
+	        body_size);
 	response_cursor += body_size;
 
 	/* Capture Timekeeping data for end-to-end latency */
@@ -101,8 +101,7 @@ sandbox_send_response(struct sandbox *sandbox)
 	int rc;
 	int sent = 0;
 	while (sent < response_cursor) {
-		rc = write(sandbox->client_socket_descriptor, &sandbox->request_response_data[sent],
-		           response_cursor - sent);
+		rc = write(sandbox->client_socket_descriptor, &sandbox->buffer.start[sent], response_cursor - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN)
 				scheduler_block();
