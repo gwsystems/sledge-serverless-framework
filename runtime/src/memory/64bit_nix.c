@@ -13,21 +13,19 @@ expand_memory(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
 
-	// FIXME: max_pages = 0 => no limit. Issue #103.
-	assert((sandbox->sandbox_size + local_sandbox_context_cache.memory.size) / WASM_PAGE_SIZE < WASM_MAX_PAGES);
 	assert(sandbox->state == SANDBOX_RUNNING);
+
+	// TODO: Refactor to return RC signifying out-of-mem to caller. Issue #96.
+	if (local_sandbox_context_cache.memory.size + WASM_PAGE_SIZE >= local_sandbox_context_cache.memory.max)
+		panic("expand_memory - Out of Memory!. %u out of %lu\n", local_sandbox_context_cache.memory.size,
+		      local_sandbox_context_cache.memory.max);
+
 	// Remap the relevant wasm page to readable
 	char *mem_as_chars = local_sandbox_context_cache.memory.start;
 	char *page_address = &mem_as_chars[local_sandbox_context_cache.memory.size];
-
-	void *map_result = mmap(page_address, WASM_PAGE_SIZE, PROT_READ | PROT_WRITE,
-	                        MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-
-	// TODO: Refactor to return RC signifying out-of-mem to caller. Issue #96.
+	void *map_result   = mmap(page_address, WASM_PAGE_SIZE, PROT_READ | PROT_WRITE,
+                                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	if (map_result == MAP_FAILED) panic("Mapping of new memory failed");
-	if (local_sandbox_context_cache.memory.size > local_sandbox_context_cache.memory.max)
-		panic("expand_memory - Out of Memory!. %u out of %lu\n", local_sandbox_context_cache.memory.size,
-		      local_sandbox_context_cache.memory.max);
 
 	local_sandbox_context_cache.memory.size += WASM_PAGE_SIZE;
 

@@ -25,7 +25,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	assert(sandbox->module->max_request_size > 0);
-	assert(sandbox->request_response_data_length == 0);
+	assert(sandbox->buffer.length == 0);
 
 	int rc = 0;
 
@@ -37,8 +37,8 @@ sandbox_receive_request(struct sandbox *sandbox)
 		const http_parser_settings *settings = http_parser_settings_get();
 
 		int    fd  = sandbox->client_socket_descriptor;
-		char * buf = &sandbox->request_response_data[sandbox->request_response_data_length];
-		size_t len = sandbox->module->max_request_size - sandbox->request_response_data_length;
+		char * buf = &sandbox->buffer.start[sandbox->buffer.length];
+		size_t len = sandbox->module->max_request_size - sandbox->buffer.length;
 
 		ssize_t recved = recv(fd, buf, len, 0);
 
@@ -85,11 +85,11 @@ sandbox_receive_request(struct sandbox *sandbox)
 		}
 
 
-		sandbox->request_response_data_length += nparsed;
+		sandbox->buffer.length += nparsed;
 	}
 
 
-	sandbox->request_length = sandbox->request_response_data_length;
+	sandbox->http_request_length = sandbox->buffer.length;
 
 	rc = 0;
 done:

@@ -41,43 +41,42 @@
 #endif
 
 struct module {
-	char                        name[MODULE_MAX_NAME_LENGTH];
-	char                        path[MODULE_MAX_PATH_LENGTH];
-	void *                      dynamic_library_handle; /* Handle to the *.so of the serverless function */
-	int32_t                     argument_count;
-	uint32_t                    stack_size; /* a specification? */
-	uint64_t                    max_memory; /* perhaps a specification of the module. (max 4GB) */
-	uint32_t                    relative_deadline_us;
-	uint64_t                    relative_deadline; /* cycles */
-	_Atomic uint32_t            reference_count;   /* ref count how many instances exist here. */
-	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
-	struct sockaddr_in          socket_address;
-	int                         socket_descriptor;
-	struct admissions_info      admissions_info;
-	int                         port;
+	/* Metadata from JSON Config */
+	char                   name[MODULE_MAX_NAME_LENGTH];
+	char                   path[MODULE_MAX_PATH_LENGTH];
+	int32_t                argument_count;
+	uint32_t               stack_size; /* a specification? */
+	uint64_t               max_memory; /* perhaps a specification of the module. (max 4GB) */
+	uint32_t               relative_deadline_us;
+	int                    port;
+	unsigned long          max_request_size;
+	unsigned long          max_response_size; /* resp size including headers! */
+	struct admissions_info admissions_info;
+	uint64_t               relative_deadline; /* cycles */
 
-	unsigned long max_request_size;
-	char          request_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
-	int           request_header_count;
-	char          request_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
 
-	/* resp size including headers! */
-	unsigned long max_response_size;
-	int           response_header_count;
-	char          response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
-	char          response_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
+	/* HTTP State */
+	unsigned long      max_request_or_response_size; /* largest of max_request_size or max_response_size */
+	char               request_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
+	int                request_header_count;
+	char               request_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
+	char               response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
+	char               response_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
+	int                response_header_count;
+	struct sockaddr_in socket_address;
+	int                socket_descriptor;
 
-	/* Equals the largest of either max_request_size or max_response_size */
-	unsigned long max_request_or_response_size;
-
-	/* Functions to initialize aspects of sandbox */
+	/* Dynamic Library Handle and Symbols */
+	void *dynamic_library_handle; /* Handle to the *.so of the serverless function */
+	                              /* Functions to initialize aspects of sandbox */
 	mod_glb_fn_t  initialize_globals;
 	mod_mem_fn_t  initialize_memory;
 	mod_tbl_fn_t  initialize_tables;
 	mod_libc_fn_t initialize_libc;
+	mod_main_fn_t main; /* Entry Function */
 
-	/* Entry Function to invoke serverless function */
-	mod_main_fn_t main;
+	_Atomic uint32_t            reference_count; /* ref count how many instances exist here. */
+	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
 };
 
 /*************************
