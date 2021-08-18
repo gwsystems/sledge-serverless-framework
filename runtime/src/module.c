@@ -89,17 +89,12 @@ err:
 /**
  * Sets the HTTP Request and Response Headers and Content type on a module
  * @param module
- * @param request_count
- * @param response_count
- * @param response_headers
  * @param response_content_type
  */
 static inline void
-module_set_http_info(struct module *module, int response_count, char *response_headers, char response_content_type[])
+module_set_http_info(struct module *module, char response_content_type[])
 {
 	assert(module);
-	module->response_header_count = response_count;
-	memcpy(module->response_headers, response_headers, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 	strcpy(module->response_content_type, response_content_type);
 }
 
@@ -363,7 +358,6 @@ module_new_from_json(char *file_name)
 	}
 
 	int   module_count    = 0;
-	char *reponse_headers = NULL;
 	for (int i = 0; i < total_tokens; i++) {
 		assert(tokens[i].type == JSMN_OBJECT);
 
@@ -372,22 +366,12 @@ module_new_from_json(char *file_name)
 
 		errno = 0;
 
-		errno           = 0;
-		reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-		if (reponse_headers == NULL) {
-			fprintf(stderr, "Attempt to allocate response headers failed: %s\n", strerror(errno));
-			goto response_headers_alloc_err;
-		}
-		memset(reponse_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-
 		int32_t  request_size                                        = 0;
 		int32_t  response_size                                       = 0;
 		uint32_t port                                                = 0;
 		uint32_t relative_deadline_us                                = 0;
 		uint32_t expected_execution_us                               = 0;
 		int      admissions_percentile                               = 50;
-		int32_t  request_count                                       = 0;
-		int32_t  response_count                                      = 0;
 		int      j                                                   = 1;
 		int      ntoks                                               = 2 * tokens[i].size;
 		char     response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH] = { 0 };
@@ -436,19 +420,6 @@ module_new_from_json(char *file_name)
 				if (buffer > 99 || buffer < 50)
 					panic("admissions-percentile must be > 50 and <= 99 but was %d\n", buffer);
 				admissions_percentile = (int)buffer;
-			} else if (strcmp(key, "http-resp-headers") == 0) {
-				assert(tokens[i + j + 1].type == JSMN_ARRAY);
-				assert(tokens[i + j + 1].size <= HTTP_MAX_HEADER_COUNT);
-
-				response_count = tokens[i + j + 1].size;
-				ntks += response_count;
-				ntoks += response_count;
-				for (int k = 1; k <= tokens[i + j + 1].size; k++) {
-					jsmntok_t *g = &tokens[i + j + k + 1];
-					char *     r = reponse_headers + ((k - 1) * HTTP_MAX_HEADER_LENGTH);
-					assert(g->end - g->start < HTTP_MAX_HEADER_LENGTH);
-					strncpy(r, file_buffer + g->start, g->end - g->start);
-				}
 			} else if (strcmp(key, "http-req-size") == 0) {
 				int64_t buffer = strtoll(val, NULL, 10);
 				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
@@ -504,10 +475,8 @@ module_new_from_json(char *file_name)
 		if (module == NULL) goto module_new_err;
 
 		assert(module);
-		module_set_http_info(module, response_count, reponse_headers, response_content_type);
+		module_set_http_info(module, response_content_type);
 		module_count++;
-
-		free(reponse_headers);
 	}
 
 	if (module_count == 0) panic("%s contained no active modules\n", file_name);
@@ -521,7 +490,6 @@ module_new_from_json(char *file_name)
 done:
 	return return_code;
 module_new_err:
-response_headers_alloc_err:
 json_parse_err:
 fclose_err:
 	/* We will retry fclose when we fall through into stat_buffer_alloc_err */

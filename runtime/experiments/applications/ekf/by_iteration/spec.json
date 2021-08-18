@@ -5,7 +5,6 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 50000,
 	"http-req-size": 1024000,
-	"http-resp-headers": [],
 	"http-resp-size": 1024000,
 	"http-resp-content-type": "application/octet-stream"
 },
@@ -16,7 +15,6 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 50000,
 	"http-req-size": 1024000,
-	"http-resp-headers": [],
 	"http-resp-size": 1024000,
 	"http-resp-content-type": "application/octet-stream"
 },
@@ -27,7 +25,6 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 50000,
 	"http-req-size": 1024000,
-	"http-resp-headers": [],
 	"http-resp-size": 1024000,
 	"http-resp-content-type": "application/octet-stream"
 }

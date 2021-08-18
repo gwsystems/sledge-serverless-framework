@@ -5,7 +5,6 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 50000,
 	"http-req-size": 1024000,
-	"http-resp-headers": [],
 	"http-resp-size": 1024000,
 	"http-resp-content-type": "application/octet-stream"
 },
@@ -16,7 +15,6 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 50000,
 	"http-req-size": 1024000,
-	"http-resp-headers": [],
 	"http-resp-size": 1024000,
 	"http-resp-content-type": "image/png"
 },
@@ -27,7 +25,6 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 50000,
 	"http-req-size": 1002400,
-	"http-resp-headers": [],
 	"http-resp-size": 1048576,
 	"http-resp-content-type": "text/plain"
 },
@@ -38,7 +35,6 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 360000,
 	"http-req-size": 5335057,
-	"http-resp-headers": [],
 	"http-resp-size": 5335057,
 	"http-resp-content-type": "text/plain"
 },
@@ -49,7 +45,6 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 50000,
 	"http-req-size": 4096,
-	"http-resp-headers": [],
 	"http-resp-size": 128,
 	"http-resp-content-type": "text/plain"
 }
