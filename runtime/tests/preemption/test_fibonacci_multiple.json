@@ -4,7 +4,6 @@
 	"port": 10000,
 	"relative-deadline-us": 80000,
 	"http-req-size": 1024,
-	"http-resp-headers": [],
 	"http-resp-size": 1024,
 	"http-resp-content-type": "text/plain"
 },
@@ -14,7 +13,6 @@
 	"port": 10001,
 	"relative-deadline-us": 20000,
 	"http-req-size": 1024,
-	"http-resp-headers": [],
 	"http-resp-size": 1024,
 	"http-resp-content-type": "text/plain"
 }
