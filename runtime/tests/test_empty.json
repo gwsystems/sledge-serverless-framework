@@ -1,5 +1,4 @@
 {
-	"active": true,
 	"name": "empty",
 	"path": "empty_wasm.so",
 	"port": 10000,

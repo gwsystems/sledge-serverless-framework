@@ -60,7 +60,6 @@ An SLEdge serverless function consists of a shared library (\*.so) and a JSON co
 
 ```json
 {
-  "active": true,
   "name": "fibonacci",
   "path": "fibonacci_wasm.so",
   "port": 10000,
