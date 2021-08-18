@@ -83,7 +83,7 @@ current_sandbox_start(void)
 	sandbox_setup_arguments(sandbox);
 
 	/* Executing the function */
-	int32_t argument_count = module_get_argument_count(current_module);
+	int32_t argument_count = 0;
 	current_sandbox_enable_preemption(sandbox);
 	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
 	current_sandbox_disable_preemption(sandbox);

@@ -140,7 +140,6 @@ module_free(struct module *module)
  *
  * @param name
  * @param path
- * @param argument_count
  * @param stack_size
  * @param max_memory
  * @param relative_deadline_us
@@ -150,9 +149,8 @@ module_free(struct module *module)
  */
 
 struct module *
-module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, uint32_t max_memory,
-           uint32_t relative_deadline_us, int port, int request_size, int response_size, int admissions_percentile,
-           uint32_t expected_execution_us)
+module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uint32_t relative_deadline_us, int port,
+           int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us)
 {
 	int rc = 0;
 
@@ -216,8 +214,7 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
 	strncpy(module->path, path, MODULE_MAX_PATH_LENGTH);
 
-	module->argument_count = argument_count;
-	module->stack_size     = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
+	module->stack_size = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
 	debuglog("Stack Size: %u", module->stack_size);
 	module->max_memory        = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MEMORY_PAGES_MAX) : max_memory;
 	module->socket_descriptor = -1;
@@ -385,7 +382,6 @@ module_new_from_json(char *file_name)
 
 		int32_t  request_size                                        = 0;
 		int32_t  response_size                                       = 0;
-		int32_t  argument_count                                      = 0;
 		uint32_t port                                                = 0;
 		uint32_t relative_deadline_us                                = 0;
 		uint32_t expected_execution_us                               = 0;
@@ -423,11 +419,6 @@ module_new_from_json(char *file_name)
 				if (buffer < 0 || buffer > 65535)
 					panic("Expected port between 0 and 65535, saw %d\n", buffer);
 				port = buffer;
-			} else if (strcmp(key, "argsize") == 0) {
-				// Validate in expected range 0..127. Unclear if 127 is an actual hard limit
-				argument_count = atoi(val);
-				if (argument_count < 0 || argument_count > 127)
-					panic("Expected argument count between 0 and 127, saw %d\n", argument_count);
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
 				int64_t buffer = strtoll(val, NULL, 10);
 				if (buffer < 0 || buffer > (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
@@ -506,11 +497,9 @@ module_new_from_json(char *file_name)
 			panic("relative_deadline_us is required\n");
 #endif
 
-		/* argsize defaults to 0 if absent */
-
 		/* Allocate a module based on the values from the JSON */
-		struct module *module = module_new(module_name, module_path, argument_count, 0, 0, relative_deadline_us,
-		                                   port, request_size, response_size, admissions_percentile,
+		struct module *module = module_new(module_name, module_path, 0, 0, relative_deadline_us, port,
+		                                   request_size, response_size, admissions_percentile,
 		                                   expected_execution_us);
 		if (module == NULL) goto module_new_err;
 

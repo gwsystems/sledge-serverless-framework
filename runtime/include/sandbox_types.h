@@ -95,7 +95,6 @@ struct sandbox {
 
 	/* System Interface State */
 	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */
-	void *  arguments;        /* arguments from request, must be of module->argument_count size. */
 	int32_t return_value;
 
 	/* This contains a Variable Length Array and thus MUST be the final member of this struct */

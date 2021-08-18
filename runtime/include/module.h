@@ -20,10 +20,8 @@
 
 #define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 
-#define MODULE_MAX_ARGUMENT_COUNT 16
-#define MODULE_MAX_ARGUMENT_SIZE  64
-#define MODULE_MAX_NAME_LENGTH    32
-#define MODULE_MAX_PATH_LENGTH    256
+#define MODULE_MAX_NAME_LENGTH 32
+#define MODULE_MAX_PATH_LENGTH 256
 
 /*
  * Defines the listen backlog, the queue length for completely established socketeds waiting to be accepted
@@ -44,7 +42,6 @@ struct module {
 	/* Metadata from JSON Config */
 	char                   name[MODULE_MAX_NAME_LENGTH];
 	char                   path[MODULE_MAX_PATH_LENGTH];
-	int32_t                argument_count;
 	uint32_t               stack_size; /* a specification? */
 	uint64_t               max_memory; /* perhaps a specification of the module. (max 4GB) */
 	uint32_t               relative_deadline_us;
@@ -90,17 +87,6 @@ module_acquire(struct module *module)
 	assert(module->reference_count < UINT32_MAX);
 	atomic_fetch_add(&module->reference_count, 1);
 	return;
-}
-
-/**
- * Get a module's argument count
- * @param module
- * @returns the number of arguments
- */
-static inline int32_t
-module_get_argument_count(struct module *module)
-{
-	return module->argument_count;
 }
 
 /**
@@ -194,8 +180,8 @@ module_release(struct module *module)
  * Public Methods from module.c *
  *******************************/
 
-void           module_free(struct module *module);
-struct module *module_new(char *mod_name, char *mod_path, int32_t argument_count, uint32_t stack_sz, uint32_t max_heap,
-                          uint32_t relative_deadline_us, int port, int req_sz, int resp_sz, int admissions_percentile,
-                          uint32_t expected_execution_us);
-int            module_new_from_json(char *filename);
+void module_free(struct module *module);
+struct module *
+    module_new(char *mod_name, char *mod_path, uint32_t stack_sz, uint32_t max_heap, uint32_t relative_deadline_us,
+               int port, int req_sz, int resp_sz, int admissions_percentile, uint32_t expected_execution_us);
+int module_new_from_json(char *filename);

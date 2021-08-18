@@ -16,7 +16,6 @@
 struct sandbox_request {
 	uint64_t        id;
 	struct module * module;
-	char *          arguments;
 	int             socket_descriptor;
 	struct sockaddr socket_address;
 	uint64_t        request_arrival_timestamp; /* cycles */
@@ -58,16 +57,14 @@ sandbox_request_log_allocation(struct sandbox_request *sandbox_request)
 /**
  * Allocates a new Sandbox Request and places it on the Global Deque
  * @param module the module we want to request
- * @param arguments the arguments that we'll pass to the serverless function
  * @param socket_descriptor
  * @param socket_address
  * @param request_arrival_timestamp the timestamp of when we receives the request from the network (in cycles)
  * @return the new sandbox request
  */
 static inline struct sandbox_request *
-sandbox_request_allocate(struct module *module, char *arguments, int socket_descriptor,
-                         const struct sockaddr *socket_address, uint64_t request_arrival_timestamp,
-                         uint64_t admissions_estimate)
+sandbox_request_allocate(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
+                         uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)malloc(sizeof(struct sandbox_request));
 	assert(sandbox_request);
@@ -76,7 +73,6 @@ sandbox_request_allocate(struct module *module, char *arguments, int socket_desc
 	sandbox_request->id = sandbox_request_count_postfix_increment();
 
 	sandbox_request->module            = module;
-	sandbox_request->arguments         = arguments;
 	sandbox_request->socket_descriptor = socket_descriptor;
 	memcpy(&sandbox_request->socket_address, socket_address, sizeof(struct sockaddr));
 	sandbox_request->request_arrival_timestamp = request_arrival_timestamp;

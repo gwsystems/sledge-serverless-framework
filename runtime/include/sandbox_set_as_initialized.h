@@ -41,9 +41,8 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	/* Initialize Parsec control structures */
 	ps_list_init_d(sandbox);
 
-	/* Copy the socket descriptor, address, and arguments of the client invocation */
+	/* Copy the socket descriptor and address of the client invocation */
 	sandbox->absolute_deadline        = sandbox_request->absolute_deadline;
-	sandbox->arguments                = (void *)sandbox_request->arguments;
 	sandbox->client_socket_descriptor = sandbox_request->socket_descriptor;
 	memcpy(&sandbox->client_address, &sandbox_request->socket_address, sizeof(struct sockaddr));
 
