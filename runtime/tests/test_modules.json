@@ -3,138 +3,118 @@
 	"path": "adpcm_wasm.so",
 	"port": 10000,
 	"relative-deadline-us": 50000,
-	"argsize": 2
 },
 {
 	"name": "bitcount",
 	"path": "bitcount_wasm.so",
 	"port": 10002,
 	"relative-deadline-us": 50000,
-	"argsize": 2
 },
 {
 	"name": "basic_math",
 	"path": "basic_math_wasm.so",
 	"port": 10004,
 	"relative-deadline-us": 50000,
-	"argsize": 1
 },
 {
 	"name": "binarytrees",
 	"path": "binarytrees_wasm.so",
 	"port": 10006,
 	"relative-deadline-us": 50000,
-	"argsize": 2
 },
 {
 	"name": "crc",
 	"path": "crc_wasm.so",
 	"port": 10008,
 	"relative-deadline-us": 50000,
-	"argsize": 2
 },
 {
 	"name": "dijkstra",
 	"path": "dijkstra_wasm.so",
 	"port": 10010,
 	"relative-deadline-us": 50000,
-	"argsize": 2
 },
 {
 	"name": "forever",
 	"path": "forever_wasm.so",
 	"port": 10012,
 	"relative-deadline-us": 50000,
-	"argsize": 1
 },
 {
 	"name": "fornever",
 	"path": "forever_wasm.so",
 	"port": 10014,
 	"relative-deadline-us": 50000,
-	"argsize": 2
 },
 {
 	"name": "fft",
 	"path": "fft_wasm.so",
 	"port": 10016,
 	"relative-deadline-us": 50000,
-	"argsize": 3
 },
 {
 	"name": "function_pointers",
 	"path": "function_pointers_wasm.so",
 	"port": 10018,
 	"relative-deadline-us": 50000,
-	"argsize": 1
 },
 {
 	"name": "gsm",
 	"path": "gsm_wasm.so",
 	"port": 10020,
 	"relative-deadline-us": 50000,
-	"argsize": 4
 },
 {
 	"name": "libjpeg",
 	"path": "libjpeg_wasm.so",
 	"port": 10022,
 	"relative-deadline-us": 50000,
-	"argsize": 1
 },
 {
 	"name": "mandelbrot",
 	"path": "mandelbrot_wasm.so",
 	"port": 10024,
 	"relative-deadline-us": 50000,
-	"argsize": 2
 },
 {
 	"name": "matrix_multiply",
 	"path": "matrix_multiply_wasm.so",
 	"port": 10026,
 	"relative-deadline-us": 50000,
-	"argsize": 1
 },
 {
 	"name": "particia",
 	"path": "partricia_wasm.so",
 	"port": 10028,
 	"relative-deadline-us": 50000,
-	"argsize": 2
 },
 {
 	"name": "sqlite",
 	"path": "sqlite_wasm.so",
 	"port": 10030,
 	"relative-deadline-us": 50000,
-	"argsize": 1
 },
 {
 	"name": "stringsearch",
 	"path": "stringsearch_wasm.so",
 	"port": 10032,
 	"relative-deadline-us": 50000,
-	"argsize": 1
 },
 {
 	"name": "filesys",
 	"path": "filesys_wasm.so",
 	"port": 10034,
 	"relative-deadline-us": 50000,
-	"argsize": 3
 },
 {
 	"name": "sockserver",
 	"path": "sockserver_wasm.so",
 	"port": 10036,
 	"relative-deadline-us": 50000,
-	"argsize": 2
 },
 {
 	"name": "sockclient",
 	"path": "sockclient_wasm.so",
 	"port": 10038,
 	"relative-deadline-us": 50000,
-	"argsize": 3
 }

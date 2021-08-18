@@ -3,7 +3,6 @@
 	"path": "lpd_wasm.so",
 	"port": 10000,
 	"relative-deadline-us": 50000,
-	"argsize": 1,
 	"http-req-size": 102400,
 	"http-resp-headers": [],
 	"http-resp-size": 1048576,
