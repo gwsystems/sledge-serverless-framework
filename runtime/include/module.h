@@ -57,9 +57,6 @@ struct module {
 
 	/* HTTP State */
 	unsigned long      max_request_or_response_size; /* largest of max_request_size or max_response_size */
-	char               request_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
-	int                request_header_count;
-	char               request_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
 	char               response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
 	char               response_headers[HTTP_MAX_HEADER_COUNT][HTTP_MAX_HEADER_LENGTH];
 	int                response_header_count;
