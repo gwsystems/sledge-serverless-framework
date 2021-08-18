@@ -95,8 +95,7 @@ err:
  * @param response_content_type
  */
 static inline void
-module_set_http_info(struct module *module, int response_count,
-                     char *response_headers, char response_content_type[])
+module_set_http_info(struct module *module, int response_count, char *response_headers, char response_content_type[])
 {
 	assert(module);
 	module->response_header_count = response_count;
@@ -374,7 +373,7 @@ module_new_from_json(char *file_name)
 		char module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
 		char module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
 
-		errno           = 0;
+		errno = 0;
 
 		errno           = 0;
 		reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
@@ -527,8 +526,7 @@ module_new_from_json(char *file_name)
 			if (module == NULL) goto module_new_err;
 
 			assert(module);
-			module_set_http_info(module, response_count, reponse_headers,
-			                     response_content_type);
+			module_set_http_info(module, response_count, reponse_headers, response_content_type);
 			module_count++;
 		}
 
