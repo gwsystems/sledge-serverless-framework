@@ -90,20 +90,15 @@ err:
  * Sets the HTTP Request and Response Headers and Content type on a module
  * @param module
  * @param request_count
- * @param request_headers
- * @param request_content_type
  * @param response_count
  * @param response_headers
  * @param response_content_type
  */
 static inline void
-module_set_http_info(struct module *module, int request_count, char *request_headers, char request_content_type[],
-                     int response_count, char *response_headers, char response_content_type[])
+module_set_http_info(struct module *module, int response_count,
+                     char *response_headers, char response_content_type[])
 {
 	assert(module);
-	module->request_header_count = request_count;
-	memcpy(module->request_headers, request_headers, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-	strcpy(module->request_content_type, request_content_type);
 	module->response_header_count = response_count;
 	memcpy(module->response_headers, response_headers, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 	strcpy(module->response_content_type, response_content_type);
@@ -372,7 +367,6 @@ module_new_from_json(char *file_name)
 	}
 
 	int   module_count    = 0;
-	char *request_headers = NULL;
 	char *reponse_headers = NULL;
 	for (int i = 0; i < total_tokens; i++) {
 		assert(tokens[i].type == JSMN_OBJECT);
@@ -381,12 +375,6 @@ module_new_from_json(char *file_name)
 		char module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
 
 		errno           = 0;
-		request_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-		if (request_headers == NULL) {
-			fprintf(stderr, "Attempt to allocate request headers failed: %s\n", strerror(errno));
-			goto request_headers_alloc_err;
-		}
-		memset(request_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 
 		errno           = 0;
 		reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
@@ -408,7 +396,6 @@ module_new_from_json(char *file_name)
 		int32_t  response_count                                      = 0;
 		int      j                                                   = 1;
 		int      ntoks                                               = 2 * tokens[i].size;
-		char     request_content_type[HTTP_MAX_HEADER_VALUE_LENGTH]  = { 0 };
 		char     response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH] = { 0 };
 
 		for (; j < ntoks;) {
@@ -469,19 +456,6 @@ module_new_from_json(char *file_name)
 				if (buffer > 99 || buffer < 50)
 					panic("admissions-percentile must be > 50 and <= 99 but was %d\n", buffer);
 				admissions_percentile = (int)buffer;
-			} else if (strcmp(key, "http-req-headers") == 0) {
-				assert(tokens[i + j + 1].type == JSMN_ARRAY);
-				assert(tokens[i + j + 1].size <= HTTP_MAX_HEADER_COUNT);
-
-				request_count = tokens[i + j + 1].size;
-				ntks += request_count;
-				ntoks += request_count;
-				for (int k = 1; k <= tokens[i + j + 1].size; k++) {
-					jsmntok_t *g = &tokens[i + j + k + 1];
-					char *     r = request_headers + ((k - 1) * HTTP_MAX_HEADER_LENGTH);
-					assert(g->end - g->start < HTTP_MAX_HEADER_LENGTH);
-					strncpy(r, file_buffer + g->start, g->end - g->start);
-				}
 			} else if (strcmp(key, "http-resp-headers") == 0) {
 				assert(tokens[i + j + 1].type == JSMN_ARRAY);
 				assert(tokens[i + j + 1].size <= HTTP_MAX_HEADER_COUNT);
@@ -507,9 +481,6 @@ module_new_from_json(char *file_name)
 					panic("http-resp-size must be between 0 and %ld, was %ld\n",
 					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
 				response_size = (int32_t)buffer;
-			} else if (strcmp(key, "http-req-content-type") == 0) {
-				if (strlen(val) == 0) panic("http-req-content-type was unexpectedly an empty string");
-				strcpy(request_content_type, val);
 			} else if (strcmp(key, "http-resp-content-type") == 0) {
 				if (strlen(val) == 0) panic("http-resp-content-type was unexpectedly an empty string");
 				strcpy(response_content_type, val);
@@ -536,7 +507,8 @@ module_new_from_json(char *file_name)
 		/* If the ratio is too big, admissions control is too coarse */
 		uint32_t ratio = relative_deadline_us / expected_execution_us;
 		if (ratio > ADMISSIONS_CONTROL_GRANULARITY)
-			panic("Ratio of Deadline to Execution time cannot exceed admissions control granularity of "
+			panic("Ratio of Deadline to Execution time cannot exceed admissions control "
+			      "granularity of "
 			      "%d\n",
 			      ADMISSIONS_CONTROL_GRANULARITY);
 #else
@@ -546,8 +518,6 @@ module_new_from_json(char *file_name)
 #endif
 
 		/* argsize defaults to 0 if absent */
-		/* http-req-headers defaults to empty if absent */
-		/* http-req-headers defaults to empty if absent */
 
 		if (is_active) {
 			/* Allocate a module based on the values from the JSON */
@@ -557,12 +527,11 @@ module_new_from_json(char *file_name)
 			if (module == NULL) goto module_new_err;
 
 			assert(module);
-			module_set_http_info(module, request_count, request_headers, request_content_type,
-			                     response_count, reponse_headers, response_content_type);
+			module_set_http_info(module, response_count, reponse_headers,
+			                     response_content_type);
 			module_count++;
 		}
 
-		free(request_headers);
 		free(reponse_headers);
 	}
 
@@ -578,8 +547,6 @@ done:
 	return return_code;
 module_new_err:
 response_headers_alloc_err:
-	free(request_headers);
-request_headers_alloc_err:
 json_parse_err:
 fclose_err:
 	/* We will retry fclose when we fall through into stat_buffer_alloc_err */

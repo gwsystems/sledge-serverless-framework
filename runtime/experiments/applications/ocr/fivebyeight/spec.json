@@ -1,15 +1,13 @@
 {
-  "active": true,
-  "name": "gocr",
-  "path": "gocr_wasm.so",
-  "port": 10000,
-  "expected-execution-us": 5000,
-  "relative-deadline-us": 36000,
-  "argsize": 1,
-  "http-req-headers": [],
-  "http-req-content-type": "text/plain",
-  "http-req-size": 1024000,
-  "http-resp-headers": [],
-  "http-resp-size": 1024000,
-  "http-resp-content-type": "text/plain"
+	"active": true,
+	"name": "gocr",
+	"path": "gocr_wasm.so",
+	"port": 10000,
+	"expected-execution-us": 5000,
+	"relative-deadline-us": 36000,
+	"argsize": 1,
+	"http-req-size": 1024000,
+	"http-resp-headers": [],
+	"http-resp-size": 1024000,
+	"http-resp-content-type": "text/plain"
 }

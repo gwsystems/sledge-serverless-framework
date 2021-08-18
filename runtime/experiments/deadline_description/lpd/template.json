@@ -6,8 +6,6 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 50000,
 	"argsize": 1,
-	"http-req-headers": [],
-	"http-req-content-type": "image/jpeg",
 	"http-req-size": 1002400,
 	"http-resp-headers": [],
 	"http-resp-size": 1048576,
