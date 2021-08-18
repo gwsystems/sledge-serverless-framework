@@ -390,7 +390,6 @@ module_new_from_json(char *file_name)
 		uint32_t relative_deadline_us                                = 0;
 		uint32_t expected_execution_us                               = 0;
 		int      admissions_percentile                               = 50;
-		bool     is_active                                           = false;
 		int32_t  request_count                                       = 0;
 		int32_t  response_count                                      = 0;
 		int      j                                                   = 1;
@@ -429,15 +428,6 @@ module_new_from_json(char *file_name)
 				argument_count = atoi(val);
 				if (argument_count < 0 || argument_count > 127)
 					panic("Expected argument count between 0 and 127, saw %d\n", argument_count);
-			} else if (strcmp(key, "active") == 0) {
-				assert(tokens[i + j + 1].type == JSMN_PRIMITIVE);
-				if (val[0] == 't') {
-					is_active = true;
-				} else if (val[0] == 'f') {
-					is_active = false;
-				} else {
-					panic("Expected active key to be a JSON boolean, was %s\n", val);
-				}
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
 				int64_t buffer = strtoll(val, NULL, 10);
 				if (buffer < 0 || buffer > (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
@@ -518,17 +508,15 @@ module_new_from_json(char *file_name)
 
 		/* argsize defaults to 0 if absent */
 
-		if (is_active) {
-			/* Allocate a module based on the values from the JSON */
-			struct module *module = module_new(module_name, module_path, argument_count, 0, 0,
-			                                   relative_deadline_us, port, request_size, response_size,
-			                                   admissions_percentile, expected_execution_us);
-			if (module == NULL) goto module_new_err;
+		/* Allocate a module based on the values from the JSON */
+		struct module *module = module_new(module_name, module_path, argument_count, 0, 0, relative_deadline_us,
+		                                   port, request_size, response_size, admissions_percentile,
+		                                   expected_execution_us);
+		if (module == NULL) goto module_new_err;
 
-			assert(module);
-			module_set_http_info(module, response_count, reponse_headers, response_content_type);
-			module_count++;
-		}
+		assert(module);
+		module_set_http_info(module, response_count, reponse_headers, response_content_type);
+		module_count++;
 
 		free(reponse_headers);
 	}

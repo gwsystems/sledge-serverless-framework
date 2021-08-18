@@ -1,5 +1,4 @@
 {
-	"active": true,
 	"name": "lpd",
 	"path": "lpd_wasm.so",
 	"port": 10000,

@@ -1,5 +1,4 @@
 {
-	"active": true,
 	"name": "cifar10_1.5",
 	"path": "cifar10_wasm.so",
 	"port": 10018,
@@ -13,7 +12,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "cifar10_1.6",
 	"path": "cifar10_wasm.so",
 	"port": 10019,
@@ -27,7 +25,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "cifar10_1.7",
 	"path": "cifar10_wasm.so",
 	"port": 10020,
@@ -41,7 +38,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "cifar10_1.8",
 	"path": "cifar10_wasm.so",
 	"port": 10021,
@@ -55,7 +51,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "cifar10_1.9",
 	"path": "cifar10_wasm.so",
 	"port": 10022,
@@ -69,7 +64,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "cifar10_2.0",
 	"path": "cifar10_wasm.so",
 	"port": 10023,
@@ -83,7 +77,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "ekf_1.5",
 	"path": "ekf_wasm.so",
 	"port": 10000,
@@ -97,7 +90,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "ekf_1.6",
 	"path": "ekf_wasm.so",
 	"port": 10001,
@@ -111,7 +103,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "ekf_1.7",
 	"path": "ekf_wasm.so",
 	"port": 10002,
@@ -125,7 +116,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "ekf_1.8",
 	"path": "ekf_wasm.so",
 	"port": 10003,
@@ -139,7 +129,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "ekf_1.9",
 	"path": "ekf_wasm.so",
 	"port": 10004,
@@ -153,7 +142,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "ekf_2.0",
 	"path": "ekf_wasm.so",
 	"port": 10005,
@@ -167,7 +155,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "gocr_1.5",
 	"path": "gocr_wasm.so",
 	"port": 10006,
@@ -181,7 +168,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "gocr_1.6",
 	"path": "gocr_wasm.so",
 	"port": 10007,
@@ -195,7 +181,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "gocr_1.7",
 	"path": "gocr_wasm.so",
 	"port": 10008,
@@ -209,7 +194,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "gocr_1.8",
 	"path": "gocr_wasm.so",
 	"port": 10009,
@@ -223,7 +207,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "gocr_1.9",
 	"path": "gocr_wasm.so",
 	"port": 10010,
@@ -237,7 +220,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "gocr_2.0",
 	"path": "gocr_wasm.so",
 	"port": 10011,
@@ -251,7 +233,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "lpd_1.5",
 	"path": "lpd_wasm.so",
 	"port": 10012,
@@ -265,7 +246,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "lpd_1.6",
 	"path": "lpd_wasm.so",
 	"port": 10013,
@@ -279,7 +259,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "lpd_1.7",
 	"path": "lpd_wasm.so",
 	"port": 10014,
@@ -293,7 +272,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "lpd_1.8",
 	"path": "lpd_wasm.so",
 	"port": 10015,
@@ -307,7 +285,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "lpd_1.9",
 	"path": "lpd_wasm.so",
 	"port": 10016,
@@ -321,7 +298,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "lpd_2.0",
 	"path": "lpd_wasm.so",
 	"port": 10017,
@@ -335,7 +311,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "resize_1.5",
 	"path": "resize_wasm.so",
 	"port": 10018,
@@ -349,7 +324,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "resize_1.6",
 	"path": "resize_wasm.so",
 	"port": 10019,
@@ -363,7 +337,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "resize_1.7",
 	"path": "resize_wasm.so",
 	"port": 10020,
@@ -377,7 +350,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "resize_1.8",
 	"path": "resize_wasm.so",
 	"port": 10021,
@@ -391,7 +363,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "resize_1.9",
 	"path": "resize_wasm.so",
 	"port": 10022,
@@ -405,7 +376,6 @@
 	"admissions-percentile": 90
 },
 {
-	"active": true,
 	"name": "resize_2.0",
 	"path": "resize_wasm.so",
 	"port": 10023,

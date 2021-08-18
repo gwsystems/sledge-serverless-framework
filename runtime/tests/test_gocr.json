@@ -1,5 +1,4 @@
 {
-	"active": true,
 	"name": "gocr",
 	"path": "gocr_wasm.so",
 	"port": 10000,

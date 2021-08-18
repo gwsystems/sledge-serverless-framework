@@ -1,5 +1,4 @@
 {
-	"active": true,
 	"name": "work1m",
 	"path": "work1m_wasm.so",
 	"port": 10000,

@@ -1,5 +1,4 @@
 {
-	"active": true,
 	"name": "cifar10_rand",
 	"path": "cifar10_wasm.so",
 	"port": 10000,
@@ -12,7 +11,6 @@
 	"http-resp-content-type": "text/plain"
 },
 {
-	"active": true,
 	"name": "cifar10_same",
 	"path": "cifar10_wasm.so",
 	"port": 10001,
