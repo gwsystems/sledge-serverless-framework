@@ -357,7 +357,7 @@ module_new_from_json(char *file_name)
 		goto json_parse_err;
 	}
 
-	int   module_count    = 0;
+	int module_count = 0;
 	for (int i = 0; i < total_tokens; i++) {
 		assert(tokens[i].type == JSMN_OBJECT);
 
