@@ -87,7 +87,7 @@ err:
 
 
 /**
- * Sets the HTTP Request and Response Headers and Content type on a module
+ * Sets the HTTP Response Content type on a module
  * @param module
  * @param response_content_type
  */
@@ -116,14 +116,12 @@ void
 module_free(struct module *module)
 {
 	if (module == NULL) return;
-	if (module->dynamic_library_handle == NULL) return;
 
 	/* Do not free if we still have oustanding references */
 	if (module->reference_count) return;
 
-
 	close(module->socket_descriptor);
-	dlclose(module->dynamic_library_handle);
+	awsm_abi_deinit(&module->abi);
 	free(module);
 }
 
@@ -149,61 +147,16 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 {
 	int rc = 0;
 
-	errno                 = 0;
-	struct module *module = (struct module *)malloc(sizeof(struct module));
+	struct module *module = (struct module *)calloc(1, sizeof(struct module));
 	if (!module) {
 		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));
 		goto err;
 	};
 
-	memset(module, 0, sizeof(struct module));
-
 	atomic_init(&module->reference_count, 0);
 
-	/* Load the dynamic library *.so file with lazy function call binding and deep binding
-	 * RTLD_DEEPBIND is incompatible with certain clang sanitizers, so it might need to be temporarily disabled at
-	 * times. See https://github.com/google/sanitizers/issues/611
-	 */
-	module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
-	if (module->dynamic_library_handle == NULL) {
-		fprintf(stderr, "Failed to open %s with error: %s\n", path, dlerror());
-		goto dl_open_error;
-	};
-
-	/* Resolve the symbols in the dynamic library *.so file */
-	module->main = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MODULE_MAIN);
-	if (module->main == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_MAIN, path, dlerror());
-		goto dl_error;
-	}
-
-	module->initialize_globals = (mod_glb_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_GLOBALS);
-	if (module->initialize_globals == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_GLOBALS, path,
-		        dlerror());
-		goto dl_error;
-	}
-
-	module->initialize_memory = (mod_mem_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_MEMORY);
-	if (module->initialize_memory == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_MEMORY, path,
-		        dlerror());
-		goto dl_error;
-	};
-
-	module->initialize_tables = (mod_tbl_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_TABLE);
-	if (module->initialize_tables == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_TABLE, path,
-		        dlerror());
-		goto dl_error;
-	};
-
-	module->initialize_libc = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_LIBC);
-	if (module->initialize_libc == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_LIBC, path,
-		        dlerror());
-		goto dl_error;
-	}
+	rc = awsm_abi_init(&module->abi, path);
+	if (rc != 0) goto awsm_abi_init_err;
 
 	/* Set fields in the module struct */
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
@@ -266,9 +219,7 @@ done:
 	return module;
 
 err_listen:
-dl_error:
-	dlclose(module->dynamic_library_handle);
-dl_open_error:
+awsm_abi_init_err:
 	free(module);
 err:
 	module = NULL;
@@ -286,17 +237,22 @@ module_new_from_json(char *file_name)
 	assert(file_name != NULL);
 	int return_code = -1;
 
-	/* Use stat to get file attributes and make sure file is there and OK */
+	/* Use stat to get file attributes and make sure file is present and not empty */
 	struct stat stat_buffer;
-	memset(&stat_buffer, 0, sizeof(struct stat));
-	errno = 0;
 	if (stat(file_name, &stat_buffer) < 0) {
 		fprintf(stderr, "Attempt to stat %s failed: %s\n", file_name, strerror(errno));
 		goto err;
 	}
+	if (stat_buffer.st_size == 0) {
+		fprintf(stderr, "File %s is unexpectedly empty\n", file_name);
+		goto err;
+	}
+	if (!S_ISREG(stat_buffer.st_mode)) {
+		fprintf(stderr, "File %s is not a regular file\n", file_name);
+		goto err;
+	}
 
 	/* Open the file */
-	errno             = 0;
 	FILE *module_file = fopen(file_name, "r");
 	if (!module_file) {
 		fprintf(stderr, "Attempt to open %s failed: %s\n", file_name, strerror(errno));
@@ -304,17 +260,13 @@ module_new_from_json(char *file_name)
 	}
 
 	/* Initialize a Buffer */
-	assert(stat_buffer.st_size != 0);
-	errno             = 0;
-	char *file_buffer = malloc(stat_buffer.st_size);
+	char *file_buffer = calloc(1, stat_buffer.st_size);
 	if (file_buffer == NULL) {
 		fprintf(stderr, "Attempt to allocate file buffer failed: %s\n", strerror(errno));
 		goto stat_buffer_alloc_err;
 	}
-	memset(file_buffer, 0, stat_buffer.st_size);
 
 	/* Read the file into the buffer and check that the buffer size equals the file size */
-	errno                = 0;
 	int total_chars_read = fread(file_buffer, sizeof(char), stat_buffer.st_size, module_file);
 #ifdef LOG_MODULE_LOADING
 	debuglog("size read: %d content: %s\n", total_chars_read, file_buffer);
@@ -326,7 +278,6 @@ module_new_from_json(char *file_name)
 	assert(total_chars_read > 0);
 
 	/* Close the file */
-	errno = 0;
 	if (fclose(module_file) == EOF) {
 		fprintf(stderr, "Attempt to close buffer containing %s failed: %s\n", file_name, strerror(errno));
 		goto fclose_err;
@@ -363,8 +314,6 @@ module_new_from_json(char *file_name)
 
 		char module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
 		char module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
-
-		errno = 0;
 
 		int32_t  request_size                                        = 0;
 		int32_t  response_size                                       = 0;
