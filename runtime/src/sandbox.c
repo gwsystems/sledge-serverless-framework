@@ -115,7 +115,6 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 {
 	/* Validate Arguments */
 	assert(sandbox_request != NULL);
-	module_validate(sandbox_request->module);
 
 	struct sandbox *sandbox;
 	char *          error_message = "";

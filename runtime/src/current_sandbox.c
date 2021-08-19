@@ -85,7 +85,7 @@ current_sandbox_start(void)
 	/* Executing the function */
 	int32_t argument_count = 0;
 	current_sandbox_enable_preemption(sandbox);
-	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->return_value = module_entrypoint(current_module, argument_count, sandbox->arguments_offset);
 	current_sandbox_disable_preemption(sandbox);
 	sandbox->timestamp_of.completion = __getcycles();
 
