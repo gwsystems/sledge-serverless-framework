@@ -26,6 +26,12 @@ def parse_file(file_dir):
 	fo = open(file_dir, "r+")
 	next(fo)
 	for line in fo:
+		if "module " in line:
+			#jump two lines
+			next(fo)
+			continue
+		if "min" in line or "miss" in line or "meet" in line:
+			continue 
 		t = line.split(",")
 		id = t[0]
 		running_time_dict[id] += int(t[8])
