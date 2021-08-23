@@ -51,7 +51,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	runtime_sandbox_total_decrement(last_state);
 
 	/* Admissions Control Post Processing */
-	admissions_info_update(&sandbox->module->admissions_info, sandbox->running_duration / runtime_processor_speed_MHz);
+	admissions_info_update(&sandbox->module->admissions_info, sandbox->total_time / runtime_processor_speed_MHz);
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	perf_window_print(&sandbox->module->admissions_info.perf_window);
