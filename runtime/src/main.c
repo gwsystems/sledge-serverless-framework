@@ -348,7 +348,8 @@ main(int argc, char **argv)
 
 	memset(runtime_worker_threads, 0, sizeof(pthread_t) * RUNTIME_WORKER_THREAD_CORE_COUNT);
 
-	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
+	//runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
+	runtime_processor_speed_MHz = 2600;
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
 
 	software_interrupt_set_interval_duration(runtime_quantum_us * runtime_processor_speed_MHz);
