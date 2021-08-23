@@ -454,7 +454,7 @@ module_new_from_json(char *file_name)
 				} else {
 					panic("Expected active key to be a JSON boolean, was %s\n", val);
 				}
-			} else if (strcmp(key, "tail_module") == 0) {
+			} else if (strcmp(key, "tail-module") == 0) {
 				assert(tokens[i + j + 1].type == JSMN_PRIMITIVE);
                                 if (val[0] == 't') {
                                         is_tail_module = true;
