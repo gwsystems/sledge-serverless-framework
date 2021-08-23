@@ -216,10 +216,12 @@ sandbox_mem_print_perf(struct sandbox *sandbox)
         uint32_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
 
 	if (sandbox->module->next_module == NULL) {
-                uint32_t now = __getcycles();
-                bool miss_deadline = now > sandbox->absolute_deadline ? true : false;
+		uint32_t total_time = (sandbox->completion_timestamp - sandbox->request_arrival_timestamp) / runtime_processor_speed_MHz;
+                bool miss_deadline = sandbox->completion_timestamp > sandbox->absolute_deadline ? true : false;
+		uint32_t delayed_us = (sandbox->completion_timestamp - sandbox->absolute_deadline) 
+					/ runtime_processor_speed_MHz;
                 if (miss_deadline) {
-                        mem_log("%lu miss deadline\n", sandbox->id);
+                        mem_log("%lu miss deadline, delayed %u us, actual cost %u\n", sandbox->id, delayed_us, total_time);
                 } else {
                         mem_log("%lu meet deadline\n", sandbox->id);
                 }
