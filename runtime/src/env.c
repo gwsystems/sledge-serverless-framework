@@ -5,22 +5,6 @@
 #include "arch/getcycles.h"
 #include "worker_thread.h"
 
-extern int32_t inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f);
-
-int32_t
-env_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f)
-{
-	int32_t i = inner_syscall_handler(n, a, b, c, d, e, f);
-
-	return i;
-}
-
-int32_t
-env___syscall(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f)
-{
-	return env_syscall_handler(n, a, b, c, d, e, f);
-}
-
 void
 env___unmapself(uint32_t base, uint32_t size)
 {

@@ -95,18 +95,6 @@ module_initialize_table(struct module *module)
 }
 
 /**
- * Invoke a module's initialize_libc
- * @param module - module whose libc we are initializing
- * @param env - address?
- * @param arguments - address?
- */
-static inline void
-module_initialize_libc(struct module *module, int32_t env, int32_t arguments)
-{
-	module->abi.initialize_libc(env, arguments);
-}
-
-/**
  * Invoke a module's initialize_memory
  * @param module - the module whose memory we are initializing
  */
@@ -124,9 +112,9 @@ module_initialize_memory(struct module *module)
  * @return return code of module's main function
  */
 static inline int32_t
-module_entrypoint(struct module *module, int32_t argc, int32_t argv)
+module_entrypoint(struct module *module)
 {
-	return module->abi.entrypoint(argc, argv);
+	return module->abi.entrypoint();
 }
 
 /**

@@ -13,6 +13,7 @@
 #include "ps_list.h"
 #include "sandbox_state.h"
 #include "wasm_types.h"
+#include "wasi_impl.h"
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 #define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
@@ -99,7 +100,7 @@ struct sandbox {
 	uint64_t total_time;          /* Total time from Request to Response */
 
 	/* System Interface State */
-	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */
 	int32_t return_value;
+	void *wasi_context;
 
 } PAGE_ALIGNED;

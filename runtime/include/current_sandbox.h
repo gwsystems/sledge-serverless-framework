@@ -31,6 +31,7 @@ current_sandbox_set(struct sandbox *sandbox)
 	/* Unpack hierarchy to avoid pointer chasing */
 	if (sandbox == NULL) {
 		local_sandbox_context_cache = (struct sandbox_context_cache){
+			.wasi_context = NULL,
 			.memory = {
 				.start          = NULL,
 				.size           = 0,
@@ -41,6 +42,7 @@ current_sandbox_set(struct sandbox *sandbox)
 		worker_thread_current_sandbox = NULL;
 	} else {
 		local_sandbox_context_cache = (struct sandbox_context_cache){
+			.wasi_context          = sandbox->wasi_context,
 			.memory                = sandbox->memory,
 			.module_indirect_table = sandbox->module->indirect_table,
 		};

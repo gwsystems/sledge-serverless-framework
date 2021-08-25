@@ -31,6 +31,7 @@ struct indirect_table_entry {
 /* Cache of Frequently Accessed Members used to avoid pointer chasing */
 struct sandbox_context_cache {
 	struct wasm_memory           memory;
+	void *wasi_context;
 	struct indirect_table_entry *module_indirect_table;
 };
 

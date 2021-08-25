@@ -6,13 +6,13 @@
 #include "sandbox_send_response.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_returned.h"
-#include "sandbox_setup_arguments.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
 thread_local struct sandbox_context_cache local_sandbox_context_cache = {
+	.wasi_context = NULL,
 	.memory = {
 		.start = NULL,
 		.size = 0,
@@ -20,6 +20,10 @@ thread_local struct sandbox_context_cache local_sandbox_context_cache = {
 	},
 	.module_indirect_table = NULL,
 };
+
+// TODO: Propagate arguments from *.json spec file
+const int   dummy_argc   = 4;
+const char *dummy_argv[] = { "Test", "One", "Two", "Three" };
 
 static inline void
 current_sandbox_enable_preemption(struct sandbox *sandbox)
@@ -86,14 +90,22 @@ current_sandbox_start(void)
 
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
-	module_initialize_globals(current_module);
+	/* TODO: Why is the initialize_globals symbol not present here? */
+	// module_initialize_globals(current_module);
 	module_initialize_memory(current_module);
-	sandbox_setup_arguments(sandbox);
+
+	/* Initialize WASI */
+	wasi_options_t options;
+	wasi_options_init(&options);
+	options.argc                             = dummy_argc;
+	options.argv                             = dummy_argv;
+	sandbox->wasi_context                    = wasi_context_init(&options);
+	local_sandbox_context_cache.wasi_context = sandbox->wasi_context;
+	assert(sandbox->wasi_context != NULL);
 
 	/* Executing the function */
-	int32_t argument_count = 0;
 	current_sandbox_enable_preemption(sandbox);
-	sandbox->return_value = module_entrypoint(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->return_value = module_entrypoint(current_module);
 	current_sandbox_disable_preemption(sandbox);
 	sandbox->timestamp_of.completion = __getcycles();
 

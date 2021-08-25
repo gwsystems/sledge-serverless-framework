@@ -7,11 +7,10 @@
 #define AWSM_ABI_INITIALIZE_GLOBALS "populate_globals"
 #define AWSM_ABI_INITIALIZE_MEMORY  "populate_memory"
 #define AWSM_ABI_INITIALIZE_TABLE   "populate_table"
-#define AWSM_ABI_INITIALIZE_LIBC    "wasmf___init_libc"
-#define AWSM_ABI_ENTRYPOINT         "wasmf_main"
+#define AWSM_ABI_ENTRYPOINT         "wasmf__start"
 
 /* functions in the module to lookup and call per sandbox. */
-typedef int32_t (*awsm_abi_entrypoint_fn_t)(int32_t a, int32_t b);
+typedef int32_t (*awsm_abi_entrypoint_fn_t)(void);
 typedef void (*awsm_abi_init_globals_fn_t)(void);
 typedef void (*awsm_abi_init_mem_fn_t)(void);
 typedef void (*awsm_abi_init_tbl_fn_t)(void);
@@ -22,7 +21,6 @@ struct awsm_abi {
 	awsm_abi_init_globals_fn_t initialize_globals;
 	awsm_abi_init_mem_fn_t     initialize_memory;
 	awsm_abi_init_tbl_fn_t     initialize_tables;
-	awsm_abi_init_libc_fn_t    initialize_libc;
 	awsm_abi_entrypoint_fn_t   entrypoint;
 };
 
@@ -55,6 +53,14 @@ awsm_abi_init(struct awsm_abi *abi, char *path)
 	 */
 	abi->initialize_globals = (awsm_abi_init_globals_fn_t)dlsym(abi->handle, AWSM_ABI_INITIALIZE_GLOBALS);
 
+	// TODO: This was failing when transitioning to wasi.
+	// Revisit and troubleshoot before merging
+	// if (abi->initialize_globals == NULL) {
+	// 	fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", AWSM_ABI_INITIALIZE_GLOBALS, path,
+	// 	        dlerror());
+	// 	goto dl_error;
+	// }
+
 	abi->initialize_memory = (awsm_abi_init_mem_fn_t)dlsym(abi->handle, AWSM_ABI_INITIALIZE_MEMORY);
 	if (abi->initialize_memory == NULL) {
 		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", AWSM_ABI_INITIALIZE_MEMORY, path,
@@ -69,12 +75,6 @@ awsm_abi_init(struct awsm_abi *abi, char *path)
 		goto dl_error;
 	};
 
-	abi->initialize_libc = (awsm_abi_init_libc_fn_t)dlsym(abi->handle, AWSM_ABI_INITIALIZE_LIBC);
-	if (abi->initialize_libc == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", AWSM_ABI_INITIALIZE_LIBC, path,
-		        dlerror());
-		goto dl_error;
-	}
 
 done:
 	return rc;
@@ -92,7 +92,6 @@ awsm_abi_deinit(struct awsm_abi *abi)
 	abi->initialize_globals = NULL;
 	abi->initialize_memory  = NULL;
 	abi->initialize_tables  = NULL;
-	abi->initialize_libc    = NULL;
 
 	int rc = dlclose(abi->handle);
 	if (rc != 0) {
