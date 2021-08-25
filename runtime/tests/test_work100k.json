@@ -1,9 +1,0 @@
-{
-	"name": "work100k",
-	"path": "work100k_wasm.so",
-	"port": 10000,
-	"relative-deadline-us": 50000,
-	"http-req-size": 102600,
-	"http-resp-size": 102600,
-	"http-resp-content-type": "text/plain"
-}
