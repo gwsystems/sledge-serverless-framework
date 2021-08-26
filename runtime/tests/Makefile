@@ -1,14 +1,39 @@
-include Makefile.inc
+ARCH := $(shell uname -m)
 
-TESTS=fibonacci empty empty
+WASMCC = ../../awsm/wasi-sdk/bin/clang
+CC=clang
+TARGET = wasm32-wasi
+SYSROOT = ../../awsm/wasi-sdk/share/wasi-sysroot
+AWSM_NAME = ../../awsm/target/release/awsm
+OPTFLAGS=-O3 -flto
+
+MEMC_64=64bit_nix.c
+TMP_DIR=tmp/
+
+# same stack-size for all
+WASMLINKFLAGS=-Wl,-z,stack-size=524288,--allow-undefined,--threads=1,--export-all
+WASMCFLAGS=${WASMLINKFLAGS} --target=$(TARGET) -mcpu=mvp --sysroot=$(SYSROOT) $(OPTFLAGS)
+
+# for SLEdge
+SLEDGE_BASE_DIR=../../
+SLEDGE_RT_DIR=${SLEDGE_BASE_DIR}/runtime/
+SLEDGE_RT_INC=${SLEDGE_RT_DIR}/include/
+SLEDGE_BIN_DIR=${SLEDGE_RT_DIR}/bin/
+SLEDGE_WASMISA=${SLEDGE_RT_DIR}/compiletime/instr.c
+SLEDGE_MEMC=${SLEDGE_RT_DIR}/compiletime/memory/${MEMC_64}
+
+# TODO: Validate the USE_MEM is deleted throughout all build tools
+
+
+TESTS=fibonacci empty
 
 TESTSRT=$(TESTS:%=%_rt)
 
-.PHONY: all
+.PHONY: all 
 all: rttests tinyekf cifar10 gocr sod
 	@echo "Test Compilation done!"
 
-.PHONY: rttests
+.PHONY: rttests 
 rttests: $(TESTSRT)
 
 .PHONY: clean
@@ -47,11 +72,9 @@ sod:
 	@mkdir -p ${TMP_DIR}
 	# Compile the wasm file
 	@echo "Compiling $(@:%_rt=%)"
-	${WASMCC} ${$(@:%_rt=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} $(@:%_rt=%)/*.c $(AWSM_DUMMY) -o ${TMP_DIR}/$(@:%_rt=%).wasm
-
+	${WASMCC} ${WASMCFLAGS} ${OPTFLAGS} $(@:%_rt=%)/*.c -o ${TMP_DIR}/$(@:%_rt=%.wasm)
 	# Compile the *.bc file
-
-	${AWSM_NAME} --inline-constant-globals --runtime-globals ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
+	${AWSM_NAME} --inline-constant-globals --runtime-globals ${TMP_DIR}/$(@:%_rt=%.wasm) -o ${TMP_DIR}/$(@:%_rt=%.bc)
 	# Compile the *.so file
 	${CC} --shared -fPIC ${OPTFLAGS} -I${SLEDGE_RT_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${SLEDGE_MEMC} ${SLEDGE_WASMISA} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.so
 	# Copy the *.so file to the binary directory

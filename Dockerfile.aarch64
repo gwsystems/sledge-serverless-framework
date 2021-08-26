@@ -49,4 +49,6 @@ RUN rustup target add wasm32-wasi
 
 RUN cargo install --debug cargo-audit cargo-watch rsign2
 
-ENV PATH=/opt/sledge/bin:$PATH
+ENV PATH=/sledge/runtime/bin:$PATH
+ENV PATH=/sledge/awsm/target/release:$PATH
+ENV LD_LIBRARY_PATH=/sledge/runtime/bin:$LD_LIBRARY_PATH

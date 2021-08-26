@@ -78,7 +78,10 @@ BINARY_NAME=sledgert
 # Sets a flag equal to the processor architecture
 CFLAGS += -D${ARCH}
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> chore: cleanup build tooling
 # Preprocessor
 
 # SLEdge serverless functions are *.so shared-libraries. The runtime thus requires the dynamic linker
@@ -90,7 +93,7 @@ LDFLAGS += -Wl,--export-dynamic -ldl -lm
 
 # Our third-party dependencies build into a single dist directory to simplify configuration here.
 LDFLAGS += -Lthirdparty/dist/lib/
-INCLUDES += -Iinclude/ -Ithirdparty/dist/include/ -I../awsm/runtime/libc/wasi/include/
+INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
 
 # CFILES
 CFILES += src/*.c
@@ -107,13 +110,13 @@ JSMNCFLAGS += -DJSMN_STRICT
 .PHONY: all
 all: runtime
 
-bin/sledgert: ${CFILES}
+bin/sledgert:
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
+	@${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ -o bin/sledgert
 
 .PHONY: runtime
-runtime: thirdparty bin/sledgert
+runtime: bin/sledgert
 
 .PHONY: thirdparty
 thirdparty:
