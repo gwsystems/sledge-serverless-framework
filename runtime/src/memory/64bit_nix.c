@@ -1,5 +1,3 @@
-#ifdef USE_MEM_VM
-
 #include "current_sandbox.h"
 #include "panic.h"
 #include "runtime.h"
@@ -56,7 +54,3 @@ get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check)
 
 	return address;
 }
-
-#else
-#error "Incorrect runtime memory module!"
-#endif
