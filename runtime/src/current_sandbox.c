@@ -90,8 +90,7 @@ current_sandbox_start(void)
 
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
-	/* TODO: Why is the initialize_globals symbol not present here? */
-	// module_initialize_globals(current_module);
+	module_initialize_globals(current_module);
 	module_initialize_memory(current_module);
 
 	/* Initialize WASI */

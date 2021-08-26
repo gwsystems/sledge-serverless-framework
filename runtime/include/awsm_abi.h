@@ -53,14 +53,6 @@ awsm_abi_init(struct awsm_abi *abi, char *path)
 	 */
 	abi->initialize_globals = (awsm_abi_init_globals_fn_t)dlsym(abi->handle, AWSM_ABI_INITIALIZE_GLOBALS);
 
-	// TODO: This was failing when transitioning to wasi.
-	// Revisit and troubleshoot before merging
-	// if (abi->initialize_globals == NULL) {
-	// 	fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", AWSM_ABI_INITIALIZE_GLOBALS, path,
-	// 	        dlerror());
-	// 	goto dl_error;
-	// }
-
 	abi->initialize_memory = (awsm_abi_init_mem_fn_t)dlsym(abi->handle, AWSM_ABI_INITIALIZE_MEMORY);
 	if (abi->initialize_memory == NULL) {
 		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", AWSM_ABI_INITIALIZE_MEMORY, path,
