@@ -76,13 +76,14 @@ module_acquire(struct module *module)
 }
 
 /**
- * Invoke a module's initialize_globals
+ * Invoke a module's initialize_globals if the symbol was present in the *.so file.
+ * This is present when aWsm is run with the --runtime-globals flag and absent otherwise.
  * @param module
  */
 static inline void
 module_initialize_globals(struct module *module)
 {
-	module->abi.initialize_globals();
+	if (module->abi.initialize_globals != NULL) module->abi.initialize_globals();
 }
 
 /**

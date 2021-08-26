@@ -48,12 +48,12 @@ awsm_abi_init(struct awsm_abi *abi, char *path)
 		goto dl_error;
 	}
 
+	/*
+	 * This symbol may or may not be present depending on whether the aWsm was
+	 * run with the --runtime-globals flag. It is not clear what the proper
+	 * configuration would be for SLEdge, so no validation is performed
+	 */
 	abi->initialize_globals = (awsm_abi_init_globals_fn_t)dlsym(abi->handle, AWSM_ABI_INITIALIZE_GLOBALS);
-	if (abi->initialize_globals == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", AWSM_ABI_INITIALIZE_GLOBALS, path,
-		        dlerror());
-		goto dl_error;
-	}
 
 	abi->initialize_memory = (awsm_abi_init_mem_fn_t)dlsym(abi->handle, AWSM_ABI_INITIALIZE_MEMORY);
 	if (abi->initialize_memory == NULL) {
