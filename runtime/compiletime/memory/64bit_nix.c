@@ -1,8 +1,6 @@
 #include <assert.h>
 #include "types.h"
 
-#ifdef USE_MEM_VM
-
 // All of these are pretty generic
 INLINE float
 get_f32(int32_t offset)
@@ -162,6 +160,3 @@ get_function_from_table(uint32_t idx, uint32_t type_id)
 
 	return f.func_pointer;
 }
-#else
-#error "Incorrect memory module!"
-#endif
