@@ -92,7 +92,8 @@
 		"wasm_types.h": "c",
 		"wasi_impl.h": "c",
 		"wasi_backing.h": "c",
-		"sysexits.h": "c"
+		"sysexits.h": "c",
+		"wasi_serdes.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

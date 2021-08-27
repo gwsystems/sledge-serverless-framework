@@ -408,8 +408,9 @@ __wasi_args_sizes_get(void *wasi_context_raw, __wasi_size_t *argc_retptr, __wasi
 
 	wasi_context_t *wasi_context = (wasi_context_t *)wasi_context_raw;
 
-	fprintf(stderr, "argc: %d\n", wasi_context->argc);
-	fprintf(stderr, "argv_buf_size: %d\n", wasi_context->argv_buf_size);
+	// TODO: Delete after refactoring args logic
+	// fprintf(stderr, "argc: %d\n", wasi_context->argc);
+	// fprintf(stderr, "argv_buf_size: %d\n", wasi_context->argv_buf_size);
 
 	*argc_retptr         = wasi_context->argc;
 	*argv_buf_len_retptr = wasi_context->argv_buf_size;
