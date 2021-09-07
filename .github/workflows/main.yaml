@@ -3,9 +3,9 @@ name: sledge
 on: [push, pull_request]
 
 env:
-  LLVM_VERSION: 8
-  WASMCEPTION_URL: https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
-  # WASI_SDK: /opt/wasi-sdk
+  LLVM_VERSION: 12
+  WASI_SDK_URL: https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
+  WASI_SDK: /opt/wasi-sdk
   LANG: C.UTF-8
   LANGUAGE: C.UTF-8
   LC_ALL: C.UTF-8
@@ -61,10 +61,11 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
           echo "/root/.cargo/bin:$PATH" >> $GITHUB_PATH
-      # - name: Get WASI-SDK
-      #   run: |
-      #     curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && sudo dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
-      #     echo "ENV WASI_SDK=/opt/wasi-sdk" >> $GITHUB_ENV
+      - name: Get wasi-sdk
+        run: |
+          wget $WASI_SDK_URL -O wasi-sdk.tar.gz
+          mkdir -p /opt/wasi-sdk
+          tar xvfz wasi-sdk.tar.gz --strip-components=1 -C /opt/wasi-sdk
       - name: Install Test Script Utilities
         run: |
           sudo apt-get install -y --no-install-recommends \
