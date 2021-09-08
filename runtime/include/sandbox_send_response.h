@@ -24,97 +24,51 @@ static inline int
 sandbox_send_response(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
+	/* Assumption: The HTTP Request Buffer immediately precedes the HTTP Response Buffer,
+	 * meaning that when we prepend, we are overwritting the tail of the HTTP request buffer */
+	assert(sandbox->request.base + sandbox->module->max_request_size == sandbox->response.base);
 
-	/*
-	 * At this point the HTTP Request has filled the buffer up to request_length, after which
-	 * the STDOUT of the sandbox has been appended. We assume that our HTTP Response header is
-	 * smaller than the HTTP Request header, which allows us to use memmove once without copying
-	 * to an intermediate buffer.
-	 */
-	memset(sandbox->buffer.start, 0, sandbox->http_request_length);
+	int rc;
 
-	/*
-	 * We use this cursor to keep track of our position in the buffer and later assert that we
-	 * haven't overwritten body data.
-	 */
-	size_t response_cursor = 0;
+	/* Determine values to template into our HTTP response */
+	ssize_t response_body_size = sandbox->response.length;
+	char    content_length[20] = { 0 };
+	sprintf(content_length, "%zu", response_body_size);
+	char *module_content_type = sandbox->module->response_content_type;
+	char *content_type        = strlen(module_content_type) > 0 ? module_content_type : "text/plain";
 
-	/* Append 200 OK */
-	strncpy(sandbox->buffer.start, HTTP_RESPONSE_200_OK, strlen(HTTP_RESPONSE_200_OK));
-	response_cursor += strlen(HTTP_RESPONSE_200_OK);
-
-	/* Content Type */
-	strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_TYPE,
-	        strlen(HTTP_RESPONSE_CONTENT_TYPE));
-	response_cursor += strlen(HTTP_RESPONSE_CONTENT_TYPE);
-
-	/* Custom content type if provided, text/plain by default */
-	if (strlen(sandbox->module->response_content_type) <= 0) {
-		strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_TYPE_PLAIN,
-		        strlen(HTTP_RESPONSE_CONTENT_TYPE_PLAIN));
-		response_cursor += strlen(HTTP_RESPONSE_CONTENT_TYPE_PLAIN);
-	} else {
-		strncpy(sandbox->buffer.start + response_cursor, sandbox->module->response_content_type,
-		        strlen(sandbox->module->response_content_type));
-		response_cursor += strlen(sandbox->module->response_content_type);
-	}
-
-	strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_TYPE_TERMINATOR,
-	        strlen(HTTP_RESPONSE_CONTENT_TYPE_TERMINATOR));
-	response_cursor += strlen(HTTP_RESPONSE_CONTENT_TYPE_TERMINATOR);
-
-	/* Content Length */
-	strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_LENGTH,
-	        strlen(HTTP_RESPONSE_CONTENT_LENGTH));
-	response_cursor += strlen(HTTP_RESPONSE_CONTENT_LENGTH);
-
-	size_t body_size = sandbox->buffer.length - sandbox->http_request_length;
-
-	char len[10] = { 0 };
-	sprintf(len, "%zu", body_size);
-	strncpy(sandbox->buffer.start + response_cursor, len, strlen(len));
-	response_cursor += strlen(len);
-
-	strncpy(sandbox->buffer.start + response_cursor, HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR,
-	        strlen(HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR));
-	response_cursor += strlen(HTTP_RESPONSE_CONTENT_LENGTH_TERMINATOR);
-
-	/*
-	 * Assumption: Our response header is smaller than the request header, so we do not overwrite
-	 * actual data that the program appended to the HTTP Request. If proves to be a bad assumption,
-	 * we have to copy the STDOUT string to a temporary buffer before writing the header
-	 */
-	if (unlikely(response_cursor >= sandbox->http_request_length)) {
-		panic("Response Cursor: %zd is less that Request Length: %zd\n", response_cursor,
-		      sandbox->http_request_length);
-	}
-
-	/* Move the Sandbox's Data after the HTTP Response Data */
-	memmove(sandbox->buffer.start + response_cursor, sandbox->buffer.start + sandbox->http_request_length,
-	        body_size);
-	response_cursor += body_size;
+	/* Prepend HTTP Response Headers */
+	size_t response_header_size = http_response_200_size(content_type, content_length);
+	char * response_header      = sandbox->response.base - response_header_size;
+	rc                          = http_response_200(response_header, content_type, content_length);
+	if (rc < 0) goto err;
 
 	/* Capture Timekeeping data for end-to-end latency */
 	uint64_t end_time   = __getcycles();
 	sandbox->total_time = end_time - sandbox->timestamp_of.request_arrival;
 
-	int rc;
-	int sent = 0;
-	while (sent < response_cursor) {
-		rc = write(sandbox->client_socket_descriptor, &sandbox->buffer.start[sent], response_cursor - sent);
+	/* Send HTTP Response */
+	int    sent          = 0;
+	size_t response_size = response_header_size + response_body_size;
+	while (sent < response_size) {
+		rc = write(sandbox->client_socket_descriptor, response_header, response_size - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN)
 				scheduler_block();
 			else {
 				perror("write");
-				return -1;
+				goto err;
 			}
 		}
-
 		sent += rc;
 	}
 
 	http_total_increment_2xx();
+	rc = 0;
 
-	return 0;
+done:
+	return rc;
+err:
+	rc = -1;
+	goto done;
 }

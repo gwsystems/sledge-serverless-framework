@@ -13,12 +13,21 @@ rttests: $(TESTSRT)
 
 clean:
 	@echo "Cleaning Test Applications"
-	@rm -rf ${TMP_DIR}
-	@rm -rf ${SLEDGE_BIN_DIR}/*_wasm.so
-	@make clean -C ./TinyEKF/extras/c/ -f wasm.mk
-	@make clean -C ./CMSIS_5_NN/ -f Makefile
-	@make clean -C ./gocr/src/ -f wasm.mk
-	@make clean -C ./sod/
+	@make clean -C ./empty/
+	@rm -f wasm/empty.wasm bc/empty.bc so/empty.so
+	@rm -rf ${SLEDGE_BIN_DIR}/empty.so ${SLEDGE_BIN_DIR}/test_empty.json
+
+	@make clean -C ./echo/
+	@rm -f wasm/echo.wasm bc/echo.bc so/echo.so
+	@rm -rf ${SLEDGE_BIN_DIR}/echo.so ${SLEDGE_BIN_DIR}/test_echo.json
+
+	@make clean -C ./fibonacci/
+	@rm -f wasm/fibonacci.wasm bc/fibonacci.bc so/fibonacci.so
+	@rm -rf ${SLEDGE_BIN_DIR}/fibonacci.so ${SLEDGE_BIN_DIR}/test_fibonacci.json
+	
+	@make clean -C ./TinyEKF/ -f wasm.mk
+	@rm -f wasm/gps_ekf.wasm bc/gps_ekf.bc so/gps_ekf.so
+	@rm -rf ${SLEDGE_BIN_DIR}/gps_ekf.so ${SLEDGE_BIN_DIR}/test_gps_ekf.json
 
 tinyekf:
 	@echo "Making and Installing tinyekf"
