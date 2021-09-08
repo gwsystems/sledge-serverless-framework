@@ -33,3 +33,4 @@ runtime:
 .PHONY: install
 install: rtinit
 
+all: runtime awsm

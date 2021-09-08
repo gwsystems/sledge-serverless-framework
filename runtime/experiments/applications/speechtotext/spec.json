@@ -1,6 +1,6 @@
 {
 	"name": "hello_ps",
-	"path": "hello_ps_wasm.so",
+	"path": "hello_ps.so",
 	"port": 10000,
 	"relative-deadline-us": 50000,
 	"http-req-size": 102400,

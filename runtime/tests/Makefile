@@ -19,6 +19,11 @@ wasm/fibonacci.wasm:
 	make fibonacci.wasm -C fibonacci
 	cp fibonacci/fibonacci.wasm wasm/fibonacci.wasm
 
+wasm/echo.wasm:
+	mkdir -p wasm
+	make echo.wasm -C echo
+	cp echo/echo.wasm wasm/echo.wasm
+
 wasm/gps_ekf.wasm:
 	mkdir -p wasm
 	make gps_ekf.wasm -C TinyEKF -f wasm.mk
@@ -70,7 +75,7 @@ so/%.so: bc/%.bc
 		sledgert
 
 .PHONY: all 
-all: empty.install fibonacci.install gps_ekf.install cifar10.install gocr.install resize_image.install license_plate_detection.install 
+all: empty.install echo.install fibonacci.install gps_ekf.install cifar10.install gocr.install resize_image.install license_plate_detection.install 
 	@echo "Test Compilation done!"
 
 .PHONY: clean
