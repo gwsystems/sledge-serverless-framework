@@ -85,6 +85,10 @@ clean:
 	@rm -f wasm/empty.wasm bc/empty.bc so/empty.so
 	@rm -rf ${SLEDGE_BIN_DIR}/empty.so ${SLEDGE_BIN_DIR}/test_empty.json
 
+	@make clean -C ./echo/
+	@rm -f wasm/echo.wasm bc/echo.bc so/echo.so
+	@rm -rf ${SLEDGE_BIN_DIR}/echo.so ${SLEDGE_BIN_DIR}/test_echo.json
+
 	@make clean -C ./fibonacci/
 	@rm -f wasm/fibonacci.wasm bc/fibonacci.bc so/fibonacci.so
 	@rm -rf ${SLEDGE_BIN_DIR}/fibonacci.so ${SLEDGE_BIN_DIR}/test_fibonacci.json

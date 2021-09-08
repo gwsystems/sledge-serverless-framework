@@ -729,18 +729,20 @@ __wasi_fd_read(void *wasi_context, __wasi_fd_t fd, const __wasi_iovec_t *iovs, s
 	if (fd == 0) {
 		struct sandbox *     current_sandbox = current_sandbox_get();
 		struct http_request *current_request = &current_sandbox->http_request;
-		if (current_request->body_length <= 0) return 0;
+		int                  old_read        = current_request->body_read_length;
+		int                  bytes_to_read   = current_request->body_length - old_read;
 
 		for (int i = 0; i < iovs_len; i++) {
-			int bytes_to_read = iovs[i].buf_len > current_request->body_length
-			                      ? current_request->body_length
-			                      : iovs[i].buf_len;
-			memcpy(iovs[i].buf, current_request->body + current_request->body_read_length, bytes_to_read);
-			current_request->body_read_length += bytes_to_read;
-			current_request->body_length -= bytes_to_read;
+			if (bytes_to_read == 0) goto done;
+
+			int amount_to_copy = iovs[i].buf_len > bytes_to_read ? bytes_to_read : iovs[i].buf_len;
+			memcpy(iovs[i].buf, current_request->body + current_request->body_read_length, amount_to_copy);
+			current_request->body_read_length += amount_to_copy;
+			bytes_to_read = current_request->body_length - current_request->body_read_length;
 		}
 
-		*nwritten_retptr = current_request->body_read_length;
+	done:
+		*nwritten_retptr = current_request->body_read_length - old_read;
 		return __WASI_ERRNO_SUCCESS;
 	}
 
@@ -851,16 +853,19 @@ __wasi_fd_write(void *wasi_context, __wasi_fd_t fd, const __wasi_ciovec_t *iovs,
                 __wasi_size_t *nwritten_retptr)
 {
 	if (fd == 1 || fd == 2) {
-		struct sandbox *s   = current_sandbox_get();
-		__wasi_size_t   sum = 0;
+		struct sandbox *s                = current_sandbox_get();
+		ssize_t         buffer_remaining = 0;
+		ssize_t         old_response_len = s->response.length;
+		__wasi_size_t   sum              = 0;
+
 		for (int i = 0; i < iovs_len; i++) {
-			int l = s->module->max_response_size - s->buffer.length;
-			if (l > iovs[i].buf_len) l = iovs[i].buf_len;
-			memcpy(s->buffer.start + s->buffer.length, iovs[i].buf, l);
-			s->buffer.length += l;
-			sum += l;
+			buffer_remaining = s->module->max_response_size - s->response.length;
+			if (buffer_remaining == 0) return __WASI_ERRNO_FBIG;
+			ssize_t to_write = buffer_remaining > iovs[i].buf_len ? iovs[i].buf_len : buffer_remaining;
+			memcpy(&s->response.base[s->response.length], iovs[i].buf, to_write);
+			s->response.length += to_write;
 		}
-		*nwritten_retptr = sum;
+		*nwritten_retptr = old_response_len - s->response.length;
 		return __WASI_ERRNO_SUCCESS;
 	}
 

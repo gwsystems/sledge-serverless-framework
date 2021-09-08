@@ -101,6 +101,6 @@ struct sandbox {
 
 	/* System Interface State */
 	int32_t return_value;
-	void *wasi_context;
+	void *  wasi_context;
 
 } PAGE_ALIGNED;
