@@ -18,14 +18,14 @@
 
 /**
  * Receive and Parse the Request for the current sandbox
- * @return 0 if message parsing complete, -1 on error
+ * @return 0 if message parsing complete, -1 on error, -2 if buffers run out of space
  */
 static inline int
 sandbox_receive_request(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	assert(sandbox->module->max_request_size > 0);
-	assert(sandbox->buffer.length == 0);
+	assert(sandbox->request.length == 0);
 
 	int rc = 0;
 
@@ -36,26 +36,28 @@ sandbox_receive_request(struct sandbox *sandbox)
 		http_parser *               parser   = &sandbox->http_parser;
 		const http_parser_settings *settings = http_parser_settings_get();
 
-		int    fd  = sandbox->client_socket_descriptor;
-		char * buf = &sandbox->buffer.start[sandbox->buffer.length];
-		size_t len = sandbox->module->max_request_size - sandbox->buffer.length;
+		if (sandbox->module->max_request_size <= sandbox->request.length) {
+			debuglog("Sandbox %lu: Ran out of Request Buffer before message end\n", sandbox->id);
+			goto err_nobufs;
+		}
 
-		ssize_t recved = recv(fd, buf, len, 0);
+		ssize_t bytes_received = recv(sandbox->client_socket_descriptor,
+		                              &sandbox->request.base[sandbox->request.length],
+		                              sandbox->module->max_request_size - sandbox->request.length, 0);
 
-		if (recved < 0) {
+		if (bytes_received == -1) {
 			if (errno == EAGAIN) {
 				scheduler_block();
 				continue;
 			} else {
-				/* All other errors */
 				debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor,
 				         strerror(errno));
 				goto err;
 			}
 		}
 
-		/* Client request is malformed */
-		if (recved == 0 && !sandbox->http_request.message_end) {
+		/* If we received an EOF before we were able to parse a complete HTTP header, request is malformed */
+		if (bytes_received == 0 && !sandbox->http_request.message_end) {
 			char client_address_text[INET6_ADDRSTRLEN] = {};
 			if (unlikely(inet_ntop(AF_INET, &sandbox->client_address, client_address_text, INET6_ADDRSTRLEN)
 			             == NULL)) {
@@ -63,37 +65,37 @@ sandbox_receive_request(struct sandbox *sandbox)
 			}
 
 			debuglog("Sandbox %lu: recv returned 0 before a complete request was received\n", sandbox->id);
-			debuglog("Socket: %d. Address: %s\n", fd, client_address_text);
+			debuglog("Socket: %d. Address: %s\n", sandbox->client_socket_descriptor, client_address_text);
 			http_request_print(&sandbox->http_request);
 			goto err;
 		}
 
 #ifdef LOG_HTTP_PARSER
 		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings, buf,
-		         recved);
+		         bytes_received);
 #endif
-		size_t nparsed = http_parser_execute(parser, settings, buf, recved);
+		size_t bytes_parsed = http_parser_execute(parser, settings,
+		                                          &sandbox->request.base[sandbox->request.length],
+		                                          bytes_received);
 
-		if (nparsed != recved) {
-			/* TODO: Is this error  */
+		if (bytes_parsed != bytes_received) {
 			debuglog("Error: %s, Description: %s\n",
 			         http_errno_name((enum http_errno)sandbox->http_parser.http_errno),
 			         http_errno_description((enum http_errno)sandbox->http_parser.http_errno));
-			debuglog("Length Parsed %zu, Length Read %zu\n", nparsed, recved);
+			debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, bytes_received);
 			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
 			goto err;
 		}
 
-
-		sandbox->buffer.length += nparsed;
+		sandbox->request.length += bytes_parsed;
 	}
-
-
-	sandbox->http_request_length = sandbox->buffer.length;
 
 	rc = 0;
 done:
 	return rc;
+err_nobufs:
+	rc = -2;
+	goto done;
 err:
 	rc = -1;
 	goto done;

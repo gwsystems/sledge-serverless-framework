@@ -40,14 +40,12 @@ struct module {
 	uint64_t               max_memory; /* perhaps a specification of the module. (max 4GB) */
 	uint32_t               relative_deadline_us;
 	int                    port;
-	unsigned long          max_request_size;
-	unsigned long          max_response_size; /* resp size including headers! */
 	struct admissions_info admissions_info;
 	uint64_t               relative_deadline; /* cycles */
 
-
 	/* HTTP State */
-	unsigned long      max_request_or_response_size; /* largest of max_request_size or max_response_size */
+	size_t             max_request_size;
+	size_t             max_response_size;
 	char               response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
 	struct sockaddr_in socket_address;
 	int                socket_descriptor;

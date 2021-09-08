@@ -68,13 +68,19 @@ current_sandbox_start(void)
 	assert(sandbox->state == SANDBOX_RUNNING);
 
 	char *error_message = "";
+	int   rc            = 0;
 
 	sandbox_open_http(sandbox);
 
-	if (sandbox_receive_request(sandbox) < 0) {
-		error_message = "Unable to receive or parse client request\n";
+	rc = sandbox_receive_request(sandbox);
+	if (rc == -2) {
+		/* Request size exceeded Buffer, send 413 Payload Too Large */
+		client_socket_send(sandbox->client_socket_descriptor, 413);
 		goto err;
-	};
+	} else if (rc == -1) {
+		client_socket_send(sandbox->client_socket_descriptor, 400);
+		goto err;
+	}
 
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
@@ -115,9 +121,6 @@ done:
 err:
 	debuglog("%s", error_message);
 	assert(sandbox->state == SANDBOX_RUNNING);
-
-	/* Send a 400 error back to the client */
-	client_socket_send(sandbox->client_socket_descriptor, 400);
 
 	sandbox_close_http(sandbox);
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);

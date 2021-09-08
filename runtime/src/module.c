@@ -185,13 +185,8 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 	/* Request Response Buffer */
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
 	if (response_size == 0) response_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
-	module->max_request_size  = request_size;
-	module->max_response_size = response_size;
-	if (request_size > response_size) {
-		module->max_request_or_response_size = round_up_to_page(request_size);
-	} else {
-		module->max_request_or_response_size = round_up_to_page(response_size);
-	}
+	module->max_request_size  = round_up_to_page(request_size);
+	module->max_response_size = round_up_to_page(response_size);
 
 	/* Table initialization calls a function that runs within the sandbox. Rather than setting the current sandbox,
 	 * we partially fake this out by only setting the module_indirect_table and then clearing after table

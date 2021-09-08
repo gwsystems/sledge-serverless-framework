@@ -40,41 +40,46 @@ struct sandbox_timestamps {
 };
 
 /*
- * In-memory buffer used to read requests, buffer write to STDOUT, and write HTTP responses
- * The HTTP request is read in, updating buffer.length and http_request_length
- * --------------------------------------------------
- * | Request        | Empty                         |
- * --------------------------------------------------
- * Writes to STDOUT are written starting at http_request_length, updating buffer.length
- * --------------------------------------------------
- * | Request        | STDOUT  |  Empty              |
- * --------------------------------------------------
- * The HTTP Response is written over the Request (assumes the response is smaller)
- * --------------------------------------------------
- * | Response | Gap | STDOUT  |  Empty              |
- * --------------------------------------------------
- * And the STDOUT buffer is compacted to immediately follow the response
- * --------------------------------------------------
- * | Response | STDOUT  |  Empty                    |
- * --------------------------------------------------
+ * Static In-memory buffers are used for HTTP requests read in via STDIN and HTTP
+ * responses written back out via STDOUT. These are allocated in pages immediately
+ * adjacent to the sandbox struct in the following layout. The capacity of these
+ * buffers are configured in the module spec and stored in sandbox->module.max_request_size
+ * and sandbox->module.max_response_size.
+ *
+ * Because the sandbox struct, the request header, and the response header are sized
+ * in pages, we must store the base pointer to the buffer. The length is increased
+ * and should not exceed the respective module max size.
+ *
+ * ---------------------------------------------------
+ * | Sandbox | Request         | Response            |
+ * ---------------------------------------------------
+ *
+ * After the sandbox writes its response, a header is written at a negative offset
+ * overwriting the tail end of the request buffer. This assumes that the request
+ * data is no longer needed because the sandbox has run to completion
+ *
+ * ---------------------------------------------------
+ * | Sandbox | Garbage   | HDR | Response            |
+ * ---------------------------------------------------
  */
 struct sandbox_buffer {
-	ssize_t length; /* Should be <= module->max_request_or_response_size */
-	char    start[1];
+	char * base;
+	size_t length;
 };
 
 struct sandbox {
 	uint64_t        id;
 	sandbox_state_t state;
-	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
-	struct ps_list list;   /* used by ps_list's default name-based MACROS for the scheduling runqueue */
+	struct ps_list  list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
 
 	/* HTTP State */
-	struct sockaddr     client_address; /* client requesting connection! */
-	int                 client_socket_descriptor;
-	http_parser         http_parser;
-	struct http_request http_request;
-	ssize_t             http_request_length;
+	struct sockaddr       client_address; /* client requesting connection! */
+	int                   client_socket_descriptor;
+	http_parser           http_parser;
+	struct http_request   http_request;
+	ssize_t               http_request_length; /* TODO: Get rid of me */
+	struct sandbox_buffer request;
+	struct sandbox_buffer response;
 
 	/* WebAssembly Module State */
 	struct module *module; /* the module this is an instance of */
@@ -97,6 +102,4 @@ struct sandbox {
 	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */
 	int32_t return_value;
 
-	/* This contains a Variable Length Array and thus MUST be the final member of this struct */
-	struct sandbox_buffer buffer;
 } PAGE_ALIGNED;
