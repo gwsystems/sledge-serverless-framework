@@ -6,6 +6,7 @@
 #include "panic.h"
 #include "priority_queue.h"
 #include "runtime.h"
+#include "scheduler.h"
 
 static struct priority_queue *global_request_scheduler_minheap;
 
@@ -70,14 +71,26 @@ sandbox_request_get_priority_fn(void *element)
 	return sandbox_request->absolute_deadline;
 };
 
+uint64_t
+sandbox_request_get_priority_srsf_fn(void *element)
+{
+	struct sandbox_request *sandbox_request = (struct sandbox_request *)element;
+	uint64_t now = __getcycles();	
+	uint64_t remaining_slack = sandbox_request->remaining_slack - (now - sandbox_request->last_update_timestamp);
+	return remaining_slack;
+};
 
 /**
  * Initializes the variant and registers against the polymorphic interface
  */
 void
-global_request_scheduler_minheap_initialize() 
+global_request_scheduler_minheap_initialize(enum SCHEDULER scheduler) 
 {
-	global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_request_get_priority_fn);
+	if (scheduler == SCHEDULER_EDF) { 
+		global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_request_get_priority_fn);
+	} else if (scheduler == SCHEDULER_SRSF) {
+		global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_request_get_priority_srsf_fn);	
+	}
 
 	struct global_request_scheduler_config config = {
 		.add_fn               = global_request_scheduler_minheap_add,

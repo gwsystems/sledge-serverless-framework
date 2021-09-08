@@ -174,12 +174,21 @@ listener_thread_main(void *dummy)
 
 					continue;
 				}
+				/* get total estimated execution time */
+                                uint64_t estimated_execution_time = admission_info_get_percentile(&module->admissions_info);
+                                struct module * next_module = module->next_module;
+                                while(next_module) {
+                                        estimated_execution_time += admission_info_get_percentile(&next_module->admissions_info);
+                                        next_module = next_module->next_module;
+                                }
+
+                                uint64_t remaining_slack = module->relative_deadline - estimated_execution_time;
 
 				/* Allocate a Sandbox Request */
 				struct sandbox_request *sandbox_request =
 				  sandbox_request_allocate(module, true, 0, module->name, client_socket,
 				                           (const struct sockaddr *)&client_address,
-				                           request_arrival_timestamp, request_arrival_timestamp, 
+				                           request_arrival_timestamp, request_arrival_timestamp,remaining_slack, 
 							   work_admitted, NULL, 0);
 
 				/* Add to the Global Sandbox Request Scheduler */

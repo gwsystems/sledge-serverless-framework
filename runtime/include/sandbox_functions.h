@@ -105,6 +105,15 @@ sandbox_get_priority(void *element)
 	return sandbox->absolute_deadline;
 };
 
+static inline uint64_t
+sandbox_get_srsf_priority(void *element)
+{
+	struct sandbox *sandbox = (struct sandbox *)element;
+	uint64_t now = __getcycles();
+        uint64_t remaining_slack = sandbox->remaining_slack - (now - sandbox->last_update_timestamp);
+        return remaining_slack;
+};
+
 /**
  * Maps a sandbox fd to an underlying host fd
  * Returns error condition if the file_descriptor to set does not contain sandbox preopen magic

@@ -49,11 +49,13 @@ struct sandbox {
 	struct arch_context ctxt; /* register context for context switch. */
 
 	uint64_t request_arrival_timestamp;   /* Timestamp when request is received */
-	uint64_t enqueue_timestamp;   /* Timestamp when sandbox request is enqueued to the global queue*/
+	uint64_t enqueue_timestamp;   	      /* Timestamp when sandbox request is enqueued to the global queue*/
 	uint64_t allocation_timestamp;        /* Timestamp when sandbox is allocated */
 	uint64_t response_timestamp;          /* Timestamp when response is sent */
 	uint64_t completion_timestamp;        /* Timestamp when sandbox runs to completion */
 	uint64_t last_state_change_timestamp; /* Used for bookkeeping of actual execution time */
+	uint64_t last_update_timestamp;       /* Used for bookkeeping timestamp for SRSF */ 
+	uint64_t remaining_slack;             /* Cycles */ 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	uint32_t page_allocation_timestamps[SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT];
 	size_t   page_allocation_timestamps_size;

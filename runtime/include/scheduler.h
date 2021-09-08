@@ -25,7 +25,8 @@
 enum SCHEDULER
 {
 	SCHEDULER_FIFO = 0,
-	SCHEDULER_EDF  = 1
+	SCHEDULER_EDF  = 1,
+	SCHEDULER_SRSF  = 2
 };
 
 extern enum SCHEDULER scheduler;
@@ -65,6 +66,38 @@ err_allocate:
 }
 
 static inline struct sandbox *
+scheduler_srsf_get_next()
+{
+	/* Get the deadline of the sandbox at the head of the local request queue */
+	struct sandbox *        local          	      = local_runqueue_get_next();
+	uint64_t                local_remaining_slack = local == NULL ? UINT64_MAX : local->remaining_slack;
+	struct sandbox_request *request        = NULL;
+
+	uint64_t global_remaining_slack = global_request_scheduler_peek();
+
+	/* Try to pull and allocate from the global queue if earlier
+	 * This will be placed at the head of the local runqueue */
+	if (global_remaining_slack < local_remaining_slack) {
+		if (global_request_scheduler_remove_if_earlier(&request, local_remaining_slack) == 0) {
+			assert(request != NULL);
+			struct sandbox *global = sandbox_allocate(request);
+			if (!global) goto err_allocate;
+
+			assert(global->state == SANDBOX_INITIALIZED);
+			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+		}
+	}
+
+/* Return what is at the head of the local runqueue or NULL if empty */
+done:
+	return local_runqueue_get_next();
+err_allocate:
+	client_socket_send(request->socket_descriptor, 503);
+	client_socket_close(request->socket_descriptor, &request->socket_address);
+	free(request);
+	goto done;
+}
+static inline struct sandbox *
 scheduler_fifo_get_next()
 {
 	struct sandbox *sandbox = local_runqueue_get_next();
@@ -103,6 +136,8 @@ scheduler_get_next()
 	switch (scheduler) {
 	case SCHEDULER_EDF:
 		return scheduler_edf_get_next();
+	case SCHEDULER_SRSF:
+		return scheduler_srsf_get_next();
 	case SCHEDULER_FIFO:
 		return scheduler_fifo_get_next();
 	default:
@@ -115,7 +150,10 @@ scheduler_initialize()
 {
 	switch (scheduler) {
 	case SCHEDULER_EDF:
-		global_request_scheduler_minheap_initialize();
+		global_request_scheduler_minheap_initialize(SCHEDULER_EDF);
+		break;
+	case SCHEDULER_SRSF:
+		global_request_scheduler_minheap_initialize(SCHEDULER_SRSF);
 		break;
 	case SCHEDULER_FIFO:
 		global_request_scheduler_deque_initialize();
@@ -130,7 +168,10 @@ scheduler_runqueue_initialize()
 {
 	switch (scheduler) {
 	case SCHEDULER_EDF:
-		local_runqueue_minheap_initialize();
+		local_runqueue_minheap_initialize(SCHEDULER_EDF);
+		break;
+	case SCHEDULER_SRSF:
+		local_runqueue_minheap_initialize(SCHEDULER_SRSF);
 		break;
 	case SCHEDULER_FIFO:
 		local_runqueue_list_initialize();
@@ -216,6 +257,8 @@ scheduler_print(enum SCHEDULER variant)
 		return "FIFO";
 	case SCHEDULER_EDF:
 		return "EDF";
+	case SCHEDULER_SRSF:
+		return "SRSF";
 	}
 }
 

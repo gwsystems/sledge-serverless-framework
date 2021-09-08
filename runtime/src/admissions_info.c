@@ -32,7 +32,17 @@ admissions_info_initialize(struct admissions_info *self, char* module_name, int 
 #endif
 }
 
-
+/*
+ * Get the specified execution time of this module, no lock for accessing the queue 
+ * @param self
+ * @returns the specified execution time of this module
+ */
+uint64_t
+admission_info_get_percentile(struct admissions_info *self)
+{
+	uint64_t estimated_execution = perf_window_get_percentile(&self->perf_window, self->percentile, self->control_index);
+	return estimated_execution;
+}
 /*
  * Adds an execution value to the perf window and calculates and caches and updated estimate
  * @param self

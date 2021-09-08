@@ -13,3 +13,6 @@ struct admissions_info {
 void admissions_info_initialize(struct admissions_info *self, char* module_name, int percentile, uint64_t expected_execution,
                                 uint64_t relative_deadline);
 void admissions_info_update(struct admissions_info *self, uint64_t execution_duration);
+
+uint64_t admission_info_get_percentile(struct admissions_info *self);
+

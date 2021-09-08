@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "scheduler.h"
 #include "arch/context.h"
 #include "client_socket.h"
 #include "current_sandbox.h"
@@ -74,10 +75,14 @@ local_runqueue_minheap_get_next()
  * Registers the PS variant with the polymorphic interface
  */
 void
-local_runqueue_minheap_initialize()
+local_runqueue_minheap_initialize(enum SCHEDULER scheduler)
 {
 	/* Initialize local state */
-	local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_priority);
+	if (scheduler == SCHEDULER_EDF) { 
+		local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_priority);
+	} else if (scheduler == SCHEDULER_SRSF) {
+		local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_srsf_priority);
+	}
 
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,

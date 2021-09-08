@@ -41,6 +41,8 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	case SANDBOX_RUNNING: {
+		/* stop running the current sandbox, so record the timestamp */
+		sandbox->last_update_timestamp = now;
 		sandbox->running_duration += duration_of_last_state;
 		/* No need to add to runqueue, as already on it */
 		break;

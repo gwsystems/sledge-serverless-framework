@@ -23,6 +23,8 @@ struct sandbox_request {
 	uint64_t        request_arrival_timestamp; /* cycles */
 	uint64_t        enqueue_timestamp; 	   /* cycles */
 	uint64_t        absolute_deadline;         /* cycles */
+	uint64_t        last_update_timestamp;     /* cycles */
+	uint64_t	remaining_slack;           /* cycles */
 	char * 		previous_function_output;
 	ssize_t 	output_length;
 	ssize_t 	previous_request_length;
@@ -71,12 +73,12 @@ sandbox_request_log_allocation(struct sandbox_request *sandbox_request)
 static inline struct sandbox_request *
 sandbox_request_allocate(struct module *module, bool request_from_outside, ssize_t request_length, 
 			 char *arguments, int socket_descriptor, const struct sockaddr *socket_address, 
-			 uint64_t request_arrival_timestamp, uint64_t enqueue_timestamp, 
+			 uint64_t request_arrival_timestamp, uint64_t enqueue_timestamp, uint64_t remaining_slack, 
 			 uint64_t admissions_estimate, char *previous_function_output, ssize_t output_length)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)malloc(sizeof(struct sandbox_request));
 	assert(sandbox_request);
-
+	
 	/* Sets the ID to the value before the increment */
 	sandbox_request->id				= sandbox_request_count_postfix_increment();
 
@@ -91,6 +93,8 @@ sandbox_request_allocate(struct module *module, bool request_from_outside, ssize
 	sandbox_request->previous_function_output 	= previous_function_output;
 	sandbox_request->output_length 			= output_length;
 	sandbox_request->previous_request_length 	= request_length;
+	sandbox_request->last_update_timestamp 	        = enqueue_timestamp;
+	sandbox_request->remaining_slack		= remaining_slack;
 
 	/*
 	 * Admissions Control State

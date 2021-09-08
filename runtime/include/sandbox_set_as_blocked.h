@@ -28,6 +28,7 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
+		sandbox->last_update_timestamp = now;
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		break;

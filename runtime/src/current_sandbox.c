@@ -126,7 +126,7 @@ current_sandbox_start(void)
 							   next_module->name, sandbox->client_socket_descriptor,
                                                            (const struct sockaddr *)&sandbox->client_address,
                                                            sandbox->request_arrival_timestamp, enqueue_timestamp, 
-							   true, pre_func_output, output_length);
+							   sandbox->remaining_slack, true, pre_func_output, output_length);
 		/* TODO: All sandboxs in the chain share the same request id, but sandbox_request_allocate() 
 		 *	 will busy-wait to generate an unique id, should we optimize it here?
 		 */
