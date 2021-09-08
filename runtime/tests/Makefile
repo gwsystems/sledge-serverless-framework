@@ -24,6 +24,11 @@ wasm/echo.wasm:
 	make echo.wasm -C echo
 	cp echo/echo.wasm wasm/echo.wasm
 
+wasm/exit.wasm:
+	mkdir -p wasm
+	make exit.wasm -C exit
+	cp exit/exit.wasm wasm/exit.wasm
+
 wasm/gps_ekf.wasm:
 	mkdir -p wasm
 	make gps_ekf.wasm -C TinyEKF -f wasm.mk

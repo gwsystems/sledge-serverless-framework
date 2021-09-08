@@ -1098,9 +1098,8 @@ __wasi_poll_oneoff(void *wasi_context, const __wasi_subscription_t *in, __wasi_e
 __attribute__((noreturn)) void
 __wasi_proc_exit(void *wasi_context, __wasi_exitcode_t exitcode)
 {
-	/* The control flow is unclear here. We need to return from the call to the entrypoint */
-	wasi_unsupported_syscall(__func__);
-	assert(0);
+	struct sandbox *s = current_sandbox_get();
+	longjmp(s->ctxt.start_buf, exitcode);
 }
 
 /**

@@ -1,4 +1,5 @@
 #include <threads.h>
+#include <setjmp.h>
 
 #include "current_sandbox.h"
 #include "sandbox_functions.h"
@@ -104,7 +105,14 @@ current_sandbox_start(void)
 
 	/* Executing the function */
 	current_sandbox_enable_preemption(sandbox);
-	sandbox->return_value = module_entrypoint(current_module);
+
+	rc = setjmp(sandbox->ctxt.start_buf);
+	if (rc == 0) {
+		sandbox->return_value = module_entrypoint(current_module);
+	} else {
+		sandbox->return_value = rc;
+	}
+
 	current_sandbox_disable_preemption(sandbox);
 	sandbox->timestamp_of.completion = __getcycles();
 

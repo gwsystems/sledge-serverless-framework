@@ -1,5 +1,6 @@
 #pragma once
 
+#include <setjmp.h>
 #include <ucontext.h>
 
 #include "arch/reg_t.h"
@@ -11,4 +12,5 @@ struct arch_context {
 	reg_t                  regs[UREG_COUNT];
 	mcontext_t             mctx;
 	bool                   preemptable;
+	jmp_buf                start_buf;
 };
