@@ -87,16 +87,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('./awsm/Cargo.lock') }}
       - name: Compile sledge
         run: |
-          make build 
-          make rtinit
-          mkdir bin
-          mkdir lib
-          SYS_PREFIX="$(pwd)" ./install.sh
-          PATH="$(pwd)/bin:$PATH"
-          echo "$PATH" >> $GITHUB_PATH
-          LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
-          make build-validate
+          make rtinit runtime awsm
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache gocr
         uses: actions/cache@v2
