@@ -85,16 +85,19 @@ jobs:
             ~/.cargo/git
             ./awsm/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('./awsm/Cargo.lock') }}
-      - name: Compile sledge
+      - name: Compile aWsm
         run: |
-          make rtinit runtime awsm
+          make awsm
+      - name: Compile SLEdge
+        run: |
+          make rtinit runtime
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache gocr
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gocr.so
           key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/gocr/**', './runtime/compiletime/**') }}
-        if: success() || failure()
+        if: success()
       - name: Hyde
         run: |
           ./test.sh ocr_hyde
