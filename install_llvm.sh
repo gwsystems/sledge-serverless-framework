@@ -11,7 +11,8 @@ curl --proto '=https' --tlsv1.2 -sSf https://apt.llvm.org/llvm.sh | bash -s -- "
 apt-get install -y --no-install-recommends \
 	"libc++-$LLVM_VERSION-dev" \
 	"libc++abi-$LLVM_VERSION-dev" \
-	"libc++1-$LLVM_VERSION"
+	"libc++1-$LLVM_VERSION" \
+	"libunwind-$LLVM_VERSION"
 
 update-alternatives --install /usr/bin/clang clang "/usr/bin/clang-$LLVM_VERSION" 100
 update-alternatives --install /usr/bin/clang++ clang++ "/usr/bin/clang++-$LLVM_VERSION" 100
