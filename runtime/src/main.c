@@ -184,6 +184,8 @@ runtime_configure()
 		scheduler = SCHEDULER_EDF;
 	} else if (strcmp(scheduler_policy, "FIFO") == 0) {
 		scheduler = SCHEDULER_FIFO;
+	} else if (strcmp(scheduler_policy, "SRSF") == 0) {
+		scheduler = SCHEDULER_SRSF;
 	} else {
 		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
 	}
