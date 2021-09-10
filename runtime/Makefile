@@ -39,6 +39,12 @@ BINARY_NAME=sledgert
 
 # Debugging Flags
 
+# Enables logs of WASI syscalls
+# CFLAGS += -DLOG_WASI
+
+# Writes sandbox stderr to host stderr
+# CFLAGS += -DLOG_SANDBOX_STDERR
+
 # Strips out calls to assert() and disables debuglog
 # CFLAGS += -DNDEBUG
 
