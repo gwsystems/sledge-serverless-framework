@@ -4,7 +4,7 @@
 	"port": 10000,
 	"expected-execution-us": 1000,
 	"relative-deadline-us": 50000,
-	"http-req-size": 1024,
-	"http-resp-size": 1024,
+	"http-req-size": 5024000,
+	"http-resp-size": 5024000,
 	"http-resp-content-type": "text/plain"
 }
