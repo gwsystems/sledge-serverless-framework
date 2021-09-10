@@ -23,11 +23,7 @@ experiment_client() {
 	local -ri total_count=10
 
 	local tmpfs_dir=/tmp/sledge_imageresize_test/
-	[[ -d "$tmpfs_dir" ]] && {
-		panic "tmpfs directory exists. Aborting"
-		return 1
-	}
-	mkdir $tmpfs_dir
+	mkdir -p $tmpfs_dir
 
 	for ((i = 0; i < total_count; i++)); do
 		ext="$RANDOM"
@@ -51,7 +47,7 @@ experiment_client() {
 	done
 
 	echo "$success_count / $total_count" | tee -a "$results_directory/result.txt"
-	rm -r "$tmpfs_dir"
+	# rm -r "$tmpfs_dir"
 
 	return 0
 }

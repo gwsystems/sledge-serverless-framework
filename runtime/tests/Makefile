@@ -9,46 +9,55 @@ SLEDGE_BIN_DIR=${SLEDGE_RT_DIR}/bin/
 SLEDGE_WASMISA=${SLEDGE_RT_DIR}/compiletime/instr.c
 SLEDGE_MEMC=${SLEDGE_RT_DIR}/compiletime/memory/64bit_nix.c
 
+.PHONY: wasm/empty.wasm
 wasm/empty.wasm:
 	mkdir -p wasm
 	make empty.wasm -C empty
 	cp empty/empty.wasm wasm/empty.wasm
 
+.PHONY: wasm/fibonacci.wasm
 wasm/fibonacci.wasm:
 	mkdir -p wasm
 	make fibonacci.wasm -C fibonacci
 	cp fibonacci/fibonacci.wasm wasm/fibonacci.wasm
 
+.PHONY: wasm/echo.wasm
 wasm/echo.wasm:
 	mkdir -p wasm
 	make echo.wasm -C echo
 	cp echo/echo.wasm wasm/echo.wasm
 
+.PHONY: wasm/exit.wasm
 wasm/exit.wasm:
 	mkdir -p wasm
 	make exit.wasm -C exit
 	cp exit/exit.wasm wasm/exit.wasm
 
+.PHONY: wasm/gps_ekf.wasm
 wasm/gps_ekf.wasm:
 	mkdir -p wasm
 	make gps_ekf.wasm -C TinyEKF -f wasm.mk
 	cp TinyEKF/gps_ekf.wasm wasm/gps_ekf.wasm
 
+.PHONY: wasm/cifar10.wasm
 wasm/cifar10.wasm:
 	mkdir -p wasm
 	make cifar10.wasm -C CMSIS_5_NN
 	cp ./CMSIS_5_NN/cifar10.wasm wasm/cifar10.wasm
 
+.PHONY: wasm/gocr.wasm
 wasm/gocr.wasm:
 	mkdir -p wasm
 	make gocr.wasm -C gocr -f wasm.mk
 	cp ./gocr/gocr.wasm wasm/gocr.wasm
 
+.PHONY: wasm/resize_image.wasm
 wasm/resize_image.wasm:
 	mkdir -p wasm
 	make resize_image.wasm -C ./sod/
 	cp ./sod/resize_image.wasm wasm/resize_image.wasm
 
+.PHONY: wasm/license_plate_detection.wasm
 wasm/license_plate_detection.wasm:
 	mkdir -p wasm
 	make license_plate_detection.wasm -C ./sod/
