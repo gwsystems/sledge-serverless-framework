@@ -3,7 +3,9 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdatomic.h>
 
+#include "memlogging.h"
 #include "client_socket.h"
 #include "current_sandbox.h"
 #include "global_request_scheduler.h"
@@ -30,6 +32,7 @@ enum SCHEDULER
 };
 
 extern enum SCHEDULER scheduler;
+extern _Atomic uint32_t scheduling_counter;
 
 static inline struct sandbox *
 scheduler_edf_get_next()
@@ -181,6 +184,11 @@ scheduler_runqueue_initialize()
 	}
 }
 
+static inline void
+scheduling_counter_increment()
+{
+        atomic_fetch_add(&scheduling_counter, 1);
+}
 /**
  * Called by the SIGALRM handler after a quantum
  * Assumes the caller validates that there is something to preempt
@@ -204,6 +212,8 @@ scheduler_preempt(ucontext_t *user_context)
 	/* If current equals next, no switch is necessary, so resume execution */
 	if (current == next) return;
 
+	scheduling_counter_increment();
+	mem_log("scheduling count is %u\n", scheduling_counter); 
 #ifdef LOG_PREEMPTION
 	debuglog("Preempting sandbox %lu to run sandbox %lu\n", current->id, next->id);
 #endif

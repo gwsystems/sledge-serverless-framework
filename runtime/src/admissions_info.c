@@ -12,19 +12,18 @@ void
 admissions_info_initialize(struct admissions_info *self, char* module_name, int percentile, uint64_t expected_execution,
                            uint64_t relative_deadline)
 {
+	assert(self != NULL);
 	perf_window_initialize(&self->perf_window, module_name);
+	if (unlikely(percentile < 50 || percentile > 99)) panic("Invalid admissions percentile");
+	self->percentile = percentile;
+	self->control_index = PERF_WINDOW_BUFFER_SIZE * percentile / 100;
 #ifdef ADMISSIONS_CONTROL
 	assert(relative_deadline > 0);
 	assert(expected_execution > 0);
 	self->relative_deadline = relative_deadline;
 	self->estimate          = admissions_control_calculate_estimate(expected_execution, relative_deadline);
 	debuglog("Initial Estimate: %lu\n", self->estimate);
-	assert(self != NULL);
 
-	if (unlikely(percentile < 50 || percentile > 99)) panic("Invalid admissions percentile");
-	self->percentile = percentile;
-
-	self->control_index = PERF_WINDOW_BUFFER_SIZE * percentile / 100;
 #ifdef LOG_ADMISSIONS_CONTROL
 	debuglog("Percentile: %d\n", self->percentile);
 	debuglog("Control Index: %d\n", self->control_index);

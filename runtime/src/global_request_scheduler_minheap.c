@@ -71,12 +71,12 @@ sandbox_request_get_priority_fn(void *element)
 	return sandbox_request->absolute_deadline;
 };
 
-uint64_t
+int64_t
 sandbox_request_get_priority_srsf_fn(void *element)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)element;
 	uint64_t now = __getcycles();	
-	uint64_t remaining_slack = sandbox_request->remaining_slack - (now - sandbox_request->last_update_timestamp);
+	int64_t remaining_slack = sandbox_request->remaining_slack - (now - sandbox_request->last_update_timestamp);
 	return remaining_slack;
 };
 

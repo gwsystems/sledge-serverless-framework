@@ -144,7 +144,10 @@ perf_window_get_percentile(struct perf_window *self, int percentile, int precomp
 	assert(self != NULL);
 	assert(percentile >= 50 && percentile <= 99);
 	int size = self->count;
-	assert(size > 0);
+	//assert(size > 0);
+	if (size == 0) {
+		return 0;
+	}
 
 	if (likely(size >= PERF_WINDOW_BUFFER_SIZE)) return self->by_duration[precomputed_index].execution_time;
 

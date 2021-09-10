@@ -105,12 +105,12 @@ sandbox_get_priority(void *element)
 	return sandbox->absolute_deadline;
 };
 
-static inline uint64_t
+static inline int64_t
 sandbox_get_srsf_priority(void *element)
 {
 	struct sandbox *sandbox = (struct sandbox *)element;
 	uint64_t now = __getcycles();
-        uint64_t remaining_slack = sandbox->remaining_slack - (now - sandbox->last_update_timestamp);
+        int64_t remaining_slack = sandbox->remaining_slack - (now - sandbox->last_update_timestamp);
         return remaining_slack;
 };
 
@@ -230,9 +230,9 @@ sandbox_mem_print_perf(struct sandbox *sandbox)
 		uint32_t delayed_us = (sandbox->completion_timestamp - sandbox->absolute_deadline) 
 					/ runtime_processor_speed_MHz;
                 if (miss_deadline) {
-                        mem_log("%lu miss deadline, delayed %u us, actual cost %u\n", sandbox->id, delayed_us, total_time);
+                        mem_log("%lu miss deadline, delayed %u us, actual cost %u module name %s\n", sandbox->id, delayed_us, total_time, sandbox->module->name);
                 } else {
-                        mem_log("%lu meet deadline\n", sandbox->id);
+                        mem_log("%lu meet deadline, module name %s\n", sandbox->id, sandbox->module->name);
                 }
         }
 
