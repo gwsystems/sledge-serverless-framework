@@ -35,7 +35,7 @@ ocr_hyde() {
 	# FIXME: This check is a hack because GitHub Actions is caching
 	# the *.so file in the destination file, not the subodule it built from
 	if [[ ! -f "$base_dir/runtime/bin/gocr.so" ]]; then
-		make gocr -C "$base_dir/runtime/tests" || exit 1
+		make gocr.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/hyde" || exit 1
 	./run.sh || failed_tests+=("ocr_hyde")
@@ -45,7 +45,7 @@ ocr_hyde() {
 
 ocr_handwriting() {
 	if [[ ! -f "$base_dir/runtime/bin/gocr.so" ]]; then
-		make gocr -C "$base_dir/runtime/tests" || exit 1
+		make gocr.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/handwriting" || exit 1
 	./run.sh || failed_tests+=("ocr_handwriting")
@@ -55,7 +55,7 @@ ocr_handwriting() {
 
 ocr_fivebyeight() {
 	if [[ ! -f "$base_dir/runtime/bin/gocr.so" ]]; then
-		make gocr -C "$base_dir/runtime/tests" || exit 1
+		make gocr.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/fivebyeight" || exit 1
 	./run.sh || failed_tests+=("ocr_fivebyeight")
@@ -65,7 +65,7 @@ ocr_fivebyeight() {
 
 ocr_by_word() {
 	if [[ ! -f "$base_dir/runtime/bin/gocr.so" ]]; then
-		make gocr -C "$base_dir/runtime/tests" || exit 1
+		make gocr.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/by_word" || exit 1
 	# ./install.sh || exit 1
@@ -76,7 +76,7 @@ ocr_by_word() {
 
 ocr_by_font() {
 	if [[ ! -f "$base_dir/runtime/bin/gocr.so" ]]; then
-		make gocr -C "$base_dir/runtime/tests" || exit 1
+		make gocr.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/by_font" || exit 1
 	# ./install.sh || exit 1
@@ -87,7 +87,7 @@ ocr_by_font() {
 
 ocr_by_dpi() {
 	if [[ ! -f "$base_dir/runtime/bin/gocr.so" ]]; then
-		make gocr -C "$base_dir/runtime/tests" || exit 1
+		make gocr.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ocr/by_dpi" || exit 1
 	# ./install.sh || exit 1
@@ -99,7 +99,7 @@ ocr_by_dpi() {
 # EKF Tests
 ekf_by_iteration() {
 	if [[ ! -f "$base_dir/runtime/bin/gps_ekf.so" ]]; then
-		make tinyekf -C "$base_dir/runtime/tests" || exit 1
+		make gps_ekf.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ekf/by_iteration" || exit 1
 	./run.sh || failed_tests+=("ekf_by_iteration")
@@ -109,7 +109,7 @@ ekf_by_iteration() {
 
 ekf_one_iteration() {
 	if [[ ! -f "$base_dir/runtime/bin/gps_ekf.so" ]]; then
-		make tinyekf -C "$base_dir/runtime/tests" || exit 1
+		make gps_ekf.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/ekf/one_iteration" || exit 1
 	./run.sh || failed_tests+=("ekf_one_iteration")
@@ -120,7 +120,7 @@ ekf_one_iteration() {
 # cifar10 Tests
 image_classification() {
 	if [[ ! -f "$base_dir/runtime/bin/cifar10.so" ]]; then
-		make cifar10 -C "$base_dir/runtime/tests" || exit 1
+		make cifar10.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/imageclassification" || exit 1
 	./run.sh || failed_tests+=("image_classification")
@@ -130,7 +130,7 @@ image_classification() {
 
 image_resize() {
 	if [[ ! -f "$base_dir/runtime/bin/resize_image.so" ]]; then
-		make sod -C "$base_dir/runtime/tests" || exit 1
+		make resize_image.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/imageresize/test" || exit 1
 	# ./install.sh || exit 1
@@ -141,7 +141,7 @@ image_resize() {
 
 image_resize_by_resolution() {
 	if [[ ! -f "$base_dir/runtime/bin/resize_image.so" ]]; then
-		make sod -C "$base_dir/runtime/tests" || exit 1
+		make resize_image.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/imageresize/by_resolution" || exit 1
 	# ./install.sh || exit 1
@@ -152,7 +152,7 @@ image_resize_by_resolution() {
 
 lpd_by_plate_count() {
 	if [[ ! -f "$base_dir/runtime/bin/license_plate_detection.so" ]]; then
-		make sod -C "$base_dir/runtime/tests" || exit 1
+		make license_plate_detection.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/applications/licenseplate/by_plate_count" || exit 1
 	./run.sh || failed_tests+=("lpd_by_plate_count")
@@ -163,7 +163,7 @@ lpd_by_plate_count() {
 bimodal() {
 	echo "Bimodal"
 	if [[ ! -f "$base_dir/runtime/bin/fibonacci.so" ]]; then
-		make rttests -C "$base_dir/runtime/tests" || exit 1
+		make fibonacci.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/bimodal/" || exit 1
 	# ./install.sh || exit 1
@@ -175,7 +175,7 @@ bimodal() {
 concurrency() {
 	echo "Concurrency"
 	if [[ ! -f "$base_dir/runtime/bin/empty.so" ]]; then
-		make rttests -C "$base_dir/runtime/tests" || exit 1
+		make fibonacci.install -C "$base_dir/runtime/tests" || exit 1
 	fi
 	pushd "$base_dir/runtime/experiments/concurrency/" || exit 1
 	# ./install.sh || exit 1
