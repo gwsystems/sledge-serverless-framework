@@ -156,13 +156,13 @@ set_i64(uint32_t offset, int64_t v)
 INLINE void
 set_global_i32(uint32_t offset, int32_t v)
 {
-	return set_i32(offset, v);
+	set_i32(offset, v);
 }
 
 INLINE void
 set_global_i64(uint32_t offset, int64_t v)
 {
-	return set_i62(offset, v);
+	set_i62(offset, v);
 }
 
 // Table handling functionality
