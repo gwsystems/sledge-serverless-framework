@@ -77,23 +77,13 @@ get_i64(uint32_t offset)
 INLINE int32_t
 get_global_i32(uint32_t offset)
 {
-	assert(offset + sizeof(int32_t) < local_sandbox_context_cache.memory.size);
-
-	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
-	void *address      = &mem_as_chars[offset];
-
-	return *(int32_t *)address;
+	return get_i32(offset);
 }
 
 INLINE int64_t
 get_global_i64(uint32_t offset)
 {
-	assert(offset + sizeof(int64_t) < local_sandbox_context_cache.memory.size);
-
-	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
-	void *address      = &mem_as_chars[offset];
-
-	return *(int64_t *)address;
+	return get_i64(offset);
 }
 
 // Now setting routines
@@ -166,30 +156,19 @@ set_i64(uint32_t offset, int64_t v)
 INLINE void
 set_global_i32(uint32_t offset, int32_t v)
 {
-	assert(offset + sizeof(int32_t) < local_sandbox_context_cache.memory.size);
-
-	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
-	void *address      = &mem_as_chars[offset];
-
-	*(int32_t *)address = v;
+	return set_i32(offset, v);
 }
 
 INLINE void
 set_global_i64(uint32_t offset, int64_t v)
 {
-	assert(offset + sizeof(int64_t) < local_sandbox_context_cache.memory.size);
-
-	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
-	void *address      = &mem_as_chars[offset];
-
-	*(int64_t *)address = v;
+	return set_i62(offset, v);
 }
 
 // Table handling functionality
 INLINE char *
 get_function_from_table(uint32_t idx, uint32_t type_id)
 {
-	printf("get_function_from_table idx: %u, type: %u\n", idx, type_id);
 	assert(idx < INDIRECT_TABLE_SIZE);
 
 	struct indirect_table_entry f = local_sandbox_context_cache.module_indirect_table[idx];
