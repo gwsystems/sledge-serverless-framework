@@ -19,7 +19,6 @@ CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds 
 
 # Clang SafeStack
-# This actually seems to "solve" the segfaults
 # https://clang.llvm.org/docs/SafeStack.html
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=safe-stack
 
