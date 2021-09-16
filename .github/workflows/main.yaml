@@ -98,24 +98,24 @@ jobs:
           path: ./runtime/bin/gocr.so
           key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/gocr/**', './runtime/compiletime/**') }}
         if: success()
-      - name: Hyde
-        run: |
-          ./test.sh ocr_hyde
-        if: success() || failure()
-      - name: Upload Hyde Logs on Failure
-        uses: actions/upload-artifact@v2
-        if: failure()
-        with:
-          name: hyde-logs
-          path: ./runtime/experiments/applications/ocr/hyde/res/**/
-      - name: Handwriting
-        run: |
-          ./test.sh ocr_handwriting
-        if: success() || failure()
-      - name: Five by Eight
-        run: |
-          ./test.sh ocr_fivebyeight
-        if: success() || failure()
+      # - name: Hyde
+      #   run: |
+      #     ./test.sh ocr_hyde
+      #   if: success() || failure()
+      # - name: Upload Hyde Logs on Failure
+      #   uses: actions/upload-artifact@v2
+      #   if: failure()
+      #   with:
+      #     name: hyde-logs
+      #     path: ./runtime/experiments/applications/ocr/hyde/res/**/
+      # - name: Handwriting
+      #   run: |
+      #     ./test.sh ocr_handwriting
+      #   if: success() || failure()
+      # - name: Five by Eight
+      #   run: |
+      #     ./test.sh ocr_fivebyeight
+      # if: success() || failure()
       # - name: OCR by Word
       #   run: |
       #     ./test.sh ocr_by_word
