@@ -23,8 +23,8 @@ thread_local struct sandbox_context_cache local_sandbox_context_cache = {
 };
 
 // TODO: Propagate arguments from *.json spec file
-const int   dummy_argc   = 4;
-const char *dummy_argv[] = { "Test", "One", "Two", "Three" };
+const int   dummy_argc   = 1;
+const char *dummy_argv[] = { "Test" };
 
 static inline void
 current_sandbox_enable_preemption(struct sandbox *sandbox)
