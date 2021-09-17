@@ -6,6 +6,9 @@ OPTFLAGS=-O3 -flto
 fibonacci.wasm: main.c
 	@${WASMCC} ${WASMLINKFLAGS} ${OPTFLAGS} $^ -o $@
 
+fibonacci.wat: fibonacci.wasm
+	wasm2wat fibonacci.wasm -o fibonacci.wat
+
 fibonacci.out: main.c
 	@${CC} ${OPTFLAGS} $^ -o $@
 
