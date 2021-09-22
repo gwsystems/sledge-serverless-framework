@@ -12,7 +12,7 @@ static pthread_mutex_t global_request_scheduler_deque_mutex = PTHREAD_MUTEX_INIT
  * @returns pointer to request if added. NULL otherwise
  */
 static struct sandbox_request *
-global_request_scheduler_deque_add(void *sandbox_request_raw)
+global_request_scheduler_deque_add(struct sandbox_request *sandbox_request_raw)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)sandbox_request_raw;
 	int                     return_code     = 1;

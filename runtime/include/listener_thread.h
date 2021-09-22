@@ -18,7 +18,7 @@ int                             listener_thread_register_module(struct module *m
  * @returns true if listener. false if not (probably a worker)
  */
 static inline bool
-listener_thread_is_running()
+is_this_listener_thread()
 {
 	return pthread_self() == listener_thread_id;
 }

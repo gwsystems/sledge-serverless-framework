@@ -15,11 +15,11 @@ static struct priority_queue *global_request_scheduler_minheap;
  * @returns pointer to request if added. NULL otherwise
  */
 static struct sandbox_request *
-global_request_scheduler_minheap_add(void *sandbox_request)
+global_request_scheduler_minheap_add(struct sandbox_request *sandbox_request)
 {
 	assert(sandbox_request);
 	assert(global_request_scheduler_minheap);
-	if (unlikely(!listener_thread_is_running())) panic("%s is only callable by the listener thread\n", __func__);
+	if (unlikely(!is_this_listener_thread())) panic("%s is only callable by the listener thread\n", __func__);
 
 	int return_code = priority_queue_enqueue(global_request_scheduler_minheap, sandbox_request);
 	/* TODO: Propagate -1 to caller. Issue #91 */
@@ -61,14 +61,6 @@ global_request_scheduler_minheap_peek(void)
 {
 	return priority_queue_peek(global_request_scheduler_minheap);
 }
-
-uint64_t
-sandbox_request_get_priority_fn(void *element)
-{
-	struct sandbox_request *sandbox_request = (struct sandbox_request *)element;
-	return sandbox_request->absolute_deadline;
-};
-
 
 /**
  * Initializes the variant and registers against the polymorphic interface
