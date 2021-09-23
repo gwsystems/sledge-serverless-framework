@@ -73,7 +73,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	vim \
 	wabt
 
-ENV LLVM_VERSION=11
+ENV LLVM_VERSION=12
 ADD install_llvm.sh /sledge/install_llvm.sh
 RUN ./sledge/install_llvm.sh $LLVM_VERSION
 
