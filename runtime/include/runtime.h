@@ -40,7 +40,7 @@ extern void runtime_set_resource_limits_to_max(void);
 
 /* External Symbols */
 extern void  alloc_linear_memory(void);
-extern void  expand_memory(void);
+extern int   expand_memory(void);
 INLINE char *get_function_from_table(uint32_t idx, uint32_t type_id);
 INLINE char *get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check);
 extern void  stub_init(int32_t offset);
