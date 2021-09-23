@@ -230,7 +230,8 @@ int
 module_new_from_json(char *file_name)
 {
 	assert(file_name != NULL);
-	int return_code = -1;
+	int       return_code = -1;
+	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
 
 	/* Use stat to get file attributes and make sure file is present and not empty */
 	struct stat stat_buffer;
@@ -282,7 +283,6 @@ module_new_from_json(char *file_name)
 	/* Initialize the Jasmine Parser and an array to hold the tokens */
 	jsmn_parser module_parser;
 	jsmn_init(&module_parser);
-	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
 
 	/* Use Jasmine to parse the JSON */
 	int total_tokens = jsmn_parse(&module_parser, file_buffer, total_chars_read, tokens,
