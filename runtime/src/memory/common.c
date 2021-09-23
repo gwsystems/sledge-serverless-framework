@@ -19,6 +19,7 @@ add_function_to_table(uint32_t idx, uint32_t type_id, char *pointer)
 {
 	assert(idx < INDIRECT_TABLE_SIZE);
 	assert(local_sandbox_context_cache.module_indirect_table != NULL);
+	assert(pointer != NULL);
 
 	/* TODO: atomic for multiple concurrent invocations? Issue #97 */
 	if (local_sandbox_context_cache.module_indirect_table[idx].type_id == type_id
