@@ -6,7 +6,6 @@
 #include "lock.h"
 #include "listener_thread.h"
 #include "panic.h"
-#include "priority_queue.h"
 #include "runtime.h"
 #include "worker_thread.h"
 
