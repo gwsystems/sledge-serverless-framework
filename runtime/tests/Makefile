@@ -1,7 +1,7 @@
 BASE_DIR=../../
 AWSM_CC=${BASE_DIR}/awsm/target/release/awsm
 CC = clang
-OPTFLAGS=-O3 -flto
+OPTFLAGS=-O3 -flto -g
 
 SLEDGE_RT_DIR=${BASE_DIR}/runtime/
 SLEDGE_RT_INC=${SLEDGE_RT_DIR}/include/
@@ -14,6 +14,7 @@ wasm/empty.wasm:
 	make empty.wasm -C empty
 	cp empty/empty.wasm wasm/empty.wasm
 
+.PHONY: wasm/fibonacci.wasm
 wasm/fibonacci.wasm:
 	mkdir -p wasm
 	make fibonacci.wasm -C fibonacci
@@ -58,7 +59,10 @@ bc/%.bc: wasm/%.wasm
 	mkdir -p bc
 	${AWSM_CC} $< -o $@
 
-so/%.so: bc/%.bc
+bc/%.ll: bc/%.bc
+	llvm-dis $< -o $@
+
+so/%.so: bc/%.bc ${SLEDGE_MEMC} ${SLEDGE_WASMISA}
 	mkdir -p so
 	${CC} --shared -fPIC ${OPTFLAGS} -I${SLEDGE_RT_INC} ${SLEDGE_MEMC} ${SLEDGE_WASMISA} $< -o $@
 
