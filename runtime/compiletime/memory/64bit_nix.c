@@ -15,6 +15,9 @@ get_f32(uint32_t offset)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "get_f32 offset: %u, value: %f\n", offset, *(float *)address);
+#endif
 
 	return *(float *)address;
 }
@@ -26,6 +29,9 @@ get_f64(uint32_t offset)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "get_f64 offset: %u, value: %lf\n", offset, *(double *)address);
+#endif
 
 	return *(double *)address;
 }
@@ -37,6 +43,9 @@ get_i8(uint32_t offset)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "get_i8 offset: %u, value: %d\n", offset, *(int8_t *)address);
+#endif
 
 	return *(int8_t *)address;
 }
@@ -48,6 +57,9 @@ get_i16(uint32_t offset)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "get_i16 offset: %u, value: %d\n", offset, *(int16_t *)address);
+#endif
 
 	return *(int16_t *)address;
 }
@@ -59,6 +71,9 @@ get_i32(uint32_t offset)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "get_i32 offset: %u, value: %d\n", offset, *(int32_t *)address);
+#endif
 
 	return *(int32_t *)address;
 }
@@ -70,6 +85,9 @@ get_i64(uint32_t offset)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "get_i64 offset: %u, value: %ld\n", offset, *(int64_t *)address);
+#endif
 
 	return *(int64_t *)address;
 }
@@ -94,6 +112,9 @@ set_f32(uint32_t offset, float v)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "set_f32 offset: %u, value: %f\n", offset, v);
+#endif
 
 	*(float *)address = v;
 }
@@ -105,6 +126,9 @@ set_f64(uint32_t offset, double v)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "set_f64 offset: %u, value: %lf\n", offset, v);
+#endif
 
 	*(double *)address = v;
 }
@@ -116,6 +140,9 @@ set_i8(uint32_t offset, int8_t v)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "set_i8 offset: %u, value: %d\n", offset, v);
+#endif
 
 	*(int8_t *)address = v;
 }
@@ -127,6 +154,9 @@ set_i16(uint32_t offset, int16_t v)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "set_i16 offset: %u, value: %d\n", offset, v);
+#endif
 
 	*(int16_t *)address = v;
 }
@@ -138,6 +168,9 @@ set_i32(uint32_t offset, int32_t v)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "set_i32 offset: %u, value: %d\n", offset, v);
+#endif
 
 	*(int32_t *)address = v;
 }
@@ -149,6 +182,9 @@ set_i64(uint32_t offset, int64_t v)
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
+#ifdef LOG_LINEAR_MEMORY
+	fprintf(stderr, "set_i64 offset: %u, value: %ld\n", offset, v);
+#endif
 
 	*(int64_t *)address = v;
 }
@@ -169,14 +205,20 @@ set_global_i64(uint32_t offset, int64_t v)
 // INLINE char *
 // get_function_from_table(uint32_t idx, uint32_t type_id)
 // {
+// #ifdef LOG_FUNCTION_TABLE
+// 	fprintf(stderr, "get_function_from_table(idx: %u, type_id: %u)\n", idx, type_id);
+// 	fprintf(stderr, "indirect_table_size: %u\n", INDIRECT_TABLE_SIZE);
+// #endif
 // 	assert(idx < INDIRECT_TABLE_SIZE);
 
 // 	struct indirect_table_entry f = local_sandbox_context_cache.module_indirect_table[idx];
-
+// #ifdef LOG_FUNCTION_TABLE
+// 	fprintf(stderr, "assumed type: %u, type in table: %u\n", type_id, f.type_id);
+// #endif
 // 	// FIXME: Commented out function type check because of gocr
 // 	// assert(f.type_id == type_id);
 
-// 	assert(f.func_pointer);
+// 	assert(f.func_pointer != NULL);
 
 // 	return f.func_pointer;
 // }
