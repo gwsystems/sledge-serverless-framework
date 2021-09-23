@@ -105,12 +105,15 @@ sandbox_get_priority(void *element)
 	return sandbox->absolute_deadline;
 };
 
-static inline int64_t
+static inline uint64_t
 sandbox_get_srsf_priority(void *element)
 {
 	struct sandbox *sandbox = (struct sandbox *)element;
 	uint64_t now = __getcycles();
         int64_t remaining_slack = sandbox->remaining_slack - (now - sandbox->last_update_timestamp);
+	if (remaining_slack < 0) {
+		return 0;
+	}
         return remaining_slack;
 };
 
