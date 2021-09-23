@@ -53,14 +53,18 @@ expand_memory(void)
 	return 0;
 }
 
+/**
+ * @brief Get the memory ptr for runtime object
+ *
+ * @param offset base offset of pointer
+ * @param length length starting at base offset
+ * @return host address of offset into WebAssembly linear memory
+ */
 INLINE char *
-get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check)
+get_memory_ptr(uint32_t offset, uint32_t length)
 {
-	// Due to how we setup memory for x86, the virtual memory mechanism will catch the error, if bounds <
-	// WASM_PAGE_SIZE
-	assert(bounds_check < WASM_PAGE_SIZE
-	       || (local_sandbox_context_cache.memory.size > bounds_check
-	           && offset <= local_sandbox_context_cache.memory.size - bounds_check));
+	assert(local_sandbox_context_cache.memory.size > length);
+	assert(offset <= local_sandbox_context_cache.memory.size - length);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	char *address      = &mem_as_chars[offset];
