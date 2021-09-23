@@ -47,7 +47,7 @@ experiment_client() {
 	done
 
 	echo "$success_count / $total_count" | tee -a "$results_directory/result.txt"
-	# rm -r "$tmpfs_dir"
+	rm -r "$tmpfs_dir"
 
 	return 0
 }
