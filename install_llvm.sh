@@ -13,7 +13,7 @@ apt-get install -y --no-install-recommends \
 	"libc++abi-$LLVM_VERSION-dev" \
 	"libc++1-$LLVM_VERSION" \
 	"libunwind-$LLVM_VERSION" \
-	"libunwind-dev-$LLVM_VERSION"
+	"libunwind-$LLVM_VERSION-dev"
 
 update-alternatives --install /usr/bin/clang clang "/usr/bin/clang-$LLVM_VERSION" 100
 update-alternatives --install /usr/bin/clang++ clang++ "/usr/bin/clang++-$LLVM_VERSION" 100
