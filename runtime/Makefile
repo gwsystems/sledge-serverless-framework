@@ -116,7 +116,7 @@ JSMNCFLAGS += -DJSMN_STRICT
 .PHONY: all
 all: runtime
 
-bin/sledgert:
+bin/sledgert: ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
 	@${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ -o bin/sledgert
