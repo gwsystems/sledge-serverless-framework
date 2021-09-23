@@ -1,5 +1,6 @@
 SHELL:=/bin/bash
 
+.PHONY: awsm/target/release/awsm
 awsm/target/release/awsm:
 	@echo "Building aWsm compiler"
 	@cd awsm && cargo build --release
@@ -33,4 +34,5 @@ runtime:
 .PHONY: install
 install: rtinit
 
+.PHONY: all
 all: runtime awsm
