@@ -1,6 +1,8 @@
 #include <assert.h>
 #include "types.h"
 
+extern void current_sandbox_trap(wasm_trap_t trapno);
+
 uint32_t
 instruction_memory_size()
 {
@@ -11,7 +13,11 @@ instruction_memory_size()
 INLINE float
 get_f32(uint32_t offset)
 {
-	assert(offset + sizeof(float) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(float) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(float),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -25,7 +31,11 @@ get_f32(uint32_t offset)
 INLINE double
 get_f64(uint32_t offset)
 {
-	assert(offset + sizeof(double) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(double) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(double),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -39,7 +49,11 @@ get_f64(uint32_t offset)
 INLINE int8_t
 get_i8(uint32_t offset)
 {
-	assert(offset + sizeof(int8_t) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(int8_t) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(int8_t),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -53,7 +67,11 @@ get_i8(uint32_t offset)
 INLINE int16_t
 get_i16(uint32_t offset)
 {
-	assert(offset + sizeof(int16_t) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(int16_t) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(int16_t),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -67,7 +85,11 @@ get_i16(uint32_t offset)
 INLINE int32_t
 get_i32(uint32_t offset)
 {
-	assert(offset + sizeof(int32_t) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(int32_t) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(int32_t),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -81,7 +103,11 @@ get_i32(uint32_t offset)
 INLINE int64_t
 get_i64(uint32_t offset)
 {
-	assert(offset + sizeof(int64_t) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(int64_t) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(int64_t),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -108,7 +134,11 @@ get_global_i64(uint32_t offset)
 INLINE void
 set_f32(uint32_t offset, float v)
 {
-	assert(offset + sizeof(float) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(float) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(float),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -122,7 +152,11 @@ set_f32(uint32_t offset, float v)
 INLINE void
 set_f64(uint32_t offset, double v)
 {
-	assert(offset + sizeof(double) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(double) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(double),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -136,7 +170,11 @@ set_f64(uint32_t offset, double v)
 INLINE void
 set_i8(uint32_t offset, int8_t v)
 {
-	assert(offset + sizeof(int8_t) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(int8_t) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(int8_t),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -150,7 +188,11 @@ set_i8(uint32_t offset, int8_t v)
 INLINE void
 set_i16(uint32_t offset, int16_t v)
 {
-	assert(offset + sizeof(int16_t) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(int16_t) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(int16_t),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -164,7 +206,11 @@ set_i16(uint32_t offset, int16_t v)
 INLINE void
 set_i32(uint32_t offset, int32_t v)
 {
-	assert(offset + sizeof(int32_t) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(int32_t) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(int32_t),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -178,7 +224,11 @@ set_i32(uint32_t offset, int32_t v)
 INLINE void
 set_i64(uint32_t offset, int64_t v)
 {
-	assert(offset + sizeof(int64_t) <= local_sandbox_context_cache.memory.size);
+	if (unlikely(offset + (uint32_t)sizeof(int64_t) > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, (uint32_t)sizeof(int64_t),
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -202,23 +252,23 @@ set_global_i64(uint32_t offset, int64_t v)
 }
 
 // Table handling functionality
-// INLINE char *
+// char *
 // get_function_from_table(uint32_t idx, uint32_t type_id)
 // {
-// #ifdef LOG_FUNCTION_TABLE
-// 	fprintf(stderr, "get_function_from_table(idx: %u, type_id: %u)\n", idx, type_id);
-// 	fprintf(stderr, "indirect_table_size: %u\n", INDIRECT_TABLE_SIZE);
-// #endif
-// 	assert(idx < INDIRECT_TABLE_SIZE);
+// 	if (unlikely(idx >= INDIRECT_TABLE_SIZE)) {
+// 		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
+// 		current_sandbox_trap(WASM_TRAP_INVALID_INDEX);
+// 	}
 
 // 	struct indirect_table_entry f = local_sandbox_context_cache.module_indirect_table[idx];
-// #ifdef LOG_FUNCTION_TABLE
-// 	fprintf(stderr, "assumed type: %u, type in table: %u\n", type_id, f.type_id);
-// #endif
-// 	// FIXME: Commented out function type check because of gocr
-// 	// assert(f.type_id == type_id);
-
-// 	assert(f.func_pointer != NULL);
+// 	if (unlikely(f.type_id != type_id)) {
+// 		fprintf(stderr, "Function Type mismatch. Expected: %u, Actual: %u\n", type_id, f.type_id);
+// 		current_sandbox_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+// 	}
+// 	if (unlikely(f.func_pointer == NULL)) {
+// 		fprintf(stderr, "Function Type mismatch. Index %u resolved to NULL Pointer\n", idx);
+// 		current_sandbox_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+// 	}
 
 // 	return f.func_pointer;
 // }

@@ -49,3 +49,5 @@ current_sandbox_set(struct sandbox *sandbox)
 		worker_thread_current_sandbox = sandbox;
 	}
 }
+
+void current_sandbox_trap(wasm_trap_t trapno);

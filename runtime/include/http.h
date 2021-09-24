@@ -6,9 +6,10 @@
 #define HTTP_MAX_HEADER_LENGTH       32
 #define HTTP_MAX_HEADER_VALUE_LENGTH 64
 
-#define HTTP_RESPONSE_400_BAD_REQUEST         "HTTP/1.1 400 Bad Request\r\n\r\n"
-#define HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE   "HTTP/1.1 413 Payload Too Large\r\n\r\n"
-#define HTTP_RESPONSE_503_SERVICE_UNAVAILABLE "HTTP/1.1 503 Service Unavailable\r\n\r\n"
+#define HTTP_RESPONSE_400_BAD_REQUEST           "HTTP/1.1 400 Bad Request\r\n\r\n"
+#define HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE     "HTTP/1.1 413 Payload Too Large\r\n\r\n"
+#define HTTP_RESPONSE_500_INTERNAL_SERVER_ERROR "HTTP/1.1 500 Internal Server Error\r\n\r\n"
+#define HTTP_RESPONSE_503_SERVICE_UNAVAILABLE   "HTTP/1.1 503 Service Unavailable\r\n\r\n"
 
 #define HTTP_RESPONSE_200_TEMPLATE \
 	"HTTP/1.1 200 OK\r\n"      \

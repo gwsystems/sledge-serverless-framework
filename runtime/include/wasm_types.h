@@ -15,3 +15,15 @@ struct wasm_memory {
 	uint32_t size;
 	uint64_t max;
 };
+
+/* Based on example traps listed at https://webassembly.org/docs/security/ */
+typedef enum
+{
+	WASM_TRAP_EXIT                          = 1,
+	WASM_TRAP_INVALID_INDEX                 = 2,
+	WASM_TRAP_MISMATCHED_FUNCTION_TYPE      = 3,
+	WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW = 4,
+	WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY   = 5,
+	WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION  = 6,
+	WASM_TRAP_COUNT
+} wasm_trap_t;

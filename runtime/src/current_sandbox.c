@@ -62,6 +62,20 @@ current_sandbox_disable_preemption(struct sandbox *sandbox)
 	}
 }
 
+void
+current_sandbox_trap(wasm_trap_t trapno)
+{
+	assert(trapno != 0);
+	assert(trapno < WASM_TRAP_COUNT);
+
+	struct sandbox *sandbox = current_sandbox_get();
+	assert(sandbox != NULL);
+	assert(sandbox->state == SANDBOX_RUNNING);
+	assert(sandbox->ctxt.preemptable == true);
+
+	longjmp(sandbox->ctxt.start_buf, trapno);
+}
+
 /**
  * Sandbox execution logic
  * Handles setup, request parsing, WebAssembly initialization, function execution, response building and
@@ -73,6 +87,7 @@ current_sandbox_start(void)
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING);
+	assert(sandbox->ctxt.preemptable == false);
 
 	char *error_message = "";
 	int   rc            = 0;
@@ -81,10 +96,12 @@ current_sandbox_start(void)
 
 	rc = sandbox_receive_request(sandbox);
 	if (rc == -2) {
+		error_message = "Request size exceeded Buffer\n";
 		/* Request size exceeded Buffer, send 413 Payload Too Large */
 		client_socket_send(sandbox->client_socket_descriptor, 413);
 		goto err;
 	} else if (rc == -1) {
+		error_message = "Error receiving request\n";
 		client_socket_send(sandbox->client_socket_descriptor, 400);
 		goto err;
 	}
@@ -104,17 +121,46 @@ current_sandbox_start(void)
 	assert(sandbox->wasi_context != NULL);
 
 	/* Executing the function */
-	current_sandbox_enable_preemption(sandbox);
 
 	rc = setjmp(sandbox->ctxt.start_buf);
 	if (rc == 0) {
+		current_sandbox_enable_preemption(sandbox);
 		sandbox->return_value = module_entrypoint(current_module);
+		current_sandbox_disable_preemption(sandbox);
+		sandbox->timestamp_of.completion = __getcycles();
 	} else {
-		sandbox->return_value = rc;
+		current_sandbox_disable_preemption(sandbox);
+		sandbox->timestamp_of.completion = __getcycles();
+		switch (rc) {
+		case WASM_TRAP_EXIT:
+			break;
+		case WASM_TRAP_INVALID_INDEX:
+			error_message = "WebAssembly Trap: Invalid Index\n";
+			client_socket_send(sandbox->client_socket_descriptor, 500);
+			goto err;
+			break;
+		case WASM_TRAP_MISMATCHED_FUNCTION_TYPE:
+			error_message = "WebAssembly Trap: Mismatched Function Type\n";
+			client_socket_send(sandbox->client_socket_descriptor, 500);
+			goto err;
+			break;
+		case WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW:
+			error_message = "WebAssembly Trap: Protected Call Stack Overflow\n";
+			client_socket_send(sandbox->client_socket_descriptor, 500);
+			goto err;
+			break;
+		case WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY:
+			error_message = "WebAssembly Trap: Out of Bounds Linear Memory Access\n";
+			client_socket_send(sandbox->client_socket_descriptor, 500);
+			goto err;
+			break;
+		case WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION:
+			error_message = "WebAssembly Trap: Illegal Arithmetic Operation\n";
+			client_socket_send(sandbox->client_socket_descriptor, 500);
+			goto err;
+			break;
+		}
 	}
-
-	current_sandbox_disable_preemption(sandbox);
-	sandbox->timestamp_of.completion = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
 	if (sandbox_send_response(sandbox) < 0) {

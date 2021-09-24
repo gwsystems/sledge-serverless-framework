@@ -1108,7 +1108,8 @@ __attribute__((noreturn)) void
 __wasi_proc_exit(void *wasi_context, __wasi_exitcode_t exitcode)
 {
 	struct sandbox *s = current_sandbox_get();
-	longjmp(s->ctxt.start_buf, exitcode);
+	s->return_value   = exitcode;
+	longjmp(s->ctxt.start_buf, WASM_TRAP_EXIT);
 }
 
 /**

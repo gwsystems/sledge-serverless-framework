@@ -20,6 +20,10 @@
 #define PAGE_SIZE    (unsigned long)(1 << 12)
 #define WEAK         __attribute__((weak))
 
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
+
 /* memory also provides the table access functions */
 #define INDIRECT_TABLE_SIZE (1 << 10)
 

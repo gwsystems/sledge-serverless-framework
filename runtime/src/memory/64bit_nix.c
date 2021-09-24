@@ -63,8 +63,11 @@ expand_memory(void)
 INLINE char *
 get_memory_ptr(uint32_t offset, uint32_t length)
 {
-	assert(local_sandbox_context_cache.memory.size > length);
-	assert(offset <= local_sandbox_context_cache.memory.size - length);
+	if (unlikely(offset + length > local_sandbox_context_cache.memory.size)) {
+		fprintf(stderr, "OOB: offset %u + length %u > size %u\n", offset, length,
+		        local_sandbox_context_cache.memory.size);
+		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+	}
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	char *address      = &mem_as_chars[offset];
@@ -103,20 +106,20 @@ instruction_memory_grow(uint32_t count)
 char *
 get_function_from_table(uint32_t idx, uint32_t type_id)
 {
-#ifdef LOG_FUNCTION_TABLE
-	fprintf(stderr, "get_function_from_table(idx: %u, type_id: %u)\n", idx, type_id);
-	fprintf(stderr, "indirect_table_size: %u\n", INDIRECT_TABLE_SIZE);
-#endif
-	assert(idx < INDIRECT_TABLE_SIZE);
+	if (unlikely(idx >= INDIRECT_TABLE_SIZE)) {
+		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
+		current_sandbox_trap(WASM_TRAP_INVALID_INDEX);
+	}
 
 	struct indirect_table_entry f = local_sandbox_context_cache.module_indirect_table[idx];
-#ifdef LOG_FUNCTION_TABLE
-	fprintf(stderr, "assumed type: %u, type in table: %u\n", type_id, f.type_id);
-#endif
-	// FIXME: Commented out function type check because of gocr
-	// assert(f.type_id == type_id);
-
-	assert(f.func_pointer != NULL);
+	if (unlikely(f.type_id != type_id)) {
+		fprintf(stderr, "Function Type mismatch. Expected: %u, Actual: %u\n", type_id, f.type_id);
+		current_sandbox_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+	}
+	if (unlikely(f.func_pointer == NULL)) {
+		fprintf(stderr, "Function Type mismatch. Index %u resolved to NULL Pointer\n", idx);
+		current_sandbox_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+	}
 
 	return f.func_pointer;
 }

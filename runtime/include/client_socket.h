@@ -43,6 +43,10 @@ client_socket_send(int client_socket, int status_code)
 	const char *response;
 	int         rc;
 	switch (status_code) {
+	case 500:
+		response = HTTP_RESPONSE_500_INTERNAL_SERVER_ERROR;
+		http_total_increment_5XX();
+		break;
 	case 503:
 		response = HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
 		http_total_increment_5XX();

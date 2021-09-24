@@ -26,11 +26,12 @@ initialize_region(uint32_t dest_offset, uint32_t n, char src[n])
 void
 add_function_to_table(uint32_t idx, uint32_t type_id, char *pointer)
 {
+	/* Can't trap because this is statically performed as part of initialization */
 	assert(idx < INDIRECT_TABLE_SIZE);
 	assert(local_sandbox_context_cache.module_indirect_table != NULL);
 	assert(pointer != NULL);
 
-	/* TODO: atomic for multiple concurrent invocations? Issue #97 */
+	/* We may be registering the same module on multiple ports */
 	if (local_sandbox_context_cache.module_indirect_table[idx].type_id == type_id
 	    && local_sandbox_context_cache.module_indirect_table[idx].func_pointer == pointer)
 		return;
