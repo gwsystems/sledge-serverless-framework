@@ -2,6 +2,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdnoreturn.h>
 
 #include "panic.h"
 
@@ -11,7 +12,7 @@
  * then update the registers we should return to, then sigreturn (by returning from the handler). This returns to the
  * control flow restored from the mcontext
  */
-void __attribute__((noinline)) __attribute__((noreturn)) arch_context_restore_preempted(void)
+noreturn void __attribute__((noinline)) arch_context_restore_preempted(void)
 {
 	pthread_kill(pthread_self(), SIGUSR1);
 	panic("Unexpectedly reached code after sending self SIGUSR1\n");

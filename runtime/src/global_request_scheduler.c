@@ -1,20 +1,22 @@
+#include <stdnoreturn.h>
+
 #include "global_request_scheduler.h"
 #include "panic.h"
 
 /* Default uninitialized implementations of the polymorphic interface */
-__attribute__((noreturn)) static struct sandbox_request *
+noreturn static struct sandbox_request *
 uninitialized_add(void *arg)
 {
 	panic("Global Request Scheduler Add was called before initialization\n");
 }
 
-__attribute__((noreturn)) static int
+noreturn static int
 uninitialized_remove(struct sandbox_request **arg)
 {
 	panic("Global Request Scheduler Remove was called before initialization\n");
 }
 
-__attribute__((noreturn)) static uint64_t
+noreturn static uint64_t
 uninitialized_peek()
 {
 	panic("Global Request Scheduler Peek was called before initialization\n");

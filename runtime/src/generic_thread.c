@@ -1,13 +1,14 @@
 #include <stdint.h>
+#include <threads.h>
 
 #include "arch/getcycles.h"
 #include "debuglog.h"
 
 /* Implemented by listener and workers */
 
-__thread uint64_t generic_thread_lock_duration   = 0;
-__thread uint64_t generic_thread_lock_longest    = 0;
-__thread uint64_t generic_thread_start_timestamp = 0;
+thread_local uint64_t generic_thread_lock_duration   = 0;
+thread_local uint64_t generic_thread_lock_longest    = 0;
+thread_local uint64_t generic_thread_start_timestamp = 0;
 
 void
 generic_thread_initialize()

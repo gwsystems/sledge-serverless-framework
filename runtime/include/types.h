@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <threads.h>
 
 #include "wasm_types.h"
 
@@ -33,4 +34,4 @@ struct sandbox_context_cache {
 	struct indirect_table_entry *module_indirect_table;
 };
 
-extern __thread struct sandbox_context_cache local_sandbox_context_cache;
+extern thread_local struct sandbox_context_cache local_sandbox_context_cache;
