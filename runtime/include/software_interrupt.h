@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <threads.h>
 
 #include "debuglog.h"
 #include "runtime.h"
@@ -17,8 +18,8 @@
  * Externs  *
  ***********/
 
-extern _Atomic __thread volatile sig_atomic_t software_interrupt_deferred_sigalrm;
-extern _Atomic volatile sig_atomic_t *        software_interrupt_deferred_sigalrm_max;
+extern _Atomic thread_local volatile sig_atomic_t software_interrupt_deferred_sigalrm;
+extern _Atomic volatile sig_atomic_t *            software_interrupt_deferred_sigalrm_max;
 
 /*************************
  * Public Static Inlines *

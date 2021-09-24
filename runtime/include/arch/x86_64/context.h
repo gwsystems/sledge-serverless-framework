@@ -31,14 +31,14 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 		 * to push the stack pointer sp to the top of its own stack.
 		 * This acts as the base pointer
 		 */
-		asm volatile("movq %%rsp, %%rbx\n\t" /* Temporarily save pointer of active stack to B */
-		             "movq %%rax, %%rsp\n\t" /* Set active stack to stack pointer in A(C variable sp) */
-		             "pushq %%rax\n\t"       /* Push A register (C variable sp) onto the stack at sp */
-		             "movq %%rsp, %%rax\n\t" /* Write the incremented stack pointer to A(C variable sp) */
-		             "movq %%rbx, %%rsp\n\t" /* Restore original stack saved in B */
-		             : "=a"(sp)
-		             : "a"(sp)
-		             : "memory", "cc", "rbx");
+		__asm__ volatile("movq %%rsp, %%rbx\n\t" /* Temporarily save pointer of active stack to B */
+		                 "movq %%rax, %%rsp\n\t" /* Set active stack to stack pointer in A(C variable sp) */
+		                 "pushq %%rax\n\t"       /* Push A register (C variable sp) onto the stack at sp */
+		                 "movq %%rsp, %%rax\n\t" /* Write the incremented stack pointer to A(C variable sp) */
+		                 "movq %%rbx, %%rsp\n\t" /* Restore original stack saved in B */
+		                 : "=a"(sp)
+		                 : "a"(sp)
+		                 : "memory", "cc", "rbx");
 	}
 	// FIXME: Is the klobber list correct? Issue #129
 	//   : "memory", "cc", "rbx", "rsi", "rdi");
@@ -109,7 +109,7 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	reg_t *a_registers = a->regs, *b_registers = b->regs;
 	assert(a_registers && b_registers);
 
-	asm volatile(
+	__asm__ volatile(
 	  /* Create a new stack frame */
 	  "pushq %%rbp\n\t"       /*  stack[stack_len++] = base_pointer */
 	  "movq %%rsp, %%rbp\n\t" /*  base_pointer = stack_pointer. Start new Frame */

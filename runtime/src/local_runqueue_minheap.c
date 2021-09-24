@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <threads.h>
 
 #include "arch/context.h"
 #include "client_socket.h"
@@ -12,7 +13,7 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
-__thread static struct priority_queue *local_runqueue_minheap;
+thread_local static struct priority_queue *local_runqueue_minheap;
 
 /**
  * Checks if the run queue is empty

@@ -7,7 +7,7 @@ endif
 
 # Compiler Settings
 CC=clang
-CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
+CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE -std=c18
 
 # CC_OPTIONS for Debugging
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE

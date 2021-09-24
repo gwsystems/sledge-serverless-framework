@@ -1,3 +1,5 @@
+#include <threads.h>
+
 #include "current_sandbox.h"
 #include "sandbox_functions.h"
 #include "sandbox_receive_request.h"
@@ -8,9 +10,9 @@
 #include "scheduler.h"
 #include "software_interrupt.h"
 
-__thread struct sandbox *worker_thread_current_sandbox = NULL;
+thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
-__thread struct sandbox_context_cache local_sandbox_context_cache = {
+thread_local struct sandbox_context_cache local_sandbox_context_cache = {
 	.memory = {
 		.start = NULL,
 		.size = 0,

@@ -1,3 +1,5 @@
+#include <threads.h>
+
 #include "client_socket.h"
 #include "current_sandbox.h"
 #include "global_request_scheduler.h"
@@ -5,7 +7,7 @@
 #include "local_runqueue.h"
 #include "sandbox_functions.h"
 
-__thread static struct ps_list_head local_runqueue_list;
+thread_local static struct ps_list_head local_runqueue_list;
 
 bool
 local_runqueue_list_is_empty()

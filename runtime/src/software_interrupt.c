@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <threads.h>
 #include <unistd.h>
 #include <ucontext.h>
 
@@ -31,11 +32,11 @@ static uint64_t software_interrupt_interval_duration_in_cycles;
  * Thread Globals *
  *****************/
 
-__thread _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_kernel_count = 0;
-__thread _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_thread_count = 0;
-__thread _Atomic static volatile sig_atomic_t software_interrupt_SIGUSR_count         = 0;
-__thread _Atomic volatile sig_atomic_t        software_interrupt_deferred_sigalrm     = 0;
-__thread _Atomic volatile sig_atomic_t        software_interrupt_signal_depth         = 0;
+thread_local _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_kernel_count = 0;
+thread_local _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_thread_count = 0;
+thread_local _Atomic static volatile sig_atomic_t software_interrupt_SIGUSR_count         = 0;
+thread_local _Atomic volatile sig_atomic_t        software_interrupt_deferred_sigalrm     = 0;
+thread_local _Atomic volatile sig_atomic_t        software_interrupt_signal_depth         = 0;
 
 _Atomic volatile sig_atomic_t *software_interrupt_deferred_sigalrm_max;
 

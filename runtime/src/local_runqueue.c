@@ -2,13 +2,14 @@
 #ifdef LOG_LOCAL_RUNQUEUE
 #include <stdint.h>
 #endif
+#include <threads.h>
 
 #include "local_runqueue.h"
 
 static struct local_runqueue_config local_runqueue;
 
 #ifdef LOG_LOCAL_RUNQUEUE
-__thread uint32_t local_runqueue_count = 0;
+thread_local uint32_t local_runqueue_count = 0;
 #endif
 
 /* Initializes a concrete implementation of the sandbox request scheduler interface */
