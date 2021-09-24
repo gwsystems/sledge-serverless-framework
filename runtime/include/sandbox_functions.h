@@ -235,7 +235,7 @@ sandbox_mem_print_perf(struct sandbox *sandbox)
                 if (miss_deadline) {
                         mem_log("%lu miss deadline, delayed %u us, actual cost %u module name %s\n", sandbox->id, delayed_us, total_time, sandbox->module->name);
                 } else {
-                        mem_log("%lu meet deadline, module name %s\n", sandbox->id, sandbox->module->name);
+                        mem_log("%lu meet deadline, actual cost %u module name %s\n", sandbox->id, total_time, sandbox->module->name);
                 }
         }
 
