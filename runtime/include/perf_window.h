@@ -1,8 +1,11 @@
 #pragma once
 
+#include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "lock.h"
+#include "panic.h"
 #include "perf_window_t.h"
 #include "runtime.h"
 #include "worker_thread.h"
@@ -75,6 +78,9 @@ perf_window_add(struct perf_window *self, uint64_t value)
 {
 	assert(self != NULL);
 
+	uint16_t idx_of_oldest;
+	bool     check_up;
+
 	if (unlikely(!LOCK_IS_LOCKED(&self->lock))) panic("lock not held when calling perf_window_add\n");
 
 	/* A successful invocation should run for a non-zero amount of time */
@@ -92,8 +98,8 @@ perf_window_add(struct perf_window *self, uint64_t value)
 	}
 
 	/* Otherwise, replace the oldest value, and then sort */
-	uint16_t idx_of_oldest = self->by_termination[self->count % PERF_WINDOW_BUFFER_SIZE];
-	bool     check_up      = value > self->by_duration[idx_of_oldest].execution_time;
+	idx_of_oldest = self->by_termination[self->count % PERF_WINDOW_BUFFER_SIZE];
+	check_up      = value > self->by_duration[idx_of_oldest].execution_time;
 
 	self->by_duration[idx_of_oldest].execution_time = value;
 
