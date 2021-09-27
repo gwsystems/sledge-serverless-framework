@@ -79,8 +79,6 @@ BINARY_NAME=sledgert
 # Sets a flag equal to the processor architecture
 CFLAGS += -D${ARCH}
 
-# Sandboxes running on Sledge always use WebAssembly linear memory
-CFLAGS += -DUSE_MEM_VM
 
 # Preprocessor
 
@@ -113,10 +111,10 @@ all: runtime
 bin/sledgert: ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	@${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
+	${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
 
 .PHONY: runtime
-runtime: bin/sledgert
+runtime: thirdparty bin/sledgert
 
 .PHONY: thirdparty
 thirdparty:
@@ -134,8 +132,8 @@ distclean: clean
 	@make --no-print-directory -C thirdparty clean
 
 .PHONY: submodules
-fetch:
+submodules:
 	@git submodule update --init --recursive
 
 .PHONY: init
-init: fetch clean thirdparty runtime
+init: submodules clean thirdparty runtime
