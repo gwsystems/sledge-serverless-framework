@@ -83,7 +83,15 @@ CFLAGS += -D${ARCH}
 CFLAGS += -DUSE_MEM_VM
 
 # Preprocessor
+
+# SLEdge serverless functions are *.so shared-libraries. The runtime thus requires the dynamic linker
+# to load these functions at runtime. These *.so shared-libraries also depend on specific symbols from 
+# the runtime to execute. The export-dynamic Linker flag adds all globals to the dynamic symbol table, 
+# allowing the libraries acess to such symbols. The libm math library is used several places, including
+# in backing functions that implement the WebAssembly instruction set.
 LDFLAGS += -Wl,--export-dynamic -ldl -lm
+
+# Our third-party dependencies build into a single dist directory to simplify configuration here.
 LDFLAGS += -Lthirdparty/dist/lib/
 INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
 
@@ -99,34 +107,35 @@ CFILES += thirdparty/dist/lib/http_parser.o
 JSMNCFLAGS += -DJSMN_STATIC
 JSMNCFLAGS += -DJSMN_STRICT
 
+.PHONY: all
 all: runtime
 
-runtime:
+bin/sledgert: ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	@${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/${BINARY_NAME}
+	@${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
 
+.PHONY: runtime
+runtime: bin/sledgert
+
+.PHONY: thirdparty
 thirdparty:
 	@echo "Compiling thirdparty"
 	@make --no-print-directory -C thirdparty build
 
-tools:
-#	@echo "Compiling tools"
-	@make --no-print-directory -C tools
-
+.PHONY: clean
 clean:
 	@rm -f core
 	@echo "Cleaning up runtime"
 	@rm -f bin/${BINARY_NAME}
-#	@echo "Cleaning up tools"
-#	@make --no-print-directory -C tools clean
 
+.PHONY: distclean
 distclean: clean
 	@make --no-print-directory -C thirdparty clean
 
+.PHONY: submodules
 fetch:
 	@git submodule update --init --recursive
 
+.PHONY: init
 init: fetch clean thirdparty runtime
-
-.PHONY: all init clean fetch thirdparty runtime tools
