@@ -1,6 +1,6 @@
 include Makefile.inc
 
-TESTS=fibonacci empty work work1k work10k work100k work1m forever filesys sockserver sockclient empty
+TESTS=fibonacci empty empty
 
 TESTSRT=$(TESTS:%=%_rt)
 
