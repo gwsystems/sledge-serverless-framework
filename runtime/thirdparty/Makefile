@@ -43,5 +43,3 @@ jsmn: ${DIST_PREFIX}/include/jsmn.h
 clean:
 	make -C ck uninstall
 	rm -rf ${DIST_PREFIX}
-
-.PHONY: clean all build ck jsmn http-parser
