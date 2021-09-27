@@ -133,15 +133,16 @@ wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 {
 	struct sandbox *s = current_sandbox_get();
 
-	if (fd == 1 || fd == 2) {
-		char *buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
-		int   l      = s->module->max_response_size - s->buffer.length;
-		if (l > buf_size) l = buf_size;
-		if (l == 0) return 0;
-		memcpy(s->buffer.start + s->buffer.length, buffer, l);
-		s->buffer.length += l;
+	if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
+		char *buffer           = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
+		int   buffer_remaining = s->module->max_response_size - s->response.length;
+		int   to_write         = buffer_remaining > buf_size ? buf_size : buffer_remaining;
 
-		return l;
+		if (to_write == 0) return 0;
+		memcpy(&s->response.base[s->response.length], buffer, to_write);
+		s->response.length += to_write;
+
+		return to_write;
 	}
 
 	int res = ENOTSUP;
@@ -258,16 +259,16 @@ wasm_readv(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 int32_t
 wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 {
-	struct sandbox *c = current_sandbox_get();
-	if (fd == 1 || fd == 2) {
+	struct sandbox *s = current_sandbox_get();
+	if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
 		// both 1 and 2 go to client.
 		int                len = 0;
 		struct wasm_iovec *iov = worker_thread_get_memory_ptr_void(iov_offset,
 		                                                           iovcnt * sizeof(struct wasm_iovec));
 		for (int i = 0; i < iovcnt; i++) {
 			char *b = worker_thread_get_memory_ptr_void(iov[i].base_offset, iov[i].len);
-			memcpy(c->buffer.start + c->buffer.length, b, iov[i].len);
-			c->buffer.length += iov[i].len;
+			memcpy(&s->response.base[s->response.length], b, iov[i].len);
+			s->response.length += iov[i].len;
 			len += iov[i].len;
 		}
 
