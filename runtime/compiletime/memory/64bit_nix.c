@@ -1,6 +1,12 @@
 #include <assert.h>
 #include "types.h"
 
+uint32_t
+instruction_memory_size()
+{
+	return local_sandbox_context_cache.memory.size / WASM_PAGE_SIZE;
+}
+
 // All of these are pretty generic
 INLINE float
 get_f32(int32_t offset)
