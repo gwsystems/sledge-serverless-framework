@@ -11,7 +11,7 @@ instruction_memory_size()
 INLINE float
 get_f32(uint32_t offset)
 {
-	assert(offset + sizeof(float) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(float) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -22,7 +22,7 @@ get_f32(uint32_t offset)
 INLINE double
 get_f64(uint32_t offset)
 {
-	assert(offset + sizeof(double) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(double) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -33,7 +33,7 @@ get_f64(uint32_t offset)
 INLINE int8_t
 get_i8(uint32_t offset)
 {
-	assert(offset + sizeof(int8_t) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(int8_t) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -44,7 +44,7 @@ get_i8(uint32_t offset)
 INLINE int16_t
 get_i16(uint32_t offset)
 {
-	assert(offset + sizeof(int16_t) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(int16_t) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -55,7 +55,7 @@ get_i16(uint32_t offset)
 INLINE int32_t
 get_i32(uint32_t offset)
 {
-	assert(offset + sizeof(int32_t) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(int32_t) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -66,7 +66,7 @@ get_i32(uint32_t offset)
 INLINE int64_t
 get_i64(uint32_t offset)
 {
-	assert(offset + sizeof(int64_t) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(int64_t) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -90,7 +90,7 @@ get_global_i64(uint32_t offset)
 INLINE void
 set_f32(uint32_t offset, float v)
 {
-	assert(offset + sizeof(float) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(float) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -101,7 +101,7 @@ set_f32(uint32_t offset, float v)
 INLINE void
 set_f64(uint32_t offset, double v)
 {
-	assert(offset + sizeof(double) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(double) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -112,7 +112,7 @@ set_f64(uint32_t offset, double v)
 INLINE void
 set_i8(uint32_t offset, int8_t v)
 {
-	assert(offset + sizeof(int8_t) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(int8_t) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -123,7 +123,7 @@ set_i8(uint32_t offset, int8_t v)
 INLINE void
 set_i16(uint32_t offset, int16_t v)
 {
-	assert(offset + sizeof(int16_t) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(int16_t) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -134,7 +134,7 @@ set_i16(uint32_t offset, int16_t v)
 INLINE void
 set_i32(uint32_t offset, int32_t v)
 {
-	assert(offset + sizeof(int32_t) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(int32_t) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
@@ -145,7 +145,7 @@ set_i32(uint32_t offset, int32_t v)
 INLINE void
 set_i64(uint32_t offset, int64_t v)
 {
-	assert(offset + sizeof(int64_t) < local_sandbox_context_cache.memory.size);
+	assert(offset + sizeof(int64_t) <= local_sandbox_context_cache.memory.size);
 
 	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
 	void *address      = &mem_as_chars[offset];
