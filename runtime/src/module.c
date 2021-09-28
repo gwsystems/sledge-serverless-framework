@@ -305,6 +305,8 @@ module_new_from_json(char *file_name)
 
 	int module_count = 0;
 	for (int i = 0; i < total_tokens; i++) {
+		/* If we have multiple objects, they should be wrapped in a JSON array */
+		if (tokens[i].type == JSMN_ARRAY) continue;
 		assert(tokens[i].type == JSMN_OBJECT);
 
 		char module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
