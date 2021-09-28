@@ -26,9 +26,9 @@ run_functional_tests() {
 		ext="$RANDOM"
 
 		# Small
-		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "/tmp/result_${ext}_small.png" "${hostname}:10000" 2> /dev/null 1> /dev/null; then
-			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_small.png" expected_result_small.png null: 2>&1 > /dev/null)"
-			rm -f "/tmp/result_${ext}_small.png"
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "/tmp/result_${ext}_small.jpg" "${hostname}:10000" 2> /dev/null 1> /dev/null; then
+			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_small.jpg" expected_result_small.jpg null: 2>&1 > /dev/null)"
+			rm -f "/tmp/result_${ext}_small.jpg"
 			if [[ "$pixel_differences" != "0" ]]; then
 				echo "Small FAIL" >> "$results_directory/result.txt"
 				echo "$pixel_differences pixel differences detected" >> "$results_directory/result.txt"
@@ -40,9 +40,9 @@ run_functional_tests() {
 		fi
 
 		# Medium
-		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "/tmp/result_${ext}_medium.png" "${hostname}:10001" 2> /dev/null 1> /dev/null; then
-			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_medium.png" expected_result_medium.png null: 2>&1 > /dev/null)"
-			rm -f "/tmp/result_${ext}_medium.png"
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "/tmp/result_${ext}_medium.jpg" "${hostname}:10001" 2> /dev/null 1> /dev/null; then
+			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_medium.jpg" expected_result_medium.jpg null: 2>&1 > /dev/null)"
+			rm -f "/tmp/result_${ext}_medium.jpg"
 			if [[ "$pixel_differences" != "0" ]]; then
 				echo "Medium FAIL" >> "$results_directory/result.txt"
 				echo "$pixel_differences pixel differences detected" >> "$results_directory/result.txt"
@@ -54,9 +54,9 @@ run_functional_tests() {
 		fi
 
 		# Large
-		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "/tmp/result_${ext}_large.png" "${hostname}:10002" 2> /dev/null 1> /dev/null; then
-			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_large.png" expected_result_large.png null: 2>&1 > /dev/null)"
-			rm -f "/tmp/result_${ext}_large.png"
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "/tmp/result_${ext}_large.jpg" "${hostname}:10002" 2> /dev/null 1> /dev/null; then
+			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_large.jpg" expected_result_large.jpg null: 2>&1 > /dev/null)"
+			rm -f "/tmp/result_${ext}_large.jpg"
 			if [[ "$pixel_differences" != "0" ]]; then
 				echo "Large FAIL" >> "$results_directory/result.txt"
 				echo "$pixel_differences pixel differences detected" >> "$results_directory/result.txt"
