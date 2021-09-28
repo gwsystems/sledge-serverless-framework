@@ -84,10 +84,6 @@ BINARY_NAME=sledgert
 # Sets a flag equal to the processor architecture
 CFLAGS += -D${ARCH}
 
-<<<<<<< HEAD
-
-=======
->>>>>>> chore: cleanup build tooling
 # Preprocessor
 
 # SLEdge serverless functions are *.so shared-libraries. The runtime thus requires the dynamic linker
