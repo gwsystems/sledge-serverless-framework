@@ -1,0 +1,8 @@
+digraph {
+    Uninitialized -> Initialized
+    Initialized -> {Runnable Error}
+    Runnable -> Running
+    Running -> {Blocked Runnable Returned Error}
+    Returned -> Complete
+    Blocked -> Runnable
+} 
