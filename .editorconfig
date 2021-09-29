@@ -28,6 +28,10 @@ ignore = true
 indent_style = tab
 indent_size = 4
 
+[*.dot]
+indent_style = tab
+indent_size = 4
+
 [dockerfile]
 indent_style = tab
 indent_size = 4
