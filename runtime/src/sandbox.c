@@ -91,27 +91,36 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 	assert(sandbox);
 	assert(sandbox->module);
 
-	errno      = 0;
+	int rc = 0;
+
 	char *addr = mmap(NULL, sandbox->module->stack_size + /* guard page */ PAGE_SIZE, PROT_NONE,
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (addr == MAP_FAILED) goto err_stack_allocation_failed;
+	if (unlikely(addr == MAP_FAILED)) {
+		perror("sandbox allocate stack");
+		goto err_stack_allocation_failed;
+	}
 
 	/* Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write */
-	errno         = 0;
 	char *addr_rw = mmap(addr + /* guard page */ PAGE_SIZE, sandbox->module->stack_size, PROT_READ | PROT_WRITE,
 	                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-
-	/* TODO: Fix leak here. Issue #132 */
-	if (addr_rw == MAP_FAILED) goto err_stack_allocation_failed;
+	if (unlikely(addr_rw == MAP_FAILED)) {
+		perror("sandbox set stack read/write");
+		goto err_stack_allocation_failed;
+	}
 
 	sandbox->stack.start = addr_rw;
 	sandbox->stack.size  = sandbox->module->stack_size;
 
+	rc = 0;
 done:
-	return 0;
+	return rc;
+err_stack_prot_failed:
+	rc = munmap(addr, sandbox->stack.size + PAGE_SIZE);
+	if (rc == -1) perror("munmap");
 err_stack_allocation_failed:
-	perror("sandbox_allocate_stack");
-	return -1;
+	sandbox->stack.start = NULL;
+	sandbox->stack.size  = 0;
+	goto done;
 }
 
 /**
@@ -184,15 +193,16 @@ sandbox_free(struct sandbox *sandbox)
 
 	module_release(sandbox->module);
 
-	/* Free Sandbox Stack */
-	errno = 0;
-
-	/* The stack start is the bottom of the usable stack, but we allocated a guard page below this */
-	rc = munmap((char *)sandbox->stack.start - PAGE_SIZE, sandbox->stack.size + PAGE_SIZE);
-	if (rc == -1) {
-		debuglog("Failed to unmap stack of Sandbox %lu\n", sandbox->id);
-		goto err_free_stack_failed;
-	};
+	/* Free Sandbox Stack if initial allocation was successful */
+	if (likely(sandbox->stack.size > 0)) {
+		assert(sandbox->stack.start != NULL);
+		/* The stack start is the bottom of the usable stack, but we allocated a guard page below this */
+		rc = munmap((char *)sandbox->stack.start - PAGE_SIZE, sandbox->stack.size + PAGE_SIZE);
+		if (unlikely(rc == -1)) {
+			debuglog("Failed to unmap stack of Sandbox %lu\n", sandbox->id);
+			goto err_free_stack_failed;
+		};
+	}
 
 
 	/* Free Sandbox Struct and HTTP Request and Response Buffers
