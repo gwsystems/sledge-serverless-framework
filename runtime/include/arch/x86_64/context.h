@@ -40,8 +40,6 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 		                 : "a"(sp)
 		                 : "memory", "cc", "rbx");
 	}
-	// FIXME: Is the klobber list correct? Issue #129
-	//   : "memory", "cc", "rbx", "rsi", "rdi");
 
 	actx->regs[UREG_SP] = sp;
 	actx->regs[UREG_IP] = ip;
