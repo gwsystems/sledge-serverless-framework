@@ -30,7 +30,7 @@ uint32_t runtime_first_worker_processor  = 1;
 uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
-
+uint64_t system_start_timestamp          = 0;
 
 FILE *runtime_sandbox_perf_log = NULL;
 
@@ -341,6 +341,7 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
+	system_start_timestamp = __getcycles();
 	printf("Starting the Sledge runtime\n");
 
 	log_compiletime_config();
