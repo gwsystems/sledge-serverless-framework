@@ -182,8 +182,11 @@ listener_thread_main(void *dummy)
                                         next_module = next_module->next_module;
                                 }
 
-                                uint64_t remaining_slack = module->relative_deadline - estimated_execution_time;
-
+                                int64_t remaining_slack = module->relative_deadline - estimated_execution_time;
+				if (remaining_slack < 0) {
+					remaining_slack = 0;
+				}
+				
 				/* Allocate a Sandbox Request */
 				struct sandbox_request *sandbox_request =
 				  sandbox_request_allocate(module, true, 0, module->name, client_socket,
