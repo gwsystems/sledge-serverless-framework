@@ -8,6 +8,7 @@
 #include "listener_thread.h"
 #include "runtime.h"
 
+extern uint64_t system_start_timestamp;
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
  * serverless modules. The listener cores listens for incoming client requests through this.
@@ -183,7 +184,7 @@ listener_thread_main(void *dummy)
                                 }
 
 				 /* Adding system start timestamp to avoid negative remaining slack in the following update */
-+                               uint64_t remaining_slack = module->relative_deadline - estimated_execution_time + system_start_timestamp;
+                                uint64_t remaining_slack = module->relative_deadline - estimated_execution_time + system_start_timestamp;
 				
 				/* Allocate a Sandbox Request */
 				struct sandbox_request *sandbox_request =
