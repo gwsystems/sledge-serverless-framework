@@ -182,10 +182,8 @@ listener_thread_main(void *dummy)
                                         next_module = next_module->next_module;
                                 }
 
-                                int64_t remaining_slack = module->relative_deadline - estimated_execution_time;
-				if (remaining_slack < 0) {
-					remaining_slack = 0;
-				}
+				 /* Adding system start timestamp to avoid negative remaining slack in the following update */
++                               uint64_t remaining_slack = module->relative_deadline - estimated_execution_time + system_start_timestamp;
 				
 				/* Allocate a Sandbox Request */
 				struct sandbox_request *sandbox_request =

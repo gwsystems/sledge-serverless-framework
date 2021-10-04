@@ -24,12 +24,7 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 		uint64_t start_execution = now - system_start_timestamp;
 		uint64_t last = sandbox->last_update_timestamp;
 		uint64_t last_rs = sandbox->remaining_slack;
-		int64_t rs = sandbox->remaining_slack - (now - sandbox->last_update_timestamp);
-		if (rs < 0) {
-			sandbox->remaining_slack = 0;
-		} else {
-			sandbox->remaining_slack = rs;
-		}
+		sandbox->remaining_slack -= (now - sandbox->last_update_timestamp);
 		sandbox->last_update_timestamp = now;  
 		sandbox->runnable_duration += duration_of_last_state;
 		current_sandbox_set(sandbox);

@@ -1,6 +1,8 @@
 #include "global_request_scheduler.h"
+#include "memlogging.h"
 #include "panic.h"
 
+extern uint64_t system_start_timestamp;
 /* Default uninitialized implementations of the polymorphic interface */
 __attribute__((noreturn)) static struct sandbox_request *
 uninitialized_add(void *arg)
@@ -45,6 +47,11 @@ global_request_scheduler_initialize(struct global_request_scheduler_config *conf
 struct sandbox_request *
 global_request_scheduler_add(struct sandbox_request *sandbox_request)
 {
+	uint64_t now = __getcycles();
+	uint64_t arrive_time = now - system_start_timestamp;
+	mem_log("time %lu request id:%d arrived, name:%s remaining_slack %lu now %lu, sys_start %lu \n", 
+		arrive_time, sandbox_request->id, sandbox_request->module->name, 
+		sandbox_request->remaining_slack, now, system_start_timestamp);	
 	assert(sandbox_request != NULL);
 	return global_request_scheduler.add_fn(sandbox_request);
 }

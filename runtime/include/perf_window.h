@@ -184,12 +184,13 @@ perf_window_print(struct perf_window *self)
         float nighty_p = self->by_duration[PERF_WINDOW_BUFFER_SIZE * 90 / 100].execution_time/1000.0;	
         float nighty_night_p = self->by_duration[PERF_WINDOW_BUFFER_SIZE * 99 / 100].execution_time/1000.0;	
 
-	mem_log("module %s perf window:\n", self->name);
+	/*mem_log("module %s perf window:\n", self->name);
 	for (int i = 0; i < PERF_WINDOW_BUFFER_SIZE; i++) {
 		sum += self->by_duration[i].execution_time;
                 mem_log("%f,", self->by_duration[i].execution_time/1000.0);
         }
 	mem_log("\n");
+	*/
 	float avg = (sum/(float)PERF_WINDOW_BUFFER_SIZE)/1000.0;
 	mem_log("min:%f,max:%f,fifty_p:%f,seventy_p:%f,eighty_p:%f,nighty_p:%f,nighty_night_p:%f,avg:%f\n", min,max,fifty_p,seventy_p,eighty_p,nighty_p,nighty_night_p, avg);
 }

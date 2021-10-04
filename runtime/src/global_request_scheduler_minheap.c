@@ -76,10 +76,7 @@ sandbox_request_get_priority_srsf_fn(void *element)
 {
 	struct sandbox_request *sandbox_request = (struct sandbox_request *)element;
 	uint64_t now = __getcycles();	
-	int64_t remaining_slack = sandbox_request->remaining_slack - (now - sandbox_request->last_update_timestamp);
-	if (remaining_slack < 0) {
-		return 0;
-	}
+	uint64_t remaining_slack = sandbox_request->remaining_slack - (now - sandbox_request->last_update_timestamp);
 	return remaining_slack;
 };
 
