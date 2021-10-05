@@ -16,5 +16,5 @@ export LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH"
 gdb --eval-command="handle SIGUSR1 nostop" \
 	--eval-command="set pagination off" \
 	--eval-command="set substitute-path /sledge/runtime $project_path/runtime" \
-#	--eval-command="run ../tests/test_armcifar10.json" \
+	--eval-command="run ../tests/test_multiple_image_processing.json" \
 	./sledgert
