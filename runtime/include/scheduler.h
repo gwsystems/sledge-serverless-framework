@@ -210,7 +210,7 @@ scheduler_preempt(ucontext_t *user_context)
 
 	struct sandbox *current = current_sandbox_get();
 	assert(current != NULL);
-	//assert(current->state == SANDBOX_RUNNING);
+	assert(current->state == SANDBOX_RUNNING);
 
 	struct sandbox *next = scheduler_get_next();
 	assert(next != NULL);

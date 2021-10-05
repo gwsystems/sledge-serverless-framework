@@ -29,8 +29,8 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->runnable_duration += duration_of_last_state;
 		current_sandbox_set(sandbox);
 		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
-                mem_log("time %lu sandbox starts running, request id:%d name %s obj=%p remaining slack %lu, last_rs %lu now %lu last %lu \n", start_execution,
-                         sandbox->id, sandbox->module->name, sandbox, sandbox->remaining_slack, last_rs, now, last);
+                //mem_log("time %lu sandbox starts running, request id:%d name %s obj=%p remaining slack %lu, last_rs %lu now %lu last %lu \n", start_execution,
+                //         sandbox->id, sandbox->module->name, sandbox, sandbox->remaining_slack, last_rs, now, last);
 		/* Does not handle context switch because the caller knows if we need to use fast or slow switched */
 		break;
 	}

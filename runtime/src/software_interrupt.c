@@ -178,7 +178,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			atomic_fetch_add(&software_interrupt_deferred_sigalrm, 1);
 		} else {
 			/* A worker thread received a SIGALRM while running a preemptable sandbox, so preempt */
-			//assert(current_sandbox->state == SANDBOX_RUNNING);
+			assert(current_sandbox->state == SANDBOX_RUNNING);
 			scheduler_preempt(user_context);
 		}
 		goto done;
