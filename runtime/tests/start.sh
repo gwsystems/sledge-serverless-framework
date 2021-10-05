@@ -18,7 +18,7 @@ declare project_path="$(
 echo $project_path
 path=`pwd`
 #export SLEDGE_DISABLE_PREEMPTION=true
-export SLEDGE_SCHEDULER=SRTF
+#export SLEDGE_SCHEDULER=SRTF
 export SLEDGE_SANDBOX_PERF_LOG=$path/$output
 echo $SLEDGE_SANDBOX_PERF_LOG
 cd $project_path/runtime/bin
@@ -27,7 +27,8 @@ cd $project_path/runtime/bin
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_armcifar10.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_png2bmp.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_image_processing.json
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/mulitple_linear_chain.json
+#LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/mulitple_linear_chain.json
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_multiple_image_processing.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/my_fibonacci.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_sodresize.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/my_sodresize.json
