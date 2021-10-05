@@ -152,7 +152,7 @@ static inline void
 software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 {
 	/* Only workers should receive signals */
-	//assert(!listener_thread_is_running());
+	assert(!listener_thread_is_running());
 
 	/* Signals should be masked if runtime has disabled them */
 	/* This is not applicable anymore because the signal might be SIGINT */
