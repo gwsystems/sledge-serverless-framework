@@ -177,7 +177,7 @@ listener_thread_main(void *dummy)
 				}
 				/* get total estimated execution time */
                                 uint64_t estimated_execution_time = admission_info_get_percentile(&module->admissions_info);
-                                struct module * next_module = module->next_module;
+                                struct module * next_module = module;
                                 while(next_module) {
                                         estimated_execution_time += admission_info_get_percentile(&next_module->admissions_info);
                                         next_module = next_module->next_module;
