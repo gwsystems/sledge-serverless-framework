@@ -21,9 +21,9 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	switch (last_state) {
 	case SANDBOX_RUNNABLE: {
-		uint64_t start_execution = now - system_start_timestamp;
-		uint64_t last = sandbox->last_update_timestamp;
-		uint64_t last_rs = sandbox->remaining_slack;
+		//uint64_t start_execution = now - system_start_timestamp;
+		//uint64_t last = sandbox->last_update_timestamp;
+		//uint64_t last_rs = sandbox->remaining_slack;
 		sandbox->remaining_slack -= (now - sandbox->last_update_timestamp);
 		sandbox->last_update_timestamp = now;  
 		sandbox->runnable_duration += duration_of_last_state;

@@ -84,9 +84,9 @@ scheduler_srsf_get_next()
 	if (global_remaining_slack < local_remaining_slack) {
 		if (global_request_scheduler_remove_if_earlier(&request, local_remaining_slack) == 0) {
 
-			uint64_t pop_time = __getcycles() - system_start_timestamp;
-                        mem_log("time %lu remove from GQ, request id:%d name %s remaining slack %lu\n", pop_time,
-                                        request->id, request->module->name, request->remaining_slack);
+			//uint64_t pop_time = __getcycles() - system_start_timestamp;
+                        //mem_log("time %lu remove from GQ, request id:%d name %s remaining slack %lu\n", pop_time,
+                        //                request->id, request->module->name, request->remaining_slack);
 			
 			assert(request != NULL);
 			struct sandbox *global = sandbox_allocate(request);

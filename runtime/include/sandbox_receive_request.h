@@ -46,9 +46,9 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 		if (recved < 0) {
 			if (errno == EAGAIN) {
-			 	uint64_t block_time = __getcycles() - system_start_timestamp;
-                        	mem_log("time %lu blocked, request id:%d name %s obj=%p remaining slack %lu\n", block_time,
-                                        sandbox->id, sandbox->module->name, sandbox, sandbox->remaining_slack);
+			 	//uint64_t block_time = __getcycles() - system_start_timestamp;
+                        	//mem_log("time %lu blocked, request id:%d name %s obj=%p remaining slack %lu\n", block_time,
+                                //        sandbox->id, sandbox->module->name, sandbox, sandbox->remaining_slack);
 				scheduler_block();
 				continue;
 			} else {

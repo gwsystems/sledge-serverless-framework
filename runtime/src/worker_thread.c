@@ -85,9 +85,9 @@ worker_thread_main(void *argument)
 
 		next_sandbox = scheduler_get_next();
 		if (next_sandbox != NULL) { 
-			uint64_t start_execution = __getcycles() - system_start_timestamp;
-			mem_log("time %lu pop from GQ, request id:%d name %s obj=%p remaining slack %lu last_update_time %lu \n", start_execution,
-                                        next_sandbox->id, next_sandbox->module->name, next_sandbox, next_sandbox->remaining_slack, next_sandbox->last_update_timestamp);
+			//uint64_t start_execution = __getcycles() - system_start_timestamp;
+			//mem_log("time %lu pop from GQ, request id:%d name %s obj=%p remaining slack %lu last_update_time %lu \n", start_execution,
+                        //                next_sandbox->id, next_sandbox->module->name, next_sandbox, next_sandbox->remaining_slack, next_sandbox->last_update_timestamp);
 			scheduler_switch_to(next_sandbox); 
 		}
 

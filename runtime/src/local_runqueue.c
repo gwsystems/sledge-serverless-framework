@@ -11,6 +11,7 @@ static struct local_runqueue_config local_runqueue;
 __thread uint32_t local_runqueue_count = 0;
 #endif
 
+__thread uint32_t local_workload_count = 0;
 /* Initializes a concrete implementation of the sandbox request scheduler interface */
 void
 local_runqueue_initialize(struct local_runqueue_config *config)
@@ -67,3 +68,19 @@ local_runqueue_get_next()
 	assert(local_runqueue.get_next_fn != NULL);
 	return local_runqueue.get_next_fn();
 };
+
+/** 
+ * The worker thread gets a new request, add the workload counter by 1
+ */
+void
+local_workload_add() {
+	local_workload_count++;
+}
+
+/**
+ * One request is complete on the worker thread, and decrease the workload counter by 1
+ */
+void
+local_workload_complete() {
+	local_workload_count--;
+}

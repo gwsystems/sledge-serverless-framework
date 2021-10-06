@@ -41,6 +41,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_RUNNING: {
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
+		local_workload_complete();
 		break;
 	}
 	default: {

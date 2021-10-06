@@ -33,6 +33,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_INITIALIZED: {
 		sandbox->initializing_duration += duration_of_last_state;
 		local_runqueue_add(sandbox);
+		local_workload_add();
 		break;
 	}
 	case SANDBOX_BLOCKED: {

@@ -123,9 +123,9 @@ current_sandbox_start(void)
 
 		memcpy(pre_func_output, sandbox->request_response_data + sandbox->request_length, output_length);
 	 	uint64_t enqueue_timestamp = __getcycles();	
-		uint64_t current_rs = enqueue_timestamp - system_start_timestamp; 
-		mem_log("time %lu request id:%d executing, name:%s remaining slack %lu\n", current_rs,
-                                      sandbox->id, sandbox->module->name, sandbox->remaining_slack);
+		//uint64_t current_rs = enqueue_timestamp - system_start_timestamp; 
+		//mem_log("time %lu request id:%d executing, name:%s remaining slack %lu\n", current_rs,
+                //                      sandbox->id, sandbox->module->name, sandbox->remaining_slack);
 		struct sandbox_request *sandbox_request =
                                   sandbox_request_allocate(next_module, false, sandbox->request_length, 
 							   next_module->name, sandbox->client_socket_descriptor,
