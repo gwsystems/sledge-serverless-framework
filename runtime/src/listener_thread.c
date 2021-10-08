@@ -183,8 +183,8 @@ listener_thread_main(void *dummy)
                                         next_module = next_module->next_module;
                                 }
 
-				 /* Adding system start timestamp to avoid negative remaining slack in the following update */
-                                uint64_t remaining_slack = module->relative_deadline - estimated_execution_time + system_start_timestamp;
+				 /* Adding system start timestamp to avoid negative remaining slack in the following update. They are all cycles */
+                                uint64_t remaining_slack = system_start_timestamp + module->relative_deadline - estimated_execution_time;
 				
 				/* Allocate a Sandbox Request */
 				struct sandbox_request *sandbox_request =

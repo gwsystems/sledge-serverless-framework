@@ -14,7 +14,7 @@ admissions_info_initialize(struct admissions_info *self, char* module_name, int 
 {
 	assert(self != NULL);
 	perf_window_initialize(&self->perf_window, module_name);
-	if (unlikely(percentile < 50 || percentile > 99)) panic("Invalid admissions percentile");
+	//if (unlikely(percentile < 50 || percentile > 99)) panic("Invalid admissions percentile");
 	self->percentile = percentile;
 	self->control_index = PERF_WINDOW_BUFFER_SIZE * percentile / 100;
 #ifdef ADMISSIONS_CONTROL
@@ -45,7 +45,7 @@ admission_info_get_percentile(struct admissions_info *self)
 /*
  * Adds an execution value to the perf window and calculates and caches and updated estimate
  * @param self
- * @param execution_duration
+ * @param execution_duration in cycles
  */
 void
 admissions_info_update(struct admissions_info *self, uint64_t execution_duration)

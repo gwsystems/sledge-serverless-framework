@@ -142,7 +142,7 @@ static inline uint64_t
 perf_window_get_percentile(struct perf_window *self, int percentile, int precomputed_index)
 {
 	assert(self != NULL);
-	assert(percentile >= 50 && percentile <= 99);
+	//assert(percentile >= 50 && percentile <= 99);
 	int size = self->count;
 	//assert(size > 0);
 	if (size == 0) {

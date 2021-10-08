@@ -9,6 +9,7 @@
 #include "sandbox_request.h"
 #include "memlogging.h"
 
+extern __thread int worker_thread_idx;
 /***************************
  * Public API              *
  **************************/
@@ -241,7 +242,7 @@ sandbox_mem_print_perf(struct sandbox *sandbox)
          * becomes more intelligent, then peak linear memory size needs to be tracked
          * seperately from current linear memory size.
          */
-        mem_log("%u,%s():%d,%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u\n", sandbox->id,
+        mem_log("%d,%u,%s():%d,%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u\n", worker_thread_idx, sandbox->id,
                 sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
                 sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
                 running_us, blocked_us, returned_us, sandbox->linear_memory_size);

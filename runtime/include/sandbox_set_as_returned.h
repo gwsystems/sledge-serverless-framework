@@ -35,7 +35,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->total_time         = now - sandbox->enqueue_timestamp;
 		sandbox->running_duration += duration_of_last_state;
 		local_runqueue_delete(sandbox);
-		local_workload_complete();
+		local_workload_complete(sandbox);
 		sandbox_free_linear_memory(sandbox);
 		break;
 	}
