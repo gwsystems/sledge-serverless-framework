@@ -33,13 +33,13 @@ def parse_file(file_dir):
 		if "total_time" in line or "min" in line or "miss" in line or "meet" in line or "time " in line or "scheduling count" in line:
 			continue 
 		t = line.split(",")
-		id = t[0]
-		running_time_dict[id] += int(t[8])
-		queuing_times_dict[id] += int(t[5])
-		total_times_dict[id] += int(t[4])
-		runnable_times_dict[id] += int(t[7])
-		blocked_times_dict[id] += int(t[9])
-		initializing_times_dict[id] += int(t[6])
+		id = t[1]
+		running_time_dict[id] += int(t[9])
+		queuing_times_dict[id] += int(t[6])
+		total_times_dict[id] += int(t[5])
+		runnable_times_dict[id] += int(t[8])
+		blocked_times_dict[id] += int(t[10])
+		initializing_times_dict[id] += int(t[7])
 		#execution_times_dict[id] += int(t[11])
 	for key,value in running_time_dict.items():	
 		running_times.append(value)
