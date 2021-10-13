@@ -108,11 +108,19 @@ current_sandbox_start(void)
 	int32_t argument_count = module_get_argument_count(current_module);
 	current_sandbox_enable_preemption(sandbox);
 	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
+	if (sandbox->return_value < 0) {
+		printf("module returns error code %d\n", sandbox->return_value);
+	}
 	current_sandbox_disable_preemption(sandbox);
 	sandbox->completion_timestamp = __getcycles();
 
-
-	if (next_module != NULL) {
+	/* Function code execution failed, terminate the request */
+	if (sandbox->return_value < 0) {
+		/* TODO: Simply goto err is not perfect because not print out the response meesage of the function code.	
+		 *       Should return 400 and the err message in the http response body.
+		 */
+		goto err;	
+	} else if (next_module != NULL) {
 		/* Generate a new request, copy the current sandbox's output to the next request's buffer, and put it to the global queue */
 		ssize_t output_length = sandbox->request_response_data_length - sandbox->request_length;
 		char * pre_func_output = (char *)malloc(output_length);
