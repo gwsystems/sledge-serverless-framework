@@ -7,7 +7,6 @@
 #include "listener_thread.h"
 #include "panic.h"
 
-
 /**
  * How to get the priority out of the generic element
  * We assume priority is expressed as an unsigned 64-bit integer (i.e. cycles or
