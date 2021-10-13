@@ -108,9 +108,6 @@ current_sandbox_start(void)
 	int32_t argument_count = module_get_argument_count(current_module);
 	current_sandbox_enable_preemption(sandbox);
 	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
-	if (sandbox->return_value < 0) {
-		printf("module returns error code %d\n", sandbox->return_value);
-	}
 	current_sandbox_disable_preemption(sandbox);
 	sandbox->completion_timestamp = __getcycles();
 
