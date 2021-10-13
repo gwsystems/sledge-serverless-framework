@@ -25,23 +25,23 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(sandbox);
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
 
 	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
 
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
-		sandbox->initializing_duration += duration_of_last_state;
+		sandbox->duration_of_state.initializing += duration_of_last_state;
 		local_runqueue_add(sandbox);
 		break;
 	}
 	case SANDBOX_BLOCKED: {
-		sandbox->blocked_duration += duration_of_last_state;
+		sandbox->duration_of_state.blocked += duration_of_last_state;
 		local_runqueue_add(sandbox);
 		break;
 	}
 	case SANDBOX_RUNNING: {
-		sandbox->running_duration += duration_of_last_state;
+		sandbox->duration_of_state.running += duration_of_last_state;
 		/* No need to add to runqueue, as already on it */
 		break;
 	}
@@ -51,8 +51,8 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	sandbox->last_state_change_timestamp = now;
-	sandbox->state                       = SANDBOX_RUNNABLE;
+	sandbox->timestamp_of.last_state_change = now;
+	sandbox->state                          = SANDBOX_RUNNABLE;
 
 	/* State Change Bookkeeping */
 	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RUNNABLE);

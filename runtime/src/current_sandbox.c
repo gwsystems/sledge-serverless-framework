@@ -1,3 +1,5 @@
+#include <threads.h>
+
 #include "current_sandbox.h"
 #include "sandbox_functions.h"
 #include "sandbox_receive_request.h"
@@ -8,11 +10,14 @@
 #include "scheduler.h"
 #include "software_interrupt.h"
 
-__thread struct sandbox *worker_thread_current_sandbox = NULL;
+thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
-__thread struct sandbox_context_cache local_sandbox_context_cache = {
-	.linear_memory_start   = NULL,
-	.linear_memory_size    = 0,
+thread_local struct sandbox_context_cache local_sandbox_context_cache = {
+	.memory = {
+		.start = NULL,
+		.size = 0,
+		.max = 0,
+	},
 	.module_indirect_table = NULL,
 };
 
@@ -65,15 +70,19 @@ current_sandbox_start(void)
 	assert(sandbox->state == SANDBOX_RUNNING);
 
 	char *error_message = "";
-
-	sandbox_initialize_stdio(sandbox);
+	int   rc            = 0;
 
 	sandbox_open_http(sandbox);
 
-	if (sandbox_receive_request(sandbox) < 0) {
-		error_message = "Unable to receive or parse client request\n";
+	rc = sandbox_receive_request(sandbox);
+	if (rc == -2) {
+		/* Request size exceeded Buffer, send 413 Payload Too Large */
+		client_socket_send(sandbox->client_socket_descriptor, 413);
 		goto err;
-	};
+	} else if (rc == -1) {
+		client_socket_send(sandbox->client_socket_descriptor, 400);
+		goto err;
+	}
 
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
@@ -82,11 +91,11 @@ current_sandbox_start(void)
 	sandbox_setup_arguments(sandbox);
 
 	/* Executing the function */
-	int32_t argument_count = module_get_argument_count(current_module);
+	int32_t argument_count = 0;
 	current_sandbox_enable_preemption(sandbox);
-	sandbox->return_value = module_main(current_module, argument_count, sandbox->arguments_offset);
+	sandbox->return_value = module_entrypoint(current_module, argument_count, sandbox->arguments_offset);
 	current_sandbox_disable_preemption(sandbox);
-	sandbox->completion_timestamp = __getcycles();
+	sandbox->timestamp_of.completion = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
 	if (sandbox_send_response(sandbox) < 0) {
@@ -96,7 +105,7 @@ current_sandbox_start(void)
 
 	http_total_increment_2xx();
 
-	sandbox->response_timestamp = __getcycles();
+	sandbox->timestamp_of.response = __getcycles();
 
 	assert(sandbox->state == SANDBOX_RUNNING);
 	sandbox_close_http(sandbox);
@@ -114,9 +123,6 @@ done:
 err:
 	debuglog("%s", error_message);
 	assert(sandbox->state == SANDBOX_RUNNING);
-
-	/* Send a 400 error back to the client */
-	client_socket_send(sandbox->client_socket_descriptor, 400);
 
 	sandbox_close_http(sandbox);
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING);

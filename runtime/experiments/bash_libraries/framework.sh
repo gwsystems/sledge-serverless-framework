@@ -281,22 +281,28 @@ __framework_sh__start_runtime() {
 	local -r log_name=log.txt
 	local log="$RESULTS_DIRECTORY/${log_name}"
 
+	local -i sledgert_pid=0
+
 	__framework_sh__log_environment >> "$log"
 
 	case "$how_to_run" in
 		"background")
 			sledgert "$specification" >> "$log" 2>> "$log" &
+			sledgert_pid=$!
+			# Pad with a sleep to allow runtime to initialize before startup tasks run
+			# This should be improved adding some sort of ping/ping heartbeat to the runtime
+			# so the script can spin until initializaiton is complete
+			sleep 1
+			if ! kill -0 $sledgert_pid; then
+				printf "[ERR]\n"
+				return 1
+			fi
 			;;
 		"foreground")
 			sledgert "$specification"
 			fn_exists experiment_server_post && experiment_server_post "$RESULTS_DIRECTORY"
 			;;
 	esac
-
-	# Pad with a sleep to allow runtime to initialize before startup tasks run
-	# This should be improved adding some sort of ping/ping heartbeat to the runtime
-	# so the script can spin until initializaiton is complete
-	sleep 1
 
 	printf "[OK]\n"
 	return 0
@@ -430,7 +436,7 @@ __framework_sh__run_both() {
 		local -i envfiles_found=0
 		for envfile in "$__framework_sh__application_directory"/*.env; do
 			((envfiles_found++))
-			__framework_sh__run_both_env "$envfile"
+			__framework_sh__run_both_env "$envfile" || exit 1
 		done
 		((envfiles_found == 0)) && {
 			echo "No *.env files found. Nothing to run!"

@@ -72,7 +72,7 @@ listener_thread_register_module(struct module *mod)
  * listener_thread_epoll_file_descriptor - the epoll file descriptor
  *
  */
-__attribute__((noreturn)) void *
+noreturn void *
 listener_thread_main(void *dummy)
 {
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
@@ -177,7 +177,7 @@ listener_thread_main(void *dummy)
 
 				/* Allocate a Sandbox Request */
 				struct sandbox_request *sandbox_request =
-				  sandbox_request_allocate(module, module->name, client_socket,
+				  sandbox_request_allocate(module, client_socket,
 				                           (const struct sockaddr *)&client_address,
 				                           request_arrival_timestamp, work_admitted);
 

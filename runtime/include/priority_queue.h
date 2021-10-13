@@ -1,9 +1,12 @@
 #ifndef PRIORITY_QUEUE_H
 #define PRIORITY_QUEUE_H
 
+#include <errno.h>
+
 #include "lock.h"
 #include "listener_thread.h"
 #include "panic.h"
+
 
 /**
  * How to get the priority out of the generic element
@@ -260,7 +263,9 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
 	/* Add one to capacity because this data structure ignores the element at 0 */
 	size_t one_based_capacity = capacity + 1;
 
-	struct priority_queue *self = calloc(sizeof(struct priority_queue) + sizeof(void *) * one_based_capacity, 1);
+	struct priority_queue *self = (struct priority_queue *)calloc(sizeof(struct priority_queue)
+	                                                                + sizeof(void *) * one_based_capacity,
+	                                                              1);
 
 
 	/* We're assuming a min-heap implementation, so set to larget possible value */

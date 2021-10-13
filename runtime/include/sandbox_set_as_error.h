@@ -29,17 +29,17 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(sandbox);
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
 
 	sandbox->state = SANDBOX_SET_AS_ERROR;
 
 	switch (last_state) {
 	case SANDBOX_SET_AS_INITIALIZED:
 		/* Technically, this is a degenerate sandbox that we generate by hand */
-		sandbox->initializing_duration += duration_of_last_state;
+		sandbox->duration_of_state.initializing += duration_of_last_state;
 		break;
 	case SANDBOX_RUNNING: {
-		sandbox->running_duration += duration_of_last_state;
+		sandbox->duration_of_state.running += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		break;
 	}

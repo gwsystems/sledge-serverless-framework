@@ -87,25 +87,14 @@ err:
 
 
 /**
- * Sets the HTTP Request and Response Headers and Content type on a module
+ * Sets the HTTP Response Content type on a module
  * @param module
- * @param request_count
- * @param request_headers
- * @param request_content_type
- * @param response_count
- * @param response_headers
  * @param response_content_type
  */
 static inline void
-module_set_http_info(struct module *module, int request_count, char *request_headers, char request_content_type[],
-                     int response_count, char *response_headers, char response_content_type[])
+module_set_http_info(struct module *module, char response_content_type[])
 {
 	assert(module);
-	module->request_header_count = request_count;
-	memcpy(module->request_headers, request_headers, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-	strcpy(module->request_content_type, request_content_type);
-	module->response_header_count = response_count;
-	memcpy(module->response_headers, response_headers, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
 	strcpy(module->response_content_type, response_content_type);
 }
 
@@ -127,14 +116,12 @@ void
 module_free(struct module *module)
 {
 	if (module == NULL) return;
-	if (module->dynamic_library_handle == NULL) return;
 
 	/* Do not free if we still have oustanding references */
 	if (module->reference_count) return;
 
-
 	close(module->socket_descriptor);
-	dlclose(module->dynamic_library_handle);
+	awsm_abi_deinit(&module->abi);
 	free(module);
 }
 
@@ -146,7 +133,6 @@ module_free(struct module *module)
  *
  * @param name
  * @param path
- * @param argument_count
  * @param stack_size
  * @param max_memory
  * @param relative_deadline_us
@@ -156,76 +142,29 @@ module_free(struct module *module)
  */
 
 struct module *
-module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, uint32_t max_memory,
-           uint32_t relative_deadline_us, int port, int request_size, int response_size, int admissions_percentile,
-           uint32_t expected_execution_us)
+module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uint32_t relative_deadline_us, int port,
+           int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us)
 {
 	int rc = 0;
 
-	errno                 = 0;
-	struct module *module = (struct module *)malloc(sizeof(struct module));
+	struct module *module = (struct module *)calloc(1, sizeof(struct module));
 	if (!module) {
 		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));
 		goto err;
 	};
 
-	memset(module, 0, sizeof(struct module));
-
 	atomic_init(&module->reference_count, 0);
 
-	/* Load the dynamic library *.so file with lazy function call binding and deep binding
-	 * RTLD_DEEPBIND is incompatible with certain clang sanitizers, so it might need to be temporarily disabled at
-	 * times. See https://github.com/google/sanitizers/issues/611
-	 */
-	module->dynamic_library_handle = dlopen(path, RTLD_LAZY | RTLD_DEEPBIND);
-	if (module->dynamic_library_handle == NULL) {
-		fprintf(stderr, "Failed to open %s with error: %s\n", path, dlerror());
-		goto dl_open_error;
-	};
-
-	/* Resolve the symbols in the dynamic library *.so file */
-	module->main = (mod_main_fn_t)dlsym(module->dynamic_library_handle, MODULE_MAIN);
-	if (module->main == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_MAIN, path, dlerror());
-		goto dl_error;
-	}
-
-	module->initialize_globals = (mod_glb_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_GLOBALS);
-	if (module->initialize_globals == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_GLOBALS, path,
-		        dlerror());
-		goto dl_error;
-	}
-
-	module->initialize_memory = (mod_mem_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_MEMORY);
-	if (module->initialize_memory == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_MEMORY, path,
-		        dlerror());
-		goto dl_error;
-	};
-
-	module->initialize_tables = (mod_tbl_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_TABLE);
-	if (module->initialize_tables == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_TABLE, path,
-		        dlerror());
-		goto dl_error;
-	};
-
-	module->initialize_libc = (mod_libc_fn_t)dlsym(module->dynamic_library_handle, MODULE_INITIALIZE_LIBC);
-	if (module->initialize_libc == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", MODULE_INITIALIZE_LIBC, path,
-		        dlerror());
-		goto dl_error;
-	}
+	rc = awsm_abi_init(&module->abi, path);
+	if (rc != 0) goto awsm_abi_init_err;
 
 	/* Set fields in the module struct */
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
 	strncpy(module->path, path, MODULE_MAX_PATH_LENGTH);
 
-	module->argument_count = argument_count;
-	module->stack_size     = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
+	module->stack_size = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
 	debuglog("Stack Size: %u", module->stack_size);
-	module->max_memory        = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MAX_PAGES) : max_memory;
+	module->max_memory        = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MEMORY_PAGES_MAX) : max_memory;
 	module->socket_descriptor = -1;
 	module->port              = port;
 
@@ -246,13 +185,8 @@ module_new(char *name, char *path, int32_t argument_count, uint32_t stack_size, 
 	/* Request Response Buffer */
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
 	if (response_size == 0) response_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
-	module->max_request_size  = request_size;
-	module->max_response_size = response_size;
-	if (request_size > response_size) {
-		module->max_request_or_response_size = round_up_to_page(request_size);
-	} else {
-		module->max_request_or_response_size = round_up_to_page(response_size);
-	}
+	module->max_request_size  = round_up_to_page(request_size);
+	module->max_response_size = round_up_to_page(response_size);
 
 	/* Table initialization calls a function that runs within the sandbox. Rather than setting the current sandbox,
 	 * we partially fake this out by only setting the module_indirect_table and then clearing after table
@@ -280,9 +214,7 @@ done:
 	return module;
 
 err_listen:
-dl_error:
-	dlclose(module->dynamic_library_handle);
-dl_open_error:
+awsm_abi_init_err:
 	free(module);
 err:
 	module = NULL;
@@ -298,19 +230,25 @@ int
 module_new_from_json(char *file_name)
 {
 	assert(file_name != NULL);
-	int return_code = -1;
+	int       return_code = -1;
+	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
 
-	/* Use stat to get file attributes and make sure file is there and OK */
+	/* Use stat to get file attributes and make sure file is present and not empty */
 	struct stat stat_buffer;
-	memset(&stat_buffer, 0, sizeof(struct stat));
-	errno = 0;
 	if (stat(file_name, &stat_buffer) < 0) {
 		fprintf(stderr, "Attempt to stat %s failed: %s\n", file_name, strerror(errno));
 		goto err;
 	}
+	if (stat_buffer.st_size == 0) {
+		fprintf(stderr, "File %s is unexpectedly empty\n", file_name);
+		goto err;
+	}
+	if (!S_ISREG(stat_buffer.st_mode)) {
+		fprintf(stderr, "File %s is not a regular file\n", file_name);
+		goto err;
+	}
 
 	/* Open the file */
-	errno             = 0;
 	FILE *module_file = fopen(file_name, "r");
 	if (!module_file) {
 		fprintf(stderr, "Attempt to open %s failed: %s\n", file_name, strerror(errno));
@@ -318,17 +256,13 @@ module_new_from_json(char *file_name)
 	}
 
 	/* Initialize a Buffer */
-	assert(stat_buffer.st_size != 0);
-	errno             = 0;
-	char *file_buffer = malloc(stat_buffer.st_size);
+	char *file_buffer = calloc(1, stat_buffer.st_size);
 	if (file_buffer == NULL) {
 		fprintf(stderr, "Attempt to allocate file buffer failed: %s\n", strerror(errno));
 		goto stat_buffer_alloc_err;
 	}
-	memset(file_buffer, 0, stat_buffer.st_size);
 
 	/* Read the file into the buffer and check that the buffer size equals the file size */
-	errno                = 0;
 	int total_chars_read = fread(file_buffer, sizeof(char), stat_buffer.st_size, module_file);
 #ifdef LOG_MODULE_LOADING
 	debuglog("size read: %d content: %s\n", total_chars_read, file_buffer);
@@ -340,7 +274,6 @@ module_new_from_json(char *file_name)
 	assert(total_chars_read > 0);
 
 	/* Close the file */
-	errno = 0;
 	if (fclose(module_file) == EOF) {
 		fprintf(stderr, "Attempt to close buffer containing %s failed: %s\n", file_name, strerror(errno));
 		goto fclose_err;
@@ -350,7 +283,6 @@ module_new_from_json(char *file_name)
 	/* Initialize the Jasmine Parser and an array to hold the tokens */
 	jsmn_parser module_parser;
 	jsmn_init(&module_parser);
-	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
 
 	/* Use Jasmine to parse the JSON */
 	int total_tokens = jsmn_parse(&module_parser, file_buffer, total_chars_read, tokens,
@@ -371,44 +303,23 @@ module_new_from_json(char *file_name)
 		goto json_parse_err;
 	}
 
-	int   module_count    = 0;
-	char *request_headers = NULL;
-	char *reponse_headers = NULL;
+	int module_count = 0;
 	for (int i = 0; i < total_tokens; i++) {
+		/* If we have multiple objects, they should be wrapped in a JSON array */
+		if (tokens[i].type == JSMN_ARRAY) continue;
 		assert(tokens[i].type == JSMN_OBJECT);
 
 		char module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
 		char module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
 
-		errno           = 0;
-		request_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-		if (request_headers == NULL) {
-			fprintf(stderr, "Attempt to allocate request headers failed: %s\n", strerror(errno));
-			goto request_headers_alloc_err;
-		}
-		memset(request_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-
-		errno           = 0;
-		reponse_headers = (char *)malloc(HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-		if (reponse_headers == NULL) {
-			fprintf(stderr, "Attempt to allocate response headers failed: %s\n", strerror(errno));
-			goto response_headers_alloc_err;
-		}
-		memset(reponse_headers, 0, HTTP_MAX_HEADER_LENGTH * HTTP_MAX_HEADER_COUNT);
-
 		int32_t  request_size                                        = 0;
 		int32_t  response_size                                       = 0;
-		int32_t  argument_count                                      = 0;
 		uint32_t port                                                = 0;
 		uint32_t relative_deadline_us                                = 0;
 		uint32_t expected_execution_us                               = 0;
 		int      admissions_percentile                               = 50;
-		bool     is_active                                           = false;
-		int32_t  request_count                                       = 0;
-		int32_t  response_count                                      = 0;
 		int      j                                                   = 1;
 		int      ntoks                                               = 2 * tokens[i].size;
-		char     request_content_type[HTTP_MAX_HEADER_VALUE_LENGTH]  = { 0 };
 		char     response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH] = { 0 };
 
 		for (; j < ntoks;) {
@@ -438,20 +349,6 @@ module_new_from_json(char *file_name)
 				if (buffer < 0 || buffer > 65535)
 					panic("Expected port between 0 and 65535, saw %d\n", buffer);
 				port = buffer;
-			} else if (strcmp(key, "argsize") == 0) {
-				// Validate in expected range 0..127. Unclear if 127 is an actual hard limit
-				argument_count = atoi(val);
-				if (argument_count < 0 || argument_count > 127)
-					panic("Expected argument count between 0 and 127, saw %d\n", argument_count);
-			} else if (strcmp(key, "active") == 0) {
-				assert(tokens[i + j + 1].type == JSMN_PRIMITIVE);
-				if (val[0] == 't') {
-					is_active = true;
-				} else if (val[0] == 'f') {
-					is_active = false;
-				} else {
-					panic("Expected active key to be a JSON boolean, was %s\n", val);
-				}
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
 				int64_t buffer = strtoll(val, NULL, 10);
 				if (buffer < 0 || buffer > (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
@@ -469,32 +366,6 @@ module_new_from_json(char *file_name)
 				if (buffer > 99 || buffer < 50)
 					panic("admissions-percentile must be > 50 and <= 99 but was %d\n", buffer);
 				admissions_percentile = (int)buffer;
-			} else if (strcmp(key, "http-req-headers") == 0) {
-				assert(tokens[i + j + 1].type == JSMN_ARRAY);
-				assert(tokens[i + j + 1].size <= HTTP_MAX_HEADER_COUNT);
-
-				request_count = tokens[i + j + 1].size;
-				ntks += request_count;
-				ntoks += request_count;
-				for (int k = 1; k <= tokens[i + j + 1].size; k++) {
-					jsmntok_t *g = &tokens[i + j + k + 1];
-					char *     r = request_headers + ((k - 1) * HTTP_MAX_HEADER_LENGTH);
-					assert(g->end - g->start < HTTP_MAX_HEADER_LENGTH);
-					strncpy(r, file_buffer + g->start, g->end - g->start);
-				}
-			} else if (strcmp(key, "http-resp-headers") == 0) {
-				assert(tokens[i + j + 1].type == JSMN_ARRAY);
-				assert(tokens[i + j + 1].size <= HTTP_MAX_HEADER_COUNT);
-
-				response_count = tokens[i + j + 1].size;
-				ntks += response_count;
-				ntoks += response_count;
-				for (int k = 1; k <= tokens[i + j + 1].size; k++) {
-					jsmntok_t *g = &tokens[i + j + k + 1];
-					char *     r = reponse_headers + ((k - 1) * HTTP_MAX_HEADER_LENGTH);
-					assert(g->end - g->start < HTTP_MAX_HEADER_LENGTH);
-					strncpy(r, file_buffer + g->start, g->end - g->start);
-				}
 			} else if (strcmp(key, "http-req-size") == 0) {
 				int64_t buffer = strtoll(val, NULL, 10);
 				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
@@ -507,9 +378,6 @@ module_new_from_json(char *file_name)
 					panic("http-resp-size must be between 0 and %ld, was %ld\n",
 					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
 				response_size = (int32_t)buffer;
-			} else if (strcmp(key, "http-req-content-type") == 0) {
-				if (strlen(val) == 0) panic("http-req-content-type was unexpectedly an empty string");
-				strcpy(request_content_type, val);
 			} else if (strcmp(key, "http-resp-content-type") == 0) {
 				if (strlen(val) == 0) panic("http-resp-content-type was unexpectedly an empty string");
 				strcpy(response_content_type, val);
@@ -536,7 +404,8 @@ module_new_from_json(char *file_name)
 		/* If the ratio is too big, admissions control is too coarse */
 		uint32_t ratio = relative_deadline_us / expected_execution_us;
 		if (ratio > ADMISSIONS_CONTROL_GRANULARITY)
-			panic("Ratio of Deadline to Execution time cannot exceed admissions control granularity of "
+			panic("Ratio of Deadline to Execution time cannot exceed admissions control "
+			      "granularity of "
 			      "%d\n",
 			      ADMISSIONS_CONTROL_GRANULARITY);
 #else
@@ -545,25 +414,15 @@ module_new_from_json(char *file_name)
 			panic("relative_deadline_us is required\n");
 #endif
 
-		/* argsize defaults to 0 if absent */
-		/* http-req-headers defaults to empty if absent */
-		/* http-req-headers defaults to empty if absent */
+		/* Allocate a module based on the values from the JSON */
+		struct module *module = module_new(module_name, module_path, 0, 0, relative_deadline_us, port,
+		                                   request_size, response_size, admissions_percentile,
+		                                   expected_execution_us);
+		if (module == NULL) goto module_new_err;
 
-		if (is_active) {
-			/* Allocate a module based on the values from the JSON */
-			struct module *module = module_new(module_name, module_path, argument_count, 0, 0,
-			                                   relative_deadline_us, port, request_size, response_size,
-			                                   admissions_percentile, expected_execution_us);
-			if (module == NULL) goto module_new_err;
-
-			assert(module);
-			module_set_http_info(module, request_count, request_headers, request_content_type,
-			                     response_count, reponse_headers, response_content_type);
-			module_count++;
-		}
-
-		free(request_headers);
-		free(reponse_headers);
+		assert(module);
+		module_set_http_info(module, response_content_type);
+		module_count++;
 	}
 
 	if (module_count == 0) panic("%s contained no active modules\n", file_name);
@@ -577,9 +436,6 @@ module_new_from_json(char *file_name)
 done:
 	return return_code;
 module_new_err:
-response_headers_alloc_err:
-	free(request_headers);
-request_headers_alloc_err:
 json_parse_err:
 fclose_err:
 	/* We will retry fclose when we fall through into stat_buffer_alloc_err */

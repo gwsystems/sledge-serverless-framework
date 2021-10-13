@@ -1,16 +1,11 @@
 {
-	"active": true,
 	"name": "empty",
 	"path": "empty_wasm.so",
 	"port": 10000,
 	"expected-execution-us": 500,
 	"admissions-percentile": 70,
 	"relative-deadline-us": 50000,
-	"argsize": 1,
-	"http-req-headers": [],
-	"http-req-content-type": "text/plain",
 	"http-req-size": 1024,
-	"http-resp-headers": [],
 	"http-resp-size": 1024,
 	"http-resp-content-type": "text/plain"
 }

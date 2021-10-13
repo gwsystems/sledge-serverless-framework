@@ -7,7 +7,7 @@ endif
 
 # Compiler Settings
 CC=clang
-CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
+CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE -std=c18
 
 # CC_OPTIONS for Debugging
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE
@@ -19,7 +19,6 @@ CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds 
 
 # Clang SafeStack
-# This actually seems to "solve" the segfaults
 # https://clang.llvm.org/docs/SafeStack.html
 # CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=safe-stack
 
@@ -79,11 +78,17 @@ BINARY_NAME=sledgert
 # Sets a flag equal to the processor architecture
 CFLAGS += -D${ARCH}
 
-# Sandboxes running on Sledge always use WebAssembly linear memory
-CFLAGS += -DUSE_MEM_VM
 
 # Preprocessor
+
+# SLEdge serverless functions are *.so shared-libraries. The runtime thus requires the dynamic linker
+# to load these functions at runtime. These *.so shared-libraries also depend on specific symbols from 
+# the runtime to execute. The export-dynamic Linker flag adds all globals to the dynamic symbol table, 
+# allowing the libraries acess to such symbols. The libm math library is used several places, including
+# in backing functions that implement the WebAssembly instruction set.
 LDFLAGS += -Wl,--export-dynamic -ldl -lm
+
+# Our third-party dependencies build into a single dist directory to simplify configuration here.
 LDFLAGS += -Lthirdparty/dist/lib/
 INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
 
@@ -99,34 +104,35 @@ CFILES += thirdparty/dist/lib/http_parser.o
 JSMNCFLAGS += -DJSMN_STATIC
 JSMNCFLAGS += -DJSMN_STRICT
 
+.PHONY: all
 all: runtime
 
-runtime:
+bin/sledgert: ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	@${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${CFILES} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/${BINARY_NAME}
+	${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
 
+.PHONY: runtime
+runtime: thirdparty bin/sledgert
+
+.PHONY: thirdparty
 thirdparty:
 	@echo "Compiling thirdparty"
 	@make --no-print-directory -C thirdparty build
 
-tools:
-#	@echo "Compiling tools"
-	@make --no-print-directory -C tools
-
+.PHONY: clean
 clean:
 	@rm -f core
 	@echo "Cleaning up runtime"
 	@rm -f bin/${BINARY_NAME}
-#	@echo "Cleaning up tools"
-#	@make --no-print-directory -C tools clean
 
+.PHONY: distclean
 distclean: clean
 	@make --no-print-directory -C thirdparty clean
 
-fetch:
+.PHONY: submodules
+submodules:
 	@git submodule update --init --recursive
 
-init: fetch clean thirdparty runtime
-
-.PHONY: all init clean fetch thirdparty runtime tools
+.PHONY: init
+init: submodules clean thirdparty runtime

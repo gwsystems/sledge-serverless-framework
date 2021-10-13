@@ -47,6 +47,10 @@ client_socket_send(int client_socket, int status_code)
 		response = HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
 		http_total_increment_5XX();
 		break;
+	case 413:
+		response = HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE;
+		http_total_increment_4XX();
+		break;
 	case 400:
 		response = HTTP_RESPONSE_400_BAD_REQUEST;
 		http_total_increment_4XX();

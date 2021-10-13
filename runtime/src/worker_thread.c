@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <sched.h>
 #include <stdlib.h>
+#include <threads.h>
 
 #include "current_sandbox.h"
 #include "local_completion_queue.h"
@@ -21,12 +22,12 @@
  **************************/
 
 /* context of the runtime thread before running sandboxes or to resume its "main". */
-__thread struct arch_context worker_thread_base_context;
+thread_local struct arch_context worker_thread_base_context;
 
-__thread int worker_thread_epoll_file_descriptor;
+thread_local int worker_thread_epoll_file_descriptor;
 
 /* Used to index into global arguments and deadlines arrays */
-__thread int worker_thread_idx;
+thread_local int worker_thread_idx;
 
 /***********************
  * Worker Thread Logic *

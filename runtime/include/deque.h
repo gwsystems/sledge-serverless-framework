@@ -13,7 +13,7 @@
  *
  * which is based on the following papers:
  *
- * The work stealing queue described in the paper, "Dynamic Circular Work-stealing Deque," SPAA, 2015.
+ * The work stealing queue described in the paper, "Dynamic Circular Work-stealing Deque," SPAA, 2005.
  * Only the queue owner can perform pop and push operations, while others can steal data from the queue.
  *
  * PPoPP implementation paper, "Correct and Efficient Work-Stealing for Weak Memory Models"

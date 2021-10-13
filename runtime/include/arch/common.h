@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdnoreturn.h>
 #include <string.h>
 #include <ucontext.h>
 #include <unistd.h>
@@ -30,4 +31,4 @@
  */
 
 /* Cannot be inlined because called in assembly */
-void __attribute__((noinline)) __attribute__((noreturn)) arch_context_restore_preempted(void);
+noreturn void __attribute__((noinline)) arch_context_restore_preempted(void);

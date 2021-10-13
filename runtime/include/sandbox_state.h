@@ -27,6 +27,15 @@ typedef enum
 	SANDBOX_STATE_COUNT
 } sandbox_state_t;
 
+/* Duration of time (in cycles) that the sandbox is in each state */
+struct sandbox_state_durations {
+	uint64_t initializing;
+	uint64_t runnable;
+	uint64_t running;
+	uint64_t blocked;
+	uint64_t returned;
+};
+
 extern const bool sandbox_state_is_terminal[SANDBOX_STATE_COUNT];
 
 extern const char *sandbox_state_labels[SANDBOX_STATE_COUNT];

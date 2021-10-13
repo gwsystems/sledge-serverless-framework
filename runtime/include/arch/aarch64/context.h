@@ -79,33 +79,33 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	reg_t *a_registers = a->regs, *b_registers = b->regs;
 	assert(a_registers && b_registers);
 
-	asm volatile("mov x0, sp\n\t"
-	             "adr x1, reset%=\n\t"
-	             "str x1, [%[a], 8]\n\t"
-	             "str x0, [%[a]]\n\t"
-	             "mov x0, #1\n\t"
-	             "str x0, [%[av]]\n\t"
-	             "ldr x1, [%[bv]]\n\t"
-	             "sub x1, x1, #2\n\t"
-	             "cbz x1, slow%=\n\t"
-	             "ldr x0, [%[b]]\n\t"
-	             "ldr x1, [%[b], 8]\n\t"
-	             "mov sp, x0\n\t"
-	             "br x1\n\t"
-	             "slow%=:\n\t"
-	             "br %[slowpath]\n\t"
-	             ".align 8\n\t"
-	             "reset%=:\n\t"
-	             "mov x1, #3\n\t"
-	             "str x1, [%[bv]]\n\t"
-	             ".align 8\n\t"
-	             "exit%=:\n\t"
-	             :
-	             : [a] "r"(a_registers), [b] "r"(b_registers), [av] "r"(&a->variant), [bv] "r"(&b->variant),
-	               [slowpath] "r"(&arch_context_restore_preempted)
-	             : "memory", "cc", "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
-	               "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24", "d8", "d9",
-	               "d10", "d11", "d12", "d13", "d14", "d15");
+	__asm__ volatile("mov x0, sp\n\t"
+	                 "adr x1, reset%=\n\t"
+	                 "str x1, [%[a], 8]\n\t"
+	                 "str x0, [%[a]]\n\t"
+	                 "mov x0, #1\n\t"
+	                 "str x0, [%[av]]\n\t"
+	                 "ldr x1, [%[bv]]\n\t"
+	                 "sub x1, x1, #2\n\t"
+	                 "cbz x1, slow%=\n\t"
+	                 "ldr x0, [%[b]]\n\t"
+	                 "ldr x1, [%[b], 8]\n\t"
+	                 "mov sp, x0\n\t"
+	                 "br x1\n\t"
+	                 "slow%=:\n\t"
+	                 "br %[slowpath]\n\t"
+	                 ".align 8\n\t"
+	                 "reset%=:\n\t"
+	                 "mov x1, #3\n\t"
+	                 "str x1, [%[bv]]\n\t"
+	                 ".align 8\n\t"
+	                 "exit%=:\n\t"
+	                 :
+	                 : [a] "r"(a_registers), [b] "r"(b_registers), [av] "r"(&a->variant), [bv] "r"(&b->variant),
+	                   [slowpath] "r"(&arch_context_restore_preempted)
+	                 : "memory", "cc", "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11",
+	                   "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24",
+	                   "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15");
 
 	return 0;
 }

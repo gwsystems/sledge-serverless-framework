@@ -25,15 +25,15 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(sandbox);
 
 	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->last_state_change_timestamp;
+	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
 
 	sandbox->state = SANDBOX_SET_AS_RETURNED;
 
 	switch (last_state) {
 	case SANDBOX_RUNNING: {
-		sandbox->response_timestamp = now;
-		sandbox->total_time         = now - sandbox->request_arrival_timestamp;
-		sandbox->running_duration += duration_of_last_state;
+		sandbox->timestamp_of.response = now;
+		sandbox->total_time            = now - sandbox->timestamp_of.request_arrival;
+		sandbox->duration_of_state.running += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
 		break;
@@ -44,8 +44,8 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	sandbox->last_state_change_timestamp = now;
-	sandbox->state                       = SANDBOX_RETURNED;
+	sandbox->timestamp_of.last_state_change = now;
+	sandbox->state                          = SANDBOX_RETURNED;
 
 	/* State Change Bookkeeping */
 	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RETURNED);

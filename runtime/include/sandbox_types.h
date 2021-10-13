@@ -12,10 +12,7 @@
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_state.h"
-
-#define SANDBOX_FILE_DESCRIPTOR_PREOPEN_MAGIC (707707707) /* upside down LOLLOLLOL 🤣😂🤣*/
-#define SANDBOX_MAX_FD_COUNT                  32
-#define SANDBOX_MAX_MEMORY                    (1L << 32) /* 4GB */
+#include "wasm_types.h"
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 #define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
@@ -25,77 +22,84 @@
  * Structs and Types *
  ********************/
 
-struct sandbox_io_handle {
-	int file_descriptor;
+struct sandbox_stack {
+	void *   start; /* points to the bottom of the usable stack */
+	uint32_t size;
+};
+
+struct sandbox_timestamps {
+	uint64_t last_state_change; /* Used for bookkeeping of actual execution time */
+	uint64_t request_arrival;   /* Timestamp when request is received */
+	uint64_t allocation;        /* Timestamp when sandbox is allocated */
+	uint64_t response;          /* Timestamp when response is sent */
+	uint64_t completion;        /* Timestamp when sandbox runs to completion */
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+	uint32_t page_allocations[SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT];
+	size_t   page_allocations_size;
+#endif
+};
+
+/*
+ * Static In-memory buffers are used for HTTP requests read in via STDIN and HTTP
+ * responses written back out via STDOUT. These are allocated in pages immediately
+ * adjacent to the sandbox struct in the following layout. The capacity of these
+ * buffers are configured in the module spec and stored in sandbox->module.max_request_size
+ * and sandbox->module.max_response_size.
+ *
+ * Because the sandbox struct, the request header, and the response header are sized
+ * in pages, we must store the base pointer to the buffer. The length is increased
+ * and should not exceed the respective module max size.
+ *
+ * ---------------------------------------------------
+ * | Sandbox | Request         | Response            |
+ * ---------------------------------------------------
+ *
+ * After the sandbox writes its response, a header is written at a negative offset
+ * overwriting the tail end of the request buffer. This assumes that the request
+ * data is no longer needed because the sandbox has run to completion
+ *
+ * ---------------------------------------------------
+ * | Sandbox | Garbage   | HDR | Response            |
+ * ---------------------------------------------------
+ */
+struct sandbox_buffer {
+	char * base;
+	size_t length;
 };
 
 struct sandbox {
 	uint64_t        id;
 	sandbox_state_t state;
+	struct ps_list  list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
 
-	uint32_t sandbox_size; /* The struct plus enough buffer to hold the request or response (sized off largest) */
+	/* HTTP State */
+	struct sockaddr       client_address; /* client requesting connection! */
+	int                   client_socket_descriptor;
+	http_parser           http_parser;
+	struct http_request   http_request;
+	ssize_t               http_request_length; /* TODO: Get rid of me */
+	struct sandbox_buffer request;
+	struct sandbox_buffer response;
 
-	void *   linear_memory_start;    /* after sandbox struct */
-	uint32_t linear_memory_size;     /* from after sandbox struct */
-	uint64_t linear_memory_max_size; /* 4GB */
-
-	void *   stack_start;
-	uint32_t stack_size;
-
-	struct arch_context ctxt; /* register context for context switch. */
-
-	uint64_t request_arrival_timestamp;   /* Timestamp when request is received */
-	uint64_t allocation_timestamp;        /* Timestamp when sandbox is allocated */
-	uint64_t response_timestamp;          /* Timestamp when response is sent */
-	uint64_t completion_timestamp;        /* Timestamp when sandbox runs to completion */
-	uint64_t last_state_change_timestamp; /* Used for bookkeeping of actual execution time */
-#ifdef LOG_SANDBOX_MEMORY_PROFILE
-	uint32_t page_allocation_timestamps[SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT];
-	size_t   page_allocation_timestamps_size;
-#endif
-	/* Duration of time (in cycles) that the sandbox is in each state */
-	uint64_t initializing_duration;
-	uint64_t runnable_duration;
-	uint64_t running_duration;
-	uint64_t blocked_duration;
-	uint64_t returned_duration;
-
-	uint64_t absolute_deadline;
-	uint64_t total_time; /* From Request to Response */
-
-	/*
-	 * Unitless estimate of the instantaneous fraction of system capacity required to run the request
-	 * Calculated by estimated execution time (cycles) * runtime_admissions_granularity / relative deadline (cycles)
-	 */
-	uint64_t admissions_estimate;
-
+	/* WebAssembly Module State */
 	struct module *module; /* the module this is an instance of */
 
+	/* WebAssembly Instance State  */
+	struct arch_context  ctxt;
+	struct sandbox_stack stack;
+	struct wasm_memory   memory;
+
+	/* Scheduling and Temporal State */
+	struct sandbox_timestamps      timestamp_of;
+	struct sandbox_state_durations duration_of_state;
+
+	uint64_t absolute_deadline;
+	uint64_t admissions_estimate; /* estimated execution time (cycles) * runtime_admissions_granularity / relative
+	                                 deadline (cycles) */
+	uint64_t total_time;          /* Total time from Request to Response */
+
+	/* System Interface State */
 	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */
-	void *  arguments;        /* arguments from request, must be of module->argument_count size. */
 	int32_t return_value;
 
-	int             file_descriptors[SANDBOX_MAX_FD_COUNT];
-	struct sockaddr client_address; /* client requesting connection! */
-	int             client_socket_descriptor;
-
-	bool                is_repeat_header;
-	http_parser         http_parser;
-	struct http_request http_request;
-
-	char *  read_buffer;
-	ssize_t read_length, read_size;
-
-	/* Used for the scheduling runqueue as an in-place linked list data structure. */
-	/* The variable name "list" is used for ps_list's default name-based MACROS. */
-	struct ps_list list;
-
-	/*
-	 * The length of the HTTP Request.
-	 * This acts as an offset to the STDOUT of the Sandbox
-	 */
-	ssize_t request_length;
-
-	ssize_t request_response_data_length; /* Should be <= module->max_request_or_response_size */
-	char    request_response_data[1];     /* of request_response_data_length, following sandbox mem.. */
 } PAGE_ALIGNED;
