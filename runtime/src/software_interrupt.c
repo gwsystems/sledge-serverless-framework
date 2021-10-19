@@ -110,7 +110,7 @@ static inline void
 sigint_propagate_workers_listener(siginfo_t *signal_info)
 {
 	/* Signal was sent directly by the kernel, so forward to other threads */
-	if (signal_info->si_code == SI_KERNEL) {
+	if (signal_info->si_code == SI_KERNEL || signal_info->si_code == SI_USER) {
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
