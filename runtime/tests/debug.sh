@@ -11,10 +11,12 @@ declare project_path="$(
 path=`pwd`
 echo $project_path
 cd $project_path/runtime/bin
-export SLEDGE_DISABLE_PREEMPTION=true
+#export SLEDGE_SCHEDULER=SRSF
+#export SLEDGE_DISABLE_PREEMPTION=true
+export SLEDGE_SANDBOX_PERF_LOG=$path/srsf.log
 export LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH"
 gdb --eval-command="handle SIGUSR1 nostop" \
 	--eval-command="set pagination off" \
 	--eval-command="set substitute-path /sledge/runtime $project_path/runtime" \
-	--eval-command="run ../tests/test_multiple_image_processing.json" \
+	--eval-command="run ../tests/test_multiple_image_processing2.json" \
 	./sledgert
