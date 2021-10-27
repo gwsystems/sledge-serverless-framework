@@ -129,17 +129,26 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		func_idx = key.split("_")[1]
 		total_times[func_idx].append(value)
 	###
-	#for key,value in request_counter.items():
-		#print(key + ":" + str(value))
+	func_name_dict = thisdict = {
+		"cifar10_1": "105k",
+		"cifar10_2": "305k",
+		"cifar10_3": "5k",
+		"cifar10_4": "40k",
+		"resize": "resize"
+	}
+
+	for key,value in request_counter.items():
+		print(func_name_dict[key], ":", str(value), "proportion:", (100*value)/(meet_deadline + miss_deadline))
 	for key,value in total_time_dist.items():
 		a = np.array(value)
 		p = np.percentile(a, int(percentage))
-		print(key + " " + percentage + " percentage is:" + str(p) + " mean is:" + str(np.mean(value)) + " max latency is:" + str(max_latency_dist[key]))
+		print(func_name_dict[key] + " " + percentage + " percentage is:" + str(p) + " mean is:" + str(np.mean(value)) + " max latency is:" + str(max_latency_dist[key]))
 	for key,value in meet_deadline_dist.items():
 		miss_value = miss_deadline_dist[key]
 		total_request = miss_value + value
 		miss_rate = (miss_value * 100) / total_request
-		print(key + " miss deadline rate:" + str(miss_rate) + " miss count is:" + str(miss_value))
+		
+		print(func_name_dict[key] + " miss deadline rate:" + str(miss_rate) + " miss count is:" + str(miss_value) + " total request:" + str(total_request))
 	for key,value in real_time_workload_times_dist.items():
 		real_time_workload_times_dist[key] = [x - min_time for x in value]
 
@@ -183,8 +192,19 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	f4 = open("real_workload_requests.txt", 'w')
 	f4.write(js4)
 	f4.close()
-	#for key,value in total_time_dist.items():
-        #        print(key + ":", value)
+
+	js5 = json.dumps(running_times)
+	f5 = open("running_time.txt", 'w')
+	f5.write(js5)
+	f5.close()
+
+	js6 = json.dumps(total_times)
+	f6 = open("total_time2.txt", 'w')
+	f6.write(js6)
+	f6.close()
+
+	for key,value in total_time_dist.items():
+                print(key + ": time list length is ", len(value))
 if __name__ == "__main__":
 	argv = sys.argv[1:]
 	if len(argv) < 1:
