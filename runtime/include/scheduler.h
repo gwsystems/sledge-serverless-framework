@@ -204,16 +204,23 @@ static inline void
 scheduler_preempt(ucontext_t *user_context)
 {
 	assert(user_context != NULL);
-
-	/* Process epoll to make sure that all runnable jobs are considered for execution */
-	worker_thread_execute_epoll_loop();
-
 	struct sandbox *current = current_sandbox_get();
 	assert(current != NULL);
 	assert(current->state == SANDBOX_RUNNING);
 
+	/* This is for better state-change bookkeeping */
+    	uint64_t now                    = __getcycles();
+    	uint64_t duration_of_last_state = now - current->last_state_change_timestamp;
+    	current->running_duration += duration_of_last_state;
+	
+	/* Process epoll to make sure that all runnable jobs are considered for execution */
+	worker_thread_execute_epoll_loop();
+
 	struct sandbox *next = scheduler_get_next();
 	assert(next != NULL);
+
+	/* This is for better state-change bookkeeping */
+    	current->last_state_change_timestamp = __getcycles();
 
 	/* If current equals next, no switch is necessary, so resume execution */
 	if (current == next) return;
