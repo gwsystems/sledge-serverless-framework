@@ -11,11 +11,7 @@ declare project_path="$(
 path=`pwd`
 echo $project_path
 cd $project_path/runtime/bin
-<<<<<<< HEAD
 export SLEDGE_SCHEDULER=SRSF
-=======
-#export SLEDGE_SCHEDULER=SRSF
->>>>>>> 9b630ee06e64f416c4ed71ab40ae988fd66a9963
 #export SLEDGE_DISABLE_PREEMPTION=true
 export SLEDGE_SANDBOX_PERF_LOG=$path/srsf.log
 export LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH"
