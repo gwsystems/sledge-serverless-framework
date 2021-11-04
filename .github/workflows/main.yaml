@@ -100,7 +100,7 @@ jobs:
         if: success()
       # - name: Hyde
       #   run: |
-      #     ./test.sh ocr_hyde
+      #     make -f test.mk ocr__hyde
       #   if: success() || failure()
       # - name: Upload Hyde Logs on Failure
       #   uses: actions/upload-artifact@v2
@@ -110,23 +110,23 @@ jobs:
       #     path: ./runtime/experiments/applications/ocr/hyde/res/**/
       # - name: Handwriting
       #   run: |
-      #     ./test.sh ocr_handwriting
+      #     make -f test.mk ocr__handwriting
       #   if: success() || failure()
       # - name: Five by Eight
       #   run: |
-      #     ./test.sh ocr_fivebyeight
+      #     make -f test.mk ocr__fivebyeight
       # if: success() || failure()
       # - name: OCR by Word
       #   run: |
-      #     ./test.sh ocr_by_word
+      #     make -f test.mk ocr__by_word
       #   if: success() || failure()
       # - name: OCR by Font
       #   run: |
-      #     ./test.sh ocr_by_font
+      #     make -f test.mk ocr__by_font
       #   if: success() || failure()
       # - name: OCR by DPI
       #   run: |
-      #     ./test.sh ocr_by_dpi
+      #     make -f test.mk ocr__by_dpi
       #   if: success() || failure()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache EKF
@@ -137,39 +137,39 @@ jobs:
         if: success() || failure()
       - name: EKF one iteration
         run: |
-          ./test.sh ekf_one_iteration
+          make -f test.mk ekf__one_iteration
         if: success() || failure()
       # - name: EKF by Iteration
       #   run: |
-      #     ./test.sh ekf_by_iteration
+      #     make -f test.mk ekf__by_iteration
       #   if: success() || failure()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Image Classification
         run: |
-          ./test.sh image_classification
+          make -f test.mk cifar10__image_classification
         if: success() || failure()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Image Resize
         run: |
-          ./test.sh image_resize
+          make -f test.mk sod__image_resize
         if: success() || failure()
       # - name: Image Resize by Resolution
       #   run: |
-      #     ./test.sh image_resize_by_resolution
+      #     make -f test.mk sod__image_resize__by_resolution
       #   if: success() || failure()
       # - name: License Plate Detection by Plate Count
       #   run: |
-      #     ./test.sh lpd_by_plate_count
+      #     make -f test.mk sod__lpd_by_plate_count
       #   if: success() || failure()
       # - name: Bimodal
       #   run: |
-      #     ./test.sh bimodal
+      #     make -f test.mk fibonacci__bimodal
       #   if: success() || failure()
       # - name: Concurrency
       #   run: |
-      #     ./test.sh concurrency
+      #     make -f test.mk empty__concurrency
       #   if: success() || failure()
       # - name: Payload
       #   run: |
-      #     ./test.sh payload
+      #     make -f test.mk TODO
       #   if: success() || failure()
