@@ -73,6 +73,8 @@ sandbox_allocate_memory(struct module *module)
 	sandbox->memory.size = memory_size;
 	sandbox->memory.max  = memory_max;
 
+	for (int i = 0; i < SANDBOX_STATE_COUNT; i++) { sandbox->duration_of_state[i] = 0; }
+
 done:
 	return sandbox;
 set_rw_failed:
@@ -171,14 +173,14 @@ err_stack_allocation_failed:
 	 * This is a degenerate sandbox that never successfully completed initialization, so we need to
 	 * hand jam some things to be able to cleanly transition to ERROR state
 	 */
-	sandbox->state                          = SANDBOX_SET_AS_INITIALIZED;
+	sandbox->state                          = SANDBOX_UNINITIALIZED;
 	sandbox->timestamp_of.last_state_change = now;
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	sandbox->timestamp_of.page_allocations_size = 0;
 #endif
 	ps_list_init_d(sandbox);
 err_memory_allocation_failed:
-	sandbox_set_as_error(sandbox, SANDBOX_SET_AS_INITIALIZED);
+	sandbox_set_as_error(sandbox, SANDBOX_UNINITIALIZED);
 	perror(error_message);
 	sandbox = NULL;
 	goto done;

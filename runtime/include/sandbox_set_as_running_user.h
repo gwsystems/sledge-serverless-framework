@@ -14,14 +14,10 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
 
-	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
-
-	sandbox->state = SANDBOX_SET_AS_RUNNING_USER;
+	uint64_t now = __getcycles();
 
 	switch (last_state) {
 	case SANDBOX_RUNNING_KERNEL: {
-		sandbox->duration_of_state.running_user += duration_of_last_state;
 		assert(sandbox == current_sandbox_get());
 		assert(runtime_worker_threads_deadline[worker_thread_idx] == sandbox->absolute_deadline);
 
@@ -33,16 +29,15 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	sandbox->timestamp_of.last_state_change = now;
-	sandbox->state                          = SANDBOX_RUNNING_USER;
 
 	/* State Change Bookkeeping */
+	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
+	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(sandbox, SANDBOX_RUNNING_USER);
 	runtime_sandbox_total_increment(SANDBOX_RUNNING_USER);
 	runtime_sandbox_total_decrement(last_state);
 
-	/* Enable preemption at the end of state transition*/
-	assert(last_state == SANDBOX_RUNNING_KERNEL);
-
-	sandbox_enable_preemption(sandbox);
+	/* WARNING: This state change needs to be at the end of this transition because all code below this assignment
+	 * is preemptable */
+	sandbox->state = SANDBOX_RUNNING_USER;
 }

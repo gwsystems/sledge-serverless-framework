@@ -22,17 +22,12 @@ static inline void
 sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-
-	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
-
-	sandbox->state = SANDBOX_SET_AS_COMPLETE;
-	sandbox_state_history_append(sandbox, SANDBOX_SET_AS_COMPLETE);
+	sandbox->state = SANDBOX_COMPLETE;
+	uint64_t now   = __getcycles();
 
 	switch (last_state) {
 	case SANDBOX_RETURNED: {
 		sandbox->timestamp_of.completion = now;
-		sandbox->duration_of_state.returned += duration_of_last_state;
 		break;
 	}
 	default: {
@@ -41,17 +36,17 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	sandbox->timestamp_of.last_state_change = now;
-	sandbox->state                          = SANDBOX_COMPLETE;
-
 	/* State Change Bookkeeping */
+	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
+	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(sandbox, SANDBOX_COMPLETE);
 	runtime_sandbox_total_increment(SANDBOX_COMPLETE);
 	runtime_sandbox_total_decrement(last_state);
 
 	/* Admissions Control Post Processing */
 	admissions_info_update(&sandbox->module->admissions_info,
-	                       sandbox->duration_of_state.running_user + sandbox->duration_of_state.running_kernel);
+	                       sandbox->duration_of_state[SANDBOX_RUNNING_USER]
+	                         + sandbox->duration_of_state[SANDBOX_RUNNING_KERNEL]);
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	/* Terminal State Logging */

@@ -139,7 +139,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	assert(runtime_preemption_enabled);
 
 	/* Signals should not nest */
-	/* TODO: Better atomic instruction here to check and set? */
 	assert(software_interrupt_signal_depth == 0);
 	atomic_fetch_add(&software_interrupt_signal_depth, 1);
 
@@ -148,18 +147,17 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
-		bool preemptable = false;
-		if (current_sandbox) {
-			preemptable                        = current_sandbox->ctxt.preemptable;
-			current_sandbox->interrupted_state = current_sandbox->state;
-			if (preemptable && current_sandbox->state == SANDBOX_RUNNING_USER) {
-				sandbox_set_as_running_kernel(current_sandbox, SANDBOX_RUNNING_USER);
-			}
-		}
-
 		sigalrm_propagate_workers(signal_info);
 
-		if (preemptable) {
+		/* Current Sandbox is NULL when the base worker context is active. This already executes scheduling
+		 * logic, so just return. */
+		if (!current_sandbox) goto done;
+
+		/* We need to track what state was interrupted to conditionally restore user running after preemption */
+		current_sandbox->interrupted_state = current_sandbox->state;
+
+		if (current_sandbox->state == SANDBOX_RUNNING_USER) {
+			sandbox_set_as_running_kernel(current_sandbox, SANDBOX_RUNNING_USER);
 			atomic_store(&software_interrupt_deferred_sigalrm, 0);
 			current_sandbox = scheduler_preempt(interrupted_context);
 		} else {

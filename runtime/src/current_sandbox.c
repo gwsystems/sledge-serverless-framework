@@ -59,9 +59,7 @@ current_sandbox_start(void)
 	/* Executing the function */
 	int32_t argument_count = 0;
 	assert(sandbox->state == SANDBOX_RUNNING_KERNEL);
-	assert(sandbox->ctxt.preemptable == false);
 	sandbox_set_as_running_user(sandbox, SANDBOX_RUNNING_KERNEL);
-	assert(sandbox->ctxt.preemptable == true);
 	sandbox->return_value = module_entrypoint(current_module, argument_count, sandbox->arguments_offset);
 	assert(sandbox->state == SANDBOX_RUNNING_USER);
 	sandbox_set_as_running_kernel(sandbox, SANDBOX_RUNNING_USER);

@@ -20,8 +20,6 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 		actx->variant = ARCH_CONTEXT_VARIANT_FAST;
 	}
 
-	actx->preemptable = false;
-
 	if (sp) {
 		/*
 		 * context_switch conventions: bp is expected to be on top of the stack

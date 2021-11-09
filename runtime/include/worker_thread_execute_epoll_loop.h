@@ -60,11 +60,8 @@ worker_thread_execute_epoll_loop(void)
 				}
 
 				switch (sandbox->state) {
-				case SANDBOX_SET_AS_RETURNED:
 				case SANDBOX_RETURNED:
-				case SANDBOX_SET_AS_COMPLETE:
 				case SANDBOX_COMPLETE:
-				case SANDBOX_SET_AS_ERROR:
 				case SANDBOX_ERROR:
 					panic("Expected to have closed socket");
 				default:

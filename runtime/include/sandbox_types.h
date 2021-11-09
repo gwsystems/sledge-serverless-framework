@@ -101,8 +101,8 @@ struct sandbox {
 	struct wasm_memory   memory;
 
 	/* Scheduling and Temporal State */
-	struct sandbox_timestamps      timestamp_of;
-	struct sandbox_state_durations duration_of_state;
+	struct sandbox_timestamps timestamp_of;
+	uint64_t                  duration_of_state[SANDBOX_STATE_COUNT];
 
 	uint64_t absolute_deadline;
 	uint64_t admissions_estimate; /* estimated execution time (cycles) * runtime_admissions_granularity / relative
