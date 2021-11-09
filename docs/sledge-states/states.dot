@@ -1,8 +1,8 @@
 digraph {
 	Uninitialized -> Initialized
 	Initialized -> {Runnable Error}
-	Runnable -> Running
-	Running -> {Blocked Runnable Returned Error}
+	{Runnable Running_User Preempted} -> Running_Kernel
+	Running_Kernel -> {Blocked Error Preempted Returned Running_User}
 	Returned -> Complete
 	Blocked -> Runnable
 } 
