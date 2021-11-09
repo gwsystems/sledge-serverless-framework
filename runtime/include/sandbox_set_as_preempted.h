@@ -39,7 +39,6 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_RUNNING_KERNEL: {
 		sandbox->duration_of_state.preempted += duration_of_last_state;
 		current_sandbox_set(NULL);
-		runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 		break;
 	}
 	default: {

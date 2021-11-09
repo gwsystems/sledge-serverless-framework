@@ -32,7 +32,6 @@ sandbox_set_as_running_kernel(struct sandbox *sandbox, sandbox_state_t last_stat
 	case SANDBOX_RUNNING_USER: {
 		assert(sandbox == current_sandbox_get());
 		sandbox->duration_of_state.running_user += duration_of_last_state;
-		assert(worker_thread_current_sandbox == sandbox);
 		assert(runtime_worker_threads_deadline[worker_thread_idx] == sandbox->absolute_deadline);
 		break;
 	}
@@ -40,7 +39,6 @@ sandbox_set_as_running_kernel(struct sandbox *sandbox, sandbox_state_t last_stat
 		assert(sandbox);
 		sandbox->duration_of_state.runnable += duration_of_last_state;
 		current_sandbox_set(sandbox);
-		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 		/* Does not handle context switch because the caller knows if we need to use fast or slow switched. We
 		 * can fix this by breakout out SANDBOX_RUNNABLE and SANDBOX_PREEMPTED */
 		break;
@@ -50,7 +48,6 @@ sandbox_set_as_running_kernel(struct sandbox *sandbox, sandbox_state_t last_stat
 		assert(sandbox->interrupted_state == SANDBOX_RUNNING_USER);
 		sandbox->duration_of_state.preempted += duration_of_last_state;
 		current_sandbox_set(sandbox);
-		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 		/* Does not handle context switch because the caller knows if we need to use fast or slow switched. We
 		 * can fix this by breakout out SANDBOX_RUNNABLE and SANDBOX_PREEMPTED */
 		break;

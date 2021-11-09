@@ -38,12 +38,14 @@ current_sandbox_set(struct sandbox *sandbox)
 			},
 			.module_indirect_table = NULL,
 		};
-		worker_thread_current_sandbox = NULL;
+		worker_thread_current_sandbox                      = NULL;
+		runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	} else {
 		local_sandbox_context_cache = (struct sandbox_context_cache){
 			.memory                = sandbox->memory,
 			.module_indirect_table = sandbox->module->indirect_table,
 		};
-		worker_thread_current_sandbox = sandbox;
+		worker_thread_current_sandbox                      = sandbox;
+		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 	}
 }
