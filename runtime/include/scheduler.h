@@ -144,12 +144,13 @@ scheduler_runqueue_initialize()
 /**
  * Called by the SIGALRM handler after a quantum
  * Assumes the caller validates that there is something to preempt
- * @param user_context - The context of our user-level Worker thread
+ * @param interrupted_context - The context of our user-level Worker thread
+ * @returns the sandbox that the scheduler chose to run
  */
-static inline void
-scheduler_preempt(ucontext_t *user_context)
+static inline struct sandbox *
+scheduler_preempt(ucontext_t *interrupted_context)
 {
-	assert(user_context != NULL);
+	assert(interrupted_context != NULL);
 
 	/* Process epoll to make sure that all runnable jobs are considered for execution */
 	worker_thread_execute_epoll_loop();
@@ -163,7 +164,7 @@ scheduler_preempt(ucontext_t *user_context)
 	assert(next != NULL);
 
 	/* If current equals next, no switch is necessary, so resume execution */
-	if (current == next) return;
+	if (current == next) return current;
 
 #ifdef LOG_PREEMPTION
 	debuglog("Preempting sandbox %lu to run sandbox %lu\n", current->id, next->id);
@@ -173,7 +174,7 @@ scheduler_preempt(ucontext_t *user_context)
 
 	/* How do I switch back to "user running" when this is resumed? */
 	sandbox_set_as_preempted(current, SANDBOX_RUNNING_KERNEL);
-	arch_mcontext_save(&current->ctxt, &user_context->uc_mcontext);
+	arch_context_save_slow(&current->ctxt, &interrupted_context->uc_mcontext);
 
 	/* Update current_sandbox to the next sandbox */
 	// assert(next->state == SANDBOX_RUNNABLE);
@@ -182,7 +183,7 @@ scheduler_preempt(ucontext_t *user_context)
 	case ARCH_CONTEXT_VARIANT_FAST: {
 		assert(next->state == SANDBOX_RUNNABLE);
 		sandbox_set_as_running_kernel(next, SANDBOX_RUNNABLE);
-		arch_context_restore_new(&user_context->uc_mcontext, &next->ctxt);
+		arch_context_restore_fast(&interrupted_context->uc_mcontext, &next->ctxt);
 		break;
 	}
 	case ARCH_CONTEXT_VARIANT_SLOW: {
@@ -203,7 +204,7 @@ scheduler_preempt(ucontext_t *user_context)
 		 */
 		assert(scheduler != SCHEDULER_EDF);
 		assert(next->state == SANDBOX_PREEMPTED);
-		arch_mcontext_restore(&user_context->uc_mcontext, &next->ctxt);
+		arch_context_restore_slow(&interrupted_context->uc_mcontext, &next->ctxt);
 		sandbox_set_as_running_kernel(next, SANDBOX_PREEMPTED);
 		break;
 	}
@@ -212,6 +213,8 @@ scheduler_preempt(ucontext_t *user_context)
 		      arch_context_variant_print(next->ctxt.variant));
 	}
 	}
+
+	return next;
 }
 
 static inline char *

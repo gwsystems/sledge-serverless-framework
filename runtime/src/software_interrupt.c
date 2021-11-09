@@ -127,10 +127,10 @@ software_interrupt_validate_worker()
  * SIGUSR1 restores a preempted sandbox
  * @param signal_type
  * @param signal_info data structure containing signal info
- * @param user_context_raw void* to a user_context struct
+ * @param interrupted_context_raw void* to a interrupted_context struct
  */
 static inline void
-software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
+software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *interrupted_context_raw)
 {
 	/* Only workers should receive signals */
 	assert(!listener_thread_is_running());
@@ -143,8 +143,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	assert(software_interrupt_signal_depth == 0);
 	atomic_fetch_add(&software_interrupt_signal_depth, 1);
 
-	ucontext_t *    user_context    = (ucontext_t *)user_context_raw;
-	struct sandbox *current_sandbox = current_sandbox_get();
+	ucontext_t *    interrupted_context = (ucontext_t *)interrupted_context_raw;
+	struct sandbox *current_sandbox     = current_sandbox_get();
 
 	switch (signal_type) {
 	case SIGALRM: {
@@ -161,8 +161,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		if (preemptable) {
 			atomic_store(&software_interrupt_deferred_sigalrm, 0);
-			scheduler_preempt(user_context);
-			current_sandbox = current_sandbox_get();
+			current_sandbox = scheduler_preempt(interrupted_context);
 		} else {
 			atomic_fetch_add(&software_interrupt_deferred_sigalrm, 1);
 		}
@@ -178,7 +177,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
 		         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
 #endif
-		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
+		/* Overwrites the interrupted context with the context of the worker thread's current sandbox */
+		/* It is the responsibility of the caller to invoke current_sandbox_set before triggering the SIGUSR1 */
+		arch_context_restore_slow(&interrupted_context->uc_mcontext, &current_sandbox->ctxt);
 		goto done;
 	}
 	default: {
