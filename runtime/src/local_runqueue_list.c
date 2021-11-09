@@ -60,7 +60,8 @@ local_runqueue_list_rotate()
 	if (ps_list_head_one_node(&local_runqueue_list)) return;
 
 	struct sandbox *sandbox_at_head = local_runqueue_list_remove_and_return();
-	assert(sandbox_at_head->state == SANDBOX_RUNNING || sandbox_at_head->state == SANDBOX_RUNNABLE);
+	assert(sandbox_at_head->state == SANDBOX_RUNNING_KERNEL || sandbox_at_head->state == SANDBOX_RUNNABLE
+	       || sandbox_at_head->state == SANDBOX_PREEMPTED);
 	local_runqueue_list_append(sandbox_at_head);
 }
 

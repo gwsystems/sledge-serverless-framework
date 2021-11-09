@@ -32,14 +32,15 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
 
 	sandbox->state = SANDBOX_SET_AS_ERROR;
+	sandbox_state_history_append(sandbox, SANDBOX_SET_AS_ERROR);
 
 	switch (last_state) {
 	case SANDBOX_SET_AS_INITIALIZED:
 		/* Technically, this is a degenerate sandbox that we generate by hand */
 		sandbox->duration_of_state.initializing += duration_of_last_state;
 		break;
-	case SANDBOX_RUNNING: {
-		sandbox->duration_of_state.running += duration_of_last_state;
+	case SANDBOX_RUNNING_KERNEL: {
+		sandbox->duration_of_state.running_kernel += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		break;
 	}
@@ -59,7 +60,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	local_completion_queue_add(sandbox);
 
 	/* State Change Bookkeeping */
-	sandbox_state_log_transition(sandbox_id, last_state, SANDBOX_ERROR);
+	sandbox_state_history_append(sandbox, SANDBOX_ERROR);
 	runtime_sandbox_total_increment(SANDBOX_ERROR);
 	runtime_sandbox_total_decrement(last_state);
 }

@@ -18,8 +18,9 @@
 #include "sandbox_functions.h"
 #include "sandbox_types.h"
 #include "sandbox_set_as_blocked.h"
+#include "sandbox_set_as_preempted.h"
 #include "sandbox_set_as_runnable.h"
-#include "sandbox_set_as_running.h"
+#include "sandbox_set_as_running_kernel.h"
 #include "worker_thread_execute_epoll_loop.h"
 
 enum SCHEDULER
@@ -155,9 +156,10 @@ scheduler_preempt(ucontext_t *user_context)
 
 	struct sandbox *current = current_sandbox_get();
 	assert(current != NULL);
-	assert(current->state == SANDBOX_RUNNING);
+	assert(current->state == SANDBOX_RUNNING_KERNEL);
 
 	struct sandbox *next = scheduler_get_next();
+	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
 	assert(next != NULL);
 
 	/* If current equals next, no switch is necessary, so resume execution */
@@ -168,15 +170,18 @@ scheduler_preempt(ucontext_t *user_context)
 #endif
 
 	/* Save the context of the currently executing sandbox before switching from it */
-	sandbox_set_as_runnable(current, SANDBOX_RUNNING);
+
+	/* How do I switch back to "user running" when this is resumed? */
+	sandbox_set_as_preempted(current, SANDBOX_RUNNING_KERNEL);
 	arch_mcontext_save(&current->ctxt, &user_context->uc_mcontext);
 
 	/* Update current_sandbox to the next sandbox */
-	assert(next->state == SANDBOX_RUNNABLE);
-	sandbox_set_as_running(next, SANDBOX_RUNNABLE);
+	// assert(next->state == SANDBOX_RUNNABLE);
 
 	switch (next->ctxt.variant) {
 	case ARCH_CONTEXT_VARIANT_FAST: {
+		assert(next->state == SANDBOX_RUNNABLE);
+		sandbox_set_as_running_kernel(next, SANDBOX_RUNNABLE);
 		arch_context_restore_new(&user_context->uc_mcontext, &next->ctxt);
 		break;
 	}
@@ -197,8 +202,9 @@ scheduler_preempt(ucontext_t *user_context)
 		 * either a fast or a slow context to be restored during "round robin" execution.
 		 */
 		assert(scheduler != SCHEDULER_EDF);
-
+		assert(next->state == SANDBOX_PREEMPTED);
 		arch_mcontext_restore(&user_context->uc_mcontext, &next->ctxt);
+		sandbox_set_as_running_kernel(next, SANDBOX_PREEMPTED);
 		break;
 	}
 	default: {
@@ -245,7 +251,7 @@ static inline void
 scheduler_switch_to(struct sandbox *next_sandbox)
 {
 	assert(next_sandbox != NULL);
-	assert(next_sandbox->state == SANDBOX_RUNNABLE);
+	assert(next_sandbox->state == SANDBOX_RUNNABLE || next_sandbox->state == SANDBOX_PREEMPTED);
 	struct arch_context *next_context = &next_sandbox->ctxt;
 
 	/* Get the old sandbox we're switching from.
@@ -261,7 +267,7 @@ scheduler_switch_to(struct sandbox *next_sandbox)
 	}
 
 	scheduler_log_sandbox_switch(current_sandbox, next_sandbox);
-	sandbox_set_as_running(next_sandbox, next_sandbox->state);
+	sandbox_set_as_running_kernel(next_sandbox, next_sandbox->state);
 	arch_context_switch(current_context, next_context);
 }
 
@@ -305,8 +311,8 @@ scheduler_block(void)
 	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
 	struct sandbox *current_sandbox = current_sandbox_get();
 
-	assert(current_sandbox->state == SANDBOX_RUNNING);
-	sandbox_set_as_blocked(current_sandbox, SANDBOX_RUNNING);
+	assert(current_sandbox->state == SANDBOX_RUNNING_KERNEL);
+	sandbox_set_as_blocked(current_sandbox, SANDBOX_RUNNING_KERNEL);
 	generic_thread_dump_lock_overhead();
 
 	scheduler_yield();

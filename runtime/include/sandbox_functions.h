@@ -96,10 +96,58 @@ sandbox_print_perf(struct sandbox *sandbox)
 	 * becomes more intelligent, then peak linear memory size needs to be tracked
 	 * seperately from current linear memory size.
 	 */
-	fprintf(runtime_sandbox_perf_log, "%lu,%s,%d,%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u,%u\n", sandbox->id,
+	fprintf(runtime_sandbox_perf_log, "%lu,%s,%d,%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u,%u\n", sandbox->id,
 	        sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
 	        sandbox->module->relative_deadline, sandbox->total_time, queued_duration,
 	        sandbox->duration_of_state.initializing, sandbox->duration_of_state.runnable,
-	        sandbox->duration_of_state.running, sandbox->duration_of_state.blocked,
+	        sandbox->duration_of_state.preempted, sandbox->duration_of_state.running_kernel,
+	        sandbox->duration_of_state.running_user, sandbox->duration_of_state.blocked,
 	        sandbox->duration_of_state.returned, runtime_processor_speed_MHz, sandbox->memory.size);
+}
+
+static inline void
+sandbox_enable_preemption(struct sandbox *sandbox)
+{
+#ifdef LOG_PREEMPTION
+	debuglog("Sandbox %lu - enabling preemption - Missed %d SIGALRM\n", sandbox->id,
+	         software_interrupt_deferred_sigalrm);
+	fflush(stderr);
+#endif
+	if (__sync_bool_compare_and_swap(&sandbox->ctxt.preemptable, 0, 1) == false) {
+		panic("Recursive call to current_sandbox_enable_preemption\n");
+	}
+
+	if (software_interrupt_deferred_sigalrm > 0) {
+		/* Update Max */
+		if (software_interrupt_deferred_sigalrm > software_interrupt_deferred_sigalrm_max[worker_thread_idx]) {
+			software_interrupt_deferred_sigalrm_max[worker_thread_idx] =
+			  software_interrupt_deferred_sigalrm;
+		}
+
+		software_interrupt_deferred_sigalrm = 0;
+
+		// TODO: Replay. Does the replay need to be before or after enabling preemption?
+	}
+}
+
+static inline void
+sandbox_disable_preemption(struct sandbox *sandbox)
+{
+#ifdef LOG_PREEMPTION
+	debuglog("Sandbox %lu - disabling preemption\n", sandbox->id);
+	fflush(stderr);
+#endif
+	if (__sync_bool_compare_and_swap(&sandbox->ctxt.preemptable, 1, 0) == false) {
+		panic("Recursive call to current_sandbox_disable_preemption\n");
+	}
+}
+
+static inline void
+sandbox_state_history_append(struct sandbox *sandbox, sandbox_state_t state)
+{
+#ifdef LOG_STATE_CHANGES
+	if (likely(sandbox->state_history_count < SANDBOX_STATE_HISTORY_CAPACITY)) {
+		sandbox->state_history[sandbox->state_history_count++] = state;
+	}
+#endif
 }

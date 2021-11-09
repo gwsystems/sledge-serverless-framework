@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 #include <sys/mman.h>
 
 #include "current_sandbox.h"
@@ -152,6 +153,12 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 		goto err_stack_allocation_failed;
 	}
 	sandbox->state = SANDBOX_ALLOCATED;
+
+#ifdef LOG_STATE_CHANGES
+	sandbox->state_history_count                           = 0;
+	sandbox->state_history[sandbox->state_history_count++] = SANDBOX_ALLOCATED;
+	memset(&sandbox->state_history, 0, 100);
+#endif
 
 	/* Set state to initializing */
 	sandbox_set_as_initialized(sandbox, sandbox_request, now);

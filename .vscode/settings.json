@@ -1,6 +1,7 @@
 {
 	"files.associations": {
 		"*.ld": "llvm",
+		"*.wasm": "wasm",
 		"*.inc": "cpp",
 		"arm_nnexamples_cifar10_parameter.h": "c",
 		"arm_nnexamples_cifar10_weights.h": "c",
@@ -90,6 +91,8 @@
 		"sandbox_set_as_running.h": "c",
 		"sandbox_summarize_page_allocations.h": "c",
 		"wasm_types.h": "c",
+		"atomic": "c",
+		"sandbox_set_as_running_kernel.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

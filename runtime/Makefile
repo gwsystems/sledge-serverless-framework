@@ -47,13 +47,17 @@ BINARY_NAME=sledgert
 
 # Various Informational Logs for Debugging
 # CFLAGS += -DLOG_HTTP_PARSER
-# CFLAGS += -DLOG_STATE_CHANGES
 # CFLAGS += -DLOG_LOCK_OVERHEAD
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_REQUEST_ALLOCATION
 # CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_MODULE_LOADING
+
+# This adds an array of sandbox states to all sandbox structs and appends states at each transition
+# The history trucates when the number of elements equal SANDBOX_STATE_HISTORY_CAPACITY 
+CFLAGS += -DLOG_STATE_CHANGES
+
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
 # page is allocated. This helps understand the relationship to memory allocation and execution time.

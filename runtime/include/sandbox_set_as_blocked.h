@@ -25,10 +25,11 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
 
 	sandbox->state = SANDBOX_SET_AS_BLOCKED;
+	sandbox_state_history_append(sandbox, SANDBOX_SET_AS_BLOCKED);
 
 	switch (last_state) {
-	case SANDBOX_RUNNING: {
-		sandbox->duration_of_state.running += duration_of_last_state;
+	case SANDBOX_RUNNING_KERNEL: {
+		sandbox->duration_of_state.running_kernel += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		break;
 	}
@@ -42,7 +43,7 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox->state                          = SANDBOX_BLOCKED;
 
 	/* State Change Bookkeeping */
-	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_BLOCKED);
+	sandbox_state_history_append(sandbox, SANDBOX_BLOCKED);
 	runtime_sandbox_total_increment(SANDBOX_BLOCKED);
 	runtime_sandbox_total_decrement(last_state);
 }

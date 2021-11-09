@@ -9,7 +9,7 @@
 #include "sandbox_types.h"
 
 /**
- * Transitions a sandbox to the SANDBOX_RUNNABLE state.
+ * Transitions a sandbox to the SANDBOX_PREEMPTED state.
  *
  * This occurs in the following scenarios:
  * - A sandbox in the SANDBOX_INITIALIZED state completes initialization and is ready to be run
@@ -20,38 +20,39 @@
  * enable the compiler to perform constant propagation optimizations.
  */
 static inline void
-sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
+sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
+
+	/* Preemption occurs indirectly via the SANDBOX_RUNNING_KERNEL state, so preemptable is set
+	 * to false during the process of preemption.
+	 */
+	assert(sandbox->ctxt.preemptable == false);
 
 	uint64_t now                    = __getcycles();
 	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
 
-	sandbox->state = SANDBOX_SET_AS_RUNNABLE;
-	sandbox_state_history_append(sandbox, SANDBOX_SET_AS_RUNNABLE);
+	sandbox->state = SANDBOX_SET_AS_PREEMPTED;
+	sandbox_state_history_append(sandbox, SANDBOX_SET_AS_PREEMPTED);
 
 	switch (last_state) {
-	case SANDBOX_INITIALIZED: {
-		sandbox->duration_of_state.initializing += duration_of_last_state;
-		local_runqueue_add(sandbox);
-		break;
-	}
-	case SANDBOX_BLOCKED: {
-		sandbox->duration_of_state.blocked += duration_of_last_state;
-		local_runqueue_add(sandbox);
+	case SANDBOX_RUNNING_KERNEL: {
+		sandbox->duration_of_state.preempted += duration_of_last_state;
+		current_sandbox_set(NULL);
+		runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Runnable\n", sandbox->id,
+		panic("Sandbox %lu | Illegal transition from %s to Preempted\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
 
 	sandbox->timestamp_of.last_state_change = now;
-	sandbox->state                          = SANDBOX_RUNNABLE;
+	sandbox->state                          = SANDBOX_PREEMPTED;
 
 	/* State Change Bookkeeping */
-	sandbox_state_history_append(sandbox, SANDBOX_RUNNABLE);
-	runtime_sandbox_total_increment(SANDBOX_RUNNABLE);
+	sandbox_state_history_append(sandbox, SANDBOX_PREEMPTED);
+	runtime_sandbox_total_increment(SANDBOX_PREEMPTED);
 	runtime_sandbox_total_decrement(last_state);
 }

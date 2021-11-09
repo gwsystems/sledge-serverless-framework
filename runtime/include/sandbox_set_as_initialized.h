@@ -32,6 +32,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->timestamp_of.request_arrival = sandbox_request->request_arrival_timestamp;
 	sandbox->timestamp_of.allocation      = allocation_timestamp;
 	sandbox->state                        = SANDBOX_SET_AS_INITIALIZED;
+	sandbox_state_history_append(sandbox, SANDBOX_SET_AS_INITIALIZED);
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
 	/* stack.start points to the bottom of the usable stack, so add stack_size to get to top */
@@ -50,6 +51,6 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->state                          = SANDBOX_INITIALIZED;
 
 	/* State Change Bookkeeping */
-	sandbox_state_log_transition(sandbox->id, SANDBOX_UNINITIALIZED, SANDBOX_INITIALIZED);
+	sandbox_state_history_append(sandbox, SANDBOX_INITIALIZED);
 	runtime_sandbox_total_increment(SANDBOX_INITIALIZED);
 }

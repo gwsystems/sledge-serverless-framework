@@ -14,8 +14,12 @@ typedef enum
 	SANDBOX_INITIALIZED,
 	SANDBOX_SET_AS_RUNNABLE,
 	SANDBOX_RUNNABLE,
-	SANDBOX_SET_AS_RUNNING,
-	SANDBOX_RUNNING,
+	SANDBOX_SET_AS_PREEMPTED,
+	SANDBOX_PREEMPTED,
+	SANDBOX_SET_AS_RUNNING_KERNEL,
+	SANDBOX_RUNNING_KERNEL,
+	SANDBOX_SET_AS_RUNNING_USER,
+	SANDBOX_RUNNING_USER,
 	SANDBOX_SET_AS_BLOCKED,
 	SANDBOX_BLOCKED,
 	SANDBOX_SET_AS_RETURNED,
@@ -31,7 +35,9 @@ typedef enum
 struct sandbox_state_durations {
 	uint64_t initializing;
 	uint64_t runnable;
-	uint64_t running;
+	uint64_t running_kernel;
+	uint64_t running_user;
+	uint64_t preempted;
 	uint64_t blocked;
 	uint64_t returned;
 };
@@ -45,16 +51,6 @@ sandbox_state_stringify(sandbox_state_t state)
 {
 	if (unlikely(state >= SANDBOX_STATE_COUNT)) panic("%d is an unrecognized sandbox state\n", state);
 	return sandbox_state_labels[state];
-}
-
-
-static inline void
-sandbox_state_log_transition(uint64_t sandbox_id, sandbox_state_t last_state, sandbox_state_t current_state)
-{
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => %s\n", sandbox_id, sandbox_state_stringify(last_state),
-	         sandbox_state_stringify(current_state));
-#endif
 }
 
 #ifdef LOG_SANDBOX_COUNT
