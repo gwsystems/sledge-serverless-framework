@@ -30,6 +30,7 @@ __thread int worker_thread_epoll_file_descriptor;
 __thread int worker_thread_idx;
 
 extern FILE *runtime_sandbox_perf_log;
+extern uint64_t system_start_timestamp;
 /***********************
  * Worker Thread Logic *
  **********************/
@@ -81,8 +82,14 @@ worker_thread_main(void *argument)
 		worker_thread_execute_epoll_loop();
 
 		/* Switch to a sandbox if one is ready to run */
+
 		next_sandbox = scheduler_get_next();
-		if (next_sandbox != NULL) { scheduler_switch_to(next_sandbox); }
+		if (next_sandbox != NULL) { 
+			//uint64_t start_execution = __getcycles() - system_start_timestamp;
+			//mem_log("time %lu pop from GQ, request id:%d name %s obj=%p remaining slack %lu last_update_time %lu \n", start_execution,
+                        //                next_sandbox->id, next_sandbox->module->name, next_sandbox, next_sandbox->remaining_slack, next_sandbox->last_update_timestamp);
+			scheduler_switch_to(next_sandbox); 
+		}
 
 		/* Clear the completion queue */
 		local_completion_queue_free();

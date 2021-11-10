@@ -9,6 +9,7 @@
 #include "sandbox_request.h"
 #include "memlogging.h"
 
+extern __thread int worker_thread_idx;
 /***************************
  * Public API              *
  **************************/
@@ -110,11 +111,8 @@ sandbox_get_srsf_priority(void *element)
 {
 	struct sandbox *sandbox = (struct sandbox *)element;
 	uint64_t now = __getcycles();
-        int64_t remaining_slack = sandbox->remaining_slack - (now - sandbox->last_update_timestamp);
-	if (remaining_slack < 0) {
-		return 0;
-	}
-        return remaining_slack;
+	uint64_t remaining_slack = sandbox->remaining_slack - (now - sandbox->last_update_timestamp);
+	return remaining_slack;
 };
 
 /**
@@ -218,24 +216,24 @@ sandbox_mem_print_perf(struct sandbox *sandbox)
 	/* If the log was not defined by an environment variable, early out */
         if (runtime_sandbox_perf_log == NULL) return;
 
-	uint32_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
-        uint32_t queued_us     = (sandbox->allocation_timestamp - sandbox->enqueue_timestamp)
+	uint64_t total_time_us = sandbox->total_time / runtime_processor_speed_MHz;
+        uint64_t queued_us     = (sandbox->allocation_timestamp - sandbox->enqueue_timestamp)
                              / runtime_processor_speed_MHz;
-        uint32_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
-        uint32_t runnable_us     = sandbox->runnable_duration / runtime_processor_speed_MHz;
-        uint32_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
-        uint32_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
-        uint32_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
+        uint64_t initializing_us = sandbox->initializing_duration / runtime_processor_speed_MHz;
+        uint64_t runnable_us     = sandbox->runnable_duration / runtime_processor_speed_MHz;
+        uint64_t running_us      = sandbox->running_duration / runtime_processor_speed_MHz;
+        uint64_t blocked_us      = sandbox->blocked_duration / runtime_processor_speed_MHz;
+        uint64_t returned_us     = sandbox->returned_duration / runtime_processor_speed_MHz;
 
 	if (sandbox->module->next_module == NULL) {
-		uint32_t total_time = (sandbox->completion_timestamp - sandbox->request_arrival_timestamp) / runtime_processor_speed_MHz;
+		uint64_t total_time = (sandbox->completion_timestamp - sandbox->request_arrival_timestamp) / runtime_processor_speed_MHz;
                 bool miss_deadline = sandbox->completion_timestamp > sandbox->absolute_deadline ? true : false;
-		uint32_t delayed_us = (sandbox->completion_timestamp - sandbox->absolute_deadline) 
+		uint64_t delayed_us = (sandbox->completion_timestamp - sandbox->absolute_deadline) 
 					/ runtime_processor_speed_MHz;
                 if (miss_deadline) {
-                        mem_log("%lu miss deadline, delayed %u us, actual cost %u module name %s\n", sandbox->id, delayed_us, total_time, sandbox->module->name);
+                        mem_log("%u miss deadline, delayed %lu us, actual cost %lu module name %s\n", sandbox->id, delayed_us, total_time, sandbox->module->name);
                 } else {
-                        mem_log("%lu meet deadline, actual cost %u module name %s\n", sandbox->id, total_time, sandbox->module->name);
+                        mem_log("%u meet deadline, actual cost %lu module name %s\n", sandbox->id, total_time, sandbox->module->name);
                 }
         }
 
@@ -244,7 +242,7 @@ sandbox_mem_print_perf(struct sandbox *sandbox)
          * becomes more intelligent, then peak linear memory size needs to be tracked
          * seperately from current linear memory size.
          */
-        mem_log("%lu,%s():%d,%s,%u,%u,%u,%u,%u,%u,%u,%u,%u\n", sandbox->id,
+        mem_log("%d,%u,%s():%d,%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u\n", worker_thread_idx, sandbox->id,
                 sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
                 sandbox->module->relative_deadline_us, total_time_us, queued_us, initializing_us, runnable_us,
                 running_us, blocked_us, returned_us, sandbox->linear_memory_size);

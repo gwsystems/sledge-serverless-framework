@@ -16,6 +16,8 @@
 #include "sandbox_types.h"
 #include "scheduler.h"
 
+extern uint64_t system_start_timestamp;
+
 /**
  * Receive and Parse the Request for the current sandbox
  * @return 0 if message parsing complete, -1 on error
@@ -44,6 +46,9 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 		if (recved < 0) {
 			if (errno == EAGAIN) {
+			 	//uint64_t block_time = __getcycles() - system_start_timestamp;
+                        	//mem_log("time %lu blocked, request id:%d name %s obj=%p remaining slack %lu\n", block_time,
+                                //        sandbox->id, sandbox->module->name, sandbox, sandbox->remaining_slack);
 				scheduler_block();
 				continue;
 			} else {

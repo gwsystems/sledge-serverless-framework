@@ -33,6 +33,7 @@ enum SCHEDULER
 
 extern enum SCHEDULER scheduler;
 extern _Atomic uint32_t scheduling_counter;
+extern uint64_t system_start_timestamp;
 
 static inline struct sandbox *
 scheduler_edf_get_next()
@@ -82,6 +83,11 @@ scheduler_srsf_get_next()
 	 * This will be placed at the head of the local runqueue */
 	if (global_remaining_slack < local_remaining_slack) {
 		if (global_request_scheduler_remove_if_earlier(&request, local_remaining_slack) == 0) {
+
+			//uint64_t pop_time = __getcycles() - system_start_timestamp;
+                        //mem_log("time %lu remove from GQ, request id:%d name %s remaining slack %lu\n", pop_time,
+                        //                request->id, request->module->name, request->remaining_slack);
+			
 			assert(request != NULL);
 			struct sandbox *global = sandbox_allocate(request);
 			if (!global) goto err_allocate;
@@ -198,16 +204,23 @@ static inline void
 scheduler_preempt(ucontext_t *user_context)
 {
 	assert(user_context != NULL);
-
-	/* Process epoll to make sure that all runnable jobs are considered for execution */
-	worker_thread_execute_epoll_loop();
-
 	struct sandbox *current = current_sandbox_get();
 	assert(current != NULL);
 	assert(current->state == SANDBOX_RUNNING);
 
+	/* This is for better state-change bookkeeping */
+    	uint64_t now                    = __getcycles();
+    	uint64_t duration_of_last_state = now - current->last_state_change_timestamp;
+    	current->running_duration += duration_of_last_state;
+	
+	/* Process epoll to make sure that all runnable jobs are considered for execution */
+	worker_thread_execute_epoll_loop();
+
 	struct sandbox *next = scheduler_get_next();
 	assert(next != NULL);
+
+	/* This is for better state-change bookkeeping */
+    	current->last_state_change_timestamp = __getcycles();
 
 	/* If current equals next, no switch is necessary, so resume execution */
 	if (current == next) return;
@@ -224,6 +237,7 @@ scheduler_preempt(ucontext_t *user_context)
 
 	/* Update current_sandbox to the next sandbox */
 	assert(next->state == SANDBOX_RUNNABLE);
+	//printf("scheduler_preempt...\n");
 	sandbox_set_as_running(next, SANDBOX_RUNNABLE);
 
 	switch (next->ctxt.variant) {
@@ -314,6 +328,7 @@ scheduler_switch_to(struct sandbox *next_sandbox)
 	}
 
 	scheduler_log_sandbox_switch(current_sandbox, next_sandbox);
+	//printf("scheduler_switch_to...\n");
 	sandbox_set_as_running(next_sandbox, next_sandbox->state);
 	arch_context_switch(current_context, next_context);
 }

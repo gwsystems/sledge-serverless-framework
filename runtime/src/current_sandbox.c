@@ -9,6 +9,8 @@
 #include "module.h"
 #include "software_interrupt.h"
 
+extern uint64_t system_start_timestamp;
+
 __thread struct sandbox *worker_thread_current_sandbox = NULL;
 
 __thread struct sandbox_context_cache local_sandbox_context_cache = {
@@ -109,8 +111,13 @@ current_sandbox_start(void)
 	current_sandbox_disable_preemption(sandbox);
 	sandbox->completion_timestamp = __getcycles();
 
-
-	if (next_module != NULL) {
+	/* Function code execution failed, terminate the request */
+	if (sandbox->return_value < 0) {
+		/* TODO: Simply goto err is not perfect because not print out the response meesage of the function code.	
+		 *       Should return 400 and the err message in the http response body.
+		 */
+		goto err;	
+	} else if (next_module != NULL) {
 		/* Generate a new request, copy the current sandbox's output to the next request's buffer, and put it to the global queue */
 		ssize_t output_length = sandbox->request_response_data_length - sandbox->request_length;
 		char * pre_func_output = (char *)malloc(output_length);
@@ -121,6 +128,9 @@ current_sandbox_start(void)
 
 		memcpy(pre_func_output, sandbox->request_response_data + sandbox->request_length, output_length);
 	 	uint64_t enqueue_timestamp = __getcycles();	
+		//uint64_t current_rs = enqueue_timestamp - system_start_timestamp; 
+		//mem_log("time %lu request id:%d executing, name:%s remaining slack %lu\n", current_rs,
+                //                      sandbox->id, sandbox->module->name, sandbox->remaining_slack);
 		struct sandbox_request *sandbox_request =
                                   sandbox_request_allocate(next_module, false, sandbox->request_length, 
 							   next_module->name, sandbox->client_socket_descriptor,

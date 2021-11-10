@@ -30,7 +30,7 @@ uint32_t runtime_first_worker_processor  = 1;
 uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
-
+uint64_t system_start_timestamp          = 0;
 
 FILE *runtime_sandbox_perf_log = NULL;
 
@@ -226,7 +226,7 @@ runtime_configure()
 		printf("\tSandbox Performance Log: %s\n", runtime_sandbox_perf_log_path);
 		runtime_sandbox_perf_log = fopen(runtime_sandbox_perf_log_path, "w");
 		if (runtime_sandbox_perf_log == NULL) { perror("sandbox perf log"); }
-		fprintf(runtime_sandbox_perf_log, "id,function,state,deadline,actual,queued,initializing,runnable,"
+		fprintf(runtime_sandbox_perf_log, "threadid,id,function,state,deadline,actual,queued,initializing,runnable,"
 		                                  "running,blocked,returned,memory\n");
 	} else {
 		printf("\tSandbox Performance Log: Disabled\n");
@@ -341,6 +341,7 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
+	system_start_timestamp = __getcycles();
 	printf("Starting the Sledge runtime\n");
 
 	log_compiletime_config();

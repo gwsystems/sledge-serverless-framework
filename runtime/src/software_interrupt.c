@@ -40,6 +40,7 @@ __thread _Atomic volatile sig_atomic_t        software_interrupt_signal_depth   
 
 _Atomic volatile sig_atomic_t software_interrupt_deferred_sigalrm_max[RUNTIME_WORKER_THREAD_CORE_COUNT] = { 0 };
 
+extern pthread_t listener_thread_id;
 void
 software_interrupt_deferred_sigalrm_max_print()
 {
@@ -106,10 +107,10 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
  * This function broadcasts the sigint signal to all other worker threads
  */
 static inline void
-sigint_propagate_workers(siginfo_t *signal_info)
+sigint_propagate_workers_listener(siginfo_t *signal_info)
 {
-	/* Signal was sent directly by the kernel, so forward to other threads */
-	if (signal_info->si_code == SI_KERNEL) {
+	/* Signal was sent directly by the kernel user space, so forward to other threads */
+	if (signal_info->si_code == SI_KERNEL || signal_info->si_code == SI_USER) {
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
@@ -117,6 +118,10 @@ sigint_propagate_workers(siginfo_t *signal_info)
 			assert(runtime_worker_threads[i] != 0);
 			pthread_kill(runtime_worker_threads[i], SIGINT);
 		}
+		/* send to listener thread */
+		if (pthread_self() != listener_thread_id) {
+			pthread_kill(listener_thread_id, SIGINT);
+		}		
 	} else {
 		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 		assert(signal_info->si_code == SI_TKILL);
@@ -173,7 +178,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			atomic_fetch_add(&software_interrupt_deferred_sigalrm, 1);
 		} else {
 			/* A worker thread received a SIGALRM while running a preemptable sandbox, so preempt */
-			assert(current_sandbox->state == SANDBOX_RUNNING);
+			//assert(current_sandbox->state == SANDBOX_RUNNING);
 			scheduler_preempt(user_context);
 		}
 		goto done;
@@ -181,19 +186,20 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	case SIGUSR1: {
 		assert(current_sandbox);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
-
 		atomic_fetch_add(&software_interrupt_SIGUSR_count, 1);
 #ifdef LOG_PREEMPTION
 		debuglog("Total SIGUSR1 Received: %d\n", software_interrupt_SIGUSR_count);
 		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
 		         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
 #endif
+		uint64_t now = __getcycles();
+		current_sandbox->last_state_change_timestamp = now;
 		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
 		goto done;
 	}
 	case SIGINT: {
-		/* Only the thread that receives SIGINT from the kernel will broadcast SIGINT to other worker threads */
-		sigint_propagate_workers(signal_info);
+		/* Only the thread that receives SIGINT from the kernel or user space will broadcast SIGINT to other worker threads */
+		sigint_propagate_workers_listener(signal_info);
 		dump_log_to_file();
 		/* terminate itself */	
 		pthread_exit(0);	

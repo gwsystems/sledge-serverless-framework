@@ -22,3 +22,5 @@ void            local_runqueue_delete(struct sandbox *);
 bool            local_runqueue_is_empty();
 struct sandbox *local_runqueue_get_next();
 void            local_runqueue_initialize(struct local_runqueue_config *config);
+void 		local_workload_add(struct sandbox *sandbox);
+void 		local_workload_complete(struct sandbox *sandbox);
