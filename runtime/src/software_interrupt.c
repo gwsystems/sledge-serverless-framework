@@ -192,6 +192,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
 		         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
 #endif
+		uint64_t now = __getcycles();
+		current_sandbox->last_state_change_timestamp = now;
 		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
 		goto done;
 	}

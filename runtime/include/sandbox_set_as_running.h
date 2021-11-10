@@ -40,11 +40,11 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	sandbox->last_state_change_timestamp = now;
-	sandbox->state                       = SANDBOX_RUNNING;
-
 	/* State Change Bookkeeping */
 	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RUNNING);
 	runtime_sandbox_total_increment(SANDBOX_RUNNING);
 	runtime_sandbox_total_decrement(last_state);
+	
+	sandbox->last_state_change_timestamp = now;
+	sandbox->state                       = SANDBOX_RUNNING;
 }
