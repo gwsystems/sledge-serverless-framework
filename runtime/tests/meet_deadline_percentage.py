@@ -33,7 +33,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	real_time_workload_requests_dist = defaultdict(list)
 	min_time = sys.maxsize 
 	# list[0] is meet deadline number, list[1] is miss deadline number
-	delays = 0
+	delays_dict = defaultdict(list)
 	max_latency_dist = defaultdict(def_value) 
 	total_deadline = 0
 	miss_deadline_dist = defaultdict(def_value) 
@@ -60,7 +60,8 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 			if total_time > max_latency_dist[name]:
                                 max_latency_dist[name] = total_time
 			delay = int(line.split(" ")[4])
-			delays += delay
+			func = line.split(" ")[11]
+			delays_dict[func].append(delay)
 			request_counter[name] += 1
 			total_time_dist[name].append(total_time)
 			miss_deadline_dist[name] += 1
@@ -99,6 +100,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		runnable_times_dict[joined_key] += int(t[8])
 		blocked_times_dict[joined_key] += int(t[10])
 		initializing_times_dict[joined_key] += int(t[7])
+
 		### 
 
 	miss_deadline_percentage = (miss_deadline * 100) / (miss_deadline + meet_deadline)
@@ -106,9 +108,22 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	print("miss deadline num:", miss_deadline)
 	print("total num:", meet_deadline + miss_deadline)
 	print("miss deadline percentage:", miss_deadline_percentage)
-	print("total delays:", delays)
 	print("scheduling counter:", max_sc)
 
+	func_name_dict = {
+		"cifar10_1": "105k",
+		"cifar10_2": "305k",
+		"cifar10_3": "5k",
+		"cifar10_4": "40k",
+		"resize": "resize",
+		"fibonacci": "fibonacci"
+	}
+	func_name_with_id = {
+		"1": "105k",
+                "2": "305k",
+                "3": "5k",
+                "4": "40k"
+	}
 	### get execution time
 	for key,value in running_time_dict.items():
 		func_idx = key.split("_")[1]
@@ -128,14 +143,6 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	for key,value in total_times_dict.items():
 		func_idx = key.split("_")[1]
 		total_times[func_idx].append(value)
-	###
-	func_name_dict = thisdict = {
-		"cifar10_1": "105k",
-		"cifar10_2": "305k",
-		"cifar10_3": "5k",
-		"cifar10_4": "40k",
-		"resize": "resize"
-	}
 
 	for key,value in request_counter.items():
 		print(func_name_dict[key], ":", str(value), "proportion:", (100*value)/(meet_deadline + miss_deadline))
@@ -153,8 +160,14 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		real_time_workload_times_dist[key] = [x - min_time for x in value]
 
 	for key,value in running_times.items():
+		#print("function:", key, func_name_with_id[key], key)
 		print("function:", key)
 		print(np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.median(initializing_times[key]))
+	for key, value in delays_dict.items():  
+		new_value = [i/1000 for i in value]
+		p99 = np.percentile(new_value, 99)
+		print("function:", key, " delays:", p99)
+		
 	total_workload = 0
 	with open("total_workload.txt", "w") as f:
 		for key,value in total_workload_dist.items():
@@ -203,6 +216,11 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	f6.write(js6)
 	f6.close()
 
+	js7 = json.dumps(delays_dict)
+	f7 = open("delays.txt", 'w')
+	f7.write(js7)
+	f7.close()
+	
 	for key,value in total_time_dist.items():
                 print(key + ": time list length is ", len(value))
 if __name__ == "__main__":
