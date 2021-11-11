@@ -56,7 +56,7 @@ BINARY_NAME=sledgert
 
 # This adds an array of sandbox states to all sandbox structs and appends states at each transition
 # The history trucates when the number of elements equal SANDBOX_STATE_HISTORY_CAPACITY 
-CFLAGS += -DLOG_STATE_CHANGES
+# CFLAGS += -DLOG_STATE_CHANGES
 
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
