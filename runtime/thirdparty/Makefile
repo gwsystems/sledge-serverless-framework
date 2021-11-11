@@ -8,12 +8,14 @@ all: clean build
 build: ck jsmn http-parser
 
 # Concurrency Kit
-.PHONY: ck
-ck: ck/configure
-	mkdir -p ${DIST_PREFIX}
+ck/Makefile: ck/Makefile.in ck/configure
 	cd ck; ./configure --cores=$(shell getconf _NPROCESSORS_CONF) --prefix=${DIST_PREFIX}
-	make -C ck all
-	make -C ck install
+
+${DIST_PREFIX}/lib/libck.so: ck/Makefile
+	make -C ck all install
+
+.PHONY: ck
+ck: ${DIST_PREFIX}/lib/libck.so
 
 # HTTP Parser
 ${DIST_PREFIX}/include/http_parser.h: http-parser/http_parser.h
