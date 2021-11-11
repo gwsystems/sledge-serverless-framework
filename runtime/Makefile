@@ -7,29 +7,32 @@ endif
 
 # Compiler Settings
 CC=clang
-CC_OPTIONS = -O3 -flto -g -pthread -D_GNU_SOURCE -std=c18
+CFLAGS=-std=c18 -pthread 
 
-# CC_OPTIONS for Debugging
-# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE
+# We use several non-standard glibc / Linux features: 
+# sched_getcpu, MAP_ANONYMOUS, acceess to 'gregs' in 'mcontext_t', REG_RIP, REG_RSP
+CFLAGS+=-D_GNU_SOURCE 
+
+# Release Flags
+CFLAGS+=-O3 -flto
+
+# Debugging Flags
+# CFLAGS+=-O0 -g
 
 # CFI Sanitizer
-# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -flto -fvisibility=default -fsanitize=cfi 
+# CFLAGS+=-O0 -g -flto -fvisibility=default -fsanitize=cfi
 
 # Undefined Sanitizer
-# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds 
+# CFLAGS+=-O0 -g -fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds
 
-# Clang SafeStack
-# https://clang.llvm.org/docs/SafeStack.html
-# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=safe-stack
+# Clang SafeStack - https://clang.llvm.org/docs/SafeStack.html
+# CFLAGS+=-O0 -g -fsanitize=safe-stack
 
-# Memory Sanitizer 
-# https://clang.llvm.org/docs/MemorySanitizer.html
-# https://github.com/google/sanitizers/wiki/MemorySanitizer
-# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=memory -fno-omit-frame-pointer
+# Memory Sanitizer - https://clang.llvm.org/docs/MemorySanitizer.html
+# CFLAGS+=-O0 -g -fsanitize=memory -fno-omit-frame-pointer
 
-# Address Sanitizer
-# https://clang.llvm.org/docs/AddressSanitizer.html
-# CC_OPTIONS = -O0 -g -pthread -D_GNU_SOURCE -fsanitize=address -fno-omit-frame-pointer 
+# Address Sanitizer - https://clang.llvm.org/docs/AddressSanitizer.html
+# CFLAGS+=-O0 -g -fsanitize=address -fno-omit-frame-pointer 
 
 BINARY_NAME=sledgert
 
@@ -57,7 +60,6 @@ BINARY_NAME=sledgert
 # This adds an array of sandbox states to all sandbox structs and appends states at each transition
 # The history trucates when the number of elements equal SANDBOX_STATE_HISTORY_CAPACITY 
 # CFLAGS += -DLOG_STATE_CHANGES
-
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
 # page is allocated. This helps understand the relationship to memory allocation and execution time.
@@ -114,7 +116,7 @@ all: runtime
 bin/sledgert: ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	${CC} ${CC_OPTIONS} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
+	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
 
 .PHONY: runtime
 runtime: thirdparty bin/sledgert
