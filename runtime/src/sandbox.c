@@ -159,7 +159,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 #ifdef LOG_STATE_CHANGES
 	sandbox->state_history_count                           = 0;
 	sandbox->state_history[sandbox->state_history_count++] = SANDBOX_ALLOCATED;
-	memset(&sandbox->state_history, 0, 100);
+	memset(&sandbox->state_history, 0, SANDBOX_STATE_HISTORY_CAPACITY);
 #endif
 
 	/* Set state to initializing */
