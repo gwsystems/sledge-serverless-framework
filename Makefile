@@ -12,7 +12,7 @@ ifeq ($(ARCH),x86_64)
 	cd ./awsm/wasmception && wget ${WASMCEPTION_URL} -O wasmception.tar.gz && tar xvfz wasmception.tar.gz && rm wasmception.tar.gz
 endif
 	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
-	@cd ${COMPILER} && cargo build --release && cd ${ROOT}
+	@cd ${COMPILER} && RUSTUP_TOOLCHAIN=stable cargo build --release && cd ${ROOT}
 
 # Sanity check that the aWsm compiler built and is in our PATH
 .PHONY: build-validate
