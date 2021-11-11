@@ -73,7 +73,7 @@ sandbox_allocate_memory(struct module *module)
 	sandbox->memory.size = memory_size;
 	sandbox->memory.max  = memory_max;
 
-	for (int i = 0; i < SANDBOX_STATE_COUNT; i++) { sandbox->duration_of_state[i] = 0; }
+	memset(&sandbox->duration_of_state, 0, SANDBOX_STATE_COUNT * sizeof(uint64_t));
 
 done:
 	return sandbox;
@@ -159,7 +159,7 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 #ifdef LOG_STATE_CHANGES
 	sandbox->state_history_count                           = 0;
 	sandbox->state_history[sandbox->state_history_count++] = SANDBOX_ALLOCATED;
-	memset(&sandbox->state_history, 0, SANDBOX_STATE_HISTORY_CAPACITY);
+	memset(&sandbox->state_history, 0, SANDBOX_STATE_HISTORY_CAPACITY * sizeof(sandbox_state_t));
 #endif
 
 	/* Set state to initializing */
