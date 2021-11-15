@@ -17,6 +17,11 @@
 #define RUNTIME_MAX_WORKER_COUNT          32 /* Static buffer size for per-worker globals */
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
 #define RUNTIME_RELATIVE_DEADLINE_US_MAX  3600000000 /* One Hour. Fits in uint32_t */
+#define RUNTIME_REPLENISH_PERIOD_US_MAX   3600000000
+#define RUNTIME_MAX_BUDGET_US_MAX         3600000000
+
+#define RUNTIME_RUNQUEUE_SIZE     256
+#define RUNTIME_MODULE_QUEUE_SIZE 4096
 
 enum RUNTIME_SIGALRM_HANDLER
 {
@@ -33,6 +38,7 @@ extern pthread_t *                  runtime_worker_threads;
 extern uint32_t                     runtime_worker_threads_count;
 extern int *                        runtime_worker_threads_argument;
 extern uint64_t *                   runtime_worker_threads_deadline;
+extern uint64_t                     runtime_boot_timestamp;
 
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);

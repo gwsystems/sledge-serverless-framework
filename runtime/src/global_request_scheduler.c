@@ -5,7 +5,7 @@
 
 /* Default uninitialized implementations of the polymorphic interface */
 noreturn static struct sandbox_request *
-uninitialized_add(void *arg)
+uninitialized_add(struct sandbox_request *arg)
 {
 	panic("Global Request Scheduler Add was called before initialization\n");
 }
@@ -75,6 +75,22 @@ global_request_scheduler_remove_if_earlier(struct sandbox_request **removed_sand
 {
 	assert(removed_sandbox != NULL);
 	return global_request_scheduler.remove_if_earlier_fn(removed_sandbox, target_deadline);
+}
+
+/**
+ * Removes a sandbox request according to the scheduling policy of the variant
+ * @param removed_sandbox where to write the adddress of the removed sandbox
+ * @param target_deadline the deadline that must be validated before dequeuing
+ * @param mt_class the multi-tenancy class of the global request to compare the target deadline against
+ * @returns 0 if successfully returned a sandbox request, -ENOENT if empty or if no element meets target_deadline,
+ * -EAGAIN if atomic operation unsuccessful
+ */
+int
+global_request_scheduler_remove_with_mt_class(struct sandbox_request **removed_sandbox, uint64_t target_deadline,
+                                              enum MULTI_TENANCY_CLASS mt_class)
+{
+	assert(removed_sandbox != NULL);
+	return global_request_scheduler.remove_with_mt_class_fn(removed_sandbox, target_deadline, mt_class);
 }
 
 /**

@@ -32,6 +32,29 @@
   "MODULE_MAX_PENDING_CLIENT_REQUESTS likely exceeds the value in /proc/sys/net/core/somaxconn and thus may be silently truncated";
 #endif
 
+enum MULTI_TENANCY_CLASS
+{
+	MT_DEFAULT,
+	MT_GUARANTEED
+};
+
+struct perworker_module_sandbox_queue {
+	struct priority_queue *  sandboxes;
+	struct module *          module;   // to be able to find the RB/MB/RP/RT.
+	enum MULTI_TENANCY_CLASS mt_class; // check whether the corresponding PWM has been demoted
+} __attribute__((aligned(128)));
+
+struct module_global_request_queue {
+	struct priority_queue *  sandbox_requests;
+	struct module *          module;
+	enum MULTI_TENANCY_CLASS mt_class;
+};
+
+struct module_timeout {
+	uint64_t       timeout;
+	struct module *module;
+};
+
 struct module {
 	/* Metadata from JSON Config */
 	char                   name[MODULE_MAX_NAME_LENGTH];
@@ -42,6 +65,14 @@ struct module {
 	int                    port;
 	struct admissions_info admissions_info;
 	uint64_t               relative_deadline; /* cycles */
+
+	/* Deferrable Server Attributes */
+	uint64_t                 replenishment_period; /* cycles, not changing after init */
+	uint64_t                 max_budget;           /* cycles, not changing after init */
+	_Atomic volatile int64_t remaining_budget;     /* cycles left till next replenishment, can be negative */
+
+	struct perworker_module_sandbox_queue *pwm_sandboxes;
+	struct module_global_request_queue *   mgrq_requests;
 
 	/* HTTP State */
 	size_t             max_request_size;
@@ -141,12 +172,38 @@ module_release(struct module *module)
 	return;
 }
 
+/**
+ * Get Timeout priority for Priority Queue ordering
+ * @param element module_timeout
+ * @returns the priority of the module _timeout element
+ */
+static inline uint64_t
+module_timeout_get_priority(void *element)
+{
+	return ((struct module_timeout *)element)->timeout;
+}
+
+/**
+ * Compute the next timeout given a module's replenishment period
+ * @param m_replenishment_period
+ * @return given module's next timeout
+ */
+static inline uint64_t
+get_next_timeout_of_module(uint64_t m_replenishment_period, uint64_t now)
+{
+	// uint64_t now = __getcycles();
+	return runtime_boot_timestamp
+	       + ((now - runtime_boot_timestamp) / m_replenishment_period + 1) * m_replenishment_period;
+}
+
 /********************************
  * Public Methods from module.c *
  *******************************/
 
 void module_free(struct module *module);
-struct module *
-    module_new(char *mod_name, char *mod_path, uint32_t stack_sz, uint32_t max_heap, uint32_t relative_deadline_us,
-               int port, int req_sz, int resp_sz, int admissions_percentile, uint32_t expected_execution_us);
+
+struct module *module_new(char *mod_name, char *mod_path, uint32_t stack_sz, uint32_t max_heap,
+                          uint32_t relative_deadline_us, int port, int req_sz, int resp_sz, int admissions_percentile,
+                          uint32_t expected_execution_us, uint32_t replenishment_period_us, uint32_t max_budget_us);
+
 int module_new_from_json(char *filename);

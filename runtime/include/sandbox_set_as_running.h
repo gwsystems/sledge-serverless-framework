@@ -32,6 +32,7 @@ sandbox_set_as_running(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 
 	sandbox->timestamp_of.last_state_change = now;
+	sandbox->timestamp_of.last_preemption   = now;
 	sandbox->state                          = SANDBOX_RUNNING;
 
 	/* State Change Bookkeeping */

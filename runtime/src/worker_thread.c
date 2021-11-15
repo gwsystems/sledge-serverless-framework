@@ -16,6 +16,7 @@
 #include "scheduler.h"
 #include "worker_thread.h"
 #include "worker_thread_execute_epoll_loop.h"
+#include "priority_queue.h"
 
 /***************************
  * Worker Thread State     *
@@ -28,6 +29,10 @@ thread_local int worker_thread_epoll_file_descriptor;
 
 /* Used to index into global arguments and deadlines arrays */
 thread_local int worker_thread_idx;
+
+/* Used to track tenants' timeouts */
+__thread struct priority_queue *worker_thread_timeout_queue;
+
 
 /***********************
  * Worker Thread Logic *
@@ -64,6 +69,11 @@ worker_thread_main(void *argument)
 	if (runtime_preemption_enabled) {
 		software_interrupt_unmask_signal(SIGALRM);
 		software_interrupt_unmask_signal(SIGUSR1);
+	}
+
+	if (scheduler == SCHEDULER_MTS) {
+		worker_thread_timeout_queue = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
+		                                                        module_timeout_get_priority);
 	}
 
 	/* Begin Worker Execution Loop */

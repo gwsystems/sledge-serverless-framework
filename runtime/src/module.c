@@ -13,9 +13,8 @@
 #include "listener_thread.h"
 #include "module.h"
 #include "module_database.h"
-#include "panic.h"
-#include "runtime.h"
 #include "scheduler.h"
+#include "priority_queue.h"
 
 const int JSON_MAX_ELEMENT_COUNT = 16;
 const int JSON_MAX_ELEMENT_SIZE  = 1024;
@@ -120,6 +119,18 @@ module_free(struct module *module)
 	/* Do not free if we still have oustanding references */
 	if (module->reference_count) return;
 
+	if (scheduler == SCHEDULER_MTS) {
+		if (module->pwm_sandboxes == NULL) return;
+		if (module->mgrq_requests == NULL) return;
+
+		for (int i = 0; i < runtime_worker_threads_count; i++) {
+			priority_queue_free(module->pwm_sandboxes[i].sandboxes);
+		}
+
+		free(module->pwm_sandboxes);
+		priority_queue_free(module->mgrq_requests->sandbox_requests);
+		free(module->mgrq_requests);
+	}
 	close(module->socket_descriptor);
 	awsm_abi_deinit(&module->abi);
 	free(module);
@@ -138,12 +149,17 @@ module_free(struct module *module)
  * @param relative_deadline_us
  * @param port
  * @param request_size
+ * @param admissions_percentile
+ * @param expected_execution_us
+ * @param replenishment_period_us
+ * @param max_budget_us
  * @returns A new module or NULL in case of failure
  */
 
 struct module *
 module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uint32_t relative_deadline_us, int port,
-           int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us)
+           int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us,
+           uint32_t replenishment_period_us, uint32_t max_budget_us)
 {
 	int rc = 0;
 
@@ -181,7 +197,37 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 	uint64_t expected_execution = (uint64_t)expected_execution_us * runtime_processor_speed_MHz;
 	admissions_info_initialize(&module->admissions_info, admissions_percentile, expected_execution,
 	                           module->relative_deadline);
+	if (scheduler == SCHEDULER_MTS) {
+		/* Deferable Server Initialization */
+		module->replenishment_period = (uint64_t)replenishment_period_us * runtime_processor_speed_MHz;
+		module->max_budget           = (uint64_t)max_budget_us * runtime_processor_speed_MHz;
+		module->remaining_budget     = module->max_budget;
 
+		module->pwm_sandboxes = (struct perworker_module_sandbox_queue *)malloc(
+		  runtime_worker_threads_count * sizeof(struct perworker_module_sandbox_queue));
+		if (!module->pwm_sandboxes) {
+			fprintf(stderr, "Failed to allocate module_sandboxes array: %s\n", strerror(errno));
+			goto err;
+		};
+
+		memset(module->pwm_sandboxes, 0,
+		       runtime_worker_threads_count * sizeof(struct perworker_module_sandbox_queue));
+
+		for (int i = 0; i < runtime_worker_threads_count; i++) {
+			module->pwm_sandboxes[i].sandboxes = priority_queue_initialize(RUNTIME_MODULE_QUEUE_SIZE, false,
+			                                                               sandbox_get_priority);
+			module->pwm_sandboxes[i].module    = module;
+			module->pwm_sandboxes[i].mt_class  = (module->replenishment_period == 0) ? MT_DEFAULT
+			                                                                         : MT_GUARANTEED;
+		}
+
+		/* Initialize the module's global request queue */
+		module->mgrq_requests                   = malloc(sizeof(struct module_global_request_queue));
+		module->mgrq_requests->sandbox_requests = priority_queue_initialize(RUNTIME_MODULE_QUEUE_SIZE, false,
+		                                                                    sandbox_request_get_priority_fn);
+		module->mgrq_requests->module           = module;
+		module->mgrq_requests->mt_class = (module->replenishment_period == 0) ? MT_DEFAULT : MT_GUARANTEED;
+	}
 	/* Request Response Buffer */
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
 	if (response_size == 0) response_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
@@ -317,6 +363,8 @@ module_new_from_json(char *file_name)
 		uint32_t port                                                = 0;
 		uint32_t relative_deadline_us                                = 0;
 		uint32_t expected_execution_us                               = 0;
+		uint32_t replenishment_period_us                             = 0;
+		uint32_t max_budget_us                                       = 0;
 		int      admissions_percentile                               = 50;
 		int      j                                                   = 1;
 		int      ntoks                                               = 2 * tokens[i].size;
@@ -361,6 +409,18 @@ module_new_from_json(char *file_name)
 					panic("Relative-deadline-us must be between 0 and %ld, was %ld\n",
 					      (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX, buffer);
 				expected_execution_us = (uint32_t)buffer;
+			} else if (strcmp(key, "replenishment-period-us") == 0) {
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > (int64_t)RUNTIME_REPLENISH_PERIOD_US_MAX)
+					panic("Replenishment-period-us must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_REPLENISH_PERIOD_US_MAX, buffer);
+				replenishment_period_us = (uint32_t)buffer;
+			} else if (strcmp(key, "max-budget-us") == 0) {
+				int64_t buffer = strtoll(val, NULL, 10);
+				if (buffer < 0 || buffer > (int64_t)RUNTIME_MAX_BUDGET_US_MAX)
+					panic("Max-budget-us must be between 0 and %ld, was %ld\n",
+					      (int64_t)RUNTIME_MAX_BUDGET_US_MAX, buffer);
+				max_budget_us = (uint32_t)buffer;
 			} else if (strcmp(key, "admissions-percentile") == 0) {
 				int32_t buffer = strtol(val, NULL, 10);
 				if (buffer > 99 || buffer < 50)
@@ -410,18 +470,21 @@ module_new_from_json(char *file_name)
 			      ADMISSIONS_CONTROL_GRANULARITY);
 #else
 		/* relative-deadline-us is required if scheduler is EDF */
-		if (scheduler == SCHEDULER_EDF && relative_deadline_us == 0)
+		if ((scheduler == SCHEDULER_EDF || scheduler == SCHEDULER_MTS) && relative_deadline_us == 0)
 			panic("relative_deadline_us is required\n");
 #endif
 
 		/* Allocate a module based on the values from the JSON */
 		struct module *module = module_new(module_name, module_path, 0, 0, relative_deadline_us, port,
 		                                   request_size, response_size, admissions_percentile,
-		                                   expected_execution_us);
+		                                   expected_execution_us, replenishment_period_us, max_budget_us);
 		if (module == NULL) goto module_new_err;
 
 		assert(module);
 		module_set_http_info(module, response_content_type);
+
+		if (module->replenishment_period > 0) global_timeout_queue_add(module);
+
 		module_count++;
 	}
 

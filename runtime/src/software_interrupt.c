@@ -115,7 +115,7 @@ static inline void
 software_interrupt_validate_worker()
 {
 #ifndef NDEBUG
-	if (listener_thread_is_running()) panic("The listener thread unexpectedly received a signal!");
+	if (is_this_listener_thread()) panic("The listener thread unexpectedly received a signal!");
 #endif
 }
 
@@ -131,7 +131,7 @@ static inline void
 software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
 {
 	/* Only workers should receive signals */
-	assert(!listener_thread_is_running());
+	assert(!is_this_listener_thread());
 
 	/* Signals should be masked if runtime has disabled them */
 	assert(runtime_preemption_enabled);
@@ -157,6 +157,11 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		} else {
 			/* A worker thread received a SIGALRM while running a preemptable sandbox, so preempt */
 			assert(current_sandbox->state == SANDBOX_RUNNING);
+
+			if (scheduler == SCHEDULER_MTS && signal_info->si_code == SI_KERNEL) {
+				global_timeout_queue_check_for_promotions();
+			}
+
 			scheduler_preempt(user_context);
 		}
 		goto done;

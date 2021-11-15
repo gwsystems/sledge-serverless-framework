@@ -41,6 +41,8 @@ int                          runtime_worker_core_count;
 bool     runtime_preemption_enabled = true;
 uint32_t runtime_quantum_us         = 5000; /* 5ms */
 
+uint64_t runtime_boot_timestamp;
+
 /**
  * Returns instructions on use of CLI if used incorrectly
  * @param cmd - The command the user entered
@@ -116,7 +118,7 @@ runtime_get_processor_speed_MHz(void)
 	if (unlikely(n != 1)) goto err;
 	if (unlikely(processor_speed_MHz < 0)) goto err;
 
-	return_value = (uint32_t)nearbyintf(processor_speed_MHz);
+	return_value = 2700; // hardcoded!!! // (uint32_t)nearbyintf(processor_speed_MHz);
 
 done:
 	pclose(cmd);
@@ -179,13 +181,15 @@ runtime_configure()
 {
 	/* Scheduler Policy */
 	char *scheduler_policy = getenv("SLEDGE_SCHEDULER");
-	if (scheduler_policy == NULL) scheduler_policy = "EDF";
-	if (strcmp(scheduler_policy, "EDF") == 0) {
+	if (scheduler_policy == NULL) scheduler_policy = "MTS";
+	if (strcmp(scheduler_policy, "MTS") == 0) {
+		scheduler = SCHEDULER_MTS;
+	} else if (strcmp(scheduler_policy, "EDF") == 0) {
 		scheduler = SCHEDULER_EDF;
 	} else if (strcmp(scheduler_policy, "FIFO") == 0) {
 		scheduler = SCHEDULER_FIFO;
 	} else {
-		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
+		panic("Invalid scheduler policy: %s. Must be {MTS|EDF|FIFO}\n", scheduler_policy);
 	}
 	printf("\tScheduler Policy: %s\n", scheduler_print(scheduler));
 
@@ -337,6 +341,7 @@ main(int argc, char **argv)
 	}
 
 	printf("Starting the Sledge runtime\n");
+	runtime_boot_timestamp = __getcycles();
 
 	log_compiletime_config();
 	runtime_process_debug_log_behavior();

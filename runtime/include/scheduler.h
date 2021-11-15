@@ -9,9 +9,11 @@
 #include "global_request_scheduler.h"
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
+#include "global_request_scheduler_mts.h"
 #include "local_runqueue.h"
 #include "local_runqueue_minheap.h"
 #include "local_runqueue_list.h"
+#include "local_runqueue_mts.h"
 #include "panic.h"
 #include "sandbox_request.h"
 #include "sandbox_exit.h"
@@ -25,10 +27,55 @@
 enum SCHEDULER
 {
 	SCHEDULER_FIFO = 0,
-	SCHEDULER_EDF  = 1
+	SCHEDULER_EDF  = 1,
+	SCHEDULER_MTS  = 2
 };
 
 extern enum SCHEDULER scheduler;
+
+static inline struct sandbox *
+scheduler_mts_get_next()
+{
+	/* Get the deadline of the sandbox at the head of the local request queue */
+	struct sandbox_request * request        = NULL;
+	struct sandbox *         local          = local_runqueue_get_next();
+	uint64_t                 local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
+	enum MULTI_TENANCY_CLASS local_mt_class = MT_DEFAULT;
+
+	if (local) local_mt_class = local->module->pwm_sandboxes[worker_thread_idx].mt_class;
+
+	uint64_t global_guaranteed_deadline = global_request_scheduler_mts_guaranteed_peek();
+	uint64_t global_default_deadline    = global_request_scheduler_mts_default_peek();
+
+	/* Try to pull and allocate from the global queue if earlier
+	 * This will be placed at the head of the local runqueue */
+	switch (local_mt_class) {
+	case MT_GUARANTEED:
+		if (global_guaranteed_deadline >= local_deadline) goto done;
+		break;
+	case MT_DEFAULT:
+		if (global_guaranteed_deadline == UINT64_MAX && global_default_deadline >= local_deadline) goto done;
+		break;
+	}
+
+	if (global_request_scheduler_remove_with_mt_class(&request, local_deadline, local_mt_class) == 0) {
+		assert(request != NULL);
+		struct sandbox *global = sandbox_allocate(request);
+		if (!global) goto err_allocate;
+
+		assert(global->state == SANDBOX_INITIALIZED);
+		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+	}
+
+/* Return what is at the head of the local runqueue or NULL if empty */
+done:
+	return local_runqueue_get_next();
+err_allocate:
+	client_socket_send(request->socket_descriptor, 503);
+	client_socket_close(request->socket_descriptor, &request->socket_address);
+	free(request);
+	goto done;
+}
 
 static inline struct sandbox *
 scheduler_edf_get_next()
@@ -101,6 +148,8 @@ static inline struct sandbox *
 scheduler_get_next()
 {
 	switch (scheduler) {
+	case SCHEDULER_MTS:
+		return scheduler_mts_get_next();
 	case SCHEDULER_EDF:
 		return scheduler_edf_get_next();
 	case SCHEDULER_FIFO:
@@ -114,6 +163,9 @@ static inline void
 scheduler_initialize()
 {
 	switch (scheduler) {
+	case SCHEDULER_MTS:
+		global_request_scheduler_mts_initialize();
+		break;
 	case SCHEDULER_EDF:
 		global_request_scheduler_minheap_initialize();
 		break;
@@ -129,6 +181,9 @@ static inline void
 scheduler_runqueue_initialize()
 {
 	switch (scheduler) {
+	case SCHEDULER_MTS:
+		local_runqueue_mts_initialize();
+		break;
 	case SCHEDULER_EDF:
 		local_runqueue_minheap_initialize();
 		break;
@@ -141,6 +196,26 @@ scheduler_runqueue_initialize()
 }
 
 /**
+ * Call either at preemptions or blockings to update the Deferrable Server
+ *  properties for the given tenant.
+ */
+static inline void
+reduce_module_budget(struct sandbox *sandbox, uint64_t now)
+{
+	struct module *module = sandbox_get_module(sandbox);
+
+	int64_t  prev_budget           = module->remaining_budget;
+	uint64_t duration_of_last_exec = now - sandbox->timestamp_of.last_preemption;
+
+	atomic_fetch_sub(&module->remaining_budget, duration_of_last_exec);
+	// if(duration_of_last_exec > runtime_quantum_us*runtime_processor_speed_MHz) debuglog("BEFORE FAA: %ld\nBudget
+	// Spent: %ld\nAFTER FAA: RB: %ld %s\n\n", prev_budget, duration_of_last_exec, module->remaining_budget,
+	//    (module->remaining_budget <= 0) ? "Oh no! It is NEGATIVE" : "");
+	// if (module->remaining_budget < 0) debuglog("OH NO, NEGATIVE!");
+	// sandbox->last_preemption_timestamp = now;
+}
+
+/**
  * Called by the SIGALRM handler after a quantum
  * Assumes the caller validates that there is something to preempt
  * @param user_context - The context of our user-level Worker thread
@@ -150,15 +225,32 @@ scheduler_preempt(ucontext_t *user_context)
 {
 	assert(user_context != NULL);
 
-	/* Process epoll to make sure that all runnable jobs are considered for execution */
-	worker_thread_execute_epoll_loop();
-
 	struct sandbox *current = current_sandbox_get();
 	assert(current != NULL);
 	assert(current->state == SANDBOX_RUNNING);
 
+	/* This is for better state-change bookkeeping */
+	uint64_t now                    = __getcycles();
+	uint64_t duration_of_last_state = now - current->timestamp_of.last_state_change;
+	current->duration_of_state.running += duration_of_last_state;
+
+	if (scheduler == SCHEDULER_MTS) {
+		if (current->module->replenishment_period > 0) reduce_module_budget(current, now);
+	}
+
+	/* Process epoll to make sure that all runnable jobs are considered for execution */
+	worker_thread_execute_epoll_loop();
+
 	struct sandbox *next = scheduler_get_next();
 	assert(next != NULL);
+
+	/* This is for better state-change bookkeeping */
+	now                                     = __getcycles();
+	current->timestamp_of.last_state_change = now;
+	current->timestamp_of.last_preemption   = now;
+
+	if (scheduler == SCHEDULER_MTS) local_timeout_queue_check_for_promotions(now);
+
 
 	/* If current equals next, no switch is necessary, so resume execution */
 	if (current == next) return;
@@ -216,6 +308,8 @@ scheduler_print(enum SCHEDULER variant)
 		return "FIFO";
 	case SCHEDULER_EDF:
 		return "EDF";
+	case SCHEDULER_MTS:
+		return "MTS";
 	}
 }
 
@@ -285,6 +379,11 @@ scheduler_yield()
 	         arch_context_variant_print(current_sandbox->ctxt.variant), &worker_thread_base_context,
 	         arch_context_variant_print(worker_thread_base_context.variant));
 #endif
+
+	/* Update the MTS props even when a sandbox blocks or completes, too */
+	if (current_sandbox->module->replenishment_period > 0) {
+		reduce_module_budget(current_sandbox, current_sandbox->timestamp_of.last_state_change);
+	}
 
 	sandbox_exit(current_sandbox);
 	current_sandbox_set(NULL);
