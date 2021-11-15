@@ -27,7 +27,7 @@ module_request_queue_get_priority(void *element)
  *  and adds to the Guaranteed queue.
  */
 void
-global_request_scheduler_mts_promote_nolock(struct module_global_request_queue *mgrq)
+global_request_scheduler_mts_promote_lock(struct module_global_request_queue *mgrq)
 {
 	assert(mgrq != NULL);
 	// if(priority_queue_length_nolock(mgrq->sandbox_requests) == 0) return; // dont do anything if queue is empty
@@ -36,7 +36,7 @@ global_request_scheduler_mts_promote_nolock(struct module_global_request_queue *
 	// if (priority_queue_peek(mgrq->sandbox_requests) == UINT64_MAX) return;
 
 	// assert(!LOCK_IS_LOCKED(&global_lock));
-	// LOCK_LOCK(&global_lock);
+	LOCK_LOCK(&global_lock);
 
 	if (mgrq->module->remaining_budget <= 0) goto done;
 
@@ -53,7 +53,7 @@ global_request_scheduler_mts_promote_nolock(struct module_global_request_queue *
 	if (rc == -ENOSPC) panic("Global Guaranteed queue is full!\n");
 
 done:;
-	// LOCK_UNLOCK(&global_lock);
+	LOCK_UNLOCK(&global_lock);
 }
 
 /**
@@ -68,9 +68,7 @@ global_request_scheduler_mts_demote_nolock(struct module_global_request_queue *m
 	/* No request in the given MGRQ, so it is not in the runqeue */
 	// if (priority_queue_peek(mgrq->sandbox_requests) == UINT64_MAX) return;
 
-	// LOCK_LOCK(&global_lock);
-
-	if (mgrq->module->remaining_budget > 0) goto done;
+	if (mgrq->module->remaining_budget > 0) return;
 
 	/* Delete the corresponding MGRQ from the Guaranteed queue */
 	int rc = priority_queue_delete_nolock(global_request_scheduler_mts_guaranteed, mgrq);
@@ -83,9 +81,6 @@ global_request_scheduler_mts_demote_nolock(struct module_global_request_queue *m
 	/* Add the corresponding MGRQ to the Default queue */
 	rc = priority_queue_enqueue_nolock(global_request_scheduler_mts_default, mgrq);
 	if (rc == -ENOSPC) panic("Global Default queue is full!\n");
-
-done:;
-	// LOCK_UNLOCK(&global_lock);
 }
 
 /**
@@ -322,7 +317,7 @@ global_timeout_queue_check_for_promotions()
 	if (/*mgrq_to_promote->mt_class == MT_DEFAULT
 	    && priority_queue_length_nolock(mgrq_to_promote->sandbox_requests) > 0 &&*/
 	    module->remaining_budget <= 0) {
-		global_request_scheduler_mts_promote_nolock(mgrq_to_promote);
+		global_request_scheduler_mts_promote_lock(mgrq_to_promote);
 
 		debuglog("Promoted '%s' GLOBALLY", module->name);
 		mgrq_to_promote->mt_class = MT_GUARANTEED;
