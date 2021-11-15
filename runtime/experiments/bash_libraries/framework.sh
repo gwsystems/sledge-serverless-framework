@@ -452,7 +452,7 @@ __framework_sh__run_both() {
 __framework_sh__create_and_export_results_directory() {
 	local -r subdirectory=${1:-""}
 
-	local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$subdirectory"
+	local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name"
 
 	mkdir -p "$dir" || {
 		panic "mkdir -p $dir"
