@@ -18,7 +18,7 @@
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
 		"replenishment-period-us": 10000,
-		"max-budget-us": 200000,
+		"max-budget-us": 180000,
 		"http-req-content-type": "text/plain",
 		"http-req-size": 1024,
 		"http-resp-size": 1024,

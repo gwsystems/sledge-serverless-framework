@@ -64,12 +64,12 @@ run_experiments() {
 	local fib30_rich_PID
 	local fib30_PID
 
-	hey -disable-keepalive -disable-redirects -z 10s -n 5400 -c 54 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:10030" > "$results_directory/fib30.csv" 2> /dev/null &
+	hey -disable-compression -disable-keepalive -disable-redirects -z 40s -n 5400 -c 54 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:10030" > "$results_directory/fib30.csv" 2> /dev/null &
 	fib30_PID="$!"
 
 	sleep 3s	
 	
-	hey -disable-keepalive -disable-redirects -z 5s -n 5400 -c 18 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:20030" > "$results_directory/fib30_rich.csv" 2> /dev/null &
+	hey -disable-compression -disable-keepalive -disable-redirects -z 35s -n 5400 -c 18 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:20030" > "$results_directory/fib30_rich.csv" 2> /dev/null &
 	fib30_rich_PID="$!"
 
 	wait -f "$fib30_rich_PID" || {
