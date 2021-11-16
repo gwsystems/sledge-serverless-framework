@@ -1,8 +1,13 @@
 digraph {
 	Uninitialized -> Initialized
 	Initialized -> {Runnable Error}
-	{Runnable Running_User Preempted} -> Running_Kernel
-	Running_Kernel -> {Blocked Error Preempted Returned Running_User}
-	Returned -> Complete
-	Blocked -> Runnable
+	Runnable -> Running_Sys
+	Running_User -> Running_Sys [label="interrupt"]
+	Running_Sys -> Asleep [label="sleep"]
+	Running_Sys -> {Error Returned}
+	Running_Sys -> Running_User [label="return"]
+	Running_Sys -> Preempted [label="preempt"]
+	Preempted -> Running_User
+	Returned -> Complete [label="exit_success"]
+	Asleep -> Runnable [label="wakeup"]
 } 

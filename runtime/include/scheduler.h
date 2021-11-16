@@ -18,7 +18,7 @@
 #include "sandbox_types.h"
 #include "sandbox_set_as_preempted.h"
 #include "sandbox_set_as_runnable.h"
-#include "sandbox_set_as_running_kernel.h"
+#include "sandbox_set_as_running_sys.h"
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_execute_epoll_loop.h"
 
@@ -188,7 +188,7 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
 	case ARCH_CONTEXT_VARIANT_FAST: {
 		assert(next->state == SANDBOX_RUNNABLE);
 		arch_context_restore_fast(&interrupted_context->uc_mcontext, &next->ctxt);
-		sandbox_set_as_running_kernel(next, SANDBOX_RUNNABLE);
+		sandbox_set_as_running_sys(next, SANDBOX_RUNNABLE);
 		break;
 	}
 	case ARCH_CONTEXT_VARIANT_SLOW: {
@@ -222,12 +222,17 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	assert(current != NULL);
 	assert(current->state == SANDBOX_RUNNING_USER);
 
+	sandbox_interrupt(current);
+
 	struct sandbox *next = scheduler_get_next();
 	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
 	assert(next != NULL);
 
 	/* If current equals next, no switch is necessary, so resume execution */
-	if (current == next) return;
+	if (current == next) {
+		sandbox_return(current);
+		return;
+	}
 
 #ifdef LOG_PREEMPTION
 	debuglog("Preempting sandbox %lu to run sandbox %lu\n", current->id, next->id);
@@ -236,7 +241,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	scheduler_log_sandbox_switch(current, next);
 
 	/* Preempt executing sandbox */
-	sandbox_set_as_preempted(current, SANDBOX_RUNNING_USER);
+	sandbox_preempt(current);
 	arch_context_save_slow(&current->ctxt, &interrupted_context->uc_mcontext);
 
 	scheduler_preemptive_switch_to(interrupted_context, next);
@@ -260,7 +265,7 @@ scheduler_cooperative_switch_to(struct sandbox *next_sandbox)
 	switch (next_sandbox->state) {
 	case SANDBOX_RUNNABLE: {
 		assert(next_context->variant == ARCH_CONTEXT_VARIANT_FAST);
-		sandbox_set_as_running_kernel(next_sandbox, SANDBOX_RUNNABLE);
+		sandbox_set_as_running_sys(next_sandbox, SANDBOX_RUNNABLE);
 		break;
 	}
 	case SANDBOX_PREEMPTED: {

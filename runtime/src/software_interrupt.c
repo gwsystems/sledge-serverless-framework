@@ -18,7 +18,6 @@
 #include "module.h"
 #include "panic.h"
 #include "runtime.h"
-#include "sandbox_set_as_running_kernel.h"
 #include "sandbox_set_as_running_user.h"
 #include "sandbox_types.h"
 #include "scheduler.h"

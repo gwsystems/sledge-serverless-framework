@@ -46,9 +46,8 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	runtime_sandbox_total_decrement(last_state);
 
 	/* Admissions Control Post Processing */
-	admissions_info_update(&sandbox->module->admissions_info,
-	                       sandbox->duration_of_state[SANDBOX_RUNNING_USER]
-	                         + sandbox->duration_of_state[SANDBOX_RUNNING_KERNEL]);
+	admissions_info_update(&sandbox->module->admissions_info, sandbox->duration_of_state[SANDBOX_RUNNING_USER]
+	                                                            + sandbox->duration_of_state[SANDBOX_RUNNING_SYS]);
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	/* Terminal State Logging */
@@ -57,4 +56,11 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
+}
+
+static inline void
+sandbox_exit_success(struct sandbox *sandbox)
+{
+	assert(sandbox->state == SANDBOX_RETURNED);
+	sandbox_set_as_complete(sandbox, SANDBOX_RETURNED);
 }

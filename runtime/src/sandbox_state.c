@@ -9,17 +9,17 @@
 
 const char *sandbox_state_labels[SANDBOX_STATE_COUNT] = {
 
-	[SANDBOX_UNINITIALIZED]  = "Uninitialized",
-	[SANDBOX_ALLOCATED]      = "Allocated",
-	[SANDBOX_INITIALIZED]    = "Initialized",
-	[SANDBOX_RUNNABLE]       = "Runnable",
-	[SANDBOX_PREEMPTED]      = "Preempted",
-	[SANDBOX_RUNNING_KERNEL] = "Running Kernel",
-	[SANDBOX_RUNNING_USER]   = "Running User",
-	[SANDBOX_ASLEEP]         = "Asleep",
-	[SANDBOX_RETURNED]       = "Returned",
-	[SANDBOX_COMPLETE]       = "Complete",
-	[SANDBOX_ERROR]          = "Error"
+	[SANDBOX_UNINITIALIZED] = "Uninitialized",
+	[SANDBOX_ALLOCATED]     = "Allocated",
+	[SANDBOX_INITIALIZED]   = "Initialized",
+	[SANDBOX_RUNNABLE]      = "Runnable",
+	[SANDBOX_PREEMPTED]     = "Preempted",
+	[SANDBOX_RUNNING_SYS]   = "Running Kernel",
+	[SANDBOX_RUNNING_USER]  = "Running User",
+	[SANDBOX_ASLEEP]        = "Asleep",
+	[SANDBOX_RETURNED]      = "Returned",
+	[SANDBOX_COMPLETE]      = "Complete",
+	[SANDBOX_ERROR]         = "Error"
 };
 
 #ifdef LOG_SANDBOX_COUNT

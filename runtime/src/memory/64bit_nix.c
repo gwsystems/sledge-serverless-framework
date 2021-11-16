@@ -16,7 +16,7 @@ expand_memory(void)
 {
 	struct sandbox *sandbox = current_sandbox_get();
 
-	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_RUNNING_KERNEL);
+	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_RUNNING_SYS);
 	assert(local_sandbox_context_cache.memory.size % WASM_PAGE_SIZE == 0);
 
 	/* Return -1 if we've hit the linear memory max */

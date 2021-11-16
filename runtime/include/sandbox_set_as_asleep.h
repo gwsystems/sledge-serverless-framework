@@ -25,7 +25,7 @@ sandbox_set_as_asleep(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_RUNNING_KERNEL: {
+	case SANDBOX_RUNNING_SYS: {
 		local_runqueue_delete(sandbox);
 		break;
 	}
@@ -46,6 +46,6 @@ sandbox_set_as_asleep(struct sandbox *sandbox, sandbox_state_t last_state)
 static inline void
 sandbox_sleep(struct sandbox *sandbox)
 {
-	assert(sandbox->state == SANDBOX_RUNNING_KERNEL);
-	sandbox_set_as_asleep(sandbox, SANDBOX_RUNNING_KERNEL);
+	assert(sandbox->state == SANDBOX_RUNNING_SYS);
+	sandbox_set_as_asleep(sandbox, SANDBOX_RUNNING_SYS);
 }

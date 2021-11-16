@@ -28,7 +28,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_RUNNING_KERNEL: {
+	case SANDBOX_RUNNING_SYS: {
 		sandbox->timestamp_of.response = now;
 		sandbox->total_time            = now - sandbox->timestamp_of.request_arrival;
 		local_runqueue_delete(sandbox);
