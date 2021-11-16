@@ -82,7 +82,7 @@ current_sandbox_exit()
 	case SANDBOX_RETURNED:
 		sandbox_exit_success(sandbox);
 		break;
-	case SANDBOX_ERROR:
+	case SANDBOX_RUNNING_SYS:
 		sandbox_exit_error(sandbox);
 		break;
 	default:
