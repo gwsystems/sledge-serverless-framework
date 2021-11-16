@@ -12,7 +12,6 @@
 #include "arch/context.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
-#include "global_request_scheduler.h"
 #include "listener_thread.h"
 #include "local_runqueue.h"
 #include "module.h"
@@ -79,7 +78,6 @@ extern pthread_t *runtime_worker_threads;
  * Private Static Inlines *
  *************************/
 
-
 /**
  * A POSIX signal is delivered to only one thread.
  * This function broadcasts the sigalarm signal to all other worker threads
@@ -96,13 +94,9 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
-			/* If using EDF, conditionally send signals. If not, broadcast */
 			switch (runtime_sigalrm_handler) {
 			case RUNTIME_SIGALRM_HANDLER_TRIAGED: {
-				assert(scheduler == SCHEDULER_EDF);
-				uint64_t local_deadline  = runtime_worker_threads_deadline[i];
-				uint64_t global_deadline = global_request_scheduler_peek();
-				if (global_deadline < local_deadline) pthread_kill(runtime_worker_threads[i], SIGALRM);
+				if (scheduler_worker_would_preempt(i)) pthread_kill(runtime_worker_threads[i], SIGALRM);
 				continue;
 			}
 			case RUNTIME_SIGALRM_HANDLER_BROADCAST: {

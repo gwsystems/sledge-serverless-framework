@@ -302,3 +302,13 @@ scheduler_cooperative_sched()
 	/* Clear the completion queue */
 	local_completion_queue_free();
 }
+
+
+static inline bool
+scheduler_worker_would_preempt(int worker_idx)
+{
+	assert(scheduler == SCHEDULER_EDF);
+	uint64_t local_deadline  = runtime_worker_threads_deadline[worker_idx];
+	uint64_t global_deadline = global_request_scheduler_peek();
+	return global_deadline < local_deadline;
+}
