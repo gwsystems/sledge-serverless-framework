@@ -54,7 +54,7 @@ sandbox_send_response(struct sandbox *sandbox)
 		rc = write(sandbox->client_socket_descriptor, response_header, response_size - sent);
 		if (rc < 0) {
 			if (errno == EAGAIN)
-				scheduler_block();
+				current_sandbox_sleep();
 			else {
 				perror("write");
 				goto err;

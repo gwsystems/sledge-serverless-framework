@@ -76,21 +76,8 @@ worker_thread_main(void *argument)
 		                                                        module_timeout_get_priority);
 	}
 
-	/* Begin Worker Execution Loop */
-	struct sandbox *next_sandbox = NULL;
-	while (true) {
-		/* Assumption: current_sandbox should be unset at start of loop */
-		assert(current_sandbox_get() == NULL);
-
-		worker_thread_execute_epoll_loop();
-
-		/* Switch to a sandbox if one is ready to run */
-		next_sandbox = scheduler_get_next();
-		if (next_sandbox != NULL) { scheduler_switch_to(next_sandbox); }
-
-		/* Clear the completion queue */
-		local_completion_queue_free();
-	}
+	/* Idle Loop */
+	while (true) scheduler_cooperative_sched();
 
 	panic("Worker Thread unexpectedly completed run loop.");
 }

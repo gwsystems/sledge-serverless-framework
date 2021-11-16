@@ -7,7 +7,9 @@
 #include "panic.h"
 #include "local_completion_queue.h"
 #include "sandbox_functions.h"
+#include "sandbox_print_perf.h"
 #include "sandbox_state.h"
+#include "sandbox_state_history.h"
 #include "sandbox_summarize_page_allocations.h"
 #include "sandbox_types.h"
 
@@ -22,16 +24,12 @@ static inline void
 sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-
-	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
-
-	sandbox->state = SANDBOX_SET_AS_COMPLETE;
+	sandbox->state = SANDBOX_COMPLETE;
+	uint64_t now   = __getcycles();
 
 	switch (last_state) {
 	case SANDBOX_RETURNED: {
 		sandbox->timestamp_of.completion = now;
-		sandbox->duration_of_state.returned += duration_of_last_state;
 		break;
 	}
 	default: {
@@ -40,16 +38,16 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	sandbox->timestamp_of.last_state_change = now;
-	sandbox->state                          = SANDBOX_COMPLETE;
-
 	/* State Change Bookkeeping */
-	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_COMPLETE);
+	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
+	sandbox->timestamp_of.last_state_change = now;
+	sandbox_state_history_append(sandbox, SANDBOX_COMPLETE);
 	runtime_sandbox_total_increment(SANDBOX_COMPLETE);
 	runtime_sandbox_total_decrement(last_state);
 
 	/* Admissions Control Post Processing */
-	admissions_info_update(&sandbox->module->admissions_info, sandbox->duration_of_state.running);
+	admissions_info_update(&sandbox->module->admissions_info, sandbox->duration_of_state[SANDBOX_RUNNING_USER]
+	                                                            + sandbox->duration_of_state[SANDBOX_RUNNING_SYS]);
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	/* Terminal State Logging */
@@ -58,4 +56,11 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */
 	local_completion_queue_add(sandbox);
+}
+
+static inline void
+sandbox_exit_success(struct sandbox *sandbox)
+{
+	assert(sandbox->state == SANDBOX_RETURNED);
+	sandbox_set_as_complete(sandbox, SANDBOX_RETURNED);
 }

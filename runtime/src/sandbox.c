@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 #include <sys/mman.h>
 
 #include "current_sandbox.h"
@@ -71,6 +72,8 @@ sandbox_allocate_memory(struct module *module)
 	                        + module->max_request_size;
 	sandbox->memory.size = memory_size;
 	sandbox->memory.max  = memory_max;
+
+	memset(&sandbox->duration_of_state, 0, SANDBOX_STATE_COUNT * sizeof(uint64_t));
 
 done:
 	return sandbox;
@@ -153,6 +156,12 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	}
 	sandbox->state = SANDBOX_ALLOCATED;
 
+#ifdef LOG_STATE_CHANGES
+	sandbox->state_history_count                           = 0;
+	sandbox->state_history[sandbox->state_history_count++] = SANDBOX_ALLOCATED;
+	memset(&sandbox->state_history, 0, SANDBOX_STATE_HISTORY_CAPACITY * sizeof(sandbox_state_t));
+#endif
+
 	/* Set state to initializing */
 	sandbox_set_as_initialized(sandbox, sandbox_request, now);
 
@@ -164,14 +173,14 @@ err_stack_allocation_failed:
 	 * This is a degenerate sandbox that never successfully completed initialization, so we need to
 	 * hand jam some things to be able to cleanly transition to ERROR state
 	 */
-	sandbox->state                          = SANDBOX_SET_AS_INITIALIZED;
+	sandbox->state                          = SANDBOX_UNINITIALIZED;
 	sandbox->timestamp_of.last_state_change = now;
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	sandbox->timestamp_of.page_allocations_size = 0;
 #endif
 	ps_list_init_d(sandbox);
 err_memory_allocation_failed:
-	sandbox_set_as_error(sandbox, SANDBOX_SET_AS_INITIALIZED);
+	sandbox_set_as_error(sandbox, SANDBOX_UNINITIALIZED);
 	perror(error_message);
 	sandbox = NULL;
 	goto done;

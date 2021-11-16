@@ -29,7 +29,6 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 
 	actx->regs[UREG_SP] = sp;
 	actx->regs[UREG_IP] = ip;
-	actx->preemptable   = false;
 }
 
 /**

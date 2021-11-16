@@ -50,13 +50,13 @@ run_samples() {
 	local -ir perf_window_buffer_size
 
 	printf "Running Samples: "
-	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fib40 samples failed with $?"
 		return 1
 	}
 
-	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fib10 samples failed with $?"
 		return 1
@@ -94,7 +94,7 @@ run_experiments() {
 
 	# Run each separately
 	printf "\tfib40: "
-	hey -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "40\n" "http://$hostname:10040" > "$results_directory/fib40.csv" 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "40\n" "http://$hostname:10040" > "$results_directory/fib40.csv" 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fib40 failed"
 		return 1
@@ -107,7 +107,7 @@ run_experiments() {
 	printf "[OK]\n"
 
 	printf "\tfib10: "
-	hey -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://$hostname:10010" > "$results_directory/fib10.csv" 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -z ${duration_sec}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://$hostname:10010" > "$results_directory/fib10.csv" 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fib10 failed"
 		return 1
@@ -125,12 +125,12 @@ run_experiments() {
 	local fib40_con_PID
 	local fib10_con_PID
 
-	hey -z $((duration_sec + 2 * offset))s -cpus 2 -c 100 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" > "$results_directory/fib40_con.csv" 2> /dev/null &
+	hey -disable-compression -disable-keepalive -disable-redirects -z $((duration_sec + 2 * offset))s -cpus 2 -c 100 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" > "$results_directory/fib40_con.csv" 2> /dev/null &
 	fib40_con_PID="$!"
 
 	sleep $offset
 
-	hey -z "${duration_sec}s" -cpus 2 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:10010" > "$results_directory/fib10_con.csv" 2> /dev/null &
+	hey -disable-compression -disable-keepalive -disable-redirects -z "${duration_sec}s" -cpus 2 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:10010" > "$results_directory/fib10_con.csv" 2> /dev/null &
 	fib10_con_PID="$!"
 
 	wait -f "$fib10_con_PID" || {
