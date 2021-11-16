@@ -49,3 +49,6 @@ current_sandbox_set(struct sandbox *sandbox)
 		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 	}
 }
+
+
+extern void current_sandbox_sleep();

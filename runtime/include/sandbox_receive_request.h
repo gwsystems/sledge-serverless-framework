@@ -47,7 +47,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 		if (bytes_received == -1) {
 			if (errno == EAGAIN) {
-				scheduler_block();
+				current_sandbox_sleep();
 				continue;
 			} else {
 				debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor,

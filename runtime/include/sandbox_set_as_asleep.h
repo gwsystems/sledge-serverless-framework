@@ -7,9 +7,10 @@
 #include "local_runqueue.h"
 #include "sandbox_types.h"
 #include "sandbox_state.h"
+#include "sandbox_state_history.h"
 
 /**
- * Transitions a sandbox to the SANDBOX_BLOCKED state.
+ * Transitions a sandbox to the SANDBOX_ASLEEP state.
  * This occurs when a sandbox is executing and it makes a blocking API call of some kind.
  * Automatically removes the sandbox from the runqueue
  * @param sandbox the blocking sandbox
@@ -17,10 +18,10 @@
  * enable the compiler to perform constant propagation optimizations.
  */
 static inline void
-sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
+sandbox_set_as_asleep(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-	sandbox->state = SANDBOX_BLOCKED;
+	sandbox->state = SANDBOX_ASLEEP;
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
@@ -37,7 +38,14 @@ sandbox_set_as_blocked(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* State Change Bookkeeping */
 	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
 	sandbox->timestamp_of.last_state_change = now;
-	sandbox_state_history_append(sandbox, SANDBOX_BLOCKED);
-	runtime_sandbox_total_increment(SANDBOX_BLOCKED);
+	sandbox_state_history_append(sandbox, SANDBOX_ASLEEP);
+	runtime_sandbox_total_increment(SANDBOX_ASLEEP);
 	runtime_sandbox_total_decrement(last_state);
+}
+
+static inline void
+sandbox_sleep(struct sandbox *sandbox)
+{
+	assert(sandbox->state == SANDBOX_RUNNING_KERNEL);
+	sandbox_set_as_asleep(sandbox, SANDBOX_RUNNING_KERNEL);
 }

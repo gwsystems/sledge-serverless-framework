@@ -6,6 +6,7 @@
 #include "arch/getcycles.h"
 #include "current_sandbox.h"
 #include "panic.h"
+#include "sandbox_state_history.h"
 #include "sandbox_types.h"
 #include "sandbox_functions.h"
 
@@ -20,7 +21,11 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_RUNNING_KERNEL: {
 		assert(sandbox == current_sandbox_get());
 		assert(runtime_worker_threads_deadline[worker_thread_idx] == sandbox->absolute_deadline);
-
+		break;
+	}
+	case SANDBOX_PREEMPTED: {
+		assert(sandbox);
+		current_sandbox_set(sandbox);
 		break;
 	}
 	default: {

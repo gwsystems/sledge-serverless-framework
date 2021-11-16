@@ -88,10 +88,11 @@ stub_init(int32_t offset)
 uint32_t
 wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 {
+	struct sandbox *current_sandbox = current_sandbox_get();
+
 	/* Non-blocking copy on stdin */
 	if (filedes == 0) {
 		char *               buffer          = worker_thread_get_memory_ptr_void(buf_offset, nbyte);
-		struct sandbox *     current_sandbox = current_sandbox_get();
 		struct http_request *current_request = &current_sandbox->http_request;
 		if (current_request->body_length <= 0) return 0;
 		int bytes_to_read = nbyte > current_request->body_length ? current_request->body_length : nbyte;
@@ -109,7 +110,7 @@ wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 		int32_t length_read = (int32_t)read(filedes, buf, nbyte);
 		if (length_read < 0) {
 			if (errno == EAGAIN)
-				scheduler_block();
+				current_sandbox_sleep();
 			else {
 				/* All other errors */
 				debuglog("Error reading socket %d - %s\n", filedes, strerror(errno));

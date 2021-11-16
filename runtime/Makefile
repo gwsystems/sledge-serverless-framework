@@ -61,6 +61,9 @@ BINARY_NAME=sledgert
 # The history trucates when the number of elements equal SANDBOX_STATE_HISTORY_CAPACITY 
 # CFLAGS += -DLOG_STATE_CHANGES
 
+# Stores the max number of deferred SIGALRMS for each worker
+# CFLAGS += -DLOG_DEFERRED_SIGALRM_MAX
+
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
 # page is allocated. This helps understand the relationship to memory allocation and execution time.
 # CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE

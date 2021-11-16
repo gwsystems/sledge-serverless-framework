@@ -6,8 +6,9 @@
 #include "arch/getcycles.h"
 #include "current_sandbox.h"
 #include "panic.h"
-#include "sandbox_types.h"
 #include "sandbox_functions.h"
+#include "sandbox_state_history.h"
+#include "sandbox_types.h"
 
 static inline void
 sandbox_set_as_running_kernel(struct sandbox *sandbox, sandbox_state_t last_state)
@@ -24,14 +25,6 @@ sandbox_set_as_running_kernel(struct sandbox *sandbox, sandbox_state_t last_stat
 	}
 	case SANDBOX_RUNNABLE: {
 		assert(sandbox);
-		current_sandbox_set(sandbox);
-		/* Does not handle context switch because the caller knows if we need to use fast or slow switched. We
-		 * can fix this by breakout out SANDBOX_RUNNABLE and SANDBOX_PREEMPTED */
-		break;
-	}
-	case SANDBOX_PREEMPTED: {
-		assert(sandbox);
-		assert(sandbox->interrupted_state == SANDBOX_RUNNING_USER);
 		current_sandbox_set(sandbox);
 		/* Does not handle context switch because the caller knows if we need to use fast or slow switched. We
 		 * can fix this by breakout out SANDBOX_RUNNABLE and SANDBOX_PREEMPTED */

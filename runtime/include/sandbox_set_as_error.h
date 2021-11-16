@@ -8,6 +8,8 @@
 #include "local_runqueue.h"
 #include "sandbox_state.h"
 #include "sandbox_functions.h"
+#include "sandbox_print_perf.h"
+#include "sandbox_state_history.h"
 #include "sandbox_summarize_page_allocations.h"
 #include "panic.h"
 

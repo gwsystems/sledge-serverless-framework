@@ -6,14 +6,13 @@
 #include "arch/getcycles.h"
 #include "local_runqueue.h"
 #include "panic.h"
+#include "sandbox_state_history.h"
 #include "sandbox_types.h"
 
 /**
  * Transitions a sandbox to the SANDBOX_PREEMPTED state.
  *
- * This occurs in the following scenarios:
- * - A sandbox in the SANDBOX_INITIALIZED state completes initialization and is ready to be run
- * - A sandbox in the SANDBOX_BLOCKED state completes what was blocking it and is ready to be run
+ * This occurs when a sandbox is preempted in the SIGALRM handler
  *
  * @param sandbox
  * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
@@ -27,7 +26,7 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_RUNNING_KERNEL: {
+	case SANDBOX_RUNNING_USER: {
 		current_sandbox_set(NULL);
 		break;
 	}

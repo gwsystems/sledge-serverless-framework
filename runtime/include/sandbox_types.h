@@ -74,7 +74,6 @@ struct sandbox_buffer {
 struct sandbox {
 	uint64_t        id;
 	sandbox_state_t state;
-	sandbox_state_t interrupted_state;
 
 #ifdef LOG_STATE_CHANGES
 	sandbox_state_t state_history[SANDBOX_STATE_HISTORY_CAPACITY];

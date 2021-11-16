@@ -8,6 +8,7 @@
 #include "panic.h"
 #include "sandbox_functions.h"
 #include "sandbox_state.h"
+#include "sandbox_state_history.h"
 #include "sandbox_types.h"
 
 /**

@@ -6,6 +6,7 @@
 #include "arch/getcycles.h"
 #include "local_runqueue.h"
 #include "panic.h"
+#include "sandbox_state_history.h"
 #include "sandbox_types.h"
 
 /**
@@ -13,7 +14,7 @@
  *
  * This occurs in the following scenarios:
  * - A sandbox in the SANDBOX_INITIALIZED state completes initialization and is ready to be run
- * - A sandbox in the SANDBOX_BLOCKED state completes what was blocking it and is ready to be run
+ * - A sandbox in the SANDBOX_ASLEEP state completes what was blocking it and is ready to be run
  *
  * @param sandbox
  * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
@@ -31,7 +32,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 		local_runqueue_add(sandbox);
 		break;
 	}
-	case SANDBOX_BLOCKED: {
+	case SANDBOX_ASLEEP: {
 		local_runqueue_add(sandbox);
 		break;
 	}
@@ -47,4 +48,12 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_history_append(sandbox, SANDBOX_RUNNABLE);
 	runtime_sandbox_total_increment(SANDBOX_RUNNABLE);
 	runtime_sandbox_total_decrement(last_state);
+}
+
+
+static inline void
+sandbox_wakeup(struct sandbox *sandbox)
+{
+	assert(sandbox->state == SANDBOX_ASLEEP);
+	sandbox_set_as_runnable(sandbox, SANDBOX_ASLEEP);
 }

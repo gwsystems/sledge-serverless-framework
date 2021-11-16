@@ -4,8 +4,10 @@
 #include "sandbox_functions.h"
 #include "sandbox_receive_request.h"
 #include "sandbox_send_response.h"
+#include "sandbox_set_as_asleep.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_returned.h"
+#include "sandbox_set_as_complete.h"
 #include "sandbox_set_as_running_user.h"
 #include "sandbox_set_as_running_kernel.h"
 #include "sandbox_setup_arguments.h"
@@ -22,6 +24,82 @@ thread_local struct sandbox_context_cache local_sandbox_context_cache = {
 	},
 	.module_indirect_table = NULL,
 };
+
+/**
+ * @brief Switches from an executing sandbox to the worker thread base context
+ *
+ * This places the current sandbox on the completion queue if in RETURNED state
+ */
+void
+current_sandbox_sleep()
+{
+	struct sandbox *sandbox = current_sandbox_get();
+	assert(sandbox != NULL);
+	struct arch_context *current_context = &sandbox->ctxt;
+
+	scheduler_log_sandbox_switch(sandbox, NULL);
+	generic_thread_dump_lock_overhead();
+
+	assert(sandbox != NULL);
+
+	switch (sandbox->state) {
+	case SANDBOX_RUNNING_KERNEL: {
+		sandbox_sleep(sandbox);
+		break;
+	}
+	default:
+		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
+		      sandbox_state_stringify(sandbox->state));
+	}
+
+	current_sandbox_set(NULL);
+
+	/* Assumption: Base Worker context should never be preempted */
+	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
+	arch_context_switch(current_context, &worker_thread_base_context);
+}
+
+/**
+ * @brief Switches from an executing sandbox to the worker thread base context
+ *
+ * This places the current sandbox on the completion queue if in RETURNED state
+ */
+void
+current_sandbox_exit()
+{
+	struct sandbox *sandbox = current_sandbox_get();
+	assert(sandbox != NULL);
+	struct arch_context *current_context = &sandbox->ctxt;
+
+	scheduler_log_sandbox_switch(sandbox, NULL);
+	generic_thread_dump_lock_overhead();
+
+	assert(sandbox != NULL);
+
+	switch (sandbox->state) {
+	case SANDBOX_RETURNED:
+		/*
+		 * We draw a distinction between RETURNED and COMPLETED because a sandbox cannot add itself to the
+		 * completion queue
+		 * TODO: I think this executes when running inside the sandbox, as it hasn't yet yielded
+		 * See Issue #224 at https://github.com/gwsystems/sledge-serverless-framework/issues/224
+		 */
+		sandbox_set_as_complete(sandbox, SANDBOX_RETURNED);
+		break;
+	case SANDBOX_ERROR:
+		break;
+	default:
+		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
+		      sandbox_state_stringify(sandbox->state));
+	}
+
+	current_sandbox_set(NULL);
+
+	/* Assumption: Base Worker context should never be preempted */
+	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
+	arch_context_switch(current_context, &worker_thread_base_context);
+}
+
 
 /**
  * Sandbox execution logic
@@ -82,7 +160,7 @@ current_sandbox_start(void)
 done:
 	/* Cleanup connection and exit sandbox */
 	generic_thread_dump_lock_overhead();
-	scheduler_yield();
+	current_sandbox_exit();
 
 	/* This assert prevents a segfault discussed in
 	 * https://github.com/phanikishoreg/awsm-Serverless-Framework/issues/66

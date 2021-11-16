@@ -8,6 +8,7 @@
 #include "current_sandbox.h"
 #include "ps_list.h"
 #include "sandbox_request.h"
+#include "sandbox_state_history.h"
 #include "sandbox_types.h"
 
 /**

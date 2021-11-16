@@ -43,19 +43,31 @@ thread_local _Atomic volatile sig_atomic_t        software_interrupt_signal_dept
 _Atomic volatile sig_atomic_t *software_interrupt_deferred_sigalrm_max;
 
 void
+software_interrupt_deferred_sigalrm_max_alloc()
+{
+#ifdef LOG_DEFERRED_SIGALRM_MAX
+	software_interrupt_deferred_sigalrm_max = calloc(runtime_worker_threads_count, sizeof(_Atomic(sig_atomic_t)));
+#endif
+}
+
+void
+software_interrupt_deferred_sigalrm_max_free()
+{
+#ifdef LOG_DEFERRED_SIGALRM_MAX
+	if (software_interrupt_deferred_sigalrm_max) free((void *)software_interrupt_deferred_sigalrm_max);
+#endif
+}
+
+void
 software_interrupt_deferred_sigalrm_max_print()
 {
+#ifdef LOG_DEFERRED_SIGALRM_MAX
 	printf("Max Deferred Sigalrms\n");
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		printf("Worker %d: %d\n", i, software_interrupt_deferred_sigalrm_max[i]);
 	}
 	fflush(stdout);
-}
-
-void
-software_interrupt_cleanup()
-{
-	if (software_interrupt_deferred_sigalrm_max) free((void *)software_interrupt_deferred_sigalrm_max);
+#endif
 }
 
 /***************************************
@@ -149,24 +161,19 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	case SIGALRM: {
 		sigalrm_propagate_workers(signal_info);
 
-		/* Current Sandbox is NULL when the base worker context is active. This already executes scheduling
-		 * logic, so just return. */
-		if (!current_sandbox) goto done;
-
-		/* We need to track what state was interrupted to conditionally restore user running after preemption */
-		current_sandbox->interrupted_state = current_sandbox->state;
-
-		if (current_sandbox->state == SANDBOX_RUNNING_USER) {
-			sandbox_set_as_running_kernel(current_sandbox, SANDBOX_RUNNING_USER);
-			atomic_store(&software_interrupt_deferred_sigalrm, 0);
-			current_sandbox = scheduler_preempt(interrupted_context);
-		} else {
+		/* Nonpreemptive, so defer */
+		if (!sandbox_is_preemptable(current_sandbox)) {
 			atomic_fetch_add(&software_interrupt_deferred_sigalrm, 1);
+			goto done;
 		}
+
+		scheduler_preemptive_sched(interrupted_context);
+
 		goto done;
 	}
 	case SIGUSR1: {
 		assert(current_sandbox);
+		assert(current_sandbox->state == SANDBOX_PREEMPTED);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
 
 		atomic_fetch_add(&software_interrupt_SIGUSR_count, 1);
@@ -175,9 +182,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
 		         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
 #endif
-		/* Overwrites the interrupted context with the context of the worker thread's current sandbox */
 		/* It is the responsibility of the caller to invoke current_sandbox_set before triggering the SIGUSR1 */
-		arch_context_restore_slow(&interrupted_context->uc_mcontext, &current_sandbox->ctxt);
+		scheduler_preemptive_switch_to(interrupted_context, current_sandbox);
 		goto done;
 	}
 	default: {
@@ -194,9 +200,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	}
 done:
 	atomic_fetch_sub(&software_interrupt_signal_depth, 1);
-	if (current_sandbox && current_sandbox->interrupted_state == SANDBOX_RUNNING_USER) {
-		sandbox_set_as_running_user(current_sandbox, SANDBOX_RUNNING_KERNEL);
-	}
 	return;
 }
 
@@ -275,7 +278,7 @@ software_interrupt_initialize(void)
 		}
 	}
 
-	software_interrupt_deferred_sigalrm_max = calloc(runtime_worker_threads_count, sizeof(_Atomic(sig_atomic_t)));
+	software_interrupt_deferred_sigalrm_max_alloc();
 }
 
 void
