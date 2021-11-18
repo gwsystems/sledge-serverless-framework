@@ -46,6 +46,9 @@ sandbox_allocate_memory(struct module *module)
 
 	assert(addr != NULL);
 
+	/* Advise to use huge pages */
+	if (madvise(addr, size_to_alloc, MADV_HUGEPAGE) != 0) perror("Huge Pages");
+
 	/* Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write */
 	errno         = 0;
 	void *addr_rw = mmap(addr, size_to_read_write, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
