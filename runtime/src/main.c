@@ -31,9 +31,6 @@ uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
 
-
-FILE *runtime_sandbox_perf_log = NULL;
-
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 int                          runtime_worker_core_count;
 
@@ -218,17 +215,7 @@ runtime_configure()
 	}
 	printf("\tQuantum: %u us\n", runtime_quantum_us);
 
-	/* Runtime Perf Log */
-	char *runtime_sandbox_perf_log_path = getenv("SLEDGE_SANDBOX_PERF_LOG");
-	if (runtime_sandbox_perf_log_path != NULL) {
-		printf("\tSandbox Performance Log: %s\n", runtime_sandbox_perf_log_path);
-		runtime_sandbox_perf_log = fopen(runtime_sandbox_perf_log_path, "w");
-		if (runtime_sandbox_perf_log == NULL) { perror("sandbox perf log"); }
-		fprintf(runtime_sandbox_perf_log, "id,module,port,state,deadline,actual,queued,initializing,runnable,"
-		                                  "running,asleep,returned,proc_MHz,memory\n");
-	} else {
-		printf("\tSandbox Performance Log: Disabled\n");
-	}
+	sandbox_perf_log_init();
 }
 
 void
