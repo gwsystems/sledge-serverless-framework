@@ -36,23 +36,23 @@
  * Writes sandbox_context to active_context
  * active_context was saved to the stack by a signal handler
  * @param active_context - the context of the current worker thread
- * @param sandbox_context - the context that we want to restore
+ * @param context_to_restore - the context that we want to restore
  */
 static inline void
-arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_context)
+arch_context_restore_slow(mcontext_t *active_context, struct arch_context *context_to_restore)
 {
 	assert(active_context != NULL);
-	assert(sandbox_context != NULL);
+	assert(context_to_restore != NULL);
 
 	/* Assumption: Base Context is only ever used by arch_context_switch */
-	assert(sandbox_context != &worker_thread_base_context);
+	assert(context_to_restore != &worker_thread_base_context);
 
 	/* Transitioning from Slow -> Running */
-	assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_SLOW);
-	sandbox_context->variant = ARCH_CONTEXT_VARIANT_RUNNING;
+	assert(context_to_restore->variant == ARCH_CONTEXT_VARIANT_SLOW);
+	context_to_restore->variant = ARCH_CONTEXT_VARIANT_RUNNING;
 
 	/* Restore mcontext */
-	memcpy(active_context, &sandbox_context->mctx, sizeof(mcontext_t));
+	memcpy(active_context, &context_to_restore->mctx, sizeof(mcontext_t));
 }
 
 
@@ -62,7 +62,7 @@ arch_mcontext_restore(mcontext_t *active_context, struct arch_context *sandbox_c
  * @param active_context - source
  */
 static inline void
-arch_mcontext_save(struct arch_context *sandbox_context, const mcontext_t *active_context)
+arch_context_save_slow(struct arch_context *sandbox_context, const mcontext_t *active_context)
 {
 	assert(sandbox_context != NULL);
 	assert(active_context != NULL);

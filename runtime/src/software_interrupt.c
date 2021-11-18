@@ -12,12 +12,12 @@
 #include "arch/context.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
-#include "global_request_scheduler.h"
 #include "listener_thread.h"
 #include "local_runqueue.h"
 #include "module.h"
 #include "panic.h"
 #include "runtime.h"
+#include "sandbox_set_as_running_user.h"
 #include "sandbox_types.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
@@ -41,19 +41,31 @@ thread_local _Atomic volatile sig_atomic_t        software_interrupt_signal_dept
 _Atomic volatile sig_atomic_t *software_interrupt_deferred_sigalrm_max;
 
 void
+software_interrupt_deferred_sigalrm_max_alloc()
+{
+#ifdef LOG_DEFERRED_SIGALRM_MAX
+	software_interrupt_deferred_sigalrm_max = calloc(runtime_worker_threads_count, sizeof(_Atomic(sig_atomic_t)));
+#endif
+}
+
+void
+software_interrupt_deferred_sigalrm_max_free()
+{
+#ifdef LOG_DEFERRED_SIGALRM_MAX
+	if (software_interrupt_deferred_sigalrm_max) free((void *)software_interrupt_deferred_sigalrm_max);
+#endif
+}
+
+void
 software_interrupt_deferred_sigalrm_max_print()
 {
+#ifdef LOG_DEFERRED_SIGALRM_MAX
 	printf("Max Deferred Sigalrms\n");
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		printf("Worker %d: %d\n", i, software_interrupt_deferred_sigalrm_max[i]);
 	}
 	fflush(stdout);
-}
-
-void
-software_interrupt_cleanup()
-{
-	if (software_interrupt_deferred_sigalrm_max) free((void *)software_interrupt_deferred_sigalrm_max);
+#endif
 }
 
 /***************************************
@@ -65,7 +77,6 @@ extern pthread_t *runtime_worker_threads;
 /**************************
  * Private Static Inlines *
  *************************/
-
 
 /**
  * A POSIX signal is delivered to only one thread.
@@ -83,13 +94,9 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 
 			if (pthread_self() == runtime_worker_threads[i]) continue;
 
-			/* If using EDF, conditionally send signals. If not, broadcast */
 			switch (runtime_sigalrm_handler) {
 			case RUNTIME_SIGALRM_HANDLER_TRIAGED: {
-				assert(scheduler == SCHEDULER_EDF);
-				uint64_t local_deadline  = runtime_worker_threads_deadline[i];
-				uint64_t global_deadline = global_request_scheduler_peek();
-				if (global_deadline < local_deadline) pthread_kill(runtime_worker_threads[i], SIGALRM);
+				if (scheduler_worker_would_preempt(i)) pthread_kill(runtime_worker_threads[i], SIGALRM);
 				continue;
 			}
 			case RUNTIME_SIGALRM_HANDLER_BROADCAST: {
@@ -125,10 +132,10 @@ software_interrupt_validate_worker()
  * SIGUSR1 restores a preempted sandbox
  * @param signal_type
  * @param signal_info data structure containing signal info
- * @param user_context_raw void* to a user_context struct
+ * @param interrupted_context_raw void* to a interrupted_context struct
  */
 static inline void
-software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *user_context_raw)
+software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *interrupted_context_raw)
 {
 	/* Only workers should receive signals */
 	assert(!listener_thread_is_running());
@@ -137,32 +144,29 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	assert(runtime_preemption_enabled);
 
 	/* Signals should not nest */
-	/* TODO: Better atomic instruction here to check and set? */
 	assert(software_interrupt_signal_depth == 0);
 	atomic_fetch_add(&software_interrupt_signal_depth, 1);
 
-	ucontext_t *    user_context    = (ucontext_t *)user_context_raw;
-	struct sandbox *current_sandbox = current_sandbox_get();
+	ucontext_t *    interrupted_context = (ucontext_t *)interrupted_context_raw;
+	struct sandbox *current_sandbox     = current_sandbox_get();
 
 	switch (signal_type) {
 	case SIGALRM: {
 		sigalrm_propagate_workers(signal_info);
-		if (current_sandbox == NULL || current_sandbox->ctxt.preemptable == false) {
-			/* Cannot preempt, so defer signal
-			 * TODO: First worker gets tons of kernel sigalrms, should these be treated the same?
-			 * When current_sandbox is NULL, we are looping through the scheduler, so sigalrm is redundant
-			 * Maybe track time of last scheduling decision? i.e. when scheduler_get_next was last called.
-			 */
+
+		/* Nonpreemptive, so defer */
+		if (!sandbox_is_preemptable(current_sandbox)) {
 			atomic_fetch_add(&software_interrupt_deferred_sigalrm, 1);
-		} else {
-			/* A worker thread received a SIGALRM while running a preemptable sandbox, so preempt */
-			assert(current_sandbox->state == SANDBOX_RUNNING);
-			scheduler_preempt(user_context);
+			goto done;
 		}
+
+		scheduler_preemptive_sched(interrupted_context);
+
 		goto done;
 	}
 	case SIGUSR1: {
 		assert(current_sandbox);
+		assert(current_sandbox->state == SANDBOX_PREEMPTED);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
 
 		atomic_fetch_add(&software_interrupt_SIGUSR_count, 1);
@@ -171,7 +175,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
 		         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
 #endif
-		arch_mcontext_restore(&user_context->uc_mcontext, &current_sandbox->ctxt);
+		/* It is the responsibility of the caller to invoke current_sandbox_set before triggering the SIGUSR1 */
+		scheduler_preemptive_switch_to(interrupted_context, current_sandbox);
 		goto done;
 	}
 	default: {
@@ -188,6 +193,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	}
 done:
 	atomic_fetch_sub(&software_interrupt_signal_depth, 1);
+	return;
 }
 
 /********************
@@ -265,7 +271,7 @@ software_interrupt_initialize(void)
 		}
 	}
 
-	software_interrupt_deferred_sigalrm_max = calloc(runtime_worker_threads_count, sizeof(_Atomic(sig_atomic_t)));
+	software_interrupt_deferred_sigalrm_max_alloc();
 }
 
 void

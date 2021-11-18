@@ -20,8 +20,6 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
 		actx->variant = ARCH_CONTEXT_VARIANT_FAST;
 	}
 
-	actx->preemptable = false;
-
 	if (sp) {
 		/*
 		 * context_switch conventions: bp is expected to be on top of the stack
@@ -52,7 +50,7 @@ arch_context_init(struct arch_context *actx, reg_t ip, reg_t sp)
  * @param sandbox_context - the context that we want to restore
  */
 static inline void
-arch_context_restore_new(mcontext_t *active_context, struct arch_context *sandbox_context)
+arch_context_restore_fast(mcontext_t *active_context, struct arch_context *sandbox_context)
 {
 	assert(active_context != NULL);
 	assert(sandbox_context != NULL);

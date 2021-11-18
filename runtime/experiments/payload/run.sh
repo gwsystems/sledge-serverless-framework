@@ -54,7 +54,7 @@ run_samples() {
 	printf "Running Samples:\n"
 	for payload in "${payloads[@]}"; do
 		printf "\t%d Payload: " "$payload"
-		hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -o csv -m GET -D "$__run_sh__base_path/body/$payload.txt" "http://$hostname:${ports["$payload"]}" 1> /dev/null 2> /dev/null || {
+		hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -o csv -m GET -D "$__run_sh__base_path/body/$payload.txt" "http://$hostname:${ports["$payload"]}" 1> /dev/null 2> /dev/null || {
 			printf "[ERR]\n"
 			panic "samples failed"
 			return 1
@@ -81,7 +81,7 @@ run_experiments() {
 	printf "Running Experiments:\n"
 	for payload in "${payloads[@]}"; do
 		printf "\t%d Payload: " "$payload"
-		hey -n "$iterations" -c 1 -cpus 2 -o csv -m GET -D "$__run_sh__base_path/body/$payload.txt" "http://$hostname:${ports["$payload"]}" > "$results_directory/$payload.csv" 2> /dev/null || {
+		hey -disable-compression -disable-keepalive -disable-redirects -n "$iterations" -c 1 -cpus 2 -o csv -m GET -D "$__run_sh__base_path/body/$payload.txt" "http://$hostname:${ports["$payload"]}" > "$results_directory/$payload.csv" 2> /dev/null || {
 			printf "[ERR]\n"
 			panic "$payload experiment failed"
 			return 1

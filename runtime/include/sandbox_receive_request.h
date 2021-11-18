@@ -47,7 +47,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 		if (bytes_received == -1) {
 			if (errno == EAGAIN) {
-				scheduler_block();
+				current_sandbox_sleep();
 				continue;
 			} else {
 				debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor,
@@ -71,8 +71,8 @@ sandbox_receive_request(struct sandbox *sandbox)
 		}
 
 #ifdef LOG_HTTP_PARSER
-		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings, buf,
-		         bytes_received);
+		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings,
+		         &sandbox->request.base[sandbox->request.length], bytes_received);
 #endif
 		size_t bytes_parsed = http_parser_execute(parser, settings,
 		                                          &sandbox->request.base[sandbox->request.length],

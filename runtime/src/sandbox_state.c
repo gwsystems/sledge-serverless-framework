@@ -7,32 +7,19 @@
 #include "debuglog.h"
 #include "sandbox_state.h"
 
-const bool sandbox_state_is_terminal[SANDBOX_STATE_COUNT] = {
-	[SANDBOX_UNINITIALIZED] = false,   [SANDBOX_ALLOCATED] = false,      [SANDBOX_INITIALIZED] = true,
-	[SANDBOX_SET_AS_RUNNABLE] = false, [SANDBOX_RUNNABLE] = true,        [SANDBOX_SET_AS_RUNNING] = false,
-	[SANDBOX_RUNNING] = true,          [SANDBOX_SET_AS_BLOCKED] = false, [SANDBOX_BLOCKED] = true,
-	[SANDBOX_SET_AS_RETURNED] = false, [SANDBOX_RETURNED] = true,        [SANDBOX_SET_AS_COMPLETE] = false,
-	[SANDBOX_COMPLETE] = true,         [SANDBOX_SET_AS_ERROR] = false,   [SANDBOX_ERROR] = true
-};
-
 const char *sandbox_state_labels[SANDBOX_STATE_COUNT] = {
 
-	[SANDBOX_UNINITIALIZED]      = "Uninitialized",
-	[SANDBOX_ALLOCATED]          = "Allocated",
-	[SANDBOX_SET_AS_INITIALIZED] = "Transitioning to Initialized",
-	[SANDBOX_INITIALIZED]        = "Initialized",
-	[SANDBOX_SET_AS_RUNNABLE]    = "Transitioning to Runnable",
-	[SANDBOX_RUNNABLE]           = "Runnable",
-	[SANDBOX_SET_AS_RUNNING]     = "Transitioning to Running",
-	[SANDBOX_RUNNING]            = "Running",
-	[SANDBOX_SET_AS_BLOCKED]     = "Transitioning to Blocked",
-	[SANDBOX_BLOCKED]            = "Blocked",
-	[SANDBOX_SET_AS_RETURNED]    = "Transitioning to Returned",
-	[SANDBOX_RETURNED]           = "Returned",
-	[SANDBOX_SET_AS_COMPLETE]    = "Transitioning to Complete",
-	[SANDBOX_COMPLETE]           = "Complete",
-	[SANDBOX_SET_AS_ERROR]       = "Transitioning to Error",
-	[SANDBOX_ERROR]              = "Error"
+	[SANDBOX_UNINITIALIZED] = "Uninitialized",
+	[SANDBOX_ALLOCATED]     = "Allocated",
+	[SANDBOX_INITIALIZED]   = "Initialized",
+	[SANDBOX_RUNNABLE]      = "Runnable",
+	[SANDBOX_PREEMPTED]     = "Preempted",
+	[SANDBOX_RUNNING_SYS]   = "Running Sys",
+	[SANDBOX_RUNNING_USER]  = "Running User",
+	[SANDBOX_ASLEEP]        = "Asleep",
+	[SANDBOX_RETURNED]      = "Returned",
+	[SANDBOX_COMPLETE]      = "Complete",
+	[SANDBOX_ERROR]         = "Error"
 };
 
 #ifdef LOG_SANDBOX_COUNT

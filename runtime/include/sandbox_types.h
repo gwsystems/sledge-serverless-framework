@@ -18,6 +18,10 @@
 #define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
 #endif
 
+#ifdef LOG_STATE_CHANGES
+#define SANDBOX_STATE_HISTORY_CAPACITY 100
+#endif
+
 /*********************
  * Structs and Types *
  ********************/
@@ -70,7 +74,13 @@ struct sandbox_buffer {
 struct sandbox {
 	uint64_t        id;
 	sandbox_state_t state;
-	struct ps_list  list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
+
+#ifdef LOG_STATE_CHANGES
+	sandbox_state_t state_history[SANDBOX_STATE_HISTORY_CAPACITY];
+	uint16_t        state_history_count;
+#endif
+
+	struct ps_list list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
 
 	/* HTTP State */
 	struct sockaddr       client_address; /* client requesting connection! */
@@ -90,8 +100,8 @@ struct sandbox {
 	struct wasm_memory   memory;
 
 	/* Scheduling and Temporal State */
-	struct sandbox_timestamps      timestamp_of;
-	struct sandbox_state_durations duration_of_state;
+	struct sandbox_timestamps timestamp_of;
+	uint64_t                  duration_of_state[SANDBOX_STATE_COUNT];
 
 	uint64_t absolute_deadline;
 	uint64_t admissions_estimate; /* estimated execution time (cycles) * runtime_admissions_granularity / relative
