@@ -250,11 +250,12 @@ software_interrupt_initialize(void)
 {
 	struct sigaction signal_action;
 	memset(&signal_action, 0, sizeof(struct sigaction));
+
+	/* All supported signals trigger the same signal handler */
 	signal_action.sa_sigaction = software_interrupt_handle_signals;
 	signal_action.sa_flags     = SA_SIGINFO | SA_RESTART;
 
-	/* all threads created by the calling thread will have signal blocked */
-	/* TODO: What does sa_mask do? I have to call software_interrupt_mask_signal below */
+	/* Mask SIGALRM and SIGUSR1 while the signal handler executes */
 	sigemptyset(&signal_action.sa_mask);
 	sigaddset(&signal_action.sa_mask, SIGALRM);
 	sigaddset(&signal_action.sa_mask, SIGUSR1);
@@ -264,7 +265,11 @@ software_interrupt_initialize(void)
 
 	for (int i = 0; i < supported_signals_len; i++) {
 		int signal = supported_signals[i];
+
+		/* Mask this signal on the listener thread */
 		software_interrupt_mask_signal(signal);
+
+		/* But register the handler for this signal for the process */
 		if (sigaction(signal, &signal_action, NULL)) {
 			perror("sigaction");
 			exit(1);
