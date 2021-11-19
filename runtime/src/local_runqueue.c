@@ -89,9 +89,9 @@ local_workload_add(struct sandbox *sandbox) {
 	uint64_t estimated_execution_time = admission_info_get_percentile(&sandbox->module->admissions_info);
 	local_realtime_workload_us += estimated_execution_time / runtime_processor_speed_MHz;
 	local_total_realtime_workload_us += estimated_execution_time / runtime_processor_speed_MHz;
-	mem_log("time %lu thread %d workload %u total workload %u real-time workload(us) %lu total real-time workload %lu\n", 
-		timestamp, worker_thread_idx, local_workload_count, local_total_workload_count, local_realtime_workload_us,
-		local_total_realtime_workload_us);
+	//mem_log("time %lu thread %d workload %u total workload %u real-time workload(us) %lu total real-time workload %lu\n", 
+	//	timestamp, worker_thread_idx, local_workload_count, local_total_workload_count, local_realtime_workload_us,
+	//	local_total_realtime_workload_us);
 }
 
 /**
@@ -108,8 +108,8 @@ local_workload_complete(struct sandbox *sandbox) {
 	} else {
         	local_realtime_workload_us -= estimated_execution_time / runtime_processor_speed_MHz;
 	}
-        mem_log("time %lu thread %d workload %u total workload %u real-time workload(us) %lu total real-time workload %lu\n", 
-		timestamp, worker_thread_idx, local_workload_count, local_total_workload_count, local_realtime_workload_us,
-		local_total_realtime_workload_us);
+        //mem_log("time %lu thread %d workload %u total workload %u real-time workload(us) %lu total real-time workload %lu\n", 
+	//	timestamp, worker_thread_idx, local_workload_count, local_total_workload_count, local_realtime_workload_us,
+	//	local_total_realtime_workload_us);
 
 }
