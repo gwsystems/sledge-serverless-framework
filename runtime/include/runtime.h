@@ -8,6 +8,9 @@
 #include "likely.h"
 #include "types.h"
 
+/* Memory barrier to prevent unexpected code migration due to compiler optimization */
+#define barrier() __asm__ __volatile__("" ::: "memory")
+
 #define RUNTIME_EXPECTED_EXECUTION_US_MAX 3600000000
 #define RUNTIME_HTTP_REQUEST_SIZE_MAX     100000000 /* 100 MB */
 #define RUNTIME_HTTP_RESPONSE_SIZE_MAX    100000000 /* 100 MB */

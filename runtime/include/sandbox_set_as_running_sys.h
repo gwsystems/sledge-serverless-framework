@@ -14,8 +14,14 @@ static inline void
 sandbox_set_as_running_sys(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
+
+	/* WARNING: All code before this barrier is preemptable if transitioning from RUNNING_USER */
+	barrier();
 	sandbox->state = SANDBOX_RUNNING_SYS;
-	uint64_t now   = __getcycles();
+	barrier();
+	/* WARNING: All code after this barrier is non-preemptable */
+
+	uint64_t now = __getcycles();
 
 	switch (last_state) {
 	case SANDBOX_RUNNING_USER: {
