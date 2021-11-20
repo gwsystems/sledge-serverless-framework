@@ -100,14 +100,6 @@ err:
 static inline struct sandbox *
 scheduler_get_next()
 {
-#ifdef LOG_DEFERRED_SIGALRM_MAX
-	if (unlikely(software_interrupt_deferred_sigalrm
-	             > software_interrupt_deferred_sigalrm_max[worker_thread_idx])) {
-		software_interrupt_deferred_sigalrm_max[worker_thread_idx] = software_interrupt_deferred_sigalrm;
-	}
-#endif
-
-	atomic_store(&software_interrupt_deferred_sigalrm, 0);
 	switch (scheduler) {
 	case SCHEDULER_EDF:
 		return scheduler_edf_get_next();
@@ -215,6 +207,8 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 {
 	assert(interrupted_context != NULL);
 
+	software_interrupt_deferred_sigalrm_clear();
+
 	/* Process epoll to make sure that all runnable jobs are considered for execution */
 	scheduler_execute_epoll_loop();
 
@@ -291,6 +285,8 @@ scheduler_cooperative_sched()
 {
 	/* Assumption: only called by the "base context" */
 	assert(current_sandbox_get() == NULL);
+
+	software_interrupt_deferred_sigalrm_clear();
 
 	/* Try to wakeup sleeping sandboxes */
 	scheduler_execute_epoll_loop();

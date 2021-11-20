@@ -46,7 +46,7 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox->state = SANDBOX_RUNNING_USER;
 
 	/* Now that we are preemptable, we can replay deferred sigalrms */
-	if (software_interrupt_deferred_sigalrm > 0) raise(SIGALRM);
+	software_interrupt_deferred_sigalrm_replay();
 }
 
 static inline void

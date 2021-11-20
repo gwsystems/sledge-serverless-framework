@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <string.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <threads.h>
@@ -21,52 +22,10 @@
 #include "sandbox_types.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
+#include "software_interrupt_counts.h"
 
-/*******************
- * Process Globals *
- ******************/
-
-static uint64_t software_interrupt_interval_duration_in_cycles;
-
-/******************
- * Thread Globals *
- *****************/
-
-thread_local _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_kernel_count = 0;
-thread_local _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_thread_count = 0;
-thread_local _Atomic static volatile sig_atomic_t software_interrupt_SIGUSR_count         = 0;
-thread_local _Atomic volatile sig_atomic_t        software_interrupt_deferred_sigalrm     = 0;
-thread_local _Atomic volatile sig_atomic_t        software_interrupt_signal_depth         = 0;
-
-_Atomic volatile sig_atomic_t *software_interrupt_deferred_sigalrm_max;
-
-void
-software_interrupt_deferred_sigalrm_max_alloc()
-{
-#ifdef LOG_DEFERRED_SIGALRM_MAX
-	software_interrupt_deferred_sigalrm_max = calloc(runtime_worker_threads_count, sizeof(_Atomic(sig_atomic_t)));
-#endif
-}
-
-void
-software_interrupt_deferred_sigalrm_max_free()
-{
-#ifdef LOG_DEFERRED_SIGALRM_MAX
-	if (software_interrupt_deferred_sigalrm_max) free((void *)software_interrupt_deferred_sigalrm_max);
-#endif
-}
-
-void
-software_interrupt_deferred_sigalrm_max_print()
-{
-#ifdef LOG_DEFERRED_SIGALRM_MAX
-	printf("Max Deferred Sigalrms\n");
-	for (int i = 0; i < runtime_worker_threads_count; i++) {
-		printf("Worker %d: %d\n", i, software_interrupt_deferred_sigalrm_max[i]);
-	}
-	fflush(stdout);
-#endif
-}
+thread_local _Atomic volatile sig_atomic_t handler_depth;
+thread_local _Atomic volatile sig_atomic_t deferred_sigalrm;
 
 /***************************************
  * Externs
@@ -78,16 +37,22 @@ extern pthread_t *runtime_worker_threads;
  * Private Static Inlines *
  *************************/
 
+static inline void
+defer_sigalrm()
+{
+	atomic_fetch_add(&deferred_sigalrm, 1);
+}
+
 /**
  * A POSIX signal is delivered to only one thread.
  * This function broadcasts the sigalarm signal to all other worker threads
  */
 static inline void
-sigalrm_propagate_workers(siginfo_t *signal_info)
+propagate_sigalrm(siginfo_t *signal_info)
 {
 	/* Signal was sent directly by the kernel, so forward to other threads */
 	if (signal_info->si_code == SI_KERNEL) {
-		atomic_fetch_add(&software_interrupt_SIGALRM_kernel_count, 1);
+		software_interrupt_counts_sigalrm_kernel_increment();
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			/* All threads should have been initialized */
 			assert(runtime_worker_threads[i] != 0);
@@ -109,21 +74,10 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 			}
 		}
 	} else {
-		atomic_fetch_add(&software_interrupt_SIGALRM_thread_count, 1);
+		software_interrupt_counts_sigalrm_thread_increment();
 		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 		assert(signal_info->si_code == SI_TKILL);
 	}
-}
-
-/**
- * Validates that the thread running the signal handler is a known worker thread
- */
-static inline void
-software_interrupt_validate_worker()
-{
-#ifndef NDEBUG
-	if (listener_thread_is_running()) panic("The listener thread unexpectedly received a signal!");
-#endif
 }
 
 /**
@@ -144,55 +98,57 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	assert(runtime_preemption_enabled);
 
 	/* Signals should not nest */
-	assert(software_interrupt_signal_depth == 0);
-	atomic_fetch_add(&software_interrupt_signal_depth, 1);
+	assert(handler_depth == 0);
+	atomic_fetch_add(&handler_depth, 1);
 
 	ucontext_t *    interrupted_context = (ucontext_t *)interrupted_context_raw;
 	struct sandbox *current_sandbox     = current_sandbox_get();
 
 	switch (signal_type) {
 	case SIGALRM: {
-		sigalrm_propagate_workers(signal_info);
+		propagate_sigalrm(signal_info);
 
-		/* Nonpreemptive, so defer */
-		if (!sandbox_is_preemptable(current_sandbox)) {
-			atomic_fetch_add(&software_interrupt_deferred_sigalrm, 1);
-			goto done;
+		if (sandbox_is_preemptable(current_sandbox)) {
+			scheduler_preemptive_sched(interrupted_context);
+		} else {
+			defer_sigalrm();
 		}
 
-		scheduler_preemptive_sched(interrupted_context);
-
-		goto done;
+		break;
 	}
 	case SIGUSR1: {
 		assert(current_sandbox);
 		assert(current_sandbox->state == SANDBOX_PREEMPTED);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
 
-		atomic_fetch_add(&software_interrupt_SIGUSR_count, 1);
+		software_interrupt_counts_sigusr_increment();
 #ifdef LOG_PREEMPTION
-		debuglog("Total SIGUSR1 Received: %d\n", software_interrupt_SIGUSR_count);
+		debuglog("Total SIGUSR1 Received: %d\n", sigusr_count);
 		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
 		         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
 #endif
 		/* It is the responsibility of the caller to invoke current_sandbox_set before triggering the SIGUSR1 */
 		scheduler_preemptive_switch_to(interrupted_context, current_sandbox);
-		goto done;
+
+		break;
 	}
 	default: {
+		const char *signal_name = strsignal(signal_type);
 		switch (signal_info->si_code) {
 		case SI_TKILL:
-			panic("Unexpectedly received signal %d from a thread kill, but we have no handler\n",
-			      signal_type);
+			panic("software_interrupt_handle_signals unexpectedly received signal %s from a thread kill\n",
+			      signal_name);
 		case SI_KERNEL:
-			panic("Unexpectedly received signal %d from the kernel, but we have no handler\n", signal_type);
+			panic("software_interrupt_handle_signals unexpectedly received signal %s from the kernel\n",
+			      signal_name);
 		default:
-			panic("Anomolous Signal\n");
+			panic("software_interrupt_handle_signals unexpectedly received signal %s with si_code %d\n",
+			      signal_name, signal_info->si_code);
 		}
 	}
 	}
-done:
-	atomic_fetch_sub(&software_interrupt_signal_depth, 1);
+
+	atomic_fetch_sub(&handler_depth, 1);
 	return;
 }
 
@@ -240,7 +196,6 @@ software_interrupt_disarm_timer(void)
 	}
 }
 
-
 /**
  * Initialize software Interrupts
  * Register softint_handler to execute on SIGALRM and SIGUSR1
@@ -276,11 +231,12 @@ software_interrupt_initialize(void)
 		}
 	}
 
-	software_interrupt_deferred_sigalrm_max_alloc();
+	software_interrupt_counts_alloc();
 }
 
 void
-software_interrupt_set_interval_duration(uint64_t cycles)
+software_interrupt_cleanup()
 {
-	software_interrupt_interval_duration_in_cycles = cycles;
+	software_interrupt_counts_deferred_sigalrm_max_update(deferred_sigalrm);
+	software_interrupt_counts_log();
 }

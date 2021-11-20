@@ -1,5 +1,6 @@
 #pragma once
 
+#include "pretty_print.h"
 #include "runtime.h"
 #include "sandbox_types.h"
 
@@ -51,12 +52,12 @@ sandbox_perf_log_init()
 {
 	char *sandbox_perf_log_path = getenv("SLEDGE_SANDBOX_PERF_LOG");
 	if (sandbox_perf_log_path != NULL) {
-		printf("\tSandbox Performance Log: %s\n", sandbox_perf_log_path);
+		pretty_print_key_value("Sandbox Performance Log", "%s\n", sandbox_perf_log_path);
 		sandbox_perf_log = fopen(sandbox_perf_log_path, "w");
 		if (sandbox_perf_log == NULL) perror("sandbox_perf_log_init\n");
 		sandbox_perf_log_print_header();
 	} else {
-		printf("\tSandbox Performance Log: Disabled\n");
+		pretty_print_key_disabled("Sandbox Performance Log");
 	}
 }
 
