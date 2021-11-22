@@ -213,28 +213,28 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	/* Process epoll to make sure that all runnable jobs are considered for execution */
 	scheduler_execute_epoll_loop();
 
-	struct sandbox *current = current_sandbox_get();
-	assert(current != NULL);
-	assert(current->state == SANDBOX_INTERRUPTED);
+	struct sandbox *interrupted_sandbox = current_sandbox_get();
+	assert(interrupted_sandbox != NULL);
+	assert(interrupted_sandbox->state == SANDBOX_INTERRUPTED);
 
 	struct sandbox *next = scheduler_get_next();
 	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
 	assert(next != NULL);
 
 	/* If current equals next, no switch is necessary, so resume execution */
-	if (current == next) {
-		sandbox_interrupt_return(current, SANDBOX_RUNNING_USER);
+	if (interrupted_sandbox == next) {
+		sandbox_interrupt_return(interrupted_sandbox, SANDBOX_RUNNING_USER);
 		return;
 	}
 
 #ifdef LOG_PREEMPTION
-	debuglog("Preempting sandbox %lu to run sandbox %lu\n", current->id, next->id);
+	debuglog("Preempting sandbox %lu to run sandbox %lu\n", interrupted_sandbox->id, next->id);
 #endif
 
 	/* Preempt executing sandbox */
-	scheduler_log_sandbox_switch(current, next);
-	sandbox_preempt(current);
-	arch_context_save_slow(&current->ctxt, &interrupted_context->uc_mcontext);
+	scheduler_log_sandbox_switch(interrupted_sandbox, next);
+	sandbox_preempt(interrupted_sandbox);
+	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
 	scheduler_preemptive_switch_to(interrupted_context, next);
 }
 
@@ -244,13 +244,11 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
  * @param next_sandbox The Sandbox to switch to
  */
 static inline void
-scheduler_cooperative_switch_to(struct sandbox *next_sandbox)
+scheduler_cooperative_switch_to(struct arch_context *current_context, struct sandbox *next_sandbox)
 {
 	assert(current_sandbox_get() == NULL);
 
 	struct arch_context *next_context = &next_sandbox->ctxt;
-
-	scheduler_log_sandbox_switch(NULL, next_sandbox);
 
 	/* Switch to next sandbox */
 	switch (next_sandbox->state) {
@@ -271,17 +269,64 @@ scheduler_cooperative_switch_to(struct sandbox *next_sandbox)
 		      sandbox_state_stringify(next_sandbox->state));
 	}
 	}
-
-	arch_context_switch(&worker_thread_base_context, next_context);
+	arch_context_switch(current_context, next_context);
 }
 
-/* A sandbox cannot execute the scheduler directly. It must yield to the base context, and then the context calls this
- * within its idle loop
+static inline void
+scheduler_switch_to_base_context(struct arch_context *current_context)
+{
+	/* Assumption: Base Worker context should never be preempted */
+	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
+	arch_context_switch(current_context, &worker_thread_base_context);
+}
+
+
+/* The idle_loop is executed by the base_context. This should not be called directly */
+static inline void
+scheduler_idle_loop()
+{
+	while (true) {
+		/* Assumption: only called by the "base context" */
+		assert(current_sandbox_get() == NULL);
+
+		/* Deferred signals should have been cleared by this point */
+		assert(deferred_sigalrm == 0);
+
+		/* Try to wakeup sleeping sandboxes */
+		scheduler_execute_epoll_loop();
+
+		/* Switch to a sandbox if one is ready to run */
+		struct sandbox *next_sandbox = scheduler_get_next();
+		if (next_sandbox != NULL) {
+			scheduler_cooperative_switch_to(&worker_thread_base_context, next_sandbox);
+		}
+
+		/* Clear the completion queue */
+		local_completion_queue_free();
+	}
+}
+
+/**
+ * @brief Used to cooperative switch sandboxes when a sandbox sleeps or exits
+ * Because of use-after-free bugs that interfere with our loggers, when a sandbox exits and switches away never to
+ * return, the boolean add_to_completion_queue needs to be set to true. Otherwise, we will leak sandboxes.
+ * @param add_to_completion_queue - Indicates that the sandbox should be added to the completion queue before switching
+ * away
  */
 static inline void
-scheduler_cooperative_sched()
+scheduler_cooperative_sched(bool add_to_completion_queue)
 {
-	/* Assumption: only called by the "base context" */
+	struct sandbox *exiting_sandbox = current_sandbox_get();
+	assert(exiting_sandbox != NULL);
+
+	/* Clearing current sandbox indicates we are entering the cooperative scheduler */
+	current_sandbox_set(NULL);
+	barrier();
+	software_interrupt_deferred_sigalrm_clear();
+
+	struct arch_context *exiting_context = &exiting_sandbox->ctxt;
+
+	/* Assumption: Called by an exiting or sleeping sandbox */
 	assert(current_sandbox_get() == NULL);
 
 	/* Deferred signals should have been cleared by this point */
@@ -290,12 +335,29 @@ scheduler_cooperative_sched()
 	/* Try to wakeup sleeping sandboxes */
 	scheduler_execute_epoll_loop();
 
+	/* We have not added ourself to the completion queue, so we can free */
+	local_completion_queue_free();
+
 	/* Switch to a sandbox if one is ready to run */
 	struct sandbox *next_sandbox = scheduler_get_next();
-	if (next_sandbox != NULL) scheduler_cooperative_switch_to(next_sandbox);
 
-	/* Clear the completion queue */
-	local_completion_queue_free();
+	/* If our sandbox slept and immediately woke up, we can just return */
+	if (next_sandbox == exiting_sandbox) {
+		sandbox_set_as_running_sys(next_sandbox, SANDBOX_RUNNABLE);
+		current_sandbox_set(next_sandbox);
+		return;
+	}
+
+	scheduler_log_sandbox_switch(exiting_sandbox, next_sandbox);
+
+	if (add_to_completion_queue) local_completion_queue_add(exiting_sandbox);
+	/* Do not touch sandbox struct after this point! */
+
+	if (next_sandbox != NULL) {
+		scheduler_cooperative_switch_to(exiting_context, next_sandbox);
+	} else {
+		scheduler_switch_to_base_context(exiting_context);
+	}
 }
 
 
@@ -306,16 +368,4 @@ scheduler_worker_would_preempt(int worker_idx)
 	uint64_t local_deadline  = runtime_worker_threads_deadline[worker_idx];
 	uint64_t global_deadline = global_request_scheduler_peek();
 	return global_deadline < local_deadline;
-}
-
-static inline void
-scheduler_switch_to_base_context(struct arch_context *current_context)
-{
-	/* Clear any deferred sigalrms we hit while cleaning up sandbox. We'll run the scheduler cooperatively
-	in the base context */
-	software_interrupt_deferred_sigalrm_clear();
-
-	/* Assumption: Base Worker context should never be preempted */
-	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
-	arch_context_switch(current_context, &worker_thread_base_context);
 }

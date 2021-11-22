@@ -133,7 +133,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		software_interrupt_counts_sigusr_increment();
 #ifdef LOG_PREEMPTION
-		debuglog("Total SIGUSR1 Received: %d\n", sigusr_count);
 		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
 		         current_sandbox->ctxt.mctx.gregs[REG_RSP]);
 #endif

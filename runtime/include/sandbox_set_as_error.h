@@ -61,8 +61,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 
-	/* Do not touch sandbox after adding to completion queue to avoid use-after-free bugs */
-	local_completion_queue_add(sandbox);
+	/* Does not add to completion queue until in cooperative scheduler */
 }
 
 static inline void

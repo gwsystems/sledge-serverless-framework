@@ -66,8 +66,7 @@ worker_thread_main(void *argument)
 		software_interrupt_unmask_signal(SIGUSR1);
 	}
 
-	/* Idle Loop */
-	while (true) scheduler_cooperative_sched();
+	scheduler_idle_loop();
 
-	panic("Worker Thread unexpectedly completed run loop.");
+	panic("Worker Thread unexpectedly completed idle loop.");
 }
