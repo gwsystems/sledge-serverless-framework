@@ -27,7 +27,6 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	switch (last_state) {
 	case SANDBOX_RUNNING_SYS: {
-		current_sandbox_set(NULL);
 		break;
 	}
 	default: {

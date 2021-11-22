@@ -24,8 +24,8 @@
 #include "software_interrupt.h"
 #include "software_interrupt_counts.h"
 
-thread_local _Atomic volatile sig_atomic_t handler_depth;
-thread_local _Atomic volatile sig_atomic_t deferred_sigalrm;
+thread_local _Atomic volatile sig_atomic_t handler_depth    = 0;
+thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
 
 /***************************************
  * Externs
@@ -36,6 +36,12 @@ extern pthread_t *runtime_worker_threads;
 /**************************
  * Private Static Inlines *
  *************************/
+
+static inline bool
+worker_thread_is_running_cooperative_scheduler(void)
+{
+	return current_sandbox_get() == NULL;
+}
 
 static inline void
 defer_sigalrm()
@@ -107,6 +113,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	switch (signal_type) {
 	case SIGALRM: {
 		propagate_sigalrm(signal_info);
+
+		if (worker_thread_is_running_cooperative_scheduler()) break;
 
 		if (sandbox_is_preemptable(current_sandbox)) {
 			scheduler_preemptive_sched(interrupted_context);

@@ -29,7 +29,6 @@ sandbox_set_as_running_sys(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	case SANDBOX_RUNNABLE: {
 		assert(sandbox);
-		current_sandbox_set(sandbox);
 		/* Does not handle context switch because the caller knows if we need to use fast or slow switched. We
 		 * can fix this by breakout out SANDBOX_RUNNABLE and SANDBOX_PREEMPTED */
 		break;

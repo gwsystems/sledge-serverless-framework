@@ -34,6 +34,8 @@ void
 current_sandbox_sleep()
 {
 	struct sandbox *sandbox = current_sandbox_get();
+	current_sandbox_set(NULL);
+	
 	assert(sandbox != NULL);
 	struct arch_context *current_context = &sandbox->ctxt;
 
@@ -52,11 +54,7 @@ current_sandbox_sleep()
 		      sandbox_state_stringify(sandbox->state));
 	}
 
-	current_sandbox_set(NULL);
-
-	/* Assumption: Base Worker context should never be preempted */
-	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
-	arch_context_switch(current_context, &worker_thread_base_context);
+	scheduler_switch_to_base_context(current_context);
 }
 
 /**
@@ -91,11 +89,9 @@ current_sandbox_exit()
 	}
 	/* Do not access sandbox after this, as it is on the completion queue! */
 
-	/* Assumption: Base Worker context should never be preempted */
-	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
-	arch_context_switch(current_context, &worker_thread_base_context);
+	scheduler_switch_to_base_context(current_context);
 
-	/* The schduler should never switch back to completed sandboxes */
+	/* The scheduler should never switch back to completed sandboxes */
 	assert(0);
 }
 

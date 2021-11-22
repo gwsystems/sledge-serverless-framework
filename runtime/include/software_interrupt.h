@@ -72,19 +72,20 @@ software_interrupt_unmask_signal(int signal)
 extern thread_local _Atomic volatile sig_atomic_t deferred_sigalrm;
 
 static inline void
-software_interrupt_deferred_sigalrm_replay()
-{
-	if (deferred_sigalrm > 0) {
-		software_interrupt_counts_deferred_sigalrm_replay_increment();
-		raise(SIGALRM);
-	}
-}
-
-static inline void
 software_interrupt_deferred_sigalrm_clear()
 {
 	software_interrupt_counts_deferred_sigalrm_max_update(deferred_sigalrm);
 	atomic_store(&deferred_sigalrm, 0);
+}
+
+static inline void
+software_interrupt_deferred_sigalrm_replay()
+{
+	if (deferred_sigalrm > 0) {
+		software_interrupt_deferred_sigalrm_clear();
+		software_interrupt_counts_deferred_sigalrm_replay_increment();
+		raise(SIGALRM);
+	}
 }
 
 /*************************

@@ -180,12 +180,14 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
 	case ARCH_CONTEXT_VARIANT_FAST: {
 		assert(next->state == SANDBOX_RUNNABLE);
 		arch_context_restore_fast(&interrupted_context->uc_mcontext, &next->ctxt);
+		current_sandbox_set(next);
 		sandbox_set_as_running_sys(next, SANDBOX_RUNNABLE);
 		break;
 	}
 	case ARCH_CONTEXT_VARIANT_SLOW: {
 		assert(next->state == SANDBOX_PREEMPTED);
 		arch_context_restore_slow(&interrupted_context->uc_mcontext, &next->ctxt);
+		current_sandbox_set(next);
 		sandbox_set_as_running_user(next, SANDBOX_PREEMPTED);
 		break;
 	}
@@ -206,8 +208,6 @@ static inline void
 scheduler_preemptive_sched(ucontext_t *interrupted_context)
 {
 	assert(interrupted_context != NULL);
-
-	software_interrupt_deferred_sigalrm_clear();
 
 	/* Process epoll to make sure that all runnable jobs are considered for execution */
 	scheduler_execute_epoll_loop();
@@ -232,12 +232,10 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	debuglog("Preempting sandbox %lu to run sandbox %lu\n", current->id, next->id);
 #endif
 
-	scheduler_log_sandbox_switch(current, next);
-
 	/* Preempt executing sandbox */
+	scheduler_log_sandbox_switch(current, next);
 	sandbox_preempt(current);
 	arch_context_save_slow(&current->ctxt, &interrupted_context->uc_mcontext);
-
 	scheduler_preemptive_switch_to(interrupted_context, next);
 }
 
@@ -259,13 +257,14 @@ scheduler_cooperative_switch_to(struct sandbox *next_sandbox)
 	switch (next_sandbox->state) {
 	case SANDBOX_RUNNABLE: {
 		assert(next_context->variant == ARCH_CONTEXT_VARIANT_FAST);
+		current_sandbox_set(next_sandbox);
 		sandbox_set_as_running_sys(next_sandbox, SANDBOX_RUNNABLE);
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
 		assert(next_context->variant == ARCH_CONTEXT_VARIANT_SLOW);
-		/* arch_context_switch triggers a SIGUSR1, which transitions next_sandbox to running_user */
 		current_sandbox_set(next_sandbox);
+		/* arch_context_switch triggers a SIGUSR1, which transitions next_sandbox to running_user */
 		break;
 	}
 	default: {
@@ -286,7 +285,8 @@ scheduler_cooperative_sched()
 	/* Assumption: only called by the "base context" */
 	assert(current_sandbox_get() == NULL);
 
-	software_interrupt_deferred_sigalrm_clear();
+	/* Deferred signals should have been cleared by this point */
+	assert(deferred_sigalrm == 0);
 
 	/* Try to wakeup sleeping sandboxes */
 	scheduler_execute_epoll_loop();
@@ -307,4 +307,16 @@ scheduler_worker_would_preempt(int worker_idx)
 	uint64_t local_deadline  = runtime_worker_threads_deadline[worker_idx];
 	uint64_t global_deadline = global_request_scheduler_peek();
 	return global_deadline < local_deadline;
+}
+
+static inline void
+scheduler_switch_to_base_context(struct arch_context *current_context)
+{
+	/* Clear any deferred sigalrms we hit while cleaning up sandbox. We'll run the scheduler cooperatively
+	in the base context */
+	software_interrupt_deferred_sigalrm_clear();
+
+	/* Assumption: Base Worker context should never be preempted */
+	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
+	arch_context_switch(current_context, &worker_thread_base_context);
 }
