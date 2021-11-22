@@ -19,6 +19,7 @@
 #include "sandbox_set_as_preempted.h"
 #include "sandbox_set_as_runnable.h"
 #include "sandbox_set_as_running_sys.h"
+#include "sandbox_set_as_interrupted.h"
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_execute_epoll_loop.h"
 
@@ -214,9 +215,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 
 	struct sandbox *current = current_sandbox_get();
 	assert(current != NULL);
-	assert(current->state == SANDBOX_RUNNING_USER);
-
-	sandbox_interrupt(current);
+	assert(current->state == SANDBOX_INTERRUPTED);
 
 	struct sandbox *next = scheduler_get_next();
 	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
@@ -224,7 +223,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 
 	/* If current equals next, no switch is necessary, so resume execution */
 	if (current == next) {
-		sandbox_return(current);
+		sandbox_interrupt_return(current, SANDBOX_RUNNING_USER);
 		return;
 	}
 

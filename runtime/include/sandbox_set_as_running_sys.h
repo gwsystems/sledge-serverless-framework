@@ -29,12 +29,10 @@ sandbox_set_as_running_sys(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	case SANDBOX_RUNNABLE: {
 		assert(sandbox);
-		/* Does not handle context switch because the caller knows if we need to use fast or slow switched. We
-		 * can fix this by breakout out SANDBOX_RUNNABLE and SANDBOX_PREEMPTED */
 		break;
 	}
 	default: {
-		panic("Sandbox %lu | Illegal transition from %s to Running Kernel\n", sandbox->id,
+		panic("Sandbox %lu | Illegal transition from %s to Running Sys\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
 	}
 	}
@@ -48,7 +46,7 @@ sandbox_set_as_running_sys(struct sandbox *sandbox, sandbox_state_t last_state)
 }
 
 static inline void
-sandbox_interrupt(struct sandbox *sandbox)
+sandbox_syscall(struct sandbox *sandbox)
 {
 	assert(sandbox->state == SANDBOX_RUNNING_USER);
 	sandbox_set_as_running_sys(sandbox, SANDBOX_RUNNING_USER);

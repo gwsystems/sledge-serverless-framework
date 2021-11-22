@@ -35,7 +35,7 @@ current_sandbox_sleep()
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	current_sandbox_set(NULL);
-	
+
 	assert(sandbox != NULL);
 	struct arch_context *current_context = &sandbox->ctxt;
 
@@ -139,7 +139,7 @@ current_sandbox_fini()
 	assert(sandbox != NULL);
 
 	char *error_message = "";
-	sandbox_interrupt(sandbox);
+	sandbox_syscall(sandbox);
 
 	sandbox->timestamp_of.completion = __getcycles();
 

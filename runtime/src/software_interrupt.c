@@ -19,6 +19,7 @@
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox_set_as_running_user.h"
+#include "sandbox_set_as_interrupted.h"
 #include "sandbox_types.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
@@ -41,12 +42,6 @@ static inline bool
 worker_thread_is_running_cooperative_scheduler(void)
 {
 	return current_sandbox_get() == NULL;
-}
-
-static inline void
-defer_sigalrm()
-{
-	atomic_fetch_add(&deferred_sigalrm, 1);
 }
 
 /**
@@ -112,14 +107,21 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
+		if (worker_thread_is_running_cooperative_scheduler()) {
+			propagate_sigalrm(signal_info);
+			break;
+		}
+
+		sandbox_state_t interrupted_state = current_sandbox->state;
+		sandbox_interrupt(current_sandbox);
 		propagate_sigalrm(signal_info);
 
-		if (worker_thread_is_running_cooperative_scheduler()) break;
-
-		if (sandbox_is_preemptable(current_sandbox)) {
+		if (interrupted_state == SANDBOX_RUNNING_USER) {
+			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
 			scheduler_preemptive_sched(interrupted_context);
 		} else {
-			defer_sigalrm();
+			atomic_fetch_add(&deferred_sigalrm, 1);
+			sandbox_interrupt_return(current_sandbox, interrupted_state);
 		}
 
 		break;

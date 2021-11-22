@@ -24,7 +24,6 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
-		assert(sandbox);
 		break;
 	}
 	default: {

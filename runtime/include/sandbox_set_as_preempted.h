@@ -26,7 +26,7 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_RUNNING_SYS: {
+	case SANDBOX_INTERRUPTED: {
 		break;
 	}
 	default: {
@@ -46,6 +46,6 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 static inline void
 sandbox_preempt(struct sandbox *sandbox)
 {
-	assert(sandbox->state == SANDBOX_RUNNING_SYS);
-	sandbox_set_as_preempted(sandbox, SANDBOX_RUNNING_SYS);
+	assert(sandbox->state == SANDBOX_INTERRUPTED);
+	sandbox_set_as_preempted(sandbox, SANDBOX_INTERRUPTED);
 }
