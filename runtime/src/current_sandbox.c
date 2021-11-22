@@ -117,6 +117,8 @@ err:
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
 	assert(0);
+
+	return NULL;
 }
 
 static inline void
