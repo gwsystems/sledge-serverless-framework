@@ -26,10 +26,8 @@ sandbox_allocate_memory(struct module *module)
 	struct sandbox *sandbox                   = NULL;
 	unsigned long   page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
 
-	unsigned long size_to_alloc = page_aligned_sandbox_size + module->max_request_size + module->max_request_size
-	                              + memory_max + /* guard page */ PAGE_SIZE;
-	unsigned long size_to_read_write = page_aligned_sandbox_size + module->max_request_size
-	                                   + module->max_request_size + memory_size;
+	unsigned long size_to_alloc      = memory_max + /* guard page */ PAGE_SIZE;
+	unsigned long size_to_read_write = memory_size;
 
 	/*
 	 * Control information should be page-aligned
@@ -55,23 +53,22 @@ sandbox_allocate_memory(struct module *module)
 		goto set_rw_failed;
 	}
 
-	sandbox = (struct sandbox *)addr_rw;
+	sandbox = calloc(1, page_aligned_sandbox_size);
 
 	/* Populate Sandbox members */
 	sandbox->state  = SANDBOX_UNINITIALIZED;
 	sandbox->module = module;
 	module_acquire(module);
 
-	sandbox->request.base   = (char *)addr + page_aligned_sandbox_size;
+	sandbox->request.base   = calloc(1, module->max_request_size);
 	sandbox->request.length = 0;
 
-	sandbox->response.base  = (char *)addr + page_aligned_sandbox_size + module->max_request_size;
-	sandbox->request.length = 0;
+	sandbox->response.base   = calloc(1, module->max_response_size);
+	sandbox->response.length = 0;
 
-	sandbox->memory.start = (char *)addr + page_aligned_sandbox_size + module->max_request_size
-	                        + module->max_request_size;
-	sandbox->memory.size = memory_size;
-	sandbox->memory.max  = memory_max;
+	sandbox->memory.start = addr_rw;
+	sandbox->memory.size  = memory_size;
+	sandbox->memory.max   = memory_max;
 
 	memset(&sandbox->duration_of_state, 0, SANDBOX_STATE_COUNT * sizeof(uint64_t));
 
@@ -96,7 +93,7 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 
 	int rc = 0;
 
-	char *addr = mmap(NULL, sandbox->module->stack_size + /* guard page */ PAGE_SIZE, PROT_NONE,
+	char *addr = mmap(NULL, /* guard page */ PAGE_SIZE + sandbox->module->stack_size, PROT_NONE,
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (unlikely(addr == MAP_FAILED)) {
 		perror("sandbox allocate stack");
@@ -222,16 +219,10 @@ sandbox_free(struct sandbox *sandbox)
 
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
 	assert(sandbox->memory.start == NULL);
-	errno = 0;
 
-	unsigned long size_to_unmap = round_up_to_page(sizeof(struct sandbox)) + sandbox->module->max_request_size
-	                              + sandbox->module->max_response_size;
-	munmap(sandbox, size_to_unmap);
-	if (rc == -1) {
-		debuglog("Failed to unmap Sandbox %lu\n", sandbox->id);
-		goto err_free_sandbox_failed;
-	};
-
+	free(sandbox->request.base);
+	free(sandbox->response.base);
+	free(sandbox);
 done:
 	return;
 err_free_sandbox_failed:

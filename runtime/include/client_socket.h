@@ -65,11 +65,12 @@ client_socket_send(int client_socket, int status_code)
 	while (total_sent < to_send) {
 		ssize_t sent = write(client_socket, &response[total_sent], to_send - total_sent);
 		if (sent < 0) {
-			if (errno == EAGAIN) { debuglog("Unexpectedly blocking on write of %s\n", response); }
-
-			debuglog("Error with %s\n", strerror(errno));
-
-			goto send_err;
+			if (errno == EAGAIN) {
+				debuglog("Unexpectedly blocking on write of %s\n", response);
+			} else {
+				debuglog("Error with %s\n", strerror(errno));
+				goto send_err;
+			}
 		}
 		total_sent += sent;
 	};

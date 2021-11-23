@@ -1,9 +1,9 @@
 #include <threads.h>
 
 #include "current_sandbox.h"
+#include "current_sandbox_send_response.h"
 #include "sandbox_functions.h"
 #include "sandbox_receive_request.h"
-#include "sandbox_send_response.h"
 #include "sandbox_set_as_asleep.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_returned.h"
@@ -148,7 +148,7 @@ current_sandbox_fini()
 	sandbox->timestamp_of.completion = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
-	if (sandbox_send_response(sandbox) < 0) {
+	if (current_sandbox_send_response() < 0) {
 		error_message = "Unable to build and send client response\n";
 		goto err;
 	};
