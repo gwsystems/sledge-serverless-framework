@@ -13,9 +13,9 @@ static inline void
 sandbox_perf_log_print_header()
 {
 	if (sandbox_perf_log == NULL) { perror("sandbox perf log"); }
-	fprintf(sandbox_perf_log,
-	        "id,module,port,state,deadline,actual,queued,uninitialized,allocated,initialized,runnable,interrupted,preempted,"
-	        "running_sys,running_user,asleep,returned,complete,error,proc_MHz,memory\n");
+	fprintf(sandbox_perf_log, "id,module,port,state,deadline,actual,queued,uninitialized,allocated,initialized,"
+	                          "runnable,interrupted,preempted,"
+	                          "running_sys,running_user,asleep,returned,complete,error,proc_MHz,memory\n");
 }
 
 /**
