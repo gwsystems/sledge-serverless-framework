@@ -7,7 +7,7 @@
 #include "panic.h"
 #include "local_completion_queue.h"
 #include "sandbox_functions.h"
-#include "sandbox_print_perf.h"
+#include "sandbox_perf_log.h"
 #include "sandbox_state.h"
 #include "sandbox_state_history.h"
 #include "sandbox_summarize_page_allocations.h"
@@ -51,7 +51,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	/* Terminal State Logging */
-	sandbox_print_perf(sandbox);
+	sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 
 	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */

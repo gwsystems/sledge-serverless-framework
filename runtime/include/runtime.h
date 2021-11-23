@@ -32,7 +32,6 @@ enum RUNTIME_SIGALRM_HANDLER
 extern bool                         runtime_preemption_enabled;
 extern uint32_t                     runtime_processor_speed_MHz;
 extern uint32_t                     runtime_quantum_us;
-extern FILE *                       runtime_sandbox_perf_log;
 extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
 extern pthread_t *                  runtime_worker_threads;
 extern uint32_t                     runtime_worker_threads_count;
