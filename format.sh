@@ -11,7 +11,7 @@ validate() {
 	declare -i major=0
 	declare -i minor=0
 	declare -i patch=0
-	declare -i required_major=9
+	declare -i required_major=11
 	declare -i required_minor=0
 	declare -i required_patch=0
 
