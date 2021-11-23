@@ -38,21 +38,23 @@ enum MULTI_TENANCY_CLASS
 	MT_GUARANTEED
 };
 
+struct module_timeout {
+	uint64_t                               timeout;
+	struct module *                        module;
+	struct perworker_module_sandbox_queue *pwm;
+};
 struct perworker_module_sandbox_queue {
 	struct priority_queue *  sandboxes;
-	struct module *          module;   // to be able to find the RB/MB/RP/RT.
+	struct module *          module; // to be able to find the RB/MB/RP/RT.
+	struct module_timeout    module_timeout;
 	enum MULTI_TENANCY_CLASS mt_class; // check whether the corresponding PWM has been demoted
 } __attribute__((aligned(128)));
 
 struct module_global_request_queue {
-	struct priority_queue *  sandbox_requests;
-	struct module *          module;
-	enum MULTI_TENANCY_CLASS mt_class;
-};
-
-struct module_timeout {
-	uint64_t       timeout;
-	struct module *module;
+	struct priority_queue *                   sandbox_requests;
+	struct module *                           module;
+	struct module_timeout                     module_timeout;
+	_Atomic volatile enum MULTI_TENANCY_CLASS mt_class;
 };
 
 struct module {
@@ -189,9 +191,9 @@ module_timeout_get_priority(void *element)
  * @return given module's next timeout
  */
 static inline uint64_t
-get_next_timeout_of_module(uint64_t m_replenishment_period, uint64_t now)
+get_next_timeout_of_module(uint64_t m_replenishment_period)
 {
-	// uint64_t now = __getcycles();
+	uint64_t now = __getcycles();
 	return runtime_boot_timestamp
 	       + ((now - runtime_boot_timestamp) / m_replenishment_period + 1) * m_replenishment_period;
 }

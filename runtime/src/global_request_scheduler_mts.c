@@ -38,7 +38,7 @@ global_request_scheduler_mts_promote_lock(struct module_global_request_queue *mg
 	// assert(!LOCK_IS_LOCKED(&global_lock));
 	LOCK_LOCK(&global_lock);
 
-	if (mgrq->module->remaining_budget <= 0) goto done;
+	if(mgrq->mt_class == MT_GUARANTEED) goto done;
 
 	/* Delete the corresponding MGRQ from the Guaranteed queue */
 	int rc = priority_queue_delete_nolock(global_request_scheduler_mts_default, mgrq);
@@ -68,7 +68,7 @@ global_request_scheduler_mts_demote_nolock(struct module_global_request_queue *m
 	/* No request in the given MGRQ, so it is not in the runqeue */
 	// if (priority_queue_peek(mgrq->sandbox_requests) == UINT64_MAX) return;
 
-	if (mgrq->module->remaining_budget > 0) return;
+	if(mgrq->mt_class == MT_DEFAULT) return;
 
 	/* Delete the corresponding MGRQ from the Guaranteed queue */
 	int rc = priority_queue_delete_nolock(global_request_scheduler_mts_guaranteed, mgrq);
@@ -100,7 +100,7 @@ global_request_scheduler_mts_add(struct sandbox_request *sandbox_request)
 	LOCK_LOCK(&global_lock);
 
 	struct priority_queue *destination_queue = global_request_scheduler_mts_default;
-	if (sandbox_request->module->remaining_budget > 0) {
+	if (sandbox_request->module->mgrq_requests->mt_class == MT_GUARANTEED){
 		destination_queue = global_request_scheduler_mts_guaranteed;
 	}
 
@@ -145,7 +145,7 @@ global_request_scheduler_mts_remove(struct sandbox_request **removed_sandbox_req
  */
 int
 global_request_scheduler_mts_remove_if_earlier(struct sandbox_request **removed_sandbox_request,
-                                                       uint64_t                 target_deadline)
+                                               uint64_t                 target_deadline)
 {
 	/* This function won't be used with the MTS scheduler. Keeping merely for the polymorhism. */
 	return -1;
@@ -159,8 +159,7 @@ global_request_scheduler_mts_remove_if_earlier(struct sandbox_request **removed_
  */
 int
 global_request_scheduler_mts_remove_with_mt_class(struct sandbox_request **removed_sandbox_request,
-                                                          uint64_t                 target_deadline,
-                                                          enum MULTI_TENANCY_CLASS target_mt_class)
+                                                  uint64_t target_deadline, enum MULTI_TENANCY_CLASS target_mt_class)
 {
 	/* Avoid unnessary locks when the target_deadline is tighter than the head of the Global runqueue */
 	uint64_t global_guaranteed_deadline = priority_queue_peek(global_request_scheduler_mts_guaranteed);
@@ -193,7 +192,7 @@ global_request_scheduler_mts_remove_with_mt_class(struct sandbox_request **remov
 	} else {
 		if (top_mgrq->mt_class == MT_GUARANTEED && top_mgrq->module->remaining_budget <= 0) {
 			global_request_scheduler_mts_demote_nolock(top_mgrq);
-			debuglog("Demoted '%s' GLOBALLY", top_mgrq->module->name);
+			// debuglog("Demoted '%s' GLOBALLY", top_mgrq->module->name);
 			top_mgrq->mt_class = MT_DEFAULT;
 			rc                 = -ENOENT;
 			goto done;
@@ -257,9 +256,9 @@ void
 global_request_scheduler_mts_initialize()
 {
 	global_request_scheduler_mts_guaranteed = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
-	                                                                            module_request_queue_get_priority);
+	                                                                    module_request_queue_get_priority);
 	global_request_scheduler_mts_default    = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
-                                                                                 module_request_queue_get_priority);
+                                                                         module_request_queue_get_priority);
 
 	global_module_timeout_queue = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
 	                                                        module_timeout_get_priority);
@@ -289,10 +288,8 @@ global_request_scheduler_mts_free()
 void
 global_timeout_queue_add(struct module *module)
 {
-	struct module_timeout *mt = malloc(sizeof(struct module_timeout));
-	mt->timeout               = get_next_timeout_of_module(module->replenishment_period, __getcycles());
-	mt->module                = module;
-	priority_queue_enqueue_nolock(global_module_timeout_queue, mt);
+	module->mgrq_requests->module_timeout.timeout = get_next_timeout_of_module(module->replenishment_period);
+	priority_queue_enqueue_nolock(global_module_timeout_queue, &module->mgrq_requests->module_timeout);
 }
 
 /*
@@ -314,20 +311,20 @@ global_timeout_queue_check_for_promotions()
 	struct module *                     module          = top_module_timeout->module;
 	struct module_global_request_queue *mgrq_to_promote = module->mgrq_requests;
 
-	if (/*mgrq_to_promote->mt_class == MT_DEFAULT
-	    && priority_queue_length_nolock(mgrq_to_promote->sandbox_requests) > 0 &&*/
-	    module->remaining_budget <= 0) {
+	if (mgrq_to_promote->mt_class == MT_DEFAULT) {
 		global_request_scheduler_mts_promote_lock(mgrq_to_promote);
-
-		debuglog("Promoted '%s' GLOBALLY", module->name);
 		mgrq_to_promote->mt_class = MT_GUARANTEED;
+		// debuglog("Promoted '%s' GLOBALLY", module->name);
 	}
 
 	// TODO: We need a smarter technique to reset budget to consider budget overusage:
-	module->remaining_budget = module->max_budget;
+	// module->remaining_budget = module->max_budget;
+	int64_t prev_budget = atomic_load(&module->remaining_budget);
+	while(!atomic_compare_exchange_strong(&module->remaining_budget, &prev_budget, module->max_budget));
 
 	/* Reheapify the timeout queue with the updated timeout value of the module */
 	priority_queue_delete_nolock(global_module_timeout_queue, top_module_timeout);
-	top_module_timeout->timeout = get_next_timeout_of_module(module->replenishment_period, now);
+	top_module_timeout->timeout = get_next_timeout_of_module(module->replenishment_period);
+	// top_module_timeout->timeout += module->replenishment_period;
 	priority_queue_enqueue_nolock(global_module_timeout_queue, top_module_timeout);
 }

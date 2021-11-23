@@ -219,6 +219,8 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 			module->pwm_sandboxes[i].module    = module;
 			module->pwm_sandboxes[i].mt_class  = (module->replenishment_period == 0) ? MT_DEFAULT
 			                                                                         : MT_GUARANTEED;
+			module->pwm_sandboxes[i].module_timeout.module = module;
+			module->pwm_sandboxes[i].module_timeout.pwm = &module->pwm_sandboxes[i];
 		}
 
 		/* Initialize the module's global request queue */
@@ -227,6 +229,8 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 		                                                                    sandbox_request_get_priority_fn);
 		module->mgrq_requests->module           = module;
 		module->mgrq_requests->mt_class = (module->replenishment_period == 0) ? MT_DEFAULT : MT_GUARANTEED;
+		module->mgrq_requests->module_timeout.module = module;
+		module->mgrq_requests->module_timeout.pwm = NULL;
 	}
 	/* Request Response Buffer */
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;

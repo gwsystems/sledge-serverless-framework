@@ -103,6 +103,7 @@ struct sandbox {
 	/* Scheduling and Temporal State */
 	struct sandbox_timestamps timestamp_of;
 	uint64_t                  duration_of_state[SANDBOX_STATE_COUNT];
+	uint64_t                  last_duration_of_exec;
 
 	uint64_t absolute_deadline;
 	uint64_t admissions_estimate; /* estimated execution time (cycles) * runtime_admissions_granularity / relative

@@ -15,7 +15,6 @@
 #include "runtime.h"
 #include "scheduler.h"
 #include "worker_thread.h"
-#include "worker_thread_execute_epoll_loop.h"
 #include "priority_queue.h"
 
 /***************************

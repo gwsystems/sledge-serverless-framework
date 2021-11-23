@@ -64,12 +64,12 @@ run_experiments() {
 	local fib30_rich_PID
 	local fib30_PID
 
-	hey -disable-keepalive -disable-redirects -z 10s -n 5400 -c 54 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:10030" > "$results_directory/fib30.csv" 2> /dev/null &
+	hey -disable-compression -disable-keepalive -disable-redirects -z 30s -n 5400 -c 180 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:10030" > "$results_directory/fib30.csv" 2> /dev/null &
 	fib30_PID="$!"
 
 	sleep 3s	
 	
-	hey -disable-keepalive -disable-redirects -z 5s -n 5400 -c 18 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:20030" > "$results_directory/fib30_rich.csv" 2> /dev/null &
+	hey -disable-compression -disable-keepalive -disable-redirects -z 25s -n 5400 -c 18 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:20030" > "$results_directory/fib30_rich.csv" 2> /dev/null &
 	fib30_rich_PID="$!"
 
 	wait -f "$fib30_rich_PID" || {
@@ -179,16 +179,22 @@ process_server_results() {
 	#printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
 	# percentiles_table_header "$results_directory/latency.csv"
 
-	local -a metrics=(total queued initializing runnable running blocked returned)
+	local -a metrics=(total queued uninitialized allocated initialized runnable preempted running_sys running_user asleep returned complete error)
 
 	local -A fields=(
 		[total]=6
 		[queued]=7
-		[initializing]=8
-		[runnable]=9
-		[running]=10
-		[blocked]=11
-		[returned]=12
+		[uninitialized]=8
+		[allocated]=9
+		[initialized]=10
+		[runnable]=11
+		[preempted]=12
+		[running_sys]=13
+		[running_user]=14
+		[asleep]=15
+		[returned]=16
+		[complete]=17
+		[error]=18
 	)
 
 	# Write headers to CSVs
@@ -204,7 +210,7 @@ process_server_results() {
 
 		# TODO: Only include Complete
 		for metric in "${metrics[@]}"; do
-			awk -F, '$2 == "'"$workload"'" {printf("%.4f\n", $'"${fields[$metric]}"' / $13)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/${metric}_sorted.csv"
+			awk -F, '$2 == "'"$workload"'" {printf("%.4f\n", $'"${fields[$metric]}"' / $19)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/${metric}_sorted.csv"
 
 			percentiles_table_row "$results_directory/$workload/${metric}_sorted.csv" "$results_directory/${metric}.csv" "$workload"
 
@@ -213,7 +219,7 @@ process_server_results() {
 		done
 
 		# Memory Allocation
-		awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $14)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/memalloc_sorted.csv"
+		awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $20)}' < "$results_directory/perf.log" | sort -g > "$results_directory/$workload/memalloc_sorted.csv"
 
 		percentiles_table_row "$results_directory/$workload/memalloc_sorted.csv" "$results_directory/memalloc.csv" "$workload" "%1.0f"
 
