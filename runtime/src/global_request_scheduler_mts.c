@@ -23,40 +23,6 @@ module_request_queue_get_priority(void *element)
 };
 
 /**
- * Promotes the given module, which means deletes from the Default queue
- *  and adds to the Guaranteed queue.
- */
-void
-global_request_scheduler_mts_promote_lock(struct module_global_request_queue *mgrq)
-{
-	assert(mgrq != NULL);
-	// if(priority_queue_length_nolock(mgrq->sandbox_requests) == 0) return; // dont do anything if queue is empty
-
-	/* No request in the given MGRQ, so it is not in the runqeue */
-	// if (priority_queue_peek(mgrq->sandbox_requests) == UINT64_MAX) return;
-
-	// assert(!LOCK_IS_LOCKED(&global_lock));
-	LOCK_LOCK(&global_lock);
-
-	if(mgrq->mt_class == MT_GUARANTEED) goto done;
-
-	/* Delete the corresponding MGRQ from the Guaranteed queue */
-	int rc = priority_queue_delete_nolock(global_request_scheduler_mts_default, mgrq);
-	if (rc == -1) {
-		panic("Tried to delete a non-present MGRQ from the Global Default queue. Already deleted?, ITS SIZE: "
-		      "%d",
-		      priority_queue_length_nolock(mgrq->sandbox_requests));
-	}
-
-	/* Add the corresponding MGRQ to the Default queue */
-	rc = priority_queue_enqueue_nolock(global_request_scheduler_mts_guaranteed, mgrq);
-	if (rc == -ENOSPC) panic("Global Guaranteed queue is full!\n");
-
-done:;
-	LOCK_UNLOCK(&global_lock);
-}
-
-/**
  * Demotes the given module's request queue, which means deletes the MGRQ from the Guaranteed queue
  *  and adds to the Default queue.
  */
@@ -64,9 +30,6 @@ void
 global_request_scheduler_mts_demote_nolock(struct module_global_request_queue *mgrq)
 {
 	assert(mgrq != NULL);
-
-	/* No request in the given MGRQ, so it is not in the runqeue */
-	// if (priority_queue_peek(mgrq->sandbox_requests) == UINT64_MAX) return;
 
 	if(mgrq->mt_class == MT_DEFAULT) return;
 
@@ -290,6 +253,36 @@ global_timeout_queue_add(struct module *module)
 {
 	module->mgrq_requests->module_timeout.timeout = get_next_timeout_of_module(module->replenishment_period);
 	priority_queue_enqueue_nolock(global_module_timeout_queue, &module->mgrq_requests->module_timeout);
+}
+
+/**
+ * Promotes the given module, which means deletes from the Default queue
+ *  and adds to the Guaranteed queue.
+ */
+void
+global_request_scheduler_mts_promote_lock(struct module_global_request_queue *mgrq)
+{
+	assert(mgrq != NULL);
+	// assert(priority_queue_length_nolock(mgrq->sandbox_requests) == 0);
+
+	LOCK_LOCK(&global_lock);
+
+	if(mgrq->mt_class == MT_GUARANTEED) goto done;
+
+	/* Delete the corresponding MGRQ from the Guaranteed queue */
+	int rc = priority_queue_delete_nolock(global_request_scheduler_mts_default, mgrq);
+	if (rc == -1) {
+		panic("Tried to delete a non-present MGRQ from the Global Default queue. Already deleted?, ITS SIZE: "
+		      "%d",
+		      priority_queue_length_nolock(mgrq->sandbox_requests));
+	}
+
+	/* Add the corresponding MGRQ to the Default queue */
+	rc = priority_queue_enqueue_nolock(global_request_scheduler_mts_guaranteed, mgrq);
+	if (rc == -ENOSPC) panic("Global Guaranteed queue is full!\n");
+
+done:
+	LOCK_UNLOCK(&global_lock);
 }
 
 /*
