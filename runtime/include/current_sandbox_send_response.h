@@ -38,43 +38,20 @@ current_sandbox_send_response()
 	uint64_t end_time   = __getcycles();
 	sandbox->total_time = end_time - sandbox->timestamp_of.request_arrival;
 
-	/* Send HTTP Response Headers */
-	ssize_t response_size = http_response_200_size(content_type, response_body_size);
-	char    header_buffer[response_size + 1];
-	rc = sprintf(header_buffer, HTTP_RESPONSE_200_TEMPLATE, content_type, response_body_size);
+	/* Generate and send HTTP Response Headers */
+	ssize_t response_header_size = http_response_200_size(content_type, response_body_size);
+	char    response_header_buffer[response_header_size + 1];
+	rc = http_header_200_build(response_header_buffer, content_type, response_body_size);
 	if (rc <= 0) {
 		perror("sprintf");
 		goto err;
 	}
-
-	while (sent < response_size) {
-		rc = write(sandbox->client_socket_descriptor, &header_buffer[sent], response_size - sent);
-		if (rc < 0) {
-			if (errno == EAGAIN)
-				current_sandbox_sleep();
-			else {
-				perror("write");
-				goto err;
-			}
-		}
-		sent += rc;
-	}
+	client_socket_send(sandbox->client_socket_descriptor, response_header_buffer, response_header_size,
+	                   current_sandbox_sleep);
 
 	/* Send HTTP Response Body */
-	sent          = 0;
-	response_size = response_body_size;
-	while (sent < response_size) {
-		rc = write(sandbox->client_socket_descriptor, &sandbox->response.base[sent], response_size - sent);
-		if (rc < 0) {
-			if (errno == EAGAIN)
-				current_sandbox_sleep();
-			else {
-				perror("write");
-				goto err;
-			}
-		}
-		sent += rc;
-	}
+	client_socket_send(sandbox->client_socket_descriptor, sandbox->response.base, response_body_size,
+	                   current_sandbox_sleep);
 
 	http_total_increment_2xx();
 	rc = 0;

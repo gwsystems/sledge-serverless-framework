@@ -58,7 +58,7 @@ scheduler_edf_get_next()
 done:
 	return local_runqueue_get_next();
 err_allocate:
-	client_socket_send(request->socket_descriptor, 503);
+	client_socket_send_oneshot(request->socket_descriptor, http_header_build(503), http_header_len(503));
 	client_socket_close(request->socket_descriptor, &request->socket_address);
 	free(request);
 	goto done;
@@ -89,7 +89,7 @@ scheduler_fifo_get_next()
 done:
 	return sandbox;
 err_allocate:
-	client_socket_send(sandbox_request->socket_descriptor, 503);
+	client_socket_send_oneshot(sandbox_request->socket_descriptor, http_header_build(503), http_header_len(503));
 	client_socket_close(sandbox_request->socket_descriptor, &sandbox->client_address);
 	free(sandbox_request);
 err:

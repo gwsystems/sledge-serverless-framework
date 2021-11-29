@@ -2,6 +2,9 @@
 
 #include <string.h>
 
+#include "http_total.h"
+#include "panic.h"
+
 #define HTTP_MAX_HEADER_COUNT        16
 #define HTTP_MAX_HEADER_LENGTH       32
 #define HTTP_MAX_HEADER_VALUE_LENGTH 64
@@ -53,4 +56,50 @@ http_response_200_size(const char *content_type, ssize_t content_length)
 	}
 
 	return size;
+}
+
+static inline int
+http_header_200_build(char *buffer, const char *content_type, ssize_t content_length)
+{
+	return sprintf(buffer, HTTP_RESPONSE_200_TEMPLATE, content_type, content_length);
+}
+
+static inline const char *
+http_header_build(int status_code)
+{
+	const char *response;
+	int         rc;
+	switch (status_code) {
+	case 503:
+		response = HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
+		http_total_increment_5XX();
+		break;
+	case 413:
+		response = HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE;
+		http_total_increment_4XX();
+		break;
+	case 400:
+		response = HTTP_RESPONSE_400_BAD_REQUEST;
+		http_total_increment_4XX();
+		break;
+	default:
+		panic("%d is not a valid status code\n", status_code);
+	}
+
+	return response;
+}
+
+static inline int
+http_header_len(int status_code)
+{
+	switch (status_code) {
+	case 503:
+		return strlen(HTTP_RESPONSE_503_SERVICE_UNAVAILABLE);
+	case 413:
+		return strlen(HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE);
+	case 400:
+		return strlen(HTTP_RESPONSE_400_BAD_REQUEST);
+	default:
+		panic("%d is not a valid status code\n", status_code);
+	}
 }

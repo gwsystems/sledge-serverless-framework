@@ -113,10 +113,12 @@ current_sandbox_init()
 	rc = sandbox_receive_request(sandbox);
 	if (rc == -2) {
 		/* Request size exceeded Buffer, send 413 Payload Too Large */
-		client_socket_send(sandbox->client_socket_descriptor, 413);
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(413), http_header_len(413),
+		                   current_sandbox_sleep);
 		goto err;
 	} else if (rc == -1) {
-		client_socket_send(sandbox->client_socket_descriptor, 400);
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(400), http_header_len(400),
+		                   current_sandbox_sleep);
 		goto err;
 	}
 
