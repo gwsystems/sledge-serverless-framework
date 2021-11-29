@@ -23,6 +23,45 @@
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_execute_epoll_loop.h"
 
+
+/**
+ * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
+ *
+ * When executing cooperatively, the scheduler is directly invoked via `scheduler_cooperative_sched`. It runs a single
+ * time in the existing context in order to try to execute a direct sandbox-to-sandbox switch. When no sandboxes are
+ * available to execute, the scheduler executes a context switch to `worker_thread_base_context`, which calls
+ * `scheduler_cooperative_sched` in an infinite idle loop. If the scheduler needs to restore a sandbox that was
+ * previously preempted, it raises a SIGUSR1 signal to enter the scheduler handler to be able to restore the full
+ * mcontext structure saved during the last preemption. Otherwise, the cooperative scheduler triggers a "fast switch",
+ * which only updates the instruction and stack pointer.
+ *
+ * Preemptive scheduler is provided by POSIX timers using a set interval defining a scheduling quantum. Our signal
+ * handler is configured to mask nested signals. Given that POSIX specifies that the kernel only delivers a SIGALRM to a
+ * single thread, the lucky thread that receives the kernel thread has the responsibility of propagating this signal
+ * onto all other worker threads. This must occur even when a worker thread is running a sandbox in a nonpreemptable
+ * state.
+ *
+ * When a SIGALRM fires, a worker can be in one of four states:
+ *
+ * 1) "Running a signal handler" - We mask signals when we are executing a signal handler, which results in signals
+ * being ignored. A kernel signal should get delivered to another unmasked worker, so propagation still occurs.
+ *
+ * 2) "Running the Cooperative Scheduler" - This is signified by the thread local current_sandbox being set to NULL. We
+ * propagate the signal and return immediately because we know we're already in the scheduler. We have no sandboxes to
+ * interrupt, so no sandbox state transitions occur.
+ *
+ * 3) "Running a Sandbox in a state other than SANDBOX_RUNNING_USER" - We call sandbox_interrupt on current_sandbox,
+ * propagate the sigalrms to the other workers, defer the sigalrm locally, and then return. The SANDBOX_INTERRUPTED
+ * timekeeping data is increased to account for the time needed to propagate the sigalrms.
+ *
+ * 4) "Running a Sandbox in the SANDBOX_RUNNING_USER state - We call sandbox_interrupt on current_sandbox, propagate
+ * the sigalrms to the other workers, and then actually enter the scheduler via scheduler_preemptive_sched. The
+ * interrupted sandbox may either be preempted or return to depending on the scheduler. If preempted, the interrupted
+ * mcontext is saved to the sandbox structure. The SANDBOX_INTERRUPTED timekeeping data is increased to account for the
+ * time needed to propagate the sigalrms, run epoll, query the scheduler data structure, and (potentially) allocate and
+ * initialize a sandbox.
+ */
+
 enum SCHEDULER
 {
 	SCHEDULER_FIFO = 0,
