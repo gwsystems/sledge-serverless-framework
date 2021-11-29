@@ -119,7 +119,7 @@ all: runtime
 bin/sledgert: ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	${CC} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} ${INCLUDES}  -L/usr/lib/ $^ -o bin/sledgert
+	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
 
 .PHONY: runtime
 runtime: thirdparty bin/sledgert
