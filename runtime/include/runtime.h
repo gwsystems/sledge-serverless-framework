@@ -8,7 +8,17 @@
 #include "likely.h"
 #include "types.h"
 
-/* Memory barrier to prevent unexpected code migration due to compiler optimization */
+/**
+ * Optimizing compilers and modern CPUs reorder instructions however it sees fit. This means that the resulting
+ * execution order may differ from the order of our source code. If there is a variable protecting a critical section,
+ * this means that code may move out of or into the critical section, which could cause bugs. In order to protect
+ * against this, we need to improve an ordering contraint via a "memory barrier." Inline assembly acts as a such barrier
+ * that no assembly instructions can be reordered across. An example of how this is used in this code base is in ensure
+ * that code is either intentionally preemptable or non-preemptable.
+ *
+ * Wikipedia: https://en.wikipedia.org/wiki/Memory_barrier
+ * Linux: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/memory-barriers.txt
+ */
 #define barrier() __asm__ __volatile__("" ::: "memory")
 
 #define RUNTIME_EXPECTED_EXECUTION_US_MAX 3600000000
