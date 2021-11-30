@@ -122,6 +122,12 @@ module_free(struct module *module)
 
 	close(module->socket_descriptor);
 	awsm_abi_deinit(&module->abi);
+
+	for (int i = 0; i < runtime_worker_threads_count; i++) pool_free(module->linear_memory_pool[i]);
+	free(module->linear_memory_pool);
+
+	/* Initialize per worker linear memory pools */
+	module->linear_memory_pool = calloc(runtime_worker_threads_count, sizeof(struct pool *));
 	free(module);
 }
 
@@ -205,6 +211,10 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 	local_sandbox_context_cache.module_indirect_table = module->indirect_table;
 	module_initialize_table(module);
 	local_sandbox_context_cache.module_indirect_table = NULL;
+
+	/* Initialize per worker linear memory pools */
+	module->linear_memory_pool = calloc(runtime_worker_threads_count, sizeof(struct pool *));
+	for (int i = 0; i < runtime_worker_threads_count; i++) { module->linear_memory_pool[i] = pool_init(10, true); }
 
 	/* Start listening for requests */
 	rc = module_listen(module);

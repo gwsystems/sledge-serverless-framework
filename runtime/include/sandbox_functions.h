@@ -6,6 +6,7 @@
 
 #include "client_socket.h"
 #include "panic.h"
+#include "pool.h"
 #include "sandbox_request.h"
 
 /***************************
@@ -35,9 +36,9 @@ sandbox_close_http(struct sandbox *sandbox)
 static inline void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
-	int rc = munmap(sandbox->memory.start, sandbox->memory.max + PAGE_SIZE);
-	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
-	sandbox->memory.start = NULL;
+	if (pool_free_object(sandbox->module->linear_memory_pool[worker_thread_idx], sandbox) < 0) {
+		buffer_free(sandbox->memory);
+	}
 }
 
 /**

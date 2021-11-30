@@ -5,6 +5,7 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 
+#include "buffer.h"
 #include "likely.h"
 #include "types.h"
 
@@ -32,6 +33,23 @@ extern pthread_t *                  runtime_worker_threads;
 extern uint32_t                     runtime_worker_threads_count;
 extern int *                        runtime_worker_threads_argument;
 extern uint64_t *                   runtime_worker_threads_deadline;
+
+
+/* memory also provides the table access functions */
+#define INDIRECT_TABLE_SIZE (1 << 10)
+
+struct indirect_table_entry {
+	uint32_t type_id;
+	void *   func_pointer;
+};
+
+/* Cache of Frequently Accessed Members used to avoid pointer chasing */
+struct sandbox_context_cache {
+	struct buffer *              memory;
+	struct indirect_table_entry *module_indirect_table;
+};
+
+extern thread_local struct sandbox_context_cache local_sandbox_context_cache;
 
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);

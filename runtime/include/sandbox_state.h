@@ -9,7 +9,6 @@
 typedef enum
 {
 	SANDBOX_UNINITIALIZED = 0, /* Assumption: mmap zeros out structure */
-	SANDBOX_ALLOCATED,
 	SANDBOX_INITIALIZED,
 	SANDBOX_RUNNABLE,
 	SANDBOX_PREEMPTED,

@@ -17,27 +17,10 @@ expand_memory(void)
 	struct sandbox *sandbox = current_sandbox_get();
 
 	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_RUNNING_SYS);
-	assert(local_sandbox_context_cache.memory.size % WASM_PAGE_SIZE == 0);
+	assert(local_sandbox_context_cache.memory->size % WASM_PAGE_SIZE == 0);
 
 	/* Return -1 if we've hit the linear memory max */
-	if (unlikely(local_sandbox_context_cache.memory.size + WASM_PAGE_SIZE
-	             >= local_sandbox_context_cache.memory.max)) {
-		debuglog("expand_memory - Out of Memory!. %u out of %lu\n", local_sandbox_context_cache.memory.size,
-		         local_sandbox_context_cache.memory.max);
-		return -1;
-	}
-
-	// Remap the relevant wasm page to readable
-	char *mem_as_chars = local_sandbox_context_cache.memory.start;
-	char *page_address = &mem_as_chars[local_sandbox_context_cache.memory.size];
-	void *map_result   = mmap(page_address, WASM_PAGE_SIZE, PROT_READ | PROT_WRITE,
-                                MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-	if (map_result == MAP_FAILED) {
-		debuglog("Mapping of new memory failed");
-		return -1;
-	}
-
-	local_sandbox_context_cache.memory.size += WASM_PAGE_SIZE;
+	if (unlikely(buffer_expand(local_sandbox_context_cache.memory, WASM_PAGE_SIZE) == -1)) return -1;
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	// Cache the runtime of the first N page allocations
@@ -48,8 +31,6 @@ expand_memory(void)
 	}
 #endif
 
-	// local_sandbox_context_cache is "forked state", so update authoritative member
-	sandbox->memory.size = local_sandbox_context_cache.memory.size;
 	return 0;
 }
 
@@ -59,10 +40,10 @@ get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check)
 	// Due to how we setup memory for x86, the virtual memory mechanism will catch the error, if bounds <
 	// WASM_PAGE_SIZE
 	assert(bounds_check < WASM_PAGE_SIZE
-	       || (local_sandbox_context_cache.memory.size > bounds_check
-	           && offset <= local_sandbox_context_cache.memory.size - bounds_check));
+	       || (local_sandbox_context_cache.memory->size > bounds_check
+	           && offset <= local_sandbox_context_cache.memory->size - bounds_check));
 
-	char *mem_as_chars = (char *)local_sandbox_context_cache.memory.start;
+	char *mem_as_chars = (char *)local_sandbox_context_cache.memory->data;
 	char *address      = &mem_as_chars[offset];
 
 	return address;
@@ -77,7 +58,7 @@ get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check)
 int32_t
 instruction_memory_grow(uint32_t count)
 {
-	int rc = local_sandbox_context_cache.memory.size / WASM_PAGE_SIZE;
+	int rc = local_sandbox_context_cache.memory->size / WASM_PAGE_SIZE;
 
 	for (int i = 0; i < count; i++) {
 		if (unlikely(expand_memory() != 0)) {

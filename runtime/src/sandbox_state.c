@@ -10,7 +10,6 @@
 const char *sandbox_state_labels[SANDBOX_STATE_COUNT] = {
 
 	[SANDBOX_UNINITIALIZED] = "Uninitialized",
-	[SANDBOX_ALLOCATED]     = "Allocated",
 	[SANDBOX_INITIALIZED]   = "Initialized",
 	[SANDBOX_RUNNABLE]      = "Runnable",
 	[SANDBOX_PREEMPTED]     = "Preempted",

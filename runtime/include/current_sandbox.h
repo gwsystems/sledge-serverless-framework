@@ -31,11 +31,7 @@ current_sandbox_set(struct sandbox *sandbox)
 	/* Unpack hierarchy to avoid pointer chasing */
 	if (sandbox == NULL) {
 		local_sandbox_context_cache = (struct sandbox_context_cache){
-			.memory = {
-				.start          = NULL,
-				.size           = 0,
-				.max           = 0,
-			},
+			.memory                = NULL,
 			.module_indirect_table = NULL,
 		};
 		worker_thread_current_sandbox                      = NULL;

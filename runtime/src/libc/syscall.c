@@ -219,7 +219,7 @@ wasm_mmap(int32_t addr, int32_t len, int32_t prot, int32_t flags, int32_t fd, in
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
-	int32_t result = local_sandbox_context_cache.memory.size;
+	int32_t result = local_sandbox_context_cache.memory->size;
 	for (int i = 0; i < len / WASM_PAGE_SIZE; i++) { expand_memory(); }
 
 	return result;
@@ -318,7 +318,7 @@ wasm_mremap(int32_t offset, int32_t old_size, int32_t new_size, int32_t flags)
 	if (new_size <= old_size) return offset;
 
 	// If at end of linear memory, just expand and return same address
-	if (offset + old_size == local_sandbox_context_cache.memory.size) {
+	if (offset + old_size == local_sandbox_context_cache.memory->size) {
 		int32_t amount_to_expand  = new_size - old_size;
 		int32_t pages_to_allocate = amount_to_expand / WASM_PAGE_SIZE;
 		if (amount_to_expand % WASM_PAGE_SIZE > 0) pages_to_allocate++;
@@ -330,13 +330,13 @@ wasm_mremap(int32_t offset, int32_t old_size, int32_t new_size, int32_t flags)
 	// Otherwise allocate at end of address space and copy
 	int32_t pages_to_allocate = new_size / WASM_PAGE_SIZE;
 	if (new_size % WASM_PAGE_SIZE > 0) pages_to_allocate++;
-	int32_t new_offset = local_sandbox_context_cache.memory.size;
+	int32_t new_offset = local_sandbox_context_cache.memory->size;
 	for (int i = 0; i < pages_to_allocate; i++) expand_memory();
 
 	// Get pointer of old offset and pointer of new offset
-	char *linear_mem = local_sandbox_context_cache.memory.start;
-	char *src        = &linear_mem[offset];
-	char *dest       = &linear_mem[new_offset];
+	uint8_t *linear_mem = local_sandbox_context_cache.memory->data;
+	uint8_t *src        = &linear_mem[offset];
+	uint8_t *dest       = &linear_mem[new_offset];
 
 	// Copy Values. We can use memcpy because we don't overlap
 	memcpy((void *)dest, (void *)src, old_size);

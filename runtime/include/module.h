@@ -10,6 +10,7 @@
 #include "awsm_abi.h"
 #include "http.h"
 #include "panic.h"
+#include "pool.h"
 #include "types.h"
 
 #define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
@@ -55,6 +56,7 @@ struct module {
 
 	_Atomic uint32_t            reference_count; /* ref count how many instances exist here. */
 	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
+	struct pool **              linear_memory_pool;
 };
 
 /*************************

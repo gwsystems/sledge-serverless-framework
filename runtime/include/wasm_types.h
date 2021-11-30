@@ -8,10 +8,3 @@
 #define WASM_MEMORY_PAGES_MAX     (1 << 15)   /* 32,768 Pages ~4GB */
 
 #define WASM_STACK_SIZE (1 << 19) /* 512KB */
-
-/* bytes, not wasm pages */
-struct wasm_memory {
-	void *   start;
-	uint32_t size;
-	uint64_t max;
-};

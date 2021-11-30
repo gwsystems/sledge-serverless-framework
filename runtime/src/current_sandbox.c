@@ -17,11 +17,7 @@
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
 thread_local struct sandbox_context_cache local_sandbox_context_cache = {
-	.memory = {
-		.start = NULL,
-		.size = 0,
-		.max = 0,
-	},
+	.memory                = NULL,
 	.module_indirect_table = NULL,
 };
 
@@ -95,7 +91,7 @@ current_sandbox_exit()
 	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
 	arch_context_switch(current_context, &worker_thread_base_context);
 
-	/* The schduler should never switch back to completed sandboxes */
+	/* The scheduler should never switch back to completed sandboxes */
 	assert(0);
 }
 

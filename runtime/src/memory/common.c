@@ -6,12 +6,12 @@
 
 /* Region initialization helper function */
 EXPORT void
-initialize_region(uint32_t offset, uint32_t data_count, char *data)
+initialize_region(uint32_t offset, uint32_t region_size, uint8_t region[region_size])
 {
-	assert(local_sandbox_context_cache.memory.size >= data_count);
-	assert(offset < local_sandbox_context_cache.memory.size - data_count);
+	assert(local_sandbox_context_cache.memory->size >= region_size);
+	assert(offset < local_sandbox_context_cache.memory->size - region_size);
 
-	memcpy(get_memory_ptr_for_runtime(offset, data_count), data, data_count);
+	memcpy(get_memory_ptr_for_runtime(offset, region_size), region, region_size);
 }
 
 void
