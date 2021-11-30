@@ -76,16 +76,17 @@ propagate_sigalrm(siginfo_t *signal_info)
 }
 
 static inline bool
-running_cooperative_scheduler(void)
+worker_thread_is_running_cooperative_scheduler(void)
 {
 	return current_sandbox_get() == NULL;
 }
 
 
 static inline bool
-preemptable(sandbox_state_t state)
+current_sandbox_is_preemptable()
 {
-	return state == SANDBOX_RUNNING_USER;
+	struct sandbox *sandbox = current_sandbox_get();
+	return sandbox != NULL && sandbox->state == SANDBOX_RUNNING_USER;
 }
 
 /**
@@ -114,28 +115,25 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
-		/* There is no benefit to deferring SIGALRMs that occur when we are already in the cooperative
-		 * scheduler, so just propagate and return */
-		if (running_cooperative_scheduler()) {
+		if (worker_thread_is_running_cooperative_scheduler()) {
+			/* There is no benefit to deferring SIGALRMs that occur when we are already in the cooperative
+			 * scheduler, so just propagate and return */
 			propagate_sigalrm(signal_info);
-			break;
-		}
-
-		/* We transition the sandbox to an interrupted state to exclude time propagating signals and running the
-		 * scheduler from per-sandbox accounting */
-		sandbox_state_t interrupted_state = current_sandbox->state;
-		sandbox_interrupt(current_sandbox);
-		propagate_sigalrm(signal_info);
-
-		/* If our interrupted sandbox is not preempatable, defer the sigalarm and return */
-		if (!preemptable(interrupted_state)) {
+		} else if (current_sandbox_is_preemptable()) {
+			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
+			sandbox_interrupt(current_sandbox);
+			propagate_sigalrm(signal_info);
+			scheduler_preemptive_sched(interrupted_context);
+		} else {
+			/* We transition the sandbox to an interrupted state to exclude time propagating signals and
+			 * running the scheduler from per-sandbox accounting */
+			sandbox_state_t interrupted_state = current_sandbox->state;
+			sandbox_interrupt(current_sandbox);
+			propagate_sigalrm(signal_info);
 			atomic_fetch_add(&deferred_sigalrm, 1);
 			sandbox_interrupt_return(current_sandbox, interrupted_state);
-			break;
 		}
 
-		/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
-		scheduler_preemptive_sched(interrupted_context);
 		break;
 	}
 	case SIGUSR1: {
