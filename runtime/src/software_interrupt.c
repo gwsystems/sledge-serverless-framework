@@ -38,12 +38,6 @@ extern pthread_t *runtime_worker_threads;
  * Private Static Inlines *
  *************************/
 
-static inline bool
-worker_thread_is_running_cooperative_scheduler(void)
-{
-	return current_sandbox_get() == NULL;
-}
-
 /**
  * A POSIX signal is delivered to only one thread.
  * This function broadcasts the sigalarm signal to all other worker threads
@@ -81,6 +75,19 @@ propagate_sigalrm(siginfo_t *signal_info)
 	}
 }
 
+static inline bool
+running_cooperative_scheduler(void)
+{
+	return current_sandbox_get() == NULL;
+}
+
+
+static inline bool
+preemptable(sandbox_state_t state)
+{
+	return state == SANDBOX_RUNNING_USER;
+}
+
 /**
  * The handler function for Software Interrupts (signals)
  * SIGALRM is executed periodically by an interval timer, causing preemption of the current sandbox
@@ -107,23 +114,28 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
-		if (worker_thread_is_running_cooperative_scheduler()) {
+		/* There is no benefit to deferring SIGALRMs that occur when we are already in the cooperative
+		 * scheduler, so just propagate and return */
+		if (running_cooperative_scheduler()) {
 			propagate_sigalrm(signal_info);
 			break;
 		}
 
+		/* We transition the sandbox to an interrupted state to exclude time propagating signals and running the
+		 * scheduler from per-sandbox accounting */
 		sandbox_state_t interrupted_state = current_sandbox->state;
 		sandbox_interrupt(current_sandbox);
 		propagate_sigalrm(signal_info);
 
-		if (interrupted_state == SANDBOX_RUNNING_USER) {
-			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
-			scheduler_preemptive_sched(interrupted_context);
-		} else {
+		/* If our interrupted sandbox is not preempatable, defer the sigalarm and return */
+		if (!preemptable(interrupted_state)) {
 			atomic_fetch_add(&deferred_sigalrm, 1);
 			sandbox_interrupt_return(current_sandbox, interrupted_state);
+			break;
 		}
 
+		/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
+		scheduler_preemptive_sched(interrupted_context);
 		break;
 	}
 	case SIGUSR1: {
