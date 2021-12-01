@@ -47,32 +47,13 @@ extern uint32_t                     runtime_worker_threads_count;
 extern int *                        runtime_worker_threads_argument;
 extern uint64_t *                   runtime_worker_threads_deadline;
 
-
-/* memory also provides the table access functions */
-#define INDIRECT_TABLE_SIZE (1 << 10)
-
-struct indirect_table_entry {
-	uint32_t type_id;
-	void *   func_pointer;
-};
-
-/* Cache of Frequently Accessed Members used to avoid pointer chasing */
-struct sandbox_context_cache {
-	struct wasm_linear_memory *  memory;
-	struct indirect_table_entry *module_indirect_table;
-};
-
-extern thread_local struct sandbox_context_cache local_sandbox_context_cache;
-
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);
 extern void runtime_set_resource_limits_to_max(void);
 
 /* External Symbols */
 extern void  alloc_linear_memory(void);
-extern int   expand_memory(void);
 INLINE char *get_function_from_table(uint32_t idx, uint32_t type_id);
-INLINE char *get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check);
 extern void  stub_init(int32_t offset);
 
 static inline char *

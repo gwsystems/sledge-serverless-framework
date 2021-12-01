@@ -102,7 +102,10 @@
 		"sandbox_set_as_returned.h": "c",
 		"wasm_linear_memory.h": "c",
 		"software_interrupt_counts.h": "c",
-		"sandbox_set_as_running_sys.h": "c"
+		"sandbox_set_as_running_sys.h": "c",
+		"compiletime.h": "c",
+		"sandbox_context_cache.h": "c",
+		"wasm_indirect_table.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

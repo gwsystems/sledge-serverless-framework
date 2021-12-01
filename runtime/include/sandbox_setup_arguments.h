@@ -15,12 +15,13 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	int32_t argument_count = 0;
-	/* whatever gregor has, to be able to pass arguments to a module! */
-	sandbox->arguments_offset = local_sandbox_context_cache.memory->size;
-	assert(local_sandbox_context_cache.memory->data == sandbox->memory->data);
-	expand_memory();
 
-	int32_t string_off = sandbox->arguments_offset;
+	/* Copy arguments into linear memory. It seems like malloc would clobber this, but I think this goes away in
+	 * WASI, so not worth fixing*/
 
-	stub_init(string_off);
+	sandbox->arguments_offset = wasm_linear_memory_get_size(sandbox->memory);
+	int rc                    = wasm_linear_memory_expand(sandbox->memory, WASM_PAGE_SIZE);
+	assert(rc == 0);
+
+	stub_init(sandbox->arguments_offset);
 }

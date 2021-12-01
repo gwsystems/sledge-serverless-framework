@@ -24,21 +24,22 @@ sandbox_allocate_linear_memory(struct sandbox *self)
 
 	char *error_message = NULL;
 
-	struct wasm_linear_memory *linear_memory = (struct wasm_linear_memory *)pool_allocate_object(
-	  self->module->linear_memory_pool[worker_thread_idx]);
-
 	size_t initial = (size_t)self->module->abi.starting_pages * WASM_PAGE_SIZE;
 	size_t max     = (size_t)self->module->abi.max_pages * WASM_PAGE_SIZE;
 
 	assert(initial <= (size_t)UINT32_MAX + 1);
 	assert(max <= (size_t)UINT32_MAX + 1);
 
-	if (linear_memory == NULL) {
-		linear_memory = wasm_linear_memory_allocate(initial, max);
-		if (unlikely(linear_memory == NULL)) return -1;
+	self->memory = (struct wasm_linear_memory *)pool_allocate_object(
+	  self->module->linear_memory_pool[worker_thread_idx]);
+
+	if (self->memory == NULL) {
+		self->memory = wasm_linear_memory_allocate(initial, max);
+		if (unlikely(self->memory == NULL)) return -1;
+	} else {
+		wasm_linear_memory_set_size(self->memory, self->module->abi.starting_pages * WASM_PAGE_SIZE);
 	}
 
-	self->memory = linear_memory;
 	return 0;
 }
 
@@ -196,7 +197,7 @@ sandbox_free(struct sandbox *sandbox)
 	 */
 
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
-	assert(sandbox->memory->data == NULL);
+	assert(sandbox->memory == NULL);
 
 	free(sandbox->request.base);
 	free(sandbox->response.base);

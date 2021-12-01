@@ -12,6 +12,7 @@
 #include "panic.h"
 #include "pool.h"
 #include "types.h"
+#include "wasm_indirect_table.h"
 
 #define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 

@@ -3,11 +3,10 @@
 #include <threads.h>
 
 #include "sandbox_types.h"
+#include "sandbox_context_cache.h"
 
 /* current sandbox that is active.. */
 extern thread_local struct sandbox *worker_thread_current_sandbox;
-
-extern thread_local struct sandbox_context_cache local_sandbox_context_cache;
 
 void current_sandbox_start(void);
 
