@@ -16,6 +16,7 @@
 #include "panic.h"
 #include "runtime.h"
 #include "scheduler.h"
+#include "wasm_indirect_table.h"
 
 const int JSON_MAX_ELEMENT_COUNT = 16;
 const int JSON_MAX_ELEMENT_SIZE  = 1024;
@@ -187,6 +188,11 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 	uint64_t expected_execution = (uint64_t)expected_execution_us * runtime_processor_speed_MHz;
 	admissions_info_initialize(&module->admissions_info, admissions_percentile, expected_execution,
 	                           module->relative_deadline);
+
+	/* WebAssembly Indirect Table */
+	/* TODO: Should this be part of the module or per-sandbox? */
+	/* TODO: How should this table be sized? */
+	module->indirect_table = wasm_indirect_table_allocate(INDIRECT_TABLE_SIZE);
 
 	/* Request Response Buffer */
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;

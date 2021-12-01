@@ -56,7 +56,7 @@ struct module {
 	struct awsm_abi abi;
 
 	_Atomic uint32_t            reference_count; /* ref count how many instances exist here. */
-	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
+	struct wasm_indirect_table *indirect_table;
 	struct pool **              linear_memory_pool;
 };
 
