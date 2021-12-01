@@ -74,21 +74,15 @@ arch_context_restore_fast(mcontext_t *active_context, struct arch_context *sandb
  * @param b - the registers and context of what we're switching to
  * @return always returns 0, indicating success
  *
- * NULL in either of these values indicates the "no sandbox to execute" state,
- * which defaults to resuming execution of main
  */
 static inline int
 arch_context_switch(struct arch_context *a, struct arch_context *b)
 {
-	/* if both a and b are NULL, there is no state change */
-	assert(a != NULL || b != NULL);
+	assert(a != NULL);
+	assert(b != NULL);
 
 	/* Assumption: The caller does not switch to itself */
 	assert(a != b);
-
-	/* Set any NULLs to worker_thread_base_context to resume execution of main */
-	if (a == NULL) a = &worker_thread_base_context;
-	if (b == NULL) b = &worker_thread_base_context;
 
 	/* A Transition {Running} -> Fast */
 	assert(a->variant == ARCH_CONTEXT_VARIANT_RUNNING);

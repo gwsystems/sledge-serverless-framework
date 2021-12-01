@@ -46,8 +46,7 @@ runtime_cleanup()
 	if (runtime_worker_threads_argument) free(runtime_worker_threads_argument);
 	if (runtime_worker_threads) free(runtime_worker_threads);
 
-	software_interrupt_deferred_sigalrm_max_print();
-	software_interrupt_deferred_sigalrm_max_free();
+	software_interrupt_cleanup();
 	exit(EXIT_SUCCESS);
 }
 
@@ -81,11 +80,11 @@ runtime_set_resource_limits_to_max()
 			snprintf(max, uint64_t_max_digits, "%lu", limit.rlim_max);
 		}
 		if (limit.rlim_cur == limit.rlim_max) {
-			printf("\t%s: %s\n", resource_names[i], max);
+			pretty_print_key_value(resource_names[i], "%s\n", max);
 		} else {
 			limit.rlim_cur = limit.rlim_max;
 			if (setrlimit(resource, &limit) < 0) panic_err();
-			printf("\t%s: %s (Increased from %s)\n", resource_names[i], max, lim);
+			pretty_print_key_value(resource_names[i], "%s (Increased from %s)\n", max, lim);
 		}
 	}
 }

@@ -59,12 +59,6 @@ sandbox_get_priority(void *element)
 	return sandbox->absolute_deadline;
 };
 
-static inline bool
-sandbox_is_preemptable(struct sandbox *sandbox)
-{
-	return sandbox && sandbox->state == SANDBOX_RUNNING_USER;
-};
-
 static inline void
 sandbox_open_http(struct sandbox *sandbox)
 {

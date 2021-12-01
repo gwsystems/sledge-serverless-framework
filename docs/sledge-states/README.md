@@ -1,1 +1,3 @@
 This is a state transition diagram of a sandbox. This maps to the state transition functions defined in `runtime/include/sandbox_set_as_*.h`
+
+Technically, this does not capture all state transitions to or from SANDBOX_INTERRUPTED, as any state can be interrupted by a SIGALRM and this would clutter the diagram. The only transitions shown to or from SANDBOX_INTERRUPTED are those leading to SANDBOX_PREEMPTED, as this reflects actual changes to a sandbox within the scheduler. All other transitions to/from SANDBOX_INTERRUPTED are mostly concerned with preventing scheduler execution time from being counted against sandbox execution times.

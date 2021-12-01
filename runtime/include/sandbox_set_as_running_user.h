@@ -24,8 +24,6 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
-		assert(sandbox);
-		current_sandbox_set(sandbox);
 		break;
 	}
 	default: {
@@ -42,9 +40,12 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	runtime_sandbox_total_increment(SANDBOX_RUNNING_USER);
 	runtime_sandbox_total_decrement(last_state);
 
-	/* WARNING: This state change needs to be at the end of this transition because all code below this assignment
-	 * is preemptable */
+	barrier();
 	sandbox->state = SANDBOX_RUNNING_USER;
+	/* WARNING: All code after this assignment is preemptable */
+
+	/* Now that we are preemptable, we can replay deferred sigalrms */
+	software_interrupt_deferred_sigalrm_replay();
 }
 
 static inline void
