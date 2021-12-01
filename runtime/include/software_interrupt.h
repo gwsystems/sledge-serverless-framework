@@ -5,6 +5,7 @@
 #include <panic.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,14 +13,8 @@
 
 #include "debuglog.h"
 #include "runtime.h"
+#include "software_interrupt_counts.h"
 #include "worker_thread.h"
-
-/************
- * Externs  *
- ***********/
-
-extern _Atomic thread_local volatile sig_atomic_t software_interrupt_deferred_sigalrm;
-extern _Atomic volatile sig_atomic_t *            software_interrupt_deferred_sigalrm_max;
 
 /*************************
  * Public Static Inlines *
@@ -74,13 +69,30 @@ software_interrupt_unmask_signal(int signal)
 	return 0;
 }
 
+extern thread_local _Atomic volatile sig_atomic_t deferred_sigalrm;
+
+static inline void
+software_interrupt_deferred_sigalrm_clear()
+{
+	software_interrupt_counts_deferred_sigalrm_max_update(deferred_sigalrm);
+	atomic_store(&deferred_sigalrm, 0);
+}
+
+static inline void
+software_interrupt_deferred_sigalrm_replay()
+{
+	if (deferred_sigalrm > 0) {
+		software_interrupt_deferred_sigalrm_clear();
+		software_interrupt_counts_deferred_sigalrm_replay_increment();
+		raise(SIGALRM);
+	}
+}
+
 /*************************
- * Exports from module.c *
+ * Exports from software_interrupt.c *
  ************************/
 
-void software_interrupt_initialize(void);
 void software_interrupt_arm_timer(void);
+void software_interrupt_cleanup(void);
 void software_interrupt_disarm_timer(void);
-void software_interrupt_set_interval_duration(uint64_t cycles);
-void software_interrupt_deferred_sigalrm_max_free(void);
-void software_interrupt_deferred_sigalrm_max_print(void);
+void software_interrupt_initialize(void);

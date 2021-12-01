@@ -2,11 +2,19 @@ digraph {
 	Uninitialized -> Initialized
 	Initialized -> {Runnable Error}
 	Runnable -> Running_Sys
-	Running_User -> Running_Sys [label="interrupt"]
+
+	Running_User -> Interrupted [label="interrupt"]
+	Running_User -> Running_Sys [label="syscall"]
+
+	
+	Interrupted -> Preempted [label="preempt"]
+	Interrupted -> Running_User
+
+
+
 	Running_Sys -> Asleep [label="sleep"]
 	Running_Sys -> {Error Returned}
 	Running_Sys -> Running_User [label="return"]
-	Running_Sys -> Preempted [label="preempt"]
 	Preempted -> Running_User
 	Returned -> Complete [label="exit_success"]
 	Asleep -> Runnable [label="wakeup"]

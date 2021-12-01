@@ -100,7 +100,9 @@
 		"sandbox_set_as_running_user.h": "c",
 		"scheduler.h": "c",
 		"sandbox_set_as_returned.h": "c",
-		"wasm_linear_memory.h": "c"
+		"wasm_linear_memory.h": "c",
+		"software_interrupt_counts.h": "c",
+		"sandbox_set_as_running_sys.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

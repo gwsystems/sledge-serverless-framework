@@ -29,30 +29,22 @@ thread_local struct sandbox_context_cache local_sandbox_context_cache = {
 void
 current_sandbox_sleep()
 {
-	struct sandbox *sandbox = current_sandbox_get();
-	assert(sandbox != NULL);
-	struct arch_context *current_context = &sandbox->ctxt;
+	struct sandbox *sleeping_sandbox = current_sandbox_get();
+	assert(sleeping_sandbox != NULL);
 
-	scheduler_log_sandbox_switch(sandbox, NULL);
 	generic_thread_dump_lock_overhead();
 
-	assert(sandbox != NULL);
-
-	switch (sandbox->state) {
+	switch (sleeping_sandbox->state) {
 	case SANDBOX_RUNNING_SYS: {
-		sandbox_sleep(sandbox);
+		sandbox_sleep(sleeping_sandbox);
 		break;
 	}
 	default:
 		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
-		      sandbox_state_stringify(sandbox->state));
+		      sandbox_state_stringify(sleeping_sandbox->state));
 	}
 
-	current_sandbox_set(NULL);
-
-	/* Assumption: Base Worker context should never be preempted */
-	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
-	arch_context_switch(current_context, &worker_thread_base_context);
+	scheduler_cooperative_sched(false);
 }
 
 /**
@@ -63,33 +55,24 @@ current_sandbox_sleep()
 void
 current_sandbox_exit()
 {
-	struct sandbox *sandbox = current_sandbox_get();
-	current_sandbox_set(NULL);
+	struct sandbox *exiting_sandbox = current_sandbox_get();
+	assert(exiting_sandbox != NULL);
 
-	assert(sandbox != NULL);
-	struct arch_context *current_context = &sandbox->ctxt;
-
-	scheduler_log_sandbox_switch(sandbox, NULL);
 	generic_thread_dump_lock_overhead();
 
-	assert(sandbox != NULL);
-
-	switch (sandbox->state) {
+	switch (exiting_sandbox->state) {
 	case SANDBOX_RETURNED:
-		sandbox_exit_success(sandbox);
+		sandbox_exit_success(exiting_sandbox);
 		break;
 	case SANDBOX_RUNNING_SYS:
-		sandbox_exit_error(sandbox);
+		sandbox_exit_error(exiting_sandbox);
 		break;
 	default:
 		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
-		      sandbox_state_stringify(sandbox->state));
+		      sandbox_state_stringify(exiting_sandbox->state));
 	}
-	/* Do not access sandbox after this, as it is on the completion queue! */
 
-	/* Assumption: Base Worker context should never be preempted */
-	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
-	arch_context_switch(current_context, &worker_thread_base_context);
+	scheduler_cooperative_sched(true);
 
 	/* The scheduler should never switch back to completed sandboxes */
 	assert(0);
@@ -132,6 +115,8 @@ err:
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
 	assert(0);
+
+	return NULL;
 }
 
 static inline void
@@ -141,7 +126,7 @@ current_sandbox_fini()
 	assert(sandbox != NULL);
 
 	char *error_message = "";
-	sandbox_interrupt(sandbox);
+	sandbox_syscall(sandbox);
 
 	sandbox->timestamp_of.completion = __getcycles();
 
