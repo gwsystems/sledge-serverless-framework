@@ -94,9 +94,9 @@ struct sandbox {
 	struct module *module; /* the module this is an instance of */
 
 	/* WebAssembly Instance State  */
-	struct arch_context  ctxt;
-	struct sandbox_stack stack;
-	struct buffer *      memory;
+	struct arch_context        ctxt;
+	struct sandbox_stack       stack;
+	struct wasm_linear_memory *memory;
 
 	/* Scheduling and Temporal State */
 	struct sandbox_timestamps timestamp_of;

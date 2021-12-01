@@ -8,8 +8,7 @@
 EXPORT void
 initialize_region(uint32_t offset, uint32_t region_size, uint8_t region[region_size])
 {
-	assert(local_sandbox_context_cache.memory->size >= region_size);
-	assert(offset < local_sandbox_context_cache.memory->size - region_size);
+	assert((size_t)offset + region_size < local_sandbox_context_cache.memory->size);
 
 	memcpy(get_memory_ptr_for_runtime(offset, region_size), region, region_size);
 }

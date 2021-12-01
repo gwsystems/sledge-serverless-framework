@@ -46,5 +46,24 @@ current_sandbox_set(struct sandbox *sandbox)
 	}
 }
 
-
 extern void current_sandbox_sleep();
+
+static inline void *
+current_sandbox_get_ptr_void(uint32_t offset, uint32_t bounds_check)
+{
+	assert(local_sandbox_context_cache.memory != NULL);
+	return wasm_linear_memory_get_ptr_void(local_sandbox_context_cache.memory, offset, bounds_check);
+}
+
+static inline char
+current_sandbox_get_char(uint32_t offset)
+{
+	assert(local_sandbox_context_cache.memory != NULL);
+	return wasm_linear_memory_get_char(local_sandbox_context_cache.memory, offset);
+}
+
+static inline char *
+current_sandbox_get_string(uint32_t offset, uint32_t size)
+{
+	return wasm_linear_memory_get_string(local_sandbox_context_cache.memory, offset, size);
+}

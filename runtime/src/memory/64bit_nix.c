@@ -20,7 +20,7 @@ expand_memory(void)
 	assert(local_sandbox_context_cache.memory->size % WASM_PAGE_SIZE == 0);
 
 	/* Return -1 if we've hit the linear memory max */
-	if (unlikely(buffer_expand(local_sandbox_context_cache.memory, WASM_PAGE_SIZE) == -1)) return -1;
+	if (unlikely(wasm_linear_memory_expand(local_sandbox_context_cache.memory, WASM_PAGE_SIZE) == -1)) return -1;
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	// Cache the runtime of the first N page allocations
@@ -35,18 +35,9 @@ expand_memory(void)
 }
 
 INLINE char *
-get_memory_ptr_for_runtime(uint32_t offset, uint32_t bounds_check)
+get_memory_ptr_for_runtime(uint32_t offset, uint32_t size)
 {
-	// Due to how we setup memory for x86, the virtual memory mechanism will catch the error, if bounds <
-	// WASM_PAGE_SIZE
-	assert(bounds_check < WASM_PAGE_SIZE
-	       || (local_sandbox_context_cache.memory->size > bounds_check
-	           && offset <= local_sandbox_context_cache.memory->size - bounds_check));
-
-	char *mem_as_chars = (char *)local_sandbox_context_cache.memory->data;
-	char *address      = &mem_as_chars[offset];
-
-	return address;
+	return (char *)wasm_linear_memory_get_ptr_void(local_sandbox_context_cache.memory, offset, size);
 }
 
 /**
@@ -60,14 +51,27 @@ instruction_memory_grow(uint32_t count)
 {
 	int rc = local_sandbox_context_cache.memory->size / WASM_PAGE_SIZE;
 
+	struct sandbox *sandbox = current_sandbox_get();
+
+	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_RUNNING_SYS);
+	assert(local_sandbox_context_cache.memory->size % WASM_PAGE_SIZE == 0);
+
+	/* Return -1 if we've hit the linear memory max */
+	if (unlikely(wasm_linear_memory_expand(local_sandbox_context_cache.memory, WASM_PAGE_SIZE * count) == -1))
+		return -1;
+
+#ifdef LOG_SANDBOX_MEMORY_PROFILE
+	// Cache the runtime of the first N page allocations
 	for (int i = 0; i < count; i++) {
-		if (unlikely(expand_memory() != 0)) {
-			rc = -1;
-			break;
+		if (likely(sandbox->timestamp_of.page_allocations_size < SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT)) {
+			sandbox->timestamp_of.page_allocations[sandbox->timestamp_of.page_allocations_size++] =
+			  sandbox->duration_of_state.running
+			  + (uint32_t)(__getcycles() - sandbox->timestamp_of.last_state_change);
 		}
 	}
+#endif
 
-	return rc;
+	return local_sandbox_context_cache.memory->size / WASM_PAGE_SIZE;
 }
 
 /*

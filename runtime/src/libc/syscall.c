@@ -92,7 +92,7 @@ wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 
 	/* Non-blocking copy on stdin */
 	if (filedes == 0) {
-		char *               buffer          = worker_thread_get_memory_ptr_void(buf_offset, nbyte);
+		char *               buffer          = current_sandbox_get_ptr_void(buf_offset, nbyte);
 		struct http_request *current_request = &current_sandbox->http_request;
 		if (current_request->body_length <= 0) return 0;
 		int bytes_to_read = nbyte > current_request->body_length ? current_request->body_length : nbyte;
@@ -102,7 +102,7 @@ wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 		return bytes_to_read;
 	}
 
-	char *buf = worker_thread_get_memory_ptr_void(buf_offset, nbyte);
+	char *buf = current_sandbox_get_ptr_void(buf_offset, nbyte);
 
 	int32_t res = 0;
 	while (res < nbyte) {
@@ -133,7 +133,7 @@ int32_t
 wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 {
 	struct sandbox *s      = current_sandbox_get();
-	char *          buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
+	char *          buffer = current_sandbox_get_ptr_void(buf_offset, buf_size);
 
 	if (fd == STDERR_FILENO) { write(STDERR_FILENO, buffer, buf_size); }
 
@@ -173,7 +173,7 @@ err:
 int32_t
 wasm_open(int32_t path_off, int32_t flags, int32_t mode)
 {
-	char *path = worker_thread_get_memory_string(path_off, MODULE_MAX_PATH_LENGTH);
+	char *path = current_sandbox_get_string(path_off, MODULE_MAX_PATH_LENGTH);
 
 	int res = ENOTSUP;
 
@@ -252,7 +252,7 @@ int32_t
 wasm_readv(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 {
 	int32_t            read = 0;
-	struct wasm_iovec *iov  = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+	struct wasm_iovec *iov  = current_sandbox_get_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 	for (int i = 0; i < iovcnt; i++) { read += wasm_read(fd, iov[i].base_offset, iov[i].len); }
 
 	return read;
@@ -266,8 +266,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
 		// both 1 and 2 go to client.
 		int                len = 0;
-		struct wasm_iovec *iov = worker_thread_get_memory_ptr_void(iov_offset,
-		                                                           iovcnt * sizeof(struct wasm_iovec));
+		struct wasm_iovec *iov = current_sandbox_get_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 		for (int i = 0; i < iovcnt; i++) { len += wasm_write(fd, iov[i].base_offset, iov[i].len); }
 
 		return len;
@@ -277,7 +276,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	assert(0);
 
 
-	struct wasm_iovec *iov = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+	struct wasm_iovec *iov = current_sandbox_get_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
 	// If we aren't on MUSL, pass writev to printf if possible
 #if defined(__GLIBC__)
@@ -285,7 +284,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 		int sum = 0;
 		for (int i = 0; i < iovcnt; i++) {
 			int32_t len = iov[i].len;
-			void *  ptr = worker_thread_get_memory_ptr_void(iov[i].base_offset, len);
+			void *  ptr = current_sandbox_get_ptr_void(iov[i].base_offset, len);
 
 			printf("%.*s", len, (char *)ptr);
 			sum += len;
@@ -297,7 +296,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	struct iovec vecs[iovcnt];
 	for (int i = 0; i < iovcnt; i++) {
 		int32_t len = iov[i].len;
-		void *  ptr = worker_thread_get_memory_ptr_void(iov[i].base_offset, len);
+		void *  ptr = current_sandbox_get_ptr_void(iov[i].base_offset, len);
 		vecs[i]     = (struct iovec){ ptr, len };
 	}
 
@@ -384,8 +383,7 @@ wasm_get_time(int32_t clock_id, int32_t timespec_off)
 		assert(0);
 	}
 
-	struct wasm_time_spec *timespec = worker_thread_get_memory_ptr_void(timespec_off,
-	                                                                    sizeof(struct wasm_time_spec));
+	struct wasm_time_spec *timespec = current_sandbox_get_ptr_void(timespec_off, sizeof(struct wasm_time_spec));
 
 	struct timespec native_timespec = { 0, 0 };
 	int             res             = clock_gettime(real_clock, &native_timespec);

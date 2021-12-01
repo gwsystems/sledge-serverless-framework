@@ -37,7 +37,7 @@ static inline void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
 	if (pool_free_object(sandbox->module->linear_memory_pool[worker_thread_idx], sandbox) < 0) {
-		buffer_free(sandbox->memory);
+		wasm_linear_memory_free(sandbox->memory);
 	}
 }
 
