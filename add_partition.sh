@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 setVim(){
 echo "hi comment ctermfg=3
@@ -47,9 +47,10 @@ add_partition() {
 
 mount_partition() {
     sudo mkdir /my_mount
-    sudo mount /dev/sdb1 /my_mount
+    sudo mount /dev/sda4 /my_mount
     df -h
 }
-add_partition
+#add_partition
+sudo mkfs.ext4 /dev/sda4
 mount_partition
 sudo chmod 777 /my_mount
