@@ -266,19 +266,25 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
  *  properties for the given tenant.
  */
 static inline void
-reduce_module_budget(struct sandbox *sandbox, uint64_t now)
+scheduler_process_policy_updates(struct sandbox *current_sandbox)
 {
-	struct module *module = sandbox_get_module(sandbox);
+	if (scheduler != SCHEDULER_MTS) return;
 
-	int64_t  prev_budget           = module->remaining_budget;
-	uint64_t duration_of_last_exec = now - sandbox->timestamp_of.last_preemption;
+	struct module *module = current_sandbox->module;
 
-	atomic_fetch_sub(&module->remaining_budget, duration_of_last_exec);
-	// if(duration_of_last_exec > runtime_quantum_us*runtime_processor_speed_MHz) debuglog("BEFORE FAA: %ld\nBudget
-	// Spent: %ld\nAFTER FAA: RB: %ld %s\n\n", prev_budget, duration_of_last_exec, module->remaining_budget,
-	//    (module->remaining_budget <= 0) ? "Oh no! It is NEGATIVE" : "");
-	// if (module->remaining_budget < 0) debuglog("OH NO, NEGATIVE!");
-	// sandbox->last_preemption_timestamp = now;
+	/* Reduce module's budget only if it is a paid tenant */
+	if (module_is_paid(module)) {
+		atomic_fetch_sub(&module->remaining_budget, current_sandbox->last_duration_of_exec);
+		// if (current->module->remaining_budget <= 0 ) {
+		// 	if(current->module->pwm_sandboxes[worker_thread_idx].mt_class == MT_GUARANTEED) {
+		// 		local_runqueue_mts_demote(&current->module->pwm_sandboxes[worker_thread_idx]);
+		// 		debuglog("Demoted '%s' locally in scheduler", current->module->name);
+		// 	}
+		// 	current->module->pwm_sandboxes[worker_thread_idx].mt_class = MT_DEFAULT;
+		// }
+	}
+
+	local_timeout_queue_process_promotions();
 }
 
 /**
@@ -301,29 +307,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 
 	sandbox_interrupt(current);
 
-	if (current->module->replenishment_period>0) {
-		atomic_fetch_sub(&current->module->remaining_budget, current->last_duration_of_exec);
-		// if (sandbox->module->mgrq_requests->mt_class == MT_GUARANTEED
-		//     && sandbox->module->remaining_budget <= 0) {
-		// 	enum MULTI_TENANCY_CLASS prev = sandbox->module->mgrq_requests->mt_class;
-		// 	if (atomic_compare_exchange_strong(&sandbox->module->mgrq_requests->mt_class, &prev,
-		// 	                                   MT_DEFAULT)) {
-		// 		// sandbox->module->mgrq_requests->mt_class = MT_DEFAULT;
-		// 		debuglog("TENANT EXPIRED!");
-		// 	} else {
-		// 		debuglog("GOTCHA! NO WAY!");
-		// 	}
-		// }
-		if (current->module->remaining_budget <= 0 ) {
-			if(current->module->pwm_sandboxes[worker_thread_idx].mt_class == MT_GUARANTEED) {
-				local_runqueue_mts_demote(&current->module->pwm_sandboxes[worker_thread_idx]);
-				// debuglog("Demoted '%s' locally", current->module->name);
-			}
-			current->module->pwm_sandboxes[worker_thread_idx].mt_class = MT_DEFAULT;
-		}
-	}
-
-	if (scheduler == SCHEDULER_MTS) local_timeout_queue_check_for_promotions();
+	scheduler_process_policy_updates(current);
 
 	struct sandbox *next = scheduler_get_next();
 	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */

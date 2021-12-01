@@ -6,6 +6,7 @@
 #include "lock.h"
 #include "listener_thread.h"
 #include "panic.h"
+#include "scheduler.h"
 
 /**
  * How to get the priority out of the generic element
@@ -161,7 +162,7 @@ priority_queue_percolate_down(struct priority_queue *self, int parent_index)
 	assert(self != NULL);
 	assert(self->get_priority_fn != NULL);
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
-	assert(!is_this_listener_thread());
+	assert(!self_is_listener_thread());
 
 	bool update_highest_value = parent_index == 1;
 
@@ -207,7 +208,7 @@ priority_queue_dequeue_if_earlier_nolock(struct priority_queue *self, void **deq
 	assert(self != NULL);
 	assert(dequeued_element != NULL);
 	assert(self->get_priority_fn != NULL);
-	assert(!is_this_listener_thread());
+	assert(!self_is_listener_thread());
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 
 	int return_code;
@@ -299,6 +300,7 @@ static inline int
 priority_queue_length_nolock(struct priority_queue *self)
 {
 	assert(self != NULL);
+	if (scheduler != SCHEDULER_MTS) assert(!self_is_listener_thread());
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 
 	return self->size;
@@ -370,6 +372,7 @@ priority_queue_delete_nolock(struct priority_queue *self, void *value)
 {
 	assert(self != NULL);
 	assert(value != NULL);
+	if (scheduler != SCHEDULER_MTS) assert(!self_is_listener_thread());
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 
 	for (int i = 1; i <= self->size; i++) {
@@ -435,6 +438,7 @@ priority_queue_top_nolock(struct priority_queue *self, void **dequeued_element)
 	assert(self != NULL);
 	assert(dequeued_element != NULL);
 	assert(self->get_priority_fn != NULL);
+	if (scheduler != SCHEDULER_MTS) assert(!self_is_listener_thread());
 	assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));
 
 	int return_code;

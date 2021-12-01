@@ -19,7 +19,7 @@ global_request_scheduler_minheap_add(struct sandbox_request *sandbox_request)
 {
 	assert(sandbox_request);
 	assert(global_request_scheduler_minheap);
-	if (unlikely(!is_this_listener_thread())) panic("%s is only callable by the listener thread\n", __func__);
+	if (unlikely(!self_is_listener_thread())) panic("%s is only callable by the listener thread\n", __func__);
 
 	int return_code = priority_queue_enqueue(global_request_scheduler_minheap, sandbox_request);
 	/* TODO: Propagate -1 to caller. Issue #91 */

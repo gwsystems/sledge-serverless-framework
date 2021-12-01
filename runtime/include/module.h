@@ -175,6 +175,17 @@ module_release(struct module *module)
 }
 
 /**
+ * Check whether a module is a paid module
+ * @param module module
+ * @returns true if the module is paid, false otherwise
+ */
+static inline uint64_t
+module_is_paid(struct module *module)
+{
+	return module->replenishment_period > 0;
+}
+
+/**
  * Get Timeout priority for Priority Queue ordering
  * @param element module_timeout
  * @returns the priority of the module _timeout element

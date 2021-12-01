@@ -25,7 +25,7 @@ void                    global_request_scheduler_initialize(struct global_reques
 struct sandbox_request *global_request_scheduler_add(struct sandbox_request *);
 int                     global_request_scheduler_remove(struct sandbox_request **);
 int                     global_request_scheduler_remove_if_earlier(struct sandbox_request **, uint64_t targed_deadline);
-int      global_request_scheduler_remove_with_mt_class(struct sandbox_request **, uint64_t targed_deadline,
+int      global_request_scheduler_remove_with_mt_class(struct sandbox_request **, uint64_t target_deadline,
                                                        enum MULTI_TENANCY_CLASS mt_class);
 uint64_t global_request_scheduler_peek(void);
 

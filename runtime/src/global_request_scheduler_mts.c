@@ -12,7 +12,6 @@ static struct priority_queue *global_request_scheduler_mts_default;
 static struct priority_queue *global_module_timeout_queue;
 static lock_t                 global_lock;
 
-/* TODO: This function may not belong in this header file, but for now */
 static inline uint64_t
 module_request_queue_get_priority(void *element)
 {
@@ -31,7 +30,7 @@ global_request_scheduler_mts_demote_nolock(struct module_global_request_queue *m
 {
 	assert(mgrq != NULL);
 
-	if(mgrq->mt_class == MT_DEFAULT) return;
+	if (mgrq->mt_class == MT_DEFAULT) return;
 
 	/* Delete the corresponding MGRQ from the Guaranteed queue */
 	int rc = priority_queue_delete_nolock(global_request_scheduler_mts_guaranteed, mgrq);
@@ -56,14 +55,14 @@ global_request_scheduler_mts_add(struct sandbox_request *sandbox_request)
 {
 	assert(sandbox_request);
 	assert(global_request_scheduler_mts_guaranteed && global_request_scheduler_mts_default);
-	if (unlikely(!is_this_listener_thread())) panic("%s is only callable by the listener thread\n", __func__);
+	if (unlikely(!self_is_listener_thread())) panic("%s is only callable by the listener thread\n", __func__);
 
 	struct module_global_request_queue *mgrq = sandbox_request->module->mgrq_requests;
 
 	LOCK_LOCK(&global_lock);
 
 	struct priority_queue *destination_queue = global_request_scheduler_mts_default;
-	if (sandbox_request->module->mgrq_requests->mt_class == MT_GUARANTEED){
+	if (sandbox_request->module->mgrq_requests->mt_class == MT_GUARANTEED) {
 		destination_queue = global_request_scheduler_mts_guaranteed;
 	}
 
@@ -124,27 +123,28 @@ int
 global_request_scheduler_mts_remove_with_mt_class(struct sandbox_request **removed_sandbox_request,
                                                   uint64_t target_deadline, enum MULTI_TENANCY_CLASS target_mt_class)
 {
+	int rc = -ENOENT;;
+
+	LOCK_LOCK(&global_lock);
+
 	/* Avoid unnessary locks when the target_deadline is tighter than the head of the Global runqueue */
 	uint64_t global_guaranteed_deadline = priority_queue_peek(global_request_scheduler_mts_guaranteed);
 	uint64_t global_default_deadline    = priority_queue_peek(global_request_scheduler_mts_default);
 
 	switch (target_mt_class) {
 	case MT_GUARANTEED:
-		if (global_guaranteed_deadline >= target_deadline) return -ENOENT;
+		if (global_guaranteed_deadline >= target_deadline) goto done;
 		break;
 	case MT_DEFAULT:
-		if (global_guaranteed_deadline == UINT64_MAX && global_default_deadline >= target_deadline)
-			return -ENOENT;
+		if (global_guaranteed_deadline == UINT64_MAX && global_default_deadline >= target_deadline) goto done;
 		break;
 	}
 
 	struct module_global_request_queue *top_mgrq          = NULL;
 	struct priority_queue *             destination_queue = global_request_scheduler_mts_guaranteed;
 
-	LOCK_LOCK(&global_lock);
-
 	/* Spot the Module Global Request Queue (MGRQ) to remove the sandbox request from */
-	int rc = priority_queue_top_nolock(destination_queue, (void **)&top_mgrq);
+	rc = priority_queue_top_nolock(destination_queue, (void **)&top_mgrq);
 	if (rc == -ENOENT) {
 		if (target_mt_class == MT_GUARANTEED) goto done;
 
@@ -157,7 +157,8 @@ global_request_scheduler_mts_remove_with_mt_class(struct sandbox_request **remov
 			global_request_scheduler_mts_demote_nolock(top_mgrq);
 			// debuglog("Demoted '%s' GLOBALLY", top_mgrq->module->name);
 			top_mgrq->mt_class = MT_DEFAULT;
-			rc                 = -ENOENT;
+
+			rc = -ENOENT;
 			goto done;
 		}
 	}
@@ -166,16 +167,15 @@ global_request_scheduler_mts_remove_with_mt_class(struct sandbox_request **remov
 
 	/* Remove the sandbox from the corresponding MGRQ */
 	rc = priority_queue_dequeue_nolock(top_mgrq->sandbox_requests, (void **)removed_sandbox_request);
-	if (rc == -ENOENT) goto done;
+	assert(rc == 0);
 
 	/* Delete the MGRQ from the global runqueue completely if MGRQ is empty, re-add otherwise to heapify */
-	if (priority_queue_delete_nolock(destination_queue, top_mgrq) == -1)
+	if (priority_queue_delete_nolock(destination_queue, top_mgrq) == -1) {
 		panic("Tried to delete an MGRQ from the Global runqueue, but was not present");
-	// debuglog("Removed the MGRQ from the Global runqueue");
+	}
 
 	if (priority_queue_length_nolock(top_mgrq->sandbox_requests) > 0) {
 		priority_queue_enqueue_nolock(destination_queue, top_mgrq);
-		// debuglog("Added the MGRQ back to the Global runqueue to Heapify");
 	}
 
 done:
@@ -267,7 +267,7 @@ global_request_scheduler_mts_promote_lock(struct module_global_request_queue *mg
 
 	LOCK_LOCK(&global_lock);
 
-	if(mgrq->mt_class == MT_GUARANTEED) goto done;
+	if (mgrq->mt_class == MT_GUARANTEED) goto done;
 
 	/* Delete the corresponding MGRQ from the Guaranteed queue */
 	int rc = priority_queue_delete_nolock(global_request_scheduler_mts_default, mgrq);
@@ -290,7 +290,7 @@ done:
  *  if so promote that tenant.
  */
 void
-global_timeout_queue_check_for_promotions()
+global_timeout_queue_process_promotions()
 {
 	uint64_t now = __getcycles();
 
@@ -311,12 +311,13 @@ global_timeout_queue_check_for_promotions()
 	}
 
 	// TODO: We need a smarter technique to reset budget to consider budget overusage:
-	// module->remaining_budget = module->max_budget;
 	int64_t prev_budget = atomic_load(&module->remaining_budget);
-	while(!atomic_compare_exchange_strong(&module->remaining_budget, &prev_budget, module->max_budget));
+	while (!atomic_compare_exchange_strong(&module->remaining_budget, &prev_budget, module->max_budget))
+		;
 
 	/* Reheapify the timeout queue with the updated timeout value of the module */
-	priority_queue_delete_nolock(global_module_timeout_queue, top_module_timeout);
+	int rc = priority_queue_delete_nolock(global_module_timeout_queue, top_module_timeout);
+	assert(rc == 0);
 	top_module_timeout->timeout = get_next_timeout_of_module(module->replenishment_period);
 	// top_module_timeout->timeout += module->replenishment_period;
 	priority_queue_enqueue_nolock(global_module_timeout_queue, top_module_timeout);

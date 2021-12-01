@@ -64,12 +64,12 @@ run_experiments() {
 	local fib30_rich_PID
 	local fib30_PID
 
-	loadtest -n 18000 -c 18 --rps 1800 -P "30" "http://${hostname}:10030" > "$results_directory/fib30.txt" & #2> /dev/null &
+	loadtest -t 15 -c 36 --rps 1800 -P "30" "http://${hostname}:10030" > "$results_directory/fib30.txt" & #2> /dev/null &
 	fib30_PID="$!"
 
-	sleep 3s
+	# sleep 3s
 
-	loadtest -n 9000 -c 18 --rps 1800 -P "30" "http://${hostname}:20030" > "$results_directory/fib30_rich.txt" & #2> /dev/null &
+	loadtest -t 15 -c 18 --rps 1800 -P "30" "http://${hostname}:20030" > "$results_directory/fib30_rich.txt" & #2> /dev/null &
 	fib30_rich_PID="$!"
 
 	wait -f "$fib30_rich_PID" || {

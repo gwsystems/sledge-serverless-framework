@@ -53,8 +53,9 @@ local_runqueue_mts_add(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
-	struct perworker_module_sandbox_queue *pwm               = &sandbox->module->pwm_sandboxes[worker_thread_idx];
-	struct priority_queue *                destination_queue = pwm->mt_class==MT_GUARANTEED ? local_runqueue_mts_guaranteed : local_runqueue_mts_default;
+	struct perworker_module_sandbox_queue *pwm = &sandbox->module->pwm_sandboxes[worker_thread_idx];
+	struct priority_queue *destination_queue   = pwm->mt_class == MT_GUARANTEED ? local_runqueue_mts_guaranteed
+	                                                                            : local_runqueue_mts_default;
 
 	uint64_t prev_pwm_deadline = priority_queue_peek(pwm->sandboxes);
 
@@ -63,16 +64,11 @@ local_runqueue_mts_add(struct sandbox *sandbox)
 	if (rc == -ENOSPC) panic("Per Worker Module queue is full!\n");
 	// debuglog("Added a sandbox to the PWM of module '%s'", sandbox->module->name);
 
+	/* If the module was not in the local runqueue, then since we are the first sandbox for it in this worker, add
+	 * the module.  */
 	if (priority_queue_length_nolock(pwm->sandboxes) == 1) {
-		// pwm->mt_class = MT_DEFAULT;
-		// if (sandbox->module->remaining_budget > 0) {
-		// 	pwm->mt_class     = MT_GUARANTEED;
-		// 	destination_queue = local_runqueue_mts_guaranteed;
-		// }
-
 		/* Add sandbox module to the worker's timeout queue if guaranteed tenant and only if first sandbox*/
-		if (sandbox->module->replenishment_period > 0) {
-			// pwm->module_timeout.timeout = pwm->module->mgrq_requests->module_timeout.timeout;
+		if (module_is_paid(sandbox->module)) {
 			pwm->module_timeout.timeout = get_next_timeout_of_module(sandbox->module->replenishment_period);
 			priority_queue_enqueue_nolock(worker_thread_timeout_queue, &pwm->module_timeout);
 		}
@@ -83,15 +79,12 @@ local_runqueue_mts_add(struct sandbox *sandbox)
 	}
 
 	if (sandbox->absolute_deadline < prev_pwm_deadline) {
-		/* Maintain the minheap structure by Deleting and
-		 *  adding the pwm from and to the worker's local runqueue.
+		/* Maintain the minheap structure by deleting & adding the pwm.
 		 * Do this only when the pwm's priority is updated. */
 		rc = priority_queue_delete_nolock(destination_queue, pwm);
 		assert(rc == 0);
 		rc = priority_queue_enqueue_nolock(destination_queue, pwm);
 		if (rc == -ENOSPC) panic("Worker Local Runqueue is full!\n");
-
-		// debuglog("Added the PWM back to the Worker Local runqueue - %s to Heapify", QUEUE_NAME);
 	}
 }
 
@@ -106,29 +99,25 @@ local_runqueue_mts_delete(struct sandbox *sandbox)
 	struct perworker_module_sandbox_queue *pwm = &sandbox->module->pwm_sandboxes[worker_thread_idx];
 
 	/* Delete the sandbox from the corresponding Per-Worker-Module queue */
-	if (priority_queue_delete_nolock(pwm->sandboxes, sandbox) == -1)
+	if (priority_queue_delete_nolock(pwm->sandboxes, sandbox) == -1) {
 		panic("Tried to delete sandbox %lu from PWM queue, but was not present\n", sandbox->id);
+	}
 
 	struct priority_queue *destination_queue = local_runqueue_mts_default;
 
-	if (pwm->mt_class == MT_GUARANTEED) {
-	        destination_queue = local_runqueue_mts_guaranteed;
-	}
-	
+	if (pwm->mt_class == MT_GUARANTEED) { destination_queue = local_runqueue_mts_guaranteed; }
+
 
 	/* Delete the PWM from the local runqueue completely if pwm is empty, re-add otherwise to heapify */
 	if (priority_queue_delete_nolock(destination_queue, pwm) == -1) {
 		// TODO: Apply the composite way of PQ deletion O(logn)
-			panic("Tried to delete a PWM of %s from local runqueue, but was not present\n",
-			      pwm->module->name);
+		panic("Tried to delete a PWM of %s from local runqueue, but was not present\n", pwm->module->name);
 	}
-	// debuglog("Deleted the PWM from the Worker Local runqueue - %s to Heapify", QUEUE_NAME);
 
 	/* Add the PWM back to the local runqueue if it still has other sandboxes inside */
 	if (priority_queue_length_nolock(pwm->sandboxes) > 0) {
 		priority_queue_enqueue_nolock(destination_queue, pwm);
-		// debuglog("Added the PWM back to the Worker Local runqueue - %s to Heapify", QUEUE_NAME);
-	} else if (pwm->module->replenishment_period > 0) {
+	} else if (module_is_paid(pwm->module)) {
 		priority_queue_delete_nolock(worker_thread_timeout_queue, &pwm->module_timeout);
 		pwm->mt_class = MT_GUARANTEED;
 	}
@@ -148,27 +137,23 @@ local_runqueue_mts_get_next()
 	struct perworker_module_sandbox_queue *next_pwm = NULL;
 	struct priority_queue *                dq       = local_runqueue_mts_guaranteed;
 
+	/* Check the local guaranteed queue for any potential demotions */
 	int rc = priority_queue_top_nolock(dq, (void **)&next_pwm);
-	// while (rc != -ENOENT && next_pwm->mt_class==MT_DEFAULT) {// next_pwm->module->remaining_budget <= 0) {
-	// 	local_runqueue_mts_demote(next_pwm);
-	// 	debuglog("Demoted '%s' locally", next_pwm->module->name);
-	// 	// next_pwm->mt_class = MT_DEFAULT;
-
-	// 	rc = priority_queue_top_nolock(dq, (void **)&next_pwm);
-	// }
-
+	while (rc != -ENOENT && next_pwm->module->remaining_budget <= 0) { // next_pwm->mt_class==MT_DEFAULT){
+		local_runqueue_mts_demote(next_pwm);
+		// debuglog("Demoted '%s' locally in GetNext", next_pwm->module->name);
+		next_pwm->mt_class = MT_DEFAULT;
+		rc                 = priority_queue_top_nolock(dq, (void **)&next_pwm);
+	}
 
 	if (rc == -ENOENT) {
 		dq = local_runqueue_mts_default;
 		rc = priority_queue_top_nolock(dq, (void **)&next_pwm);
-
 		if (rc == -ENOENT) return NULL;
 	}
 
 	struct sandbox *next_sandbox = NULL;
-
 	priority_queue_top_nolock(next_pwm->sandboxes, (void **)&next_sandbox);
-
 	assert(next_sandbox);
 
 	return next_sandbox;
@@ -245,7 +230,7 @@ local_runqueue_mts_demote(struct perworker_module_sandbox_queue *pwm)
  *  if so promote that tenant.
  */
 void
-local_timeout_queue_check_for_promotions()
+local_timeout_queue_process_promotions()
 {
 	uint64_t now = __getcycles();
 
@@ -253,13 +238,9 @@ local_timeout_queue_check_for_promotions()
 
 	/* Check the timeout queue for a potential tenant to get PRomoted */
 	priority_queue_top_nolock(worker_thread_timeout_queue, (void **)&top_module_timeout);
-
 	if (top_module_timeout == NULL || now <= top_module_timeout->timeout) return;
-
 	struct perworker_module_sandbox_queue *pwm_to_promote = top_module_timeout->pwm;
-	//   &top_module_timeout->module->pwm_sandboxes[worker_thread_idx];
-
-	assert(priority_queue_length_nolock(pwm_to_promote->sandboxes) > 0 );
+	assert(priority_queue_length_nolock(pwm_to_promote->sandboxes) > 0);
 
 	if (pwm_to_promote->mt_class == MT_DEFAULT) {
 		local_runqueue_mts_promote(pwm_to_promote);
@@ -271,6 +252,5 @@ local_timeout_queue_check_for_promotions()
 	/* Reheapify the timeout queue with the updated timeout value of the module */
 	priority_queue_delete_nolock(worker_thread_timeout_queue, top_module_timeout);
 	top_module_timeout->timeout = get_next_timeout_of_module(top_module_timeout->module->replenishment_period);
-	// top_module_timeout->timeout = top_module_timeout->module->mgrq_requests->module_timeout.timeout;
 	priority_queue_enqueue_nolock(worker_thread_timeout_queue, top_module_timeout);
 }

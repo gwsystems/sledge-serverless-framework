@@ -122,7 +122,7 @@ static inline void
 software_interrupt_validate_worker()
 {
 #ifndef NDEBUG
-	if (is_this_listener_thread()) panic("The listener thread unexpectedly received a signal!");
+	if (self_is_listener_thread()) panic("The listener thread unexpectedly received a signal!");
 #endif
 }
 
@@ -138,7 +138,7 @@ static inline void
 software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *interrupted_context_raw)
 {
 	/* Only workers should receive signals */
-	assert(!is_this_listener_thread());
+	assert(!self_is_listener_thread());
 
 	/* Signals should be masked if runtime has disabled them */
 	assert(runtime_preemption_enabled);
@@ -160,8 +160,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			goto done;
 		}
 
+		/* Global tenant promotions */
 		if (scheduler == SCHEDULER_MTS && signal_info->si_code == SI_KERNEL) {
-			global_timeout_queue_check_for_promotions();
+			global_timeout_queue_process_promotions();
 		}
 
 		scheduler_preemptive_sched(interrupted_context);
