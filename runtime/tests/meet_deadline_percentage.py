@@ -3,10 +3,14 @@ import json
 from collections import defaultdict
 import numpy as np
 
+def def_list_value():
+	return [0, 0, 0, 0, 0]
 def def_value():
         return 0
 
 def count_miss_or_meet_deadline_requests(file_dir, percentage):
+	### each time for a request
+	request_times_dict = defaultdict(def_list_value)
 	#### get execution time
 	running_time_dict = defaultdict(def_value)
 	queuing_times_dict = defaultdict(def_value)
@@ -101,6 +105,11 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		blocked_times_dict[joined_key] += int(t[10])
 		initializing_times_dict[joined_key] += int(t[7])
 
+		### get each time for a request
+		request_times_dict[id][0] += int(t[6]) # global queuing time
+		request_times_dict[id][1] += int(t[8]) # local queuing time
+		request_times_dict[id][2] += int(t[10]) # blocking time
+		request_times_dict[id][3] += int(t[5]) # total latency
 		### 
 
 	miss_deadline_percentage = (miss_deadline * 100) / (miss_deadline + meet_deadline)
@@ -220,6 +229,11 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	f7 = open("delays.txt", 'w')
 	f7.write(js7)
 	f7.close()
+
+	js8 = json.dumps(request_times_dict)
+	f8 = open("request_time.txt", 'w')
+	f8.write(js8)
+	f8.close()
 	
 	for key,value in total_time_dist.items():
                 print(key + ": time list length is ", len(value))
