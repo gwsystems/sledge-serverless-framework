@@ -87,9 +87,9 @@ void
 global_request_scheduler_minheap_initialize(enum SCHEDULER scheduler) 
 {
 	if (scheduler == SCHEDULER_EDF) { 
-		global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_request_get_priority_fn);
+		global_request_scheduler_minheap = priority_queue_initialize(40960, true, sandbox_request_get_priority_fn);
 	} else if (scheduler == SCHEDULER_SRSF) {
-		global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_request_get_priority_srsf_fn);	
+		global_request_scheduler_minheap = priority_queue_initialize(40960, true, sandbox_request_get_priority_srsf_fn);	
 	}
 
 	struct global_request_scheduler_config config = {
