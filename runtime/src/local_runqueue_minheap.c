@@ -79,9 +79,9 @@ local_runqueue_minheap_initialize(enum SCHEDULER scheduler)
 {
 	/* Initialize local state */
 	if (scheduler == SCHEDULER_EDF) { 
-		local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_priority);
+		local_runqueue_minheap = priority_queue_initialize(10240, false, sandbox_get_priority);
 	} else if (scheduler == SCHEDULER_SRSF) {
-		local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_srsf_priority);
+		local_runqueue_minheap = priority_queue_initialize(10240, false, sandbox_get_srsf_priority);
 	}
 
 	/* Register Function Pointers for Abstract Scheduling API */
