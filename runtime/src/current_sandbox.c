@@ -16,9 +16,9 @@
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
-thread_local struct sandbox_context_cache local_sandbox_context_cache = {
-	.memory                = NULL,
-	.module_indirect_table = NULL,
+thread_local struct wasm_module_instance current_wasm_module_instance = {
+	.memory = NULL,
+	.table  = NULL,
 };
 
 /**

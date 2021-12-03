@@ -11,8 +11,9 @@
 #include "http.h"
 #include "panic.h"
 #include "pool.h"
-#include "types.h"
-#include "wasm_indirect_table.h"
+
+#include "common/types.h"
+#include "common/wasm_table.h"
 
 #define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 
@@ -55,9 +56,9 @@ struct module {
 	/* Handle and ABI Symbols for *.so file */
 	struct awsm_abi abi;
 
-	_Atomic uint32_t            reference_count; /* ref count how many instances exist here. */
-	struct wasm_indirect_table *indirect_table;
-	struct pool **              linear_memory_pool;
+	_Atomic uint32_t   reference_count; /* ref count how many instances exist here. */
+	struct wasm_table *indirect_table;
+	struct pool **     linear_memory_pool;
 };
 
 /*************************

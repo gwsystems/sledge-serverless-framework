@@ -14,7 +14,7 @@
 #include "scheduler.h"
 #include "sandbox_functions.h"
 #include "worker_thread.h"
-#include "sandbox_context_cache.h"
+#include "common/wasm_store.h"
 
 // What should we tell the child program its UID and GID are?
 #define UID 0xFF
@@ -45,7 +45,7 @@ stub_init(int32_t offset)
 	char *program_name = current_sandbox->module->name;
 	// Copy the program name into WASM accessible memory
 	int32_t program_name_offset = offset;
-	strcpy(wasm_linear_memory_get_ptr_void(current_sandbox->memory, offset, sizeof(program_name)), program_name);
+	strcpy(wasm_memory_get_ptr_void(current_sandbox->memory, offset, sizeof(program_name)), program_name);
 	offset += sizeof(program_name);
 
 	// The construction of this is:
@@ -71,7 +71,7 @@ stub_init(int32_t offset)
 		0,
 	};
 	int32_t env_vec_offset = offset;
-	memcpy(wasm_linear_memory_get_ptr_void(current_sandbox->memory, env_vec_offset, sizeof(env_vec)), env_vec,
+	memcpy(wasm_memory_get_ptr_void(current_sandbox->memory, env_vec_offset, sizeof(env_vec)), env_vec,
 	       sizeof(env_vec));
 
 	module_initialize_libc(current_sandbox_get()->module, env_vec_offset, program_name_offset);
@@ -222,8 +222,8 @@ wasm_mmap(int32_t addr, int32_t len, int32_t prot, int32_t flags, int32_t fd, in
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
-	int32_t result = wasm_linear_memory_get_size(local_sandbox_context_cache.memory);
-	if (wasm_linear_memory_expand(local_sandbox_context_cache.memory, len) == -1) { result = (uint32_t)-1; }
+	int32_t result = wasm_memory_get_size(current_wasm_module_instance.memory);
+	if (wasm_memory_expand(current_wasm_module_instance.memory, len) == -1) { result = (uint32_t)-1; }
 
 	return result;
 }
@@ -320,18 +320,18 @@ wasm_mremap(int32_t offset, int32_t old_size, int32_t new_size, int32_t flags)
 	if (new_size <= old_size) return offset;
 
 	// If at end of linear memory, just expand and return same address
-	if (offset + old_size == local_sandbox_context_cache.memory->size) {
+	if (offset + old_size == current_wasm_module_instance.memory->size) {
 		int32_t amount_to_expand = new_size - old_size;
-		wasm_linear_memory_expand(local_sandbox_context_cache.memory, amount_to_expand);
+		wasm_memory_expand(current_wasm_module_instance.memory, amount_to_expand);
 		return offset;
 	}
 
 	// Otherwise allocate at end of address space and copy
-	int32_t new_offset = local_sandbox_context_cache.memory->size;
-	wasm_linear_memory_expand(local_sandbox_context_cache.memory, new_size);
+	int32_t new_offset = current_wasm_module_instance.memory->size;
+	wasm_memory_expand(current_wasm_module_instance.memory, new_size);
 
 	// Get pointer of old offset and pointer of new offset
-	uint8_t *linear_mem = local_sandbox_context_cache.memory->data;
+	uint8_t *linear_mem = current_wasm_module_instance.memory->data;
 	uint8_t *src        = &linear_mem[offset];
 	uint8_t *dest       = &linear_mem[new_offset];
 

@@ -7,21 +7,20 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include "debuglog.h"
 #include "types.h" /* PAGE_SIZE */
 #include "wasm_types.h"
 
-#define WASM_LINEAR_MEMORY_MAX (size_t) UINT32_MAX + 1
+#define wasm_memory_MAX (size_t) UINT32_MAX + 1
 
-struct wasm_linear_memory {
+struct wasm_memory {
 	size_t  size;     /* Initial Size in bytes */
 	size_t  capacity; /* Size backed by actual pages */
 	size_t  max;      /* Soft cap in bytes. Defaults to 4GB */
 	uint8_t data[];
 };
 
-static inline struct wasm_linear_memory *
-wasm_linear_memory_allocate(size_t initial, size_t max)
+static inline struct wasm_memory *
+wasm_memory_allocate(size_t initial, size_t max)
 {
 	assert(initial > 0);
 	assert(initial <= (size_t)UINT32_MAX + 1);
@@ -29,21 +28,21 @@ wasm_linear_memory_allocate(size_t initial, size_t max)
 	assert(max <= (size_t)UINT32_MAX + 1);
 
 	/* Allocate contiguous virtual addresses for struct, full linear memory, and guard page */
-	size_t size_to_alloc = sizeof(struct wasm_linear_memory) + WASM_LINEAR_MEMORY_MAX + /* guard page */ PAGE_SIZE;
+	size_t size_to_alloc = sizeof(struct wasm_memory) + wasm_memory_MAX + /* guard page */ PAGE_SIZE;
 	void * temp          = mmap(NULL, size_to_alloc, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (temp == MAP_FAILED) {
-		debuglog("wasm_linear_memory_allocate - allocation failed, (size: %lu) %s\n", size_to_alloc,
-		         strerror(errno));
+		fprintf(stderr, "wasm_memory_allocate - allocation failed, (size: %lu) %s\n", size_to_alloc,
+		        strerror(errno));
 		return NULL;
 	}
-	struct wasm_linear_memory *self = (struct wasm_linear_memory *)temp;
+	struct wasm_memory *self = (struct wasm_memory *)temp;
 
 	/* Set the struct and initial pages to read / write */
-	size_t size_to_read_write = sizeof(struct wasm_linear_memory) + initial;
+	size_t size_to_read_write = sizeof(struct wasm_memory) + initial;
 
 	int rc = mprotect(self, size_to_read_write, PROT_READ | PROT_WRITE);
 	if (rc != 0) {
-		perror("wasm_linear_memory_allocate - prot r/w failed");
+		perror("wasm_memory_allocate - prot r/w failed");
 		munmap(self, size_to_alloc);
 		assert(0);
 		return NULL;
@@ -56,31 +55,31 @@ wasm_linear_memory_allocate(size_t initial, size_t max)
 }
 
 static inline void
-wasm_linear_memory_free(struct wasm_linear_memory *self)
+wasm_memory_free(struct wasm_memory *self)
 {
-	size_t size_to_free = sizeof(struct wasm_linear_memory) + self->max + /* guard page */ PAGE_SIZE;
+	size_t size_to_free = sizeof(struct wasm_memory) + self->max + /* guard page */ PAGE_SIZE;
 	munmap(self, size_to_free);
 }
 
 static inline void
-wasm_linear_memory_wipe(struct wasm_linear_memory *self)
+wasm_memory_wipe(struct wasm_memory *self)
 {
 	memset(self->data, 0, self->size);
 }
 
 static inline int
-wasm_linear_memory_expand(struct wasm_linear_memory *self, size_t size_to_expand)
+wasm_memory_expand(struct wasm_memory *self, size_t size_to_expand)
 {
 	size_t target_size = self->size + size_to_expand;
 	if (unlikely(target_size > self->max)) {
-		fprintf(stderr, "wasm_linear_memory_expand - Out of Memory!. %lu out of %lu\n", self->size, self->max);
+		fprintf(stderr, "wasm_memory_expand - Out of Memory!. %lu out of %lu\n", self->size, self->max);
 		return -1;
 	}
 
 	if (target_size > self->capacity) {
-		int rc = mprotect(self, sizeof(struct wasm_linear_memory) + target_size, PROT_READ | PROT_WRITE);
+		int rc = mprotect(self, sizeof(struct wasm_memory) + target_size, PROT_READ | PROT_WRITE);
 		if (rc != 0) {
-			perror("wasm_linear_memory_expand mprotect");
+			perror("wasm_memory_expand mprotect");
 			return -1;
 		}
 
@@ -98,7 +97,7 @@ wasm_linear_memory_expand(struct wasm_linear_memory *self, size_t size_to_expand
  * @return void pointer to something in WebAssembly linear memory
  */
 static inline void *
-wasm_linear_memory_get_ptr_void(struct wasm_linear_memory *self, uint32_t offset, uint32_t size)
+wasm_memory_get_ptr_void(struct wasm_memory *self, uint32_t offset, uint32_t size)
 {
 	assert(offset + size <= self->size);
 	return (void *)&self->data[offset];
@@ -110,7 +109,7 @@ wasm_linear_memory_get_ptr_void(struct wasm_linear_memory *self, uint32_t offset
  * @return char at the offset
  */
 static inline char
-wasm_linear_memory_get_char(struct wasm_linear_memory *self, uint32_t offset)
+wasm_memory_get_char(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(char) <= self->size);
 	return (char)self->data[offset];
@@ -122,7 +121,7 @@ wasm_linear_memory_get_char(struct wasm_linear_memory *self, uint32_t offset)
  * @return float at the offset
  */
 static inline float
-wasm_linear_memory_get_float(struct wasm_linear_memory *self, uint32_t offset)
+wasm_memory_get_float(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(float) <= self->size);
 	return *(float *)&self->data[offset];
@@ -134,7 +133,7 @@ wasm_linear_memory_get_float(struct wasm_linear_memory *self, uint32_t offset)
  * @return double at the offset
  */
 static inline double
-wasm_linear_memory_get_double(struct wasm_linear_memory *self, uint32_t offset)
+wasm_memory_get_double(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(double) <= self->size);
 	return *(double *)&self->data[offset];
@@ -146,7 +145,7 @@ wasm_linear_memory_get_double(struct wasm_linear_memory *self, uint32_t offset)
  * @return int8_t at the offset
  */
 static inline int8_t
-wasm_linear_memory_get_int8(struct wasm_linear_memory *self, uint32_t offset)
+wasm_memory_get_int8(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
 	return (int8_t)self->data[offset];
@@ -158,7 +157,7 @@ wasm_linear_memory_get_int8(struct wasm_linear_memory *self, uint32_t offset)
  * @return int16_t at the offset
  */
 static inline int16_t
-wasm_linear_memory_get_int16(struct wasm_linear_memory *self, uint32_t offset)
+wasm_memory_get_int16(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int16_t) <= self->size);
 	return *(int16_t *)&self->data[offset];
@@ -170,7 +169,7 @@ wasm_linear_memory_get_int16(struct wasm_linear_memory *self, uint32_t offset)
  * @return int32_t at the offset
  */
 static inline int32_t
-wasm_linear_memory_get_int32(struct wasm_linear_memory *self, uint32_t offset)
+wasm_memory_get_int32(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int32_t) <= self->size);
 	return *(int32_t *)&self->data[offset];
@@ -182,14 +181,14 @@ wasm_linear_memory_get_int32(struct wasm_linear_memory *self, uint32_t offset)
  * @return int32_t at the offset
  */
 static inline int64_t
-wasm_linear_memory_get_int64(struct wasm_linear_memory *self, uint32_t offset)
+wasm_memory_get_int64(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int64_t) <= self->size);
 	return *(int64_t *)&self->data[offset];
 }
 
 static inline uint32_t
-wasm_linear_memory_get_page_count(struct wasm_linear_memory *self)
+wasm_memory_get_page_count(struct wasm_memory *self)
 {
 	return (uint32_t)(self->size / WASM_PAGE_SIZE);
 }
@@ -201,7 +200,7 @@ wasm_linear_memory_get_page_count(struct wasm_linear_memory *self)
  * @return pointer to the string or NULL if max_length is reached without finding null-terminator
  */
 static inline char *
-wasm_linear_memory_get_string(struct wasm_linear_memory *self, uint32_t offset, uint32_t size)
+wasm_memory_get_string(struct wasm_memory *self, uint32_t offset, uint32_t size)
 {
 	assert(offset + (sizeof(char) * size) <= self->size);
 
@@ -217,7 +216,7 @@ wasm_linear_memory_get_string(struct wasm_linear_memory *self, uint32_t offset, 
  * @return double at the offset
  */
 static inline void
-wasm_linear_memory_set_double(struct wasm_linear_memory *self, uint32_t offset, double value)
+wasm_memory_set_double(struct wasm_memory *self, uint32_t offset, double value)
 {
 	assert(offset + sizeof(double) <= self->size);
 	*(double *)&self->data[offset] = value;
@@ -229,7 +228,7 @@ wasm_linear_memory_set_double(struct wasm_linear_memory *self, uint32_t offset, 
  * @return float at the offset
  */
 static inline void
-wasm_linear_memory_set_float(struct wasm_linear_memory *self, uint32_t offset, float value)
+wasm_memory_set_float(struct wasm_memory *self, uint32_t offset, float value)
 {
 	assert(offset + sizeof(float) <= self->size);
 	*(float *)&self->data[offset] = value;
@@ -241,7 +240,7 @@ wasm_linear_memory_set_float(struct wasm_linear_memory *self, uint32_t offset, f
  * @return int8_t at the offset
  */
 static inline void
-wasm_linear_memory_set_int8(struct wasm_linear_memory *self, uint32_t offset, int8_t value)
+wasm_memory_set_int8(struct wasm_memory *self, uint32_t offset, int8_t value)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
 	self->data[offset] = value;
@@ -253,7 +252,7 @@ wasm_linear_memory_set_int8(struct wasm_linear_memory *self, uint32_t offset, in
  * @return int16_t at the offset
  */
 static inline void
-wasm_linear_memory_set_int16(struct wasm_linear_memory *self, uint32_t offset, int16_t value)
+wasm_memory_set_int16(struct wasm_memory *self, uint32_t offset, int16_t value)
 {
 	assert(offset + sizeof(int16_t) <= self->size);
 	*(int16_t *)&self->data[offset] = value;
@@ -265,7 +264,7 @@ wasm_linear_memory_set_int16(struct wasm_linear_memory *self, uint32_t offset, i
  * @return int32_t at the offset
  */
 static inline void
-wasm_linear_memory_set_int32(struct wasm_linear_memory *self, uint32_t offset, int32_t value)
+wasm_memory_set_int32(struct wasm_memory *self, uint32_t offset, int32_t value)
 {
 	assert(offset + sizeof(int32_t) <= self->size);
 	*(int32_t *)&self->data[offset] = value;
@@ -277,27 +276,27 @@ wasm_linear_memory_set_int32(struct wasm_linear_memory *self, uint32_t offset, i
  * @return int64_t at the offset
  */
 static inline void
-wasm_linear_memory_set_int64(struct wasm_linear_memory *self, uint64_t offset, int64_t value)
+wasm_memory_set_int64(struct wasm_memory *self, uint64_t offset, int64_t value)
 {
 	assert(offset + sizeof(int64_t) <= self->size);
 	*(int32_t *)&self->data[offset] = value;
 }
 
 static inline void
-wasm_linear_memory_set_size(struct wasm_linear_memory *self, size_t size)
+wasm_memory_set_size(struct wasm_memory *self, size_t size)
 {
 	self->size = size;
 }
 
 static inline size_t
-wasm_linear_memory_get_size(struct wasm_linear_memory *self)
+wasm_memory_get_size(struct wasm_memory *self)
 {
 	return self->size;
 }
 
 static inline void
-wasm_linear_memory_initialize_region(struct wasm_linear_memory *self, uint32_t offset, uint32_t region_size,
-                                     uint8_t region[region_size])
+wasm_memory_initialize_region(struct wasm_memory *self, uint32_t offset, uint32_t region_size,
+                              uint8_t region[region_size])
 {
 	assert((size_t)offset + region_size <= self->size);
 	memcpy(&self->data[offset], region, region_size);

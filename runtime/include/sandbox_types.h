@@ -12,7 +12,8 @@
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_state.h"
-#include "wasm_types.h"
+#include "common/wasm_types.h"
+#include "common/wasm_memory.h"
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 #define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
@@ -94,9 +95,9 @@ struct sandbox {
 	struct module *module; /* the module this is an instance of */
 
 	/* WebAssembly Instance State  */
-	struct arch_context        ctxt;
-	struct sandbox_stack       stack;
-	struct wasm_linear_memory *memory;
+	struct arch_context  ctxt;
+	struct sandbox_stack stack;
+	struct wasm_memory * memory;
 
 	/* Scheduling and Temporal State */
 	struct sandbox_timestamps timestamp_of;

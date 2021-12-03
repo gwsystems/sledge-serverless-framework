@@ -9,7 +9,7 @@
 #include "sandbox_functions.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_initialized.h"
-#include "wasm_linear_memory.h"
+#include "common/wasm_memory.h"
 
 /**
  * Allocates a WebAssembly sandbox represented by the following layout
@@ -30,14 +30,13 @@ sandbox_allocate_linear_memory(struct sandbox *self)
 	assert(initial <= (size_t)UINT32_MAX + 1);
 	assert(max <= (size_t)UINT32_MAX + 1);
 
-	self->memory = (struct wasm_linear_memory *)pool_allocate_object(
-	  self->module->linear_memory_pool[worker_thread_idx]);
+	self->memory = (struct wasm_memory *)pool_allocate_object(self->module->linear_memory_pool[worker_thread_idx]);
 
 	if (self->memory == NULL) {
-		self->memory = wasm_linear_memory_allocate(initial, max);
+		self->memory = wasm_memory_allocate(initial, max);
 		if (unlikely(self->memory == NULL)) return -1;
 	} else {
-		wasm_linear_memory_set_size(self->memory, self->module->abi.starting_pages * WASM_PAGE_SIZE);
+		wasm_memory_set_size(self->memory, self->module->abi.starting_pages * WASM_PAGE_SIZE);
 	}
 
 	return 0;

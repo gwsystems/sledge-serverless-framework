@@ -16,7 +16,7 @@
 #include "panic.h"
 #include "runtime.h"
 #include "scheduler.h"
-#include "wasm_indirect_table.h"
+#include "common/wasm_table.h"
 
 const int JSON_MAX_ELEMENT_COUNT = 16;
 const int JSON_MAX_ELEMENT_SIZE  = 1024;
@@ -192,7 +192,7 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 	/* WebAssembly Indirect Table */
 	/* TODO: Should this be part of the module or per-sandbox? */
 	/* TODO: How should this table be sized? */
-	module->indirect_table = wasm_indirect_table_allocate(INDIRECT_TABLE_SIZE);
+	module->indirect_table = wasm_table_allocate(INDIRECT_TABLE_SIZE);
 
 	/* Request Response Buffer */
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
@@ -201,22 +201,22 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 	module->max_response_size = round_up_to_page(response_size);
 
 	/* Table initialization calls a function that runs within the sandbox. Rather than setting the current sandbox,
-	 * we partially fake this out by only setting the module_indirect_table and then clearing after table
+	 * we partially fake this out by only setting the table and then clearing after table
 	 * initialization is complete.
 	 *
 	 * assumption: This approach depends on module_new only being invoked at program start before preemption is
-	 * enabled. We are check that local_sandbox_context_cache.module_indirect_table is NULL to gain confidence that
+	 * enabled. We are check that current_wasm_module_instance.table is NULL to gain confidence that
 	 * we are not invoking this in a way that clobbers a current module.
 	 *
 	 * If we want to be able to do this later, we can possibly defer module_initialize_table until the first
-	 * invocation. Alternatively, we can maintain the module_indirect_table per sandbox and call initialize
+	 * invocation. Alternatively, we can maintain the table per sandbox and call initialize
 	 * on each sandbox if this "assumption" is too restrictive and we're ready to pay a per-sandbox performance hit.
 	 */
 
-	assert(local_sandbox_context_cache.module_indirect_table == NULL);
-	local_sandbox_context_cache.module_indirect_table = module->indirect_table;
+	assert(current_wasm_module_instance.table == NULL);
+	current_wasm_module_instance.table = module->indirect_table;
 	module_initialize_table(module);
-	local_sandbox_context_cache.module_indirect_table = NULL;
+	current_wasm_module_instance.table = NULL;
 
 	/* Initialize per worker linear memory pools */
 	module->linear_memory_pool = calloc(runtime_worker_threads_count, sizeof(struct pool *));

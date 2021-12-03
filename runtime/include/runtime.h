@@ -5,9 +5,8 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 
-#include "wasm_linear_memory.h"
 #include "likely.h"
-#include "types.h"
+#include "common/types.h"
 
 /**
  * Optimizing compilers and modern CPUs reorder instructions however it sees fit. This means that the resulting
@@ -50,11 +49,6 @@ extern uint64_t *                   runtime_worker_threads_deadline;
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);
 extern void runtime_set_resource_limits_to_max(void);
-
-/* External Symbols */
-extern void  alloc_linear_memory(void);
-INLINE char *get_function_from_table(uint32_t idx, uint32_t type_id);
-extern void  stub_init(int32_t offset);
 
 static inline char *
 runtime_print_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)

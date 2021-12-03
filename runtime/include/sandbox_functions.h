@@ -8,6 +8,7 @@
 #include "panic.h"
 #include "pool.h"
 #include "sandbox_request.h"
+#include "common/wasm_memory.h"
 
 /***************************
  * Public API              *
@@ -37,9 +38,9 @@ static inline void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
 	/* TODO Replace pool with parsec linked list */
-	wasm_linear_memory_wipe(sandbox->memory);
+	wasm_memory_wipe(sandbox->memory);
 	if (pool_free_object(sandbox->module->linear_memory_pool[worker_thread_idx], sandbox) < 0) {
-		wasm_linear_memory_free(sandbox->memory);
+		wasm_memory_free(sandbox->memory);
 	}
 	sandbox->memory = NULL;
 }
