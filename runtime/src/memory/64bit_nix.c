@@ -89,30 +89,3 @@ instruction_memory_grow(uint32_t count)
 	return rc;
 }
 
-/*
- * Table handling functionality
- * This was moved from compiletime in order to place the
- * function in the callstack in GDB. It can be moved back
- * to runtime/compiletime/memory/64bit_nix.c to remove the
- * additional function call
- */
-char *
-get_function_from_table(uint32_t idx, uint32_t type_id)
-{
-#ifdef LOG_FUNCTION_TABLE
-	fprintf(stderr, "get_function_from_table(idx: %u, type_id: %u)\n", idx, type_id);
-	fprintf(stderr, "indirect_table_size: %u\n", INDIRECT_TABLE_SIZE);
-#endif
-	assert(idx < INDIRECT_TABLE_SIZE);
-
-	struct indirect_table_entry f = local_sandbox_context_cache.module_indirect_table[idx];
-#ifdef LOG_FUNCTION_TABLE
-	fprintf(stderr, "assumed type: %u, type in table: %u\n", type_id, f.type_id);
-#endif
-	// FIXME: Commented out function type check because of gocr
-	// assert(f.type_id == type_id);
-
-	assert(f.func_pointer != NULL);
-
-	return f.func_pointer;
-}
