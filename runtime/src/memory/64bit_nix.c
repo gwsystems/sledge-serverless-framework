@@ -88,4 +88,3 @@ instruction_memory_grow(uint32_t count)
 
 	return rc;
 }
-
