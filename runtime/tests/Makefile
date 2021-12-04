@@ -61,3 +61,24 @@ resize.wasm:
 
 ../../runtime/bin/%.so: %.so
 	cp $^ $@
+
+.PHONY: fibonacci.install
+fibonacci.install: ../../runtime/bin/fibonacci_wasm.so
+
+.PHONY: empty.install
+empty.install: ../../runtime/bin/empty_wasm.so
+
+.PHONY: ekf.install
+ekf.install: ../../runtime/bin/ekf_wasm.so
+
+.PHONY: cifar10.install
+cifar10.install: ../../runtime/bin/cifar10_wasm.so
+
+.PHONY: gocr.install
+gocr.install: ../../runtime/bin/gocr_wasm.so
+
+.PHONY: lpd.install
+lpd.install: ../../runtime/bin/lpd_wasm.so
+
+.PHONY: resize.install
+resize.install: ../../runtime/bin/resize_wasm.so
