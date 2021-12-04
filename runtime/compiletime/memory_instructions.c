@@ -1,4 +1,5 @@
 #include <assert.h>
+
 #include "types.h"
 
 uint32_t
