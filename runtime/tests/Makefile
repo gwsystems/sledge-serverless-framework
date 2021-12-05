@@ -7,7 +7,7 @@ OPTFLAGS=-O3 -flto
 SLEDGE_BASE_DIR=../../
 SLEDGE_RT_DIR=${SLEDGE_BASE_DIR}/runtime/
 SLEDGE_COMPILETIME_INC=${SLEDGE_RT_DIR}/include
-SLEDGE_COMPILETIME_SRC=${SLEDGE_RT_DIR}/compiletime/instr.c ${SLEDGE_RT_DIR}/compiletime/memory/64bit_nix.c
+SLEDGE_COMPILETIME_SRC=${SLEDGE_RT_DIR}/compiletime/*.c
 
 ALL=fibonacci empty ekf cifar10 gocr lpd resize
 ALL_COPY_DEST=$(ALL:%=../../runtime/bin/%_wasm.so)
