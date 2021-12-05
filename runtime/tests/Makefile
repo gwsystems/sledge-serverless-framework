@@ -1,60 +1,84 @@
-include Makefile.inc
+AWSMCC=awsm
+CC=clang
 
-TESTS=fibonacci empty empty
+OPTFLAGS=-O3 -flto
 
-TESTSRT=$(TESTS:%=%_rt)
+# Compiletime Components to link into *.so
+SLEDGE_BASE_DIR=../../
+SLEDGE_RT_DIR=${SLEDGE_BASE_DIR}/runtime/
+SLEDGE_COMPILETIME_INC=${SLEDGE_RT_DIR}/include
+SLEDGE_COMPILETIME_SRC=${SLEDGE_RT_DIR}/compiletime/instr.c ${SLEDGE_RT_DIR}/compiletime/memory/64bit_nix.c
+
+ALL=fibonacci empty ekf cifar10 gocr lpd resize
+ALL_COPY_DEST=$(ALL:%=../../runtime/bin/%_wasm.so)
 
 .PHONY: all
-all: rttests tinyekf cifar10 gocr sod
-	@echo "Test Compilation done!"
-
-.PHONY: rttests
-rttests: $(TESTSRT)
+all: $(ALL_COPY_DEST)
 
 .PHONY: clean
 clean:
-	@echo "Cleaning Test Applications"
-	@rm -rf ${TMP_DIR}
+	@make clean -C ./fibonacci
+	@make clean -C ./empty
+	@make clean -C ./TinyEKF/extras/c/ -f wasm.mk
+	@make clean -C ./CMSIS_5_NN/ -f Makefile
 	@make clean -C ./gocr/src/ -f wasm.mk
 	@make clean -C ./sod/
+	@rm -f ../../runtime/bin/*.so
 
-.PHONY: tinyekf
-tinyekf:
-	@echo "Making and Installing tinyekf"
-	@make gps_ekf_fn.so -C ./TinyEKF/extras/c/ -f wasm.mk
-	@cp ./TinyEKF/extras/c/gps_ekf_fn.so ${SLEDGE_BIN_DIR}/ekf_wasm.so
+fibonacci.wasm:
+	@make fibonacci.wasm -C ./fibonacci
+	@cp ./fibonacci/fibonacci.wasm fibonacci.wasm
 
-.PHONY: cifar10
-cifar10:
-	@echo "Making and Installing cifar10"
-	@make cifar10.so -C ./CMSIS_5_NN/ -f Makefile
-	@cp ./CMSIS_5_NN/cifar10.so ${SLEDGE_BIN_DIR}/cifar10_wasm.so
+empty.wasm:
+	@make empty.wasm -C ./empty
+	@cp ./empty/empty.wasm empty.wasm
 
-.PHONY: gocr
-gocr:
-	@echo "Making and Installing gocr"
-	@make gocr.so -C ./gocr/src/ -f wasm.mk
-	@cp ./gocr/src/gocr.so ${SLEDGE_BIN_DIR}/gocr_wasm.so
+ekf.wasm:
+	@make gps_ekf_fn.wasm -C ./TinyEKF/extras/c/ -f wasm.mk
+	@cp ./TinyEKF/extras/c/gps_ekf_fn.wasm ekf.wasm
 
-.PHONY: sod
-sod:
-	@echo "Making and Installing license_plate_detection and image_resize"
-	@make dir samples.so -C ./sod/
-	@cp ./sod/bin/license_plate_detection.so ${SLEDGE_BIN_DIR}/lpd_wasm.so
-	@cp ./sod/bin/resize_image.so ${SLEDGE_BIN_DIR}/resize_wasm.so
+cifar10.wasm:
+	@make cifar10.wasm -C ./CMSIS_5_NN/ -f Makefile
+	@cp ./CMSIS_5_NN/cifar10.wasm cifar10.wasm
 
-%_rt:
-	@mkdir -p ${TMP_DIR}
-	# Compile the wasm file
-	@echo "Compiling $(@:%_rt=%)"
-	${WASMCC} ${$(@:%_rt=%)_CFLAGS} ${WASMCFLAGS} ${OPTFLAGS} $(@:%_rt=%)/*.c $(AWSM_DUMMY) -o ${TMP_DIR}/$(@:%_rt=%).wasm
+gocr.wasm:
+	@make gocr.wasm -C ./gocr/src/ -f wasm.mk
+	@cp ./gocr/src/gocr.wasm gocr.wasm
 
-	# Compile the *.bc file
+lpd.wasm:
+	@make dir license_plate_detection.wasm -C ./sod/
+	@cp ./sod/bin/license_plate_detection.wasm lpd.wasm
 
-	${AWSM_NAME} --inline-constant-globals --runtime-globals ${TMP_DIR}/$(@:%_rt=%).wasm -o ${TMP_DIR}/$(@:%_rt=%).bc
-	# Compile the *.so file
-	${CC} --shared -fPIC ${OPTFLAGS} -I${SLEDGE_RT_INC} -D${USE_MEM} ${TMP_DIR}/$(@:%_rt=%).bc ${SLEDGE_MEMC} ${SLEDGE_WASMISA} -o ${TMP_DIR}/$(@:%_rt=%)_wasm.so
-	# Copy the *.so file to the binary directory
-	@cp ${TMP_DIR}/$(@:%_rt=%)_wasm.so ${SLEDGE_BIN_DIR} 
-#	@rm -rf ${TMP_DIR}
+resize.wasm:
+	@make dir resize_image.wasm -C ./sod/
+	@cp ./sod/bin/resize_image.wasm resize.wasm
 
+%.bc: %.wasm
+	${AWSMCC} --inline-constant-globals --runtime-globals $^ -o $@
+
+%_wasm.so: %.bc ${SLEDGE_COMPILETIME_SRC}
+	${CC} --shared -fPIC ${OPTFLAGS} -I${SLEDGE_COMPILETIME_INC} $^ -o $@
+
+../../runtime/bin/%.so: %.so
+	cp $^ $@
+
+.PHONY: fibonacci.install
+fibonacci.install: ../../runtime/bin/fibonacci_wasm.so
+
+.PHONY: empty.install
+empty.install: ../../runtime/bin/empty_wasm.so
+
+.PHONY: ekf.install
+ekf.install: ../../runtime/bin/ekf_wasm.so
+
+.PHONY: cifar10.install
+cifar10.install: ../../runtime/bin/cifar10_wasm.so
+
+.PHONY: gocr.install
+gocr.install: ../../runtime/bin/gocr_wasm.so
+
+.PHONY: lpd.install
+lpd.install: ../../runtime/bin/lpd_wasm.so
+
+.PHONY: resize.install
+resize.install: ../../runtime/bin/resize_wasm.so
