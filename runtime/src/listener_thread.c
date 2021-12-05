@@ -169,7 +169,8 @@ listener_thread_main(void *dummy)
 				 */
 				uint64_t work_admitted = admissions_control_decide(module->admissions_info.estimate);
 				if (work_admitted == 0) {
-					client_socket_send(client_socket, 503);
+					client_socket_send_oneshot(client_socket, http_header_build(503),
+					                           http_header_len(503));
 					if (unlikely(close(client_socket) < 0))
 						debuglog("Error closing client socket - %s", strerror(errno));
 

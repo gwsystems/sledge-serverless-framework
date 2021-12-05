@@ -105,8 +105,6 @@ INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
 CFILES += src/*.c
 CFILES += src/arch/${ARCH}/*.c
 CFILES += src/libc/*.c
-CFILES += src/memory/common.c
-CFILES += src/memory/64bit_nix.c
 CFILES += thirdparty/dist/lib/http_parser.o
 
 # Configuring Jasmine

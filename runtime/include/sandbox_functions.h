@@ -35,9 +35,8 @@ sandbox_close_http(struct sandbox *sandbox)
 static inline void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
-	int rc = munmap(sandbox->memory.start, sandbox->memory.max + PAGE_SIZE);
-	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
-	sandbox->memory.start = NULL;
+	wasm_memory_free(sandbox->memory);
+	sandbox->memory = NULL;
 }
 
 /**

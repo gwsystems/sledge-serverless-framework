@@ -2,6 +2,9 @@
 
 #include <string.h>
 
+#include "http_total.h"
+#include "panic.h"
+
 #define HTTP_MAX_HEADER_COUNT        16
 #define HTTP_MAX_HEADER_LENGTH       32
 #define HTTP_MAX_HEADER_VALUE_LENGTH 64
@@ -30,46 +33,73 @@
 	"Server: SLEdge\r\n"       \
 	"Connection: close\r\n"    \
 	"Content-Type: %s\r\n"     \
-	"Content-Length: %s\r\n"   \
+	"Content-Length: %lu\r\n"  \
 	"\r\n"
 
 /* The sum of format specifier characters in the template above */
-#define HTTP_RESPONSE_200_TEMPLATE_FORMAT_SPECIFIER_LENGTH 4
+#define HTTP_RESPONSE_200_TEMPLATE_FORMAT_SPECIFIER_LENGTH 5
 
 /**
  * Calculates the number of bytes of the HTTP response containing the passed header values
  * @return total size in bytes
  */
 static inline size_t
-http_response_200_size(char *content_type, char *content_length)
+http_response_200_size(const char *content_type, ssize_t content_length)
 {
 	size_t size = 0;
 	size += strlen(HTTP_RESPONSE_200_TEMPLATE) - HTTP_RESPONSE_200_TEMPLATE_FORMAT_SPECIFIER_LENGTH;
 	size += strlen(content_type);
-	size += strlen(content_length);
+
+	while (content_length > 0) {
+		content_length /= 10;
+		size++;
+	}
+
 	return size;
 }
 
-/**
- * Writes the HTTP response header to the destination. This is assumed to have been sized
- * using the value returned by http_response_200_size. We have to use an intermediate buffer
- * in order to truncate off the null terminator
- * @return 0 on success, -1 otherwise
- */
 static inline int
-http_response_200(char *destination, char *content_type, char *content_length)
+http_header_200_build(char *buffer, const char *content_type, ssize_t content_length)
 {
-	size_t response_size = http_response_200_size(content_type, content_length);
-	char   buffer[response_size + 1];
-	int    rc = 0;
-	rc        = sprintf(buffer, HTTP_RESPONSE_200_TEMPLATE, content_type, content_length);
-	if (rc <= 0) goto err;
-	memmove(destination, buffer, response_size);
-	rc = 0;
+	return sprintf(buffer, HTTP_RESPONSE_200_TEMPLATE, content_type, content_length);
+}
 
-done:
-	return rc;
-err:
-	rc = -1;
-	goto done;
+static inline const char *
+http_header_build(int status_code)
+{
+	const char *response;
+	int         rc;
+	switch (status_code) {
+	case 503:
+		response = HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
+		http_total_increment_5XX();
+		break;
+	case 413:
+		response = HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE;
+		http_total_increment_4XX();
+		break;
+	case 400:
+		response = HTTP_RESPONSE_400_BAD_REQUEST;
+		http_total_increment_4XX();
+		break;
+	default:
+		panic("%d is not a valid status code\n", status_code);
+	}
+
+	return response;
+}
+
+static inline int
+http_header_len(int status_code)
+{
+	switch (status_code) {
+	case 503:
+		return strlen(HTTP_RESPONSE_503_SERVICE_UNAVAILABLE);
+	case 413:
+		return strlen(HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE);
+	case 400:
+		return strlen(HTTP_RESPONSE_400_BAD_REQUEST);
+	default:
+		panic("%d is not a valid status code\n", status_code);
+	}
 }

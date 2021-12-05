@@ -1,9 +1,9 @@
 #include <threads.h>
 
 #include "current_sandbox.h"
+#include "current_sandbox_send_response.h"
 #include "sandbox_functions.h"
 #include "sandbox_receive_request.h"
-#include "sandbox_send_response.h"
 #include "sandbox_set_as_asleep.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_returned.h"
@@ -16,13 +16,9 @@
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
-thread_local struct sandbox_context_cache local_sandbox_context_cache = {
-	.memory = {
-		.start = NULL,
-		.size = 0,
-		.max = 0,
-	},
-	.module_indirect_table = NULL,
+thread_local struct wasm_module_instance current_wasm_module_instance = {
+	.memory = NULL,
+	.table  = NULL,
 };
 
 /**
@@ -96,10 +92,12 @@ current_sandbox_init()
 	rc = sandbox_receive_request(sandbox);
 	if (rc == -2) {
 		/* Request size exceeded Buffer, send 413 Payload Too Large */
-		client_socket_send(sandbox->client_socket_descriptor, 413);
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(413), http_header_len(413),
+		                   current_sandbox_sleep);
 		goto err;
 	} else if (rc == -1) {
-		client_socket_send(sandbox->client_socket_descriptor, 400);
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(400), http_header_len(400),
+		                   current_sandbox_sleep);
 		goto err;
 	}
 
@@ -133,7 +131,7 @@ current_sandbox_fini()
 	sandbox->timestamp_of.completion = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
-	if (sandbox_send_response(sandbox) < 0) {
+	if (current_sandbox_send_response() < 0) {
 		error_message = "Unable to build and send client response\n";
 		goto err;
 	};

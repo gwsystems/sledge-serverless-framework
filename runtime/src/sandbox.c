@@ -8,6 +8,7 @@
 #include "sandbox_functions.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_initialized.h"
+#include "wasm_memory.h"
 
 /**
  * Allocates a WebAssembly sandbox represented by the following layout
@@ -15,77 +16,23 @@
  * @param module the module that we want to run
  * @returns the resulting sandbox or NULL if mmap failed
  */
-static inline struct sandbox *
-sandbox_allocate_memory(struct module *module)
+static inline int
+sandbox_allocate_linear_memory(struct sandbox *sandbox)
 {
-	assert(module != NULL);
+	assert(sandbox != NULL);
 
-	char *          error_message             = NULL;
-	unsigned long   memory_size               = WASM_PAGE_SIZE * WASM_MEMORY_PAGES_INITIAL; /* The initial pages */
-	uint64_t        memory_max                = (uint64_t)WASM_PAGE_SIZE * WASM_MEMORY_PAGES_MAX;
-	struct sandbox *sandbox                   = NULL;
-	unsigned long   page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
+	char *error_message = NULL;
 
-	unsigned long size_to_alloc = page_aligned_sandbox_size + module->max_request_size + module->max_request_size
-	                              + memory_max + /* guard page */ PAGE_SIZE;
-	unsigned long size_to_read_write = page_aligned_sandbox_size + module->max_request_size
-	                                   + module->max_request_size + memory_size;
+	size_t initial = (size_t)WASM_MEMORY_PAGES_INITIAL * WASM_PAGE_SIZE;
+	size_t max     = (size_t)WASM_MEMORY_PAGES_MAX * WASM_PAGE_SIZE;
 
-	/*
-	 * Control information should be page-aligned
-	 */
-	assert(round_up_to_page(size_to_alloc) == size_to_alloc);
+	assert(initial <= (size_t)UINT32_MAX + 1);
+	assert(max <= (size_t)UINT32_MAX + 1);
 
-	/* At an address of the system's choosing, allocate the memory, marking it as inaccessible */
-	errno      = 0;
-	void *addr = mmap(NULL, size_to_alloc, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (addr == MAP_FAILED) {
-		error_message = "sandbox_allocate_memory - memory allocation failed";
-		goto alloc_failed;
-	}
+	sandbox->memory = wasm_memory_allocate(initial, max);
+	if (unlikely(sandbox->memory == NULL)) return -1;
 
-	assert(addr != NULL);
-
-	/* Set the struct sandbox, HTTP Req/Resp buffer, and the initial Wasm Pages as read/write */
-	errno         = 0;
-	void *addr_rw = mmap(addr, size_to_read_write, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-	                     -1, 0);
-	if (addr_rw == MAP_FAILED) {
-		error_message = "set to r/w";
-		goto set_rw_failed;
-	}
-
-	sandbox = (struct sandbox *)addr_rw;
-
-	/* Populate Sandbox members */
-	sandbox->state  = SANDBOX_UNINITIALIZED;
-	sandbox->module = module;
-	module_acquire(module);
-
-	sandbox->request.base   = (char *)addr + page_aligned_sandbox_size;
-	sandbox->request.length = 0;
-
-	sandbox->response.base  = (char *)addr + page_aligned_sandbox_size + module->max_request_size;
-	sandbox->request.length = 0;
-
-	sandbox->memory.start = (char *)addr + page_aligned_sandbox_size + module->max_request_size
-	                        + module->max_request_size;
-	sandbox->memory.size = memory_size;
-	sandbox->memory.max  = memory_max;
-
-	memset(&sandbox->duration_of_state, 0, SANDBOX_STATE_COUNT * sizeof(uint64_t));
-
-done:
-	return sandbox;
-set_rw_failed:
-	sandbox = NULL;
-	errno   = 0;
-	int rc  = munmap(addr, size_to_alloc);
-	if (rc == -1) perror("Failed to munmap after fail to set r/w");
-alloc_failed:
-err:
-	perror(error_message);
-	goto done;
+	return 0;
 }
 
 static inline int
@@ -96,7 +43,7 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 
 	int rc = 0;
 
-	char *addr = mmap(NULL, sandbox->module->stack_size + /* guard page */ PAGE_SIZE, PROT_NONE,
+	char *addr = mmap(NULL, /* guard page */ PAGE_SIZE + sandbox->module->stack_size, PROT_NONE,
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (unlikely(addr == MAP_FAILED)) {
 		perror("sandbox allocate stack");
@@ -126,6 +73,20 @@ err_stack_allocation_failed:
 	goto done;
 }
 
+static inline int
+sandbox_allocate_http_buffers(struct sandbox *self)
+{
+	self->request.base = calloc(1, self->module->max_request_size);
+	if (self->request.base == NULL) return -1;
+	self->request.length = 0;
+
+	self->response.base = calloc(1, self->module->max_response_size);
+	if (self->response.base == NULL) return -1;
+	self->response.length = 0;
+
+	return 0;
+}
+
 /**
  * Allocates a new sandbox from a sandbox request
  * Frees the sandbox request on success
@@ -138,14 +99,27 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 	/* Validate Arguments */
 	assert(sandbox_request != NULL);
 
-	struct sandbox *sandbox;
-	char *          error_message = "";
-	uint64_t        now           = __getcycles();
+	char *   error_message = "";
+	uint64_t now           = __getcycles();
 
-	/* Allocate Sandbox control structures, buffers, and linear memory in a 4GB address space */
-	sandbox = sandbox_allocate_memory(sandbox_request->module);
-	if (!sandbox) {
-		error_message = "failed to allocate sandbox heap and linear memory";
+	int rc;
+
+	struct sandbox *sandbox                   = NULL;
+	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
+	sandbox                                   = calloc(1, page_aligned_sandbox_size);
+	if (sandbox == NULL) goto err_struct_allocation_failed;
+
+	/* Set state to initializing */
+	sandbox_set_as_initialized(sandbox, sandbox_request, now);
+
+	if (sandbox_allocate_http_buffers(sandbox)) {
+		error_message = "failed to allocate http buffers";
+		goto err_http_allocation_failed;
+	}
+
+	/* Allocate linear memory in a 4GB address space */
+	if (sandbox_allocate_linear_memory(sandbox)) {
+		error_message = "failed to allocate sandbox linear memory";
 		goto err_memory_allocation_failed;
 	}
 
@@ -175,13 +149,13 @@ err_stack_allocation_failed:
 	 */
 	sandbox->state                          = SANDBOX_UNINITIALIZED;
 	sandbox->timestamp_of.last_state_change = now;
-#ifdef LOG_SANDBOX_MEMORY_PROFILE
-	sandbox->timestamp_of.page_allocations_size = 0;
-#endif
+
 	ps_list_init_d(sandbox);
 err_memory_allocation_failed:
+err_http_allocation_failed:
 	sandbox_set_as_error(sandbox, SANDBOX_UNINITIALIZED);
 	perror(error_message);
+err_struct_allocation_failed:
 	sandbox = NULL;
 	goto done;
 }
@@ -221,7 +195,7 @@ sandbox_free(struct sandbox *sandbox)
 	 */
 
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
-	assert(sandbox->memory.start == NULL);
+	assert(sandbox->memory->data == NULL);
 	errno = 0;
 
 	unsigned long size_to_unmap = round_up_to_page(sizeof(struct sandbox)) + sandbox->module->max_request_size

@@ -53,8 +53,8 @@ struct module {
 	/* Handle and ABI Symbols for *.so file */
 	struct awsm_abi abi;
 
-	_Atomic uint32_t            reference_count; /* ref count how many instances exist here. */
-	struct indirect_table_entry indirect_table[INDIRECT_TABLE_SIZE];
+	_Atomic uint32_t   reference_count; /* ref count how many instances exist here. */
+	struct wasm_table *indirect_table;
 };
 
 /*************************

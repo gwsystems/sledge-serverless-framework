@@ -12,6 +12,7 @@
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_state.h"
+#include "wasm_memory.h"
 #include "wasm_types.h"
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
@@ -43,29 +44,6 @@ struct sandbox_timestamps {
 #endif
 };
 
-/*
- * Static In-memory buffers are used for HTTP requests read in via STDIN and HTTP
- * responses written back out via STDOUT. These are allocated in pages immediately
- * adjacent to the sandbox struct in the following layout. The capacity of these
- * buffers are configured in the module spec and stored in sandbox->module.max_request_size
- * and sandbox->module.max_response_size.
- *
- * Because the sandbox struct, the request header, and the response header are sized
- * in pages, we must store the base pointer to the buffer. The length is increased
- * and should not exceed the respective module max size.
- *
- * ---------------------------------------------------
- * | Sandbox | Request         | Response            |
- * ---------------------------------------------------
- *
- * After the sandbox writes its response, a header is written at a negative offset
- * overwriting the tail end of the request buffer. This assumes that the request
- * data is no longer needed because the sandbox has run to completion
- *
- * ---------------------------------------------------
- * | Sandbox | Garbage   | HDR | Response            |
- * ---------------------------------------------------
- */
 struct sandbox_buffer {
 	char * base;
 	size_t length;
@@ -97,7 +75,7 @@ struct sandbox {
 	/* WebAssembly Instance State  */
 	struct arch_context  ctxt;
 	struct sandbox_stack stack;
-	struct wasm_memory   memory;
+	struct wasm_memory * memory;
 
 	/* Scheduling and Temporal State */
 	struct sandbox_timestamps timestamp_of;
