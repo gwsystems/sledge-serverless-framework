@@ -12,7 +12,7 @@
  * Public API              *
  **************************/
 
-struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
+struct sandbox *sandbox_new(struct sandbox_request *sandbox_request);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 void            sandbox_switch_to(struct sandbox *next_sandbox);

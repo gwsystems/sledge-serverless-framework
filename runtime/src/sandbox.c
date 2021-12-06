@@ -87,6 +87,17 @@ sandbox_allocate_http_buffers(struct sandbox *self)
 	return 0;
 }
 
+static inline struct sandbox *
+sandbox_allocate(void)
+{
+	struct sandbox *sandbox                   = NULL;
+	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
+	sandbox                                   = calloc(1, page_aligned_sandbox_size);
+	sandbox->state                            = SANDBOX_ALLOCATED;
+	return sandbox;
+}
+
+
 /**
  * Allocates a new sandbox from a sandbox request
  * Frees the sandbox request on success
@@ -94,7 +105,7 @@ sandbox_allocate_http_buffers(struct sandbox *self)
  * @returns sandbox * on success, NULL on error
  */
 struct sandbox *
-sandbox_allocate(struct sandbox_request *sandbox_request)
+sandbox_new(struct sandbox_request *sandbox_request)
 {
 	/* Validate Arguments */
 	assert(sandbox_request != NULL);
@@ -104,13 +115,12 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 
 	int rc;
 
-	struct sandbox *sandbox                   = NULL;
-	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
-	sandbox                                   = calloc(1, page_aligned_sandbox_size);
+	struct sandbox *sandbox = sandbox_allocate();
 	if (sandbox == NULL) goto err_struct_allocation_failed;
 
-	/* Set state to initializing */
-	sandbox_set_as_initialized(sandbox, sandbox_request, now);
+	sandbox_init(sandbox, sandbox_request, now);
+
+	free(sandbox_request);
 
 	if (sandbox_allocate_http_buffers(sandbox)) {
 		error_message = "failed to allocate http buffers";
@@ -128,18 +138,12 @@ sandbox_allocate(struct sandbox_request *sandbox_request)
 		error_message = "failed to allocate sandbox stack";
 		goto err_stack_allocation_failed;
 	}
-	sandbox->state = SANDBOX_ALLOCATED;
 
-#ifdef LOG_STATE_CHANGES
-	sandbox->state_history_count                           = 0;
-	sandbox->state_history[sandbox->state_history_count++] = SANDBOX_ALLOCATED;
-	memset(&sandbox->state_history, 0, SANDBOX_STATE_HISTORY_CAPACITY * sizeof(sandbox_state_t));
-#endif
+	/* Initialize the sandbox's context, stack, and instruction pointer */
+	/* stack.start points to the bottom of the usable stack, so add stack_size to get to top */
+	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_start,
+	                  (reg_t)sandbox->stack.start + sandbox->stack.size);
 
-	/* Set state to initializing */
-	sandbox_set_as_initialized(sandbox, sandbox_request, now);
-
-	free(sandbox_request);
 done:
 	return sandbox;
 err_stack_allocation_failed:
@@ -195,7 +199,7 @@ sandbox_free(struct sandbox *sandbox)
 	 */
 
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
-	assert(sandbox->memory->data == NULL);
+	assert(sandbox->memory == NULL);
 	errno = 0;
 
 	unsigned long size_to_unmap = round_up_to_page(sizeof(struct sandbox)) + sandbox->module->max_request_size

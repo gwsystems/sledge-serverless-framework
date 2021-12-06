@@ -38,15 +38,12 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	/* Copy the socket descriptor and address of the client invocation */
 	memcpy(&sandbox->client_address, &sandbox_request->socket_address, sizeof(struct sockaddr));
 
-
-	/* Initialize the sandbox's context, stack, and instruction pointer */
-	/* stack.start points to the bottom of the usable stack, so add stack_size to get to top */
-	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_start,
-	                  (reg_t)sandbox->stack.start + sandbox->stack.size);
-
 	/* Initialize Parsec control structures */
 	ps_list_init_d(sandbox);
 
+	/* Allocations require the module to be set */
+	sandbox->module = sandbox_request->module;
+	module_acquire(sandbox->module);
 
 	/* State Change Bookkeeping */
 	sandbox->duration_of_state[SANDBOX_ALLOCATED] = now - allocation_timestamp;
@@ -54,4 +51,17 @@ sandbox_set_as_initialized(struct sandbox *sandbox, struct sandbox_request *sand
 	sandbox->timestamp_of.last_state_change       = allocation_timestamp;
 	sandbox_state_history_append(sandbox, SANDBOX_INITIALIZED);
 	runtime_sandbox_total_increment(SANDBOX_INITIALIZED);
+
+#ifdef LOG_STATE_CHANGES
+	sandbox->state_history_count                           = 0;
+	sandbox->state_history[sandbox->state_history_count++] = SANDBOX_ALLOCATED;
+	memset(&sandbox->state_history, 0, SANDBOX_STATE_HISTORY_CAPACITY * sizeof(sandbox_state_t));
+#endif
+}
+
+
+static inline void
+sandbox_init(struct sandbox *sandbox, struct sandbox_request *sandbox_request, uint64_t allocation_timestamp)
+{
+	sandbox_set_as_initialized(sandbox, sandbox_request, allocation_timestamp);
 }

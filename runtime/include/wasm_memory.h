@@ -10,7 +10,7 @@
 #include "types.h" /* PAGE_SIZE */
 #include "wasm_types.h"
 
-#define wasm_memory_MAX (size_t) UINT32_MAX + 1
+#define WASM_MEMORY_MAX (size_t) UINT32_MAX + 1
 
 struct wasm_memory {
 	size_t  size;     /* Initial Size in bytes */
@@ -28,7 +28,7 @@ wasm_memory_allocate(size_t initial, size_t max)
 	assert(max <= (size_t)UINT32_MAX + 1);
 
 	/* Allocate contiguous virtual addresses for struct, full linear memory, and guard page */
-	size_t size_to_alloc = sizeof(struct wasm_memory) + wasm_memory_MAX + /* guard page */ PAGE_SIZE;
+	size_t size_to_alloc = sizeof(struct wasm_memory) + WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE;
 	void * temp          = mmap(NULL, size_to_alloc, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (temp == MAP_FAILED) {
 		fprintf(stderr, "wasm_memory_allocate - allocation failed, (size: %lu) %s\n", size_to_alloc,

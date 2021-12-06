@@ -86,7 +86,7 @@ scheduler_edf_get_next()
 		if (global_request_scheduler_remove_if_earlier(&request, local_deadline) == 0) {
 			assert(request != NULL);
 			assert(request->absolute_deadline < local_deadline);
-			struct sandbox *global = sandbox_allocate(request);
+			struct sandbox *global = sandbox_new(request);
 			if (!global) goto err_allocate;
 
 			assert(global->state == SANDBOX_INITIALIZED);
@@ -115,7 +115,7 @@ scheduler_fifo_get_next()
 		/* If the local runqueue is empty, pull from global request scheduler */
 		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
 
-		sandbox = sandbox_allocate(sandbox_request);
+		sandbox = sandbox_new(sandbox_request);
 		if (!sandbox) goto err_allocate;
 
 		sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
