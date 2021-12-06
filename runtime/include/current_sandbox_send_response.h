@@ -25,12 +25,14 @@ current_sandbox_send_response()
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
+	struct vec_u8 *response = sandbox->response;
+	assert(response != NULL);
 
 	int     rc;
 	ssize_t sent = 0;
 
 	/* Determine values to template into our HTTP response */
-	ssize_t     response_body_size  = sandbox->response.length;
+	ssize_t     response_body_size  = response->length;
 	char *      module_content_type = sandbox->module->response_content_type;
 	const char *content_type        = strlen(module_content_type) > 0 ? module_content_type : "text/plain";
 
@@ -50,8 +52,8 @@ current_sandbox_send_response()
 	                   current_sandbox_sleep);
 
 	/* Send HTTP Response Body */
-	client_socket_send(sandbox->client_socket_descriptor, sandbox->response.base, response_body_size,
-	                   current_sandbox_sleep);
+	client_socket_send(sandbox->client_socket_descriptor, (const char *)response->buffer,
+	                   response_body_size, current_sandbox_sleep);
 
 	http_total_increment_2xx();
 	rc = 0;

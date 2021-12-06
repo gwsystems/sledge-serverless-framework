@@ -57,7 +57,7 @@ wasm_memory_allocate(size_t initial, size_t max)
 static inline void
 wasm_memory_free(struct wasm_memory *self)
 {
-	size_t size_to_free = sizeof(struct wasm_memory) + self->max + /* guard page */ PAGE_SIZE;
+	size_t size_to_free = sizeof(struct wasm_memory) + WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE;
 	munmap(self, size_to_free);
 }
 

@@ -6,17 +6,18 @@
 
 #include "client_socket.h"
 #include "panic.h"
-#include "sandbox_request.h"
+#include "sandbox_types.h"
 
 /***************************
  * Public API              *
  **************************/
 
-struct sandbox *sandbox_new(struct sandbox_request *sandbox_request);
+struct sandbox *sandbox_new(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
+                            uint64_t request_arrival_timestamp, uint64_t admissions_estimate);
+int             sandbox_prepare_execution_environemnt(struct sandbox *sandbox);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 void            sandbox_switch_to(struct sandbox *next_sandbox);
-
 static inline void
 sandbox_close_http(struct sandbox *sandbox)
 {
@@ -37,6 +38,22 @@ sandbox_free_linear_memory(struct sandbox *sandbox)
 {
 	wasm_memory_free(sandbox->memory);
 	sandbox->memory = NULL;
+}
+
+/**
+ * Free Linear Memory, leaving stack in place
+ * @param sandbox
+ */
+static inline void
+sandbox_free_http_buffers(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	assert(sandbox->request);
+	assert(sandbox->response);
+	vec_u8_free(sandbox->request);
+	vec_u8_free(sandbox->response);
+	sandbox->request  = NULL;
+	sandbox->response = NULL;
 }
 
 /**

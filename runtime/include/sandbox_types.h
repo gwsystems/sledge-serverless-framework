@@ -12,25 +12,19 @@
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_state.h"
+#include "sandbox_state_history.h"
+#include "vec_u8.h"
 #include "wasm_memory.h"
 #include "wasm_types.h"
+#include "wasm_stack.h"
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 #define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
 #endif
 
-#ifdef LOG_STATE_CHANGES
-#define SANDBOX_STATE_HISTORY_CAPACITY 100
-#endif
-
 /*********************
  * Structs and Types *
  ********************/
-
-struct sandbox_stack {
-	void *   start; /* points to the bottom of the usable stack */
-	uint32_t size;
-};
 
 struct sandbox_timestamps {
 	uint64_t last_state_change; /* Used for bookkeeping of actual execution time */
@@ -44,38 +38,29 @@ struct sandbox_timestamps {
 #endif
 };
 
-struct sandbox_buffer {
-	char * base;
-	size_t length;
-};
-
 struct sandbox {
-	uint64_t        id;
-	sandbox_state_t state;
-
-#ifdef LOG_STATE_CHANGES
-	sandbox_state_t state_history[SANDBOX_STATE_HISTORY_CAPACITY];
-	uint16_t        state_history_count;
-#endif
+	uint64_t                     id;
+	sandbox_state_t              state;
+	struct sandbox_state_history state_history;
 
 	struct ps_list list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
 
 	/* HTTP State */
-	struct sockaddr       client_address; /* client requesting connection! */
-	int                   client_socket_descriptor;
-	http_parser           http_parser;
-	struct http_request   http_request;
-	ssize_t               http_request_length; /* TODO: Get rid of me */
-	struct sandbox_buffer request;
-	struct sandbox_buffer response;
+	struct sockaddr     client_address; /* client requesting connection! */
+	int                 client_socket_descriptor;
+	http_parser         http_parser;
+	struct http_request http_request;
+	ssize_t             http_request_length; /* TODO: Get rid of me */
+	struct vec_u8 *     request;
+	struct vec_u8 *     response;
 
 	/* WebAssembly Module State */
 	struct module *module; /* the module this is an instance of */
 
 	/* WebAssembly Instance State  */
-	struct arch_context  ctxt;
-	struct sandbox_stack stack;
-	struct wasm_memory * memory;
+	struct arch_context ctxt;
+	struct wasm_stack   stack;
+	struct wasm_memory *memory;
 
 	/* Scheduling and Temporal State */
 	struct sandbox_timestamps timestamp_of;

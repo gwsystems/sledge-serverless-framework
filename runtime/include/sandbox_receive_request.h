@@ -24,10 +24,12 @@ static inline int
 sandbox_receive_request(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-	assert(sandbox->module->max_request_size > 0);
-	assert(sandbox->request.length == 0);
 
 	int rc = 0;
+
+	struct vec_u8 *request = sandbox->request;
+	assert(request->length == 0);
+	assert(request->capacity > 0);
 
 	while (!sandbox->http_request.message_end) {
 		/* Read from the Socket */
@@ -36,14 +38,16 @@ sandbox_receive_request(struct sandbox *sandbox)
 		http_parser *               parser   = &sandbox->http_parser;
 		const http_parser_settings *settings = http_parser_settings_get();
 
-		if (sandbox->module->max_request_size <= sandbox->request.length) {
+		size_t request_length   = request->length;
+		size_t request_capacity = request->capacity;
+
+		if (request_length >= request_capacity) {
 			debuglog("Sandbox %lu: Ran out of Request Buffer before message end\n", sandbox->id);
 			goto err_nobufs;
 		}
 
-		ssize_t bytes_received = recv(sandbox->client_socket_descriptor,
-		                              &sandbox->request.base[sandbox->request.length],
-		                              sandbox->module->max_request_size - sandbox->request.length, 0);
+		ssize_t bytes_received = recv(sandbox->client_socket_descriptor, &request->buffer[request_length],
+		                              request_capacity - request_length, 0);
 
 		if (bytes_received == -1) {
 			if (errno == EAGAIN) {
@@ -75,7 +79,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 		         &sandbox->request.base[sandbox->request.length], bytes_received);
 #endif
 		size_t bytes_parsed = http_parser_execute(parser, settings,
-		                                          &sandbox->request.base[sandbox->request.length],
+		                                          (const char *)&request->buffer[request_length],
 		                                          bytes_received);
 
 		if (bytes_parsed != bytes_received) {
@@ -87,7 +91,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 			goto err;
 		}
 
-		sandbox->request.length += bytes_parsed;
+		request->length += bytes_parsed;
 	}
 
 	rc = 0;

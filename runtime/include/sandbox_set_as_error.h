@@ -33,12 +33,12 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_UNINITIALIZED:
-		/* Technically, this is a degenerate sandbox that we generate by hand */
+	case SANDBOX_ALLOCATED:
 		break;
 	case SANDBOX_RUNNING_SYS: {
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
+		sandbox_free_http_buffers(sandbox);
 		break;
 	}
 	default: {
@@ -50,9 +50,9 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* State Change Bookkeeping */
 	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
 	sandbox->duration_of_state[last_state] += duration_of_last_state;
-	sandbox_state_history_append(sandbox, SANDBOX_ERROR);
-	runtime_sandbox_total_increment(SANDBOX_ERROR);
-	runtime_sandbox_total_decrement(last_state);
+	sandbox_state_history_append(&sandbox->state_history, SANDBOX_ERROR);
+	sandbox_state_totals_increment(SANDBOX_ERROR);
+	sandbox_state_totals_decrement(last_state);
 
 	/* Admissions Control Post Processing */
 	admissions_control_subtract(sandbox->admissions_estimate);

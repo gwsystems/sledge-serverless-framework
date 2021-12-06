@@ -3,7 +3,7 @@
 #include <threads.h>
 
 #include "sandbox_types.h"
-#include "wasm_store.h"
+#include "wasm_module_instance.h"
 
 /* current sandbox that is active.. */
 extern thread_local struct sandbox *worker_thread_current_sandbox;

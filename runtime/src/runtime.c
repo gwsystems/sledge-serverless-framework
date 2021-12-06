@@ -20,7 +20,7 @@
 #include "listener_thread.h"
 #include "module.h"
 #include "runtime.h"
-#include "sandbox_request.h"
+#include "sandbox_total.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
 
@@ -101,8 +101,8 @@ runtime_initialize(void)
 	memset(runtime_worker_threads_deadline, UINT8_MAX, runtime_worker_threads_count * sizeof(uint64_t));
 
 	http_total_init();
-	sandbox_request_count_initialize();
-	sandbox_count_initialize();
+	sandbox_total_initialize();
+	sandbox_state_totals_initialize();
 
 	/* Setup Scheduler */
 	scheduler_initialize();

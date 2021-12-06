@@ -25,8 +25,8 @@ sandbox_set_as_interrupted(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
 	sandbox->timestamp_of.last_state_change = now;
 	/* We do not append SANDBOX_INTERRUPTED to the sandbox_state_history because it would quickly fill the buffer */
-	runtime_sandbox_total_increment(SANDBOX_INTERRUPTED);
-	runtime_sandbox_total_decrement(last_state);
+	sandbox_state_totals_increment(SANDBOX_INTERRUPTED);
+	sandbox_state_totals_decrement(last_state);
 }
 
 static inline void
@@ -53,8 +53,8 @@ sandbox_interrupt_return(struct sandbox *sandbox, sandbox_state_t interrupted_st
 	sandbox->duration_of_state[SANDBOX_INTERRUPTED] += (now - sandbox->timestamp_of.last_state_change);
 	sandbox->timestamp_of.last_state_change = now;
 	/* We do not append SANDBOX_INTERRUPTED to the sandbox_state_history because it would quickly fill the buffer */
-	runtime_sandbox_total_increment(interrupted_state);
-	runtime_sandbox_total_decrement(SANDBOX_INTERRUPTED);
+	sandbox_state_totals_increment(interrupted_state);
+	sandbox_state_totals_decrement(SANDBOX_INTERRUPTED);
 
 	barrier();
 	/* WARNING: Code after this assignment may be preemptable */

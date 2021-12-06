@@ -10,43 +10,42 @@
 static struct priority_queue *global_request_scheduler_minheap;
 
 /**
- * Pushes a sandbox request to the global deque
- * @param sandbox_request
- * @returns pointer to request if added. NULL otherwise
+ * Pushes a sandbox to the global deque
+ * @param sandbox
+ * @returns pointer to request if added. Panics runtime otherwise
  */
-static struct sandbox_request *
-global_request_scheduler_minheap_add(void *sandbox_request)
+static struct sandbox *
+global_request_scheduler_minheap_add(void *sandbox_raw)
 {
-	assert(sandbox_request);
+	assert(sandbox_raw);
 	assert(global_request_scheduler_minheap);
 	if (unlikely(!listener_thread_is_running())) panic("%s is only callable by the listener thread\n", __func__);
 
-	int return_code = priority_queue_enqueue(global_request_scheduler_minheap, sandbox_request);
+	int return_code = priority_queue_enqueue(global_request_scheduler_minheap, sandbox_raw);
 	/* TODO: Propagate -1 to caller. Issue #91 */
 	if (return_code == -ENOSPC) panic("Request Queue is full\n");
-	return sandbox_request;
+	return (struct sandbox *)sandbox_raw;
 }
 
 /**
- * @param pointer to the pointer that we want to set to the address of the removed sandbox request
+ * @param pointer to the pointer that we want to set to the address of the removed sandbox
  * @returns 0 if successful, -ENOENT if empty
  */
 int
-global_request_scheduler_minheap_remove(struct sandbox_request **removed_sandbox_request)
+global_request_scheduler_minheap_remove(struct sandbox **removed_sandbox)
 {
-	return priority_queue_dequeue(global_request_scheduler_minheap, (void **)removed_sandbox_request);
+	return priority_queue_dequeue(global_request_scheduler_minheap, (void **)removed_sandbox);
 }
 
 /**
- * @param removed_sandbox_request pointer to set to removed sandbox request
+ * @param removed_sandbox pointer to set to removed sandbox
  * @param target_deadline the deadline that the request must be earlier than to dequeue
  * @returns 0 if successful, -ENOENT if empty or if request isn't earlier than target_deadline
  */
 int
-global_request_scheduler_minheap_remove_if_earlier(struct sandbox_request **removed_sandbox_request,
-                                                   uint64_t                 target_deadline)
+global_request_scheduler_minheap_remove_if_earlier(struct sandbox **removed_sandbox, uint64_t target_deadline)
 {
-	return priority_queue_dequeue_if_earlier(global_request_scheduler_minheap, (void **)removed_sandbox_request,
+	return priority_queue_dequeue_if_earlier(global_request_scheduler_minheap, (void **)removed_sandbox,
 	                                         target_deadline);
 }
 
@@ -63,10 +62,10 @@ global_request_scheduler_minheap_peek(void)
 }
 
 uint64_t
-sandbox_request_get_priority_fn(void *element)
+sandbox_get_priority_fn(void *element)
 {
-	struct sandbox_request *sandbox_request = (struct sandbox_request *)element;
-	return sandbox_request->absolute_deadline;
+	struct sandbox *sandbox = (struct sandbox *)element;
+	return sandbox->absolute_deadline;
 };
 
 
@@ -76,7 +75,7 @@ sandbox_request_get_priority_fn(void *element)
 void
 global_request_scheduler_minheap_initialize()
 {
-	global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_request_get_priority_fn);
+	global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_get_priority_fn);
 
 	struct global_request_scheduler_config config = {
 		.add_fn               = global_request_scheduler_minheap_add,

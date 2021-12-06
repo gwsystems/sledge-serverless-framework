@@ -14,7 +14,7 @@
 #include "scheduler.h"
 #include "sandbox_functions.h"
 #include "worker_thread.h"
-#include "wasm_store.h"
+#include "wasm_module_instance.h"
 
 // What should we tell the child program its UID and GID are?
 #define UID 0xFF
@@ -141,12 +141,12 @@ wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 	if (fd == STDERR_FILENO) { write(STDERR_FILENO, buffer, buf_size); }
 
 	if (fd == STDOUT_FILENO) {
-		int buffer_remaining = s->module->max_response_size - s->response.length;
+		int buffer_remaining = s->response->capacity - s->response->length;
 		int to_write         = buffer_remaining > buf_size ? buf_size : buffer_remaining;
 
 		if (to_write == 0) return 0;
-		memcpy(&s->response.base[s->response.length], buffer, to_write);
-		s->response.length += to_write;
+		memcpy(&s->response->buffer[s->response->length], buffer, to_write);
+		s->response->length += to_write;
 
 		return to_write;
 	}

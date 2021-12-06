@@ -33,6 +33,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->total_time            = now - sandbox->timestamp_of.request_arrival;
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
+		sandbox_free_http_buffers(sandbox);
 		break;
 	}
 	default: {
@@ -44,7 +45,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* State Change Bookkeeping */
 	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
 	sandbox->timestamp_of.last_state_change = now;
-	sandbox_state_history_append(sandbox, SANDBOX_RETURNED);
-	runtime_sandbox_total_increment(SANDBOX_RETURNED);
-	runtime_sandbox_total_decrement(last_state);
+	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RETURNED);
+	sandbox_state_totals_increment(SANDBOX_RETURNED);
+	sandbox_state_totals_decrement(last_state);
 }

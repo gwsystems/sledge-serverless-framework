@@ -1,5 +1,5 @@
 #include "types.h"
-#include "wasm_store.h"
+#include "wasm_module_instance.h"
 
 extern thread_local struct wasm_module_instance current_wasm_module_instance;
 
