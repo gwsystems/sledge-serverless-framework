@@ -27,8 +27,6 @@ wasm_stack_allocate(struct wasm_stack *stack, size_t capacity)
 
 	int rc = 0;
 
-	char *addr, *addr_rw;
-
 	stack->buffer = (uint8_t *)mmap(NULL, /* guard page */ PAGE_SIZE + capacity, PROT_NONE,
 	                                MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (unlikely(stack->buffer == MAP_FAILED)) {
@@ -38,7 +36,7 @@ wasm_stack_allocate(struct wasm_stack *stack, size_t capacity)
 
 	stack->low = (uint8_t *)mmap(stack->buffer + /* guard page */ PAGE_SIZE, capacity, PROT_READ | PROT_WRITE,
 	                             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-	if (unlikely(addr_rw == MAP_FAILED)) {
+	if (unlikely(stack->low == MAP_FAILED)) {
 		perror("sandbox set stack read/write");
 		goto err_stack_prot_failed;
 	}
