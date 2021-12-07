@@ -112,7 +112,7 @@ static inline char
 wasm_memory_get_char(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(char) <= self->size);
-	return (char)self->data[offset];
+	return *(char *)&self->data[offset];
 }
 
 /**
@@ -148,7 +148,7 @@ static inline int8_t
 wasm_memory_get_i8(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
-	return (int8_t)self->data[offset];
+	return *(int8_t *)&self->data[offset];
 }
 
 /**
@@ -243,7 +243,7 @@ static inline void
 wasm_memory_set_i8(struct wasm_memory *self, uint32_t offset, int8_t value)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
-	self->data[offset] = value;
+	*(int8_t *)&self->data[offset] = value;
 }
 
 /**
@@ -279,7 +279,7 @@ static inline void
 wasm_memory_set_i64(struct wasm_memory *self, uint64_t offset, int64_t value)
 {
 	assert(offset + sizeof(int64_t) <= self->size);
-	*(int32_t *)&self->data[offset] = value;
+	*(int64_t *)&self->data[offset] = value;
 }
 
 static inline void

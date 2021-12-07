@@ -57,6 +57,7 @@ wasm_table_set(struct wasm_table *self, uint32_t idx, uint32_t type_id, char *po
 {
 	assert(self != NULL);
 	assert(idx < self->capacity);
+	assert(pointer != NULL);
 
 	/* TODO: atomic for multiple concurrent invocations? Issue #97 */
 	if (self->data[idx].type_id == type_id && self->data[idx].func_pointer == pointer) return;

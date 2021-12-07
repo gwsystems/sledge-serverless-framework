@@ -50,7 +50,6 @@ struct sandbox {
 	int                 client_socket_descriptor;
 	http_parser         http_parser;
 	struct http_request http_request;
-	ssize_t             http_request_length; /* TODO: Get rid of me */
 	struct vec_u8 *     request;
 	struct vec_u8 *     response;
 

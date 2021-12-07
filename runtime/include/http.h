@@ -39,29 +39,11 @@
 /* The sum of format specifier characters in the template above */
 #define HTTP_RESPONSE_200_TEMPLATE_FORMAT_SPECIFIER_LENGTH 5
 
-/**
- * Calculates the number of bytes of the HTTP response containing the passed header values
- * @return total size in bytes
- */
-static inline size_t
-http_response_200_size(const char *content_type, ssize_t content_length)
-{
-	size_t size = 0;
-	size += strlen(HTTP_RESPONSE_200_TEMPLATE) - HTTP_RESPONSE_200_TEMPLATE_FORMAT_SPECIFIER_LENGTH;
-	size += strlen(content_type);
-
-	while (content_length > 0) {
-		content_length /= 10;
-		size++;
-	}
-
-	return size;
-}
 
 static inline int
-http_header_200_build(char *buffer, const char *content_type, ssize_t content_length)
+http_header_200_write(int fd, const char *content_type, size_t content_length)
 {
-	return sprintf(buffer, HTTP_RESPONSE_200_TEMPLATE, content_type, content_length);
+	return dprintf(fd, HTTP_RESPONSE_200_TEMPLATE, content_type, content_length);
 }
 
 static inline const char *

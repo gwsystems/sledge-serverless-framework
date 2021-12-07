@@ -36,7 +36,7 @@ client_socket_close(int client_socket, struct sockaddr *client_address)
 typedef void (*void_cb)(void);
 
 /**
- * Rejects request due to admission control or error
+ * Writes buffer to the client socket
  * @param client_socket - the client we are rejecting
  * @param buffer - buffer to write to socket
  * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
@@ -53,19 +53,20 @@ client_socket_send(int client_socket, const char *buffer, size_t buffer_len, voi
 		ssize_t sent = write(client_socket, &buffer[cursor], buffer_len - cursor);
 		if (sent < 0) {
 			if (errno == EAGAIN) {
-				if (on_eagain) {
-					on_eagain();
-				} else {
+				if (on_eagain == NULL) {
 					rc = -1;
 					goto done;
 				}
+				on_eagain();
 			} else {
 				debuglog("Error sending to client: %s", strerror(errno));
 				rc = -1;
 				goto done;
 			}
 		}
-		cursor += sent;
+
+		assert(sent > 0);
+		cursor += (size_t)sent;
 	};
 
 	rc = 0;

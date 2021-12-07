@@ -49,7 +49,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 		ssize_t bytes_received = recv(sandbox->client_socket_descriptor, &request->buffer[request_length],
 		                              request_capacity - request_length, 0);
 
-		if (bytes_received == -1) {
+		if (bytes_received < 0) {
 			if (errno == EAGAIN) {
 				current_sandbox_sleep();
 				continue;
@@ -74,19 +74,21 @@ sandbox_receive_request(struct sandbox *sandbox)
 			goto err;
 		}
 
+		assert(bytes_received > 0);
+
 #ifdef LOG_HTTP_PARSER
 		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings,
 		         &sandbox->request.base[sandbox->request.length], bytes_received);
 #endif
 		size_t bytes_parsed = http_parser_execute(parser, settings,
 		                                          (const char *)&request->buffer[request_length],
-		                                          bytes_received);
+		                                          (size_t)bytes_received);
 
-		if (bytes_parsed != bytes_received) {
+		if (bytes_parsed != (size_t)bytes_received) {
 			debuglog("Error: %s, Description: %s\n",
 			         http_errno_name((enum http_errno)sandbox->http_parser.http_errno),
 			         http_errno_description((enum http_errno)sandbox->http_parser.http_errno));
-			debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, bytes_received);
+			debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, (size_t)bytes_received);
 			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
 			goto err;
 		}

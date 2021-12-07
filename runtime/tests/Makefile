@@ -10,7 +10,7 @@ SLEDGE_COMPILETIME_INC=${SLEDGE_RT_DIR}/include
 SLEDGE_COMPILETIME_SRC=${SLEDGE_RT_DIR}/compiletime/*.c
 
 .PHONY: all
-all: fibonacci.install empty.install ekf.install cifar10.install lpd.install resize.install
+all: fibonacci.install empty.install ekf.install cifar10.install gocr.install lpd.install resize.install
 
 .PHONY: clean
 clean:
