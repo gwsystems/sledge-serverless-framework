@@ -1,10 +1,6 @@
 #include <assert.h>
-#include <assert.h>
-#include <math.h>
 
 #include "wasm_module_instance.h"
-
-extern thread_local struct wasm_module_instance current_wasm_module_instance;
 
 INLINE uint32_t
 instruction_memory_size()
@@ -16,37 +12,37 @@ instruction_memory_size()
 INLINE float
 get_f32(uint32_t offset)
 {
-	return wasm_memory_get_float(current_wasm_module_instance.memory, offset);
+	return wasm_memory_get_f32(current_wasm_module_instance.memory, offset);
 }
 
 INLINE double
 get_f64(uint32_t offset)
 {
-	return wasm_memory_get_double(current_wasm_module_instance.memory, offset);
+	return wasm_memory_get_f64(current_wasm_module_instance.memory, offset);
 }
 
 INLINE int8_t
 get_i8(uint32_t offset)
 {
-	return wasm_memory_get_int8(current_wasm_module_instance.memory, offset);
+	return wasm_memory_get_i8(current_wasm_module_instance.memory, offset);
 }
 
 INLINE int16_t
 get_i16(uint32_t offset)
 {
-	return wasm_memory_get_int16(current_wasm_module_instance.memory, offset);
+	return wasm_memory_get_i16(current_wasm_module_instance.memory, offset);
 }
 
 INLINE int32_t
 get_i32(uint32_t offset)
 {
-	return wasm_memory_get_int32(current_wasm_module_instance.memory, offset);
+	return wasm_memory_get_i32(current_wasm_module_instance.memory, offset);
 }
 
 INLINE int64_t
 get_i64(uint32_t offset)
 {
-	return wasm_memory_get_int64(current_wasm_module_instance.memory, offset);
+	return wasm_memory_get_i64(current_wasm_module_instance.memory, offset);
 }
 
 INLINE int32_t
@@ -65,37 +61,37 @@ get_global_i64(uint32_t offset)
 INLINE void
 set_f32(uint32_t offset, float v)
 {
-	wasm_memory_set_float(current_wasm_module_instance.memory, offset, v);
+	wasm_memory_set_f32(current_wasm_module_instance.memory, offset, v);
 }
 
 INLINE void
 set_f64(uint32_t offset, double v)
 {
-	wasm_memory_set_double(current_wasm_module_instance.memory, offset, v);
+	wasm_memory_set_f64(current_wasm_module_instance.memory, offset, v);
 }
 
 INLINE void
 set_i8(uint32_t offset, int8_t v)
 {
-	wasm_memory_set_int8(current_wasm_module_instance.memory, offset, v);
+	wasm_memory_set_i8(current_wasm_module_instance.memory, offset, v);
 }
 
 INLINE void
 set_i16(uint32_t offset, int16_t v)
 {
-	wasm_memory_set_int16(current_wasm_module_instance.memory, offset, v);
+	wasm_memory_set_i16(current_wasm_module_instance.memory, offset, v);
 }
 
 INLINE void
 set_i32(uint32_t offset, int32_t v)
 {
-	wasm_memory_set_int32(current_wasm_module_instance.memory, offset, v);
+	wasm_memory_set_i32(current_wasm_module_instance.memory, offset, v);
 }
 
 INLINE void
 set_i64(uint32_t offset, int64_t v)
 {
-	wasm_memory_set_int64(current_wasm_module_instance.memory, offset, v);
+	wasm_memory_set_i64(current_wasm_module_instance.memory, offset, v);
 }
 
 INLINE void

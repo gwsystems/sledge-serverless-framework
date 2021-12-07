@@ -121,7 +121,7 @@ wasm_memory_get_char(struct wasm_memory *self, uint32_t offset)
  * @return float at the offset
  */
 static inline float
-wasm_memory_get_float(struct wasm_memory *self, uint32_t offset)
+wasm_memory_get_f32(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(float) <= self->size);
 	return *(float *)&self->data[offset];
@@ -133,7 +133,7 @@ wasm_memory_get_float(struct wasm_memory *self, uint32_t offset)
  * @return double at the offset
  */
 static inline double
-wasm_memory_get_double(struct wasm_memory *self, uint32_t offset)
+wasm_memory_get_f64(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(double) <= self->size);
 	return *(double *)&self->data[offset];
@@ -145,7 +145,7 @@ wasm_memory_get_double(struct wasm_memory *self, uint32_t offset)
  * @return int8_t at the offset
  */
 static inline int8_t
-wasm_memory_get_int8(struct wasm_memory *self, uint32_t offset)
+wasm_memory_get_i8(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
 	return (int8_t)self->data[offset];
@@ -157,7 +157,7 @@ wasm_memory_get_int8(struct wasm_memory *self, uint32_t offset)
  * @return int16_t at the offset
  */
 static inline int16_t
-wasm_memory_get_int16(struct wasm_memory *self, uint32_t offset)
+wasm_memory_get_i16(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int16_t) <= self->size);
 	return *(int16_t *)&self->data[offset];
@@ -169,7 +169,7 @@ wasm_memory_get_int16(struct wasm_memory *self, uint32_t offset)
  * @return int32_t at the offset
  */
 static inline int32_t
-wasm_memory_get_int32(struct wasm_memory *self, uint32_t offset)
+wasm_memory_get_i32(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int32_t) <= self->size);
 	return *(int32_t *)&self->data[offset];
@@ -181,7 +181,7 @@ wasm_memory_get_int32(struct wasm_memory *self, uint32_t offset)
  * @return int32_t at the offset
  */
 static inline int64_t
-wasm_memory_get_int64(struct wasm_memory *self, uint32_t offset)
+wasm_memory_get_i64(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int64_t) <= self->size);
 	return *(int64_t *)&self->data[offset];
@@ -211,27 +211,27 @@ wasm_memory_get_string(struct wasm_memory *self, uint32_t offset, uint32_t size)
 }
 
 /**
- * Write a double to WebAssembly linear memory
- * @param offset an offset into the WebAssembly linear memory
- * @return double at the offset
- */
-static inline void
-wasm_memory_set_double(struct wasm_memory *self, uint32_t offset, double value)
-{
-	assert(offset + sizeof(double) <= self->size);
-	*(double *)&self->data[offset] = value;
-}
-
-/**
  * Write a float to WebAssembly linear memory
  * @param offset an offset into the WebAssembly linear memory
  * @return float at the offset
  */
 static inline void
-wasm_memory_set_float(struct wasm_memory *self, uint32_t offset, float value)
+wasm_memory_set_f32(struct wasm_memory *self, uint32_t offset, float value)
 {
 	assert(offset + sizeof(float) <= self->size);
 	*(float *)&self->data[offset] = value;
+}
+
+/**
+ * Write a double to WebAssembly linear memory
+ * @param offset an offset into the WebAssembly linear memory
+ * @return double at the offset
+ */
+static inline void
+wasm_memory_set_f64(struct wasm_memory *self, uint32_t offset, double value)
+{
+	assert(offset + sizeof(double) <= self->size);
+	*(double *)&self->data[offset] = value;
 }
 
 /**
@@ -240,7 +240,7 @@ wasm_memory_set_float(struct wasm_memory *self, uint32_t offset, float value)
  * @return int8_t at the offset
  */
 static inline void
-wasm_memory_set_int8(struct wasm_memory *self, uint32_t offset, int8_t value)
+wasm_memory_set_i8(struct wasm_memory *self, uint32_t offset, int8_t value)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
 	self->data[offset] = value;
@@ -252,7 +252,7 @@ wasm_memory_set_int8(struct wasm_memory *self, uint32_t offset, int8_t value)
  * @return int16_t at the offset
  */
 static inline void
-wasm_memory_set_int16(struct wasm_memory *self, uint32_t offset, int16_t value)
+wasm_memory_set_i16(struct wasm_memory *self, uint32_t offset, int16_t value)
 {
 	assert(offset + sizeof(int16_t) <= self->size);
 	*(int16_t *)&self->data[offset] = value;
@@ -264,7 +264,7 @@ wasm_memory_set_int16(struct wasm_memory *self, uint32_t offset, int16_t value)
  * @return int32_t at the offset
  */
 static inline void
-wasm_memory_set_int32(struct wasm_memory *self, uint32_t offset, int32_t value)
+wasm_memory_set_i32(struct wasm_memory *self, uint32_t offset, int32_t value)
 {
 	assert(offset + sizeof(int32_t) <= self->size);
 	*(int32_t *)&self->data[offset] = value;
@@ -276,7 +276,7 @@ wasm_memory_set_int32(struct wasm_memory *self, uint32_t offset, int32_t value)
  * @return int64_t at the offset
  */
 static inline void
-wasm_memory_set_int64(struct wasm_memory *self, uint64_t offset, int64_t value)
+wasm_memory_set_i64(struct wasm_memory *self, uint64_t offset, int64_t value)
 {
 	assert(offset + sizeof(int64_t) <= self->size);
 	*(int32_t *)&self->data[offset] = value;
