@@ -50,10 +50,11 @@ def get_values(key, value, miss_deadline_rate, total_latency, preemption_count):
 		latency=finds[0].split(" ")[1]
 		print(func_name, latency)
 		total_latency[key1][percentage]=latency
+
 		rule3=r'scheduling counter: (.*)'
 		finds=re.findall(rule3, rt)
 		schedule_count=finds[0].strip()
-		preemption_count[key1]=schedule_count
+		preemption_count[key1][percentage]=schedule_count
 		print("finds preemption count is ", schedule_count)
 
 
