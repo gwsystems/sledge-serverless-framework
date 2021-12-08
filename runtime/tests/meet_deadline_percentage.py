@@ -125,7 +125,8 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		"cifar10_3": "5k",
 		"cifar10_4": "40k",
 		"resize": "resize",
-		"fibonacci": "fibonacci"
+		"fibonacci": "fibonacci",
+		"resize3": "resize3"
 	}
 	func_name_with_id = {
 		"1": "105k",
@@ -170,8 +171,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 
 	for key,value in running_times.items():
 		#print("function:", key, func_name_with_id[key], key)
-		print("function:", key)
-		print(np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.median(initializing_times[key]))
+		print("function times:", func_name_with_id[key], np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.median(initializing_times[key]))
 	for key, value in delays_dict.items():  
 		new_value = [i/1000 for i in value]
 		p99 = np.percentile(new_value, 99)
