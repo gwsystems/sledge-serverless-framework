@@ -10,12 +10,15 @@
 #include "awsm_abi.h"
 #include "http.h"
 #include "panic.h"
+#include "pool.h"
 #include "types.h"
 
 #define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 
 #define MODULE_MAX_NAME_LENGTH 32
 #define MODULE_MAX_PATH_LENGTH 256
+
+extern thread_local int worker_thread_idx;
 
 /*
  * Defines the listen backlog, the queue length for completely established socketeds waiting to be accepted
@@ -32,12 +35,18 @@
   "MODULE_MAX_PENDING_CLIENT_REQUESTS likely exceeds the value in /proc/sys/net/core/somaxconn and thus may be silently truncated";
 #endif
 
+/* TODO: Dynamically size based on number of threads */
+#define MAX_WORKER_THREADS 64
+
+struct module_pools {
+	struct pool memory[MAX_WORKER_THREADS];
+};
+
 struct module {
 	/* Metadata from JSON Config */
 	char                   name[MODULE_MAX_NAME_LENGTH];
 	char                   path[MODULE_MAX_PATH_LENGTH];
 	uint32_t               stack_size; /* a specification? */
-	uint64_t               max_memory; /* perhaps a specification of the module. (max 4GB) */
 	uint32_t               relative_deadline_us;
 	int                    port;
 	struct admissions_info admissions_info;
@@ -55,6 +64,8 @@ struct module {
 
 	_Atomic uint32_t   reference_count; /* ref count how many instances exist here. */
 	struct wasm_table *indirect_table;
+
+	struct module_pools pools;
 };
 
 /*************************
@@ -141,12 +152,42 @@ module_release(struct module *module)
 	return;
 }
 
+static inline struct wasm_memory *
+module_allocate_linear_memory(struct module *module)
+{
+	assert(module != NULL);
+
+	char *error_message = NULL;
+
+	size_t initial = (size_t)module->abi.starting_pages * WASM_PAGE_SIZE;
+	size_t max     = (size_t)module->abi.max_pages * WASM_PAGE_SIZE;
+
+	assert(initial <= (size_t)UINT32_MAX + 1);
+	assert(max <= (size_t)UINT32_MAX + 1);
+
+	struct wasm_memory *linear_memory = (struct wasm_memory *)pool_remove_nolock(
+	  &module->pools.memory[worker_thread_idx]);
+	if (linear_memory == NULL) {
+		linear_memory = wasm_memory_allocate(initial, max);
+		if (unlikely(linear_memory == NULL)) return NULL;
+	}
+
+	return linear_memory;
+}
+
+static inline void
+module_free_linear_memory(struct module *module, struct wasm_memory *memory)
+{
+	wasm_memory_wipe(memory);
+	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
+	pool_add_nolock(&module->pools.memory[worker_thread_idx], memory);
+}
+
 /********************************
  * Public Methods from module.c *
  *******************************/
 
-void module_free(struct module *module);
-struct module *
-    module_new(char *mod_name, char *mod_path, uint32_t stack_sz, uint32_t max_heap, uint32_t relative_deadline_us,
-               int port, int req_sz, int resp_sz, int admissions_percentile, uint32_t expected_execution_us);
-int module_new_from_json(char *filename);
+void           module_free(struct module *module);
+struct module *module_new(char *mod_name, char *mod_path, uint32_t stack_sz, uint32_t relative_deadline_us, int port,
+                          int req_sz, int resp_sz, int admissions_percentile, uint32_t expected_execution_us);
+int            module_new_from_json(char *filename);

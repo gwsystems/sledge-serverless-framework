@@ -5,6 +5,7 @@
 #include "current_sandbox.h"
 #include "debuglog.h"
 #include "panic.h"
+#include "pool.h"
 #include "runtime.h"
 #include "sandbox_functions.h"
 #include "sandbox_set_as_error.h"
@@ -34,16 +35,7 @@ static inline int
 sandbox_allocate_linear_memory(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-
-	char *error_message = NULL;
-
-	size_t initial = (size_t)sandbox->module->abi.starting_pages * WASM_PAGE_SIZE;
-	size_t max     = (size_t)sandbox->module->abi.max_pages * WASM_PAGE_SIZE;
-
-	assert(initial <= (size_t)UINT32_MAX + 1);
-	assert(max <= (size_t)UINT32_MAX + 1);
-
-	sandbox->memory = wasm_memory_allocate(initial, max);
+	sandbox->memory = module_allocate_linear_memory(sandbox->module);
 	if (unlikely(sandbox->memory == NULL)) return -1;
 
 	return 0;

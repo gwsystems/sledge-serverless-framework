@@ -36,7 +36,9 @@ sandbox_close_http(struct sandbox *sandbox)
 static inline void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
-	wasm_memory_free(sandbox->memory);
+	assert(sandbox != NULL);
+	assert(sandbox->memory != NULL);
+	module_free_linear_memory(sandbox->module, sandbox->memory);
 	sandbox->memory = NULL;
 }
 

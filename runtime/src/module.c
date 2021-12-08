@@ -135,7 +135,6 @@ module_free(struct module *module)
  * @param name
  * @param path
  * @param stack_size
- * @param max_memory
  * @param relative_deadline_us
  * @param port
  * @param request_size
@@ -143,8 +142,8 @@ module_free(struct module *module)
  */
 
 struct module *
-module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uint32_t relative_deadline_us, int port,
-           int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us)
+module_new(char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, int port, int request_size,
+           int response_size, int admissions_percentile, uint32_t expected_execution_us)
 {
 	int rc = 0;
 
@@ -165,7 +164,6 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 
 	module->stack_size = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
 	debuglog("Stack Size: %u", module->stack_size);
-	module->max_memory        = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MEMORY_PAGES_MAX) : max_memory;
 	module->socket_descriptor = -1;
 	module->port              = port;
 
@@ -211,6 +209,8 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 	current_wasm_module_instance.table = module->indirect_table;
 	module_initialize_table(module);
 	current_wasm_module_instance.table = NULL;
+
+	for (int i = 0; i < MAX_WORKER_THREADS; i++) { pool_init(&module->pools.memory[i], false); }
 
 	/* Start listening for requests */
 	rc = module_listen(module);
@@ -421,7 +421,7 @@ module_new_from_json(char *file_name)
 #endif
 
 		/* Allocate a module based on the values from the JSON */
-		struct module *module = module_new(module_name, module_path, 0, 0, relative_deadline_us, port,
+		struct module *module = module_new(module_name, module_path, 0, relative_deadline_us, port,
 		                                   request_size, response_size, admissions_percentile,
 		                                   expected_execution_us);
 		if (module == NULL) goto module_new_err;

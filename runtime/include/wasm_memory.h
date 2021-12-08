@@ -7,16 +7,18 @@
 #include <string.h>
 #include <sys/mman.h>
 
+#include "ps_list.h"
 #include "types.h" /* PAGE_SIZE */
 #include "wasm_types.h"
 
 #define WASM_MEMORY_MAX (size_t) UINT32_MAX + 1
 
 struct wasm_memory {
-	size_t  size;     /* Initial Size in bytes */
-	size_t  capacity; /* Size backed by actual pages */
-	size_t  max;      /* Soft cap in bytes. Defaults to 4GB */
-	uint8_t data[];
+	struct ps_list list;     /* Linked List Node used for object pool */
+	size_t         size;     /* Initial Size in bytes */
+	size_t         capacity; /* Size backed by actual pages */
+	size_t         max;      /* Soft cap in bytes. Defaults to 4GB */
+	uint8_t        data[];
 };
 
 static inline struct wasm_memory *
@@ -48,6 +50,7 @@ wasm_memory_allocate(size_t initial, size_t max)
 		return NULL;
 	}
 
+	ps_list_init_d(self);
 	self->size     = initial;
 	self->capacity = initial;
 	self->max      = max;
@@ -65,6 +68,13 @@ static inline void
 wasm_memory_wipe(struct wasm_memory *self)
 {
 	memset(self->data, 0, self->size);
+}
+
+static inline void
+wasm_memory_reinit(struct wasm_memory *self, size_t initial)
+{
+	wasm_memory_wipe(self);
+	self->size = initial;
 }
 
 static inline int
