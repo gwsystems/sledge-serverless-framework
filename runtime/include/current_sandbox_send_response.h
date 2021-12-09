@@ -40,9 +40,12 @@ current_sandbox_send_response()
 	sandbox->total_time = end_time - sandbox->timestamp_of.request_arrival;
 
 	/* Send HTTP Response Header and Body */
-	http_header_200_write(sandbox->client_socket_descriptor, module_content_type, response_body_size);
-	client_socket_send(sandbox->client_socket_descriptor, (const char *)response->buffer, response_body_size,
-	                   current_sandbox_sleep);
+	rc = http_header_200_write(sandbox->client_socket_descriptor, module_content_type, response_body_size);
+	if (rc < 0) goto err;
+
+	rc = client_socket_send(sandbox->client_socket_descriptor, (const char *)response->buffer, response_body_size,
+	                        current_sandbox_sleep);
+	if (rc < 0) goto err;
 
 	http_total_increment_2xx();
 	rc = 0;
