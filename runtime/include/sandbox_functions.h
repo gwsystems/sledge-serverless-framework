@@ -14,7 +14,7 @@
 
 struct sandbox *sandbox_new(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
                             uint64_t request_arrival_timestamp, uint64_t admissions_estimate);
-int             sandbox_prepare_execution_environemnt(struct sandbox *sandbox);
+int             sandbox_prepare_execution_environment(struct sandbox *sandbox);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 void            sandbox_switch_to(struct sandbox *next_sandbox);

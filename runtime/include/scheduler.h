@@ -85,7 +85,7 @@ scheduler_edf_get_next()
 		if (global_request_scheduler_remove_if_earlier(&global, local_deadline) == 0) {
 			assert(global != NULL);
 			assert(global->absolute_deadline < local_deadline);
-			sandbox_prepare_execution_environemnt(global);
+			sandbox_prepare_execution_environment(global);
 			assert(global->state == SANDBOX_INITIALIZED);
 			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
 		}
@@ -106,7 +106,7 @@ scheduler_fifo_get_next()
 		/* If the local runqueue is empty, pull from global request scheduler */
 		if (global_request_scheduler_remove(&global) < 0) goto done;
 
-		sandbox_prepare_execution_environemnt(global);
+		sandbox_prepare_execution_environment(global);
 		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
 	} else if (local == current_sandbox_get()) {
 		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */

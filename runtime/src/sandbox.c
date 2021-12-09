@@ -102,7 +102,7 @@ sandbox_allocate(void)
  * @returns 0 on success, -1 on error
  */
 int
-sandbox_prepare_execution_environemnt(struct sandbox *sandbox)
+sandbox_prepare_execution_environment(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
