@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "types.h"
+
 /* memory also provides the table access functions */
 #define INDIRECT_TABLE_SIZE (1 << 10)
 
@@ -18,7 +20,7 @@ struct wasm_table {
 	struct wasm_table_entry data[];
 };
 
-static inline struct wasm_table *
+static INLINE struct wasm_table *
 wasm_table_allocate(size_t capacity)
 {
 	struct wasm_table *self = (struct wasm_table *)malloc(sizeof(struct wasm_table)
@@ -30,14 +32,14 @@ wasm_table_allocate(size_t capacity)
 	return self;
 }
 
-static inline void
+static INLINE void
 wasm_table_free(struct wasm_table *self)
 {
 	assert(self != NULL);
 	free(self);
 }
 
-static inline void *
+static INLINE void *
 wasm_table_get(struct wasm_table *self, uint32_t idx, uint32_t type_id)
 {
 	assert(self != NULL);
@@ -52,7 +54,7 @@ wasm_table_get(struct wasm_table *self, uint32_t idx, uint32_t type_id)
 	return f.func_pointer;
 }
 
-static inline void
+static INLINE void
 wasm_table_set(struct wasm_table *self, uint32_t idx, uint32_t type_id, char *pointer)
 {
 	assert(self != NULL);

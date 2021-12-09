@@ -19,7 +19,8 @@ struct wasm_memory {
 	uint8_t data[];
 };
 
-static inline struct wasm_memory *
+
+static INLINE struct wasm_memory *
 wasm_memory_allocate(size_t initial, size_t max)
 {
 	assert(initial > 0);
@@ -54,20 +55,20 @@ wasm_memory_allocate(size_t initial, size_t max)
 	return self;
 }
 
-static inline void
+static INLINE void
 wasm_memory_free(struct wasm_memory *self)
 {
 	size_t size_to_free = sizeof(struct wasm_memory) + WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE;
 	munmap(self, size_to_free);
 }
 
-static inline void
+static INLINE void
 wasm_memory_wipe(struct wasm_memory *self)
 {
 	memset(self->data, 0, self->size);
 }
 
-static inline int
+static INLINE int
 wasm_memory_expand(struct wasm_memory *self, size_t size_to_expand)
 {
 	size_t target_size = self->size + size_to_expand;
@@ -96,7 +97,7 @@ wasm_memory_expand(struct wasm_memory *self, size_t size_to_expand)
  * @param bounds_check the size of the thing we are pointing to
  * @return void pointer to something in WebAssembly linear memory
  */
-static inline void *
+static INLINE void *
 wasm_memory_get_ptr_void(struct wasm_memory *self, uint32_t offset, uint32_t size)
 {
 	assert(offset + size <= self->size);
@@ -108,7 +109,7 @@ wasm_memory_get_ptr_void(struct wasm_memory *self, uint32_t offset, uint32_t siz
  * @param offset an offset into the WebAssembly linear memory
  * @return char at the offset
  */
-static inline char
+static INLINE char
 wasm_memory_get_char(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(char) <= self->size);
@@ -120,7 +121,7 @@ wasm_memory_get_char(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return float at the offset
  */
-static inline float
+static INLINE float
 wasm_memory_get_f32(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(float) <= self->size);
@@ -132,7 +133,7 @@ wasm_memory_get_f32(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return double at the offset
  */
-static inline double
+static INLINE double
 wasm_memory_get_f64(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(double) <= self->size);
@@ -144,7 +145,7 @@ wasm_memory_get_f64(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return int8_t at the offset
  */
-static inline int8_t
+static INLINE int8_t
 wasm_memory_get_i8(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
@@ -156,7 +157,7 @@ wasm_memory_get_i8(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return int16_t at the offset
  */
-static inline int16_t
+static INLINE int16_t
 wasm_memory_get_i16(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int16_t) <= self->size);
@@ -168,7 +169,7 @@ wasm_memory_get_i16(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return int32_t at the offset
  */
-static inline int32_t
+static INLINE int32_t
 wasm_memory_get_i32(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int32_t) <= self->size);
@@ -180,14 +181,14 @@ wasm_memory_get_i32(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return int32_t at the offset
  */
-static inline int64_t
+static INLINE int64_t
 wasm_memory_get_i64(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int64_t) <= self->size);
 	return *(int64_t *)&self->data[offset];
 }
 
-static inline uint32_t
+static INLINE uint32_t
 wasm_memory_get_page_count(struct wasm_memory *self)
 {
 	return (uint32_t)(self->size / WASM_PAGE_SIZE);
@@ -199,7 +200,7 @@ wasm_memory_get_page_count(struct wasm_memory *self)
  * @param size the maximum expected length in characters
  * @return pointer to the string or NULL if max_length is reached without finding null-terminator
  */
-static inline char *
+static INLINE char *
 wasm_memory_get_string(struct wasm_memory *self, uint32_t offset, uint32_t size)
 {
 	assert(offset + (sizeof(char) * size) <= self->size);
@@ -215,7 +216,7 @@ wasm_memory_get_string(struct wasm_memory *self, uint32_t offset, uint32_t size)
  * @param offset an offset into the WebAssembly linear memory
  * @return float at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_f32(struct wasm_memory *self, uint32_t offset, float value)
 {
 	assert(offset + sizeof(float) <= self->size);
@@ -227,7 +228,7 @@ wasm_memory_set_f32(struct wasm_memory *self, uint32_t offset, float value)
  * @param offset an offset into the WebAssembly linear memory
  * @return double at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_f64(struct wasm_memory *self, uint32_t offset, double value)
 {
 	assert(offset + sizeof(double) <= self->size);
@@ -239,7 +240,7 @@ wasm_memory_set_f64(struct wasm_memory *self, uint32_t offset, double value)
  * @param offset an offset into the WebAssembly linear memory
  * @return int8_t at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_i8(struct wasm_memory *self, uint32_t offset, int8_t value)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
@@ -251,7 +252,7 @@ wasm_memory_set_i8(struct wasm_memory *self, uint32_t offset, int8_t value)
  * @param offset an offset into the WebAssembly linear memory
  * @return int16_t at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_i16(struct wasm_memory *self, uint32_t offset, int16_t value)
 {
 	assert(offset + sizeof(int16_t) <= self->size);
@@ -263,7 +264,7 @@ wasm_memory_set_i16(struct wasm_memory *self, uint32_t offset, int16_t value)
  * @param offset an offset into the WebAssembly linear memory
  * @return int32_t at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_i32(struct wasm_memory *self, uint32_t offset, int32_t value)
 {
 	assert(offset + sizeof(int32_t) <= self->size);
@@ -275,26 +276,26 @@ wasm_memory_set_i32(struct wasm_memory *self, uint32_t offset, int32_t value)
  * @param offset an offset into the WebAssembly linear memory
  * @return int64_t at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_i64(struct wasm_memory *self, uint64_t offset, int64_t value)
 {
 	assert(offset + sizeof(int64_t) <= self->size);
 	*(int64_t *)&self->data[offset] = value;
 }
 
-static inline void
+static INLINE void
 wasm_memory_set_size(struct wasm_memory *self, size_t size)
 {
 	self->size = size;
 }
 
-static inline size_t
+static INLINE size_t
 wasm_memory_get_size(struct wasm_memory *self)
 {
 	return self->size;
 }
 
-static inline void
+static INLINE void
 wasm_memory_initialize_region(struct wasm_memory *self, uint32_t offset, uint32_t region_size, uint8_t region[])
 {
 	assert((size_t)offset + region_size <= self->size);

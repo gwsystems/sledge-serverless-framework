@@ -5,6 +5,7 @@
 #include <sys/mman.h>
 
 #include "sandbox_types.h"
+#include "types.h"
 
 struct wasm_stack {
 	size_t   capacity; /* Usable capacity. Excludes size of guard page that we need to free */
@@ -20,7 +21,7 @@ struct wasm_stack {
  * @param sandbox sandbox that we want to allocate a stack for
  * @returns 0 on success, -1 on error
  */
-static inline int
+static INLINE int
 wasm_stack_allocate(struct wasm_stack *stack, size_t capacity)
 {
 	assert(stack);
@@ -56,7 +57,7 @@ err_stack_allocation_failed:
 	goto done;
 }
 
-static inline void
+static INLINE void
 wasm_stack_free(struct wasm_stack *stack)
 {
 	assert(stack != NULL);
