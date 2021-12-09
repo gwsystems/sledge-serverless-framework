@@ -58,7 +58,7 @@ struct sandbox {
 
 	/* WebAssembly Instance State  */
 	struct arch_context ctxt;
-	struct wasm_stack   stack;
+	struct wasm_stack * stack;
 	struct wasm_memory *memory;
 
 	/* Scheduling and Temporal State */

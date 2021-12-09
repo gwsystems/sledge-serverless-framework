@@ -12,6 +12,8 @@
 #include "panic.h"
 #include "pool.h"
 #include "types.h"
+#include "wasm_stack.h"
+#include "wasm_memory.h"
 
 #define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 
@@ -19,6 +21,9 @@
 #define MODULE_MAX_PATH_LENGTH 256
 
 extern thread_local int worker_thread_idx;
+
+INIT_POOL(wasm_memory, wasm_memory_delete)
+INIT_POOL(wasm_stack, wasm_stack_delete)
 
 /*
  * Defines the listen backlog, the queue length for completely established socketeds waiting to be accepted
@@ -39,7 +44,8 @@ extern thread_local int worker_thread_idx;
 #define MAX_WORKER_THREADS 64
 
 struct module_pools {
-	struct pool memory[MAX_WORKER_THREADS];
+	struct wasm_memory_pool memory[MAX_WORKER_THREADS];
+	struct wasm_stack_pool  stack[MAX_WORKER_THREADS];
 };
 
 struct module {
@@ -152,12 +158,33 @@ module_release(struct module *module)
 	return;
 }
 
+static inline struct wasm_stack *
+module_allocate_stack(struct module *self)
+{
+	assert(self != NULL);
+
+	struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&self->pools.stack[worker_thread_idx]);
+
+	if (stack == NULL) {
+		stack = wasm_stack_new(self->stack_size);
+		if (unlikely(stack == NULL)) return NULL;
+	}
+
+	return stack;
+}
+
+static inline void
+module_free_stack(struct module *self, struct wasm_stack *stack)
+{
+	wasm_stack_reinit(stack);
+	wasm_stack_pool_add_nolock(&self->pools.stack[worker_thread_idx], stack);
+}
+
 static inline struct wasm_memory *
 module_allocate_linear_memory(struct module *module)
 {
 	assert(module != NULL);
 
-	char *error_message = NULL;
 
 	size_t initial = (size_t)module->abi.starting_pages * WASM_PAGE_SIZE;
 	size_t max     = (size_t)module->abi.max_pages * WASM_PAGE_SIZE;
@@ -165,10 +192,9 @@ module_allocate_linear_memory(struct module *module)
 	assert(initial <= (size_t)UINT32_MAX + 1);
 	assert(max <= (size_t)UINT32_MAX + 1);
 
-	struct wasm_memory *linear_memory = (struct wasm_memory *)pool_remove_nolock(
-	  &module->pools.memory[worker_thread_idx]);
+	struct wasm_memory *linear_memory = wasm_memory_pool_remove_nolock(&module->pools.memory[worker_thread_idx]);
 	if (linear_memory == NULL) {
-		linear_memory = wasm_memory_allocate(initial, max);
+		linear_memory = wasm_memory_new(initial, max);
 		if (unlikely(linear_memory == NULL)) return NULL;
 	}
 
@@ -180,7 +206,7 @@ module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 {
 	wasm_memory_wipe(memory);
 	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
-	pool_add_nolock(&module->pools.memory[worker_thread_idx], memory);
+	wasm_memory_pool_add_nolock(&module->pools.memory[worker_thread_idx], memory);
 }
 
 /********************************

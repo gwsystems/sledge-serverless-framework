@@ -22,7 +22,7 @@ struct wasm_memory {
 };
 
 static inline struct wasm_memory *
-wasm_memory_allocate(size_t initial, size_t max)
+wasm_memory_new(size_t initial, size_t max)
 {
 	assert(initial > 0);
 	assert(initial <= (size_t)UINT32_MAX + 1);
@@ -33,7 +33,7 @@ wasm_memory_allocate(size_t initial, size_t max)
 	size_t size_to_alloc = sizeof(struct wasm_memory) + WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE;
 	void * temp          = mmap(NULL, size_to_alloc, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (temp == MAP_FAILED) {
-		fprintf(stderr, "wasm_memory_allocate - allocation failed, (size: %lu) %s\n", size_to_alloc,
+		fprintf(stderr, "wasm_memory_new - allocation failed, (size: %lu) %s\n", size_to_alloc,
 		        strerror(errno));
 		return NULL;
 	}
@@ -44,7 +44,7 @@ wasm_memory_allocate(size_t initial, size_t max)
 
 	int rc = mprotect(self, size_to_read_write, PROT_READ | PROT_WRITE);
 	if (rc != 0) {
-		perror("wasm_memory_allocate - prot r/w failed");
+		perror("wasm_memory_new - prot r/w failed");
 		munmap(self, size_to_alloc);
 		assert(0);
 		return NULL;
@@ -58,7 +58,7 @@ wasm_memory_allocate(size_t initial, size_t max)
 }
 
 static inline void
-wasm_memory_free(struct wasm_memory *self)
+wasm_memory_delete(struct wasm_memory *self)
 {
 	size_t size_to_free = sizeof(struct wasm_memory) + WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE;
 	munmap(self, size_to_free);

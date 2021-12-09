@@ -210,7 +210,10 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t relative_deadli
 	module_initialize_table(module);
 	current_wasm_module_instance.table = NULL;
 
-	for (int i = 0; i < MAX_WORKER_THREADS; i++) { pool_init(&module->pools.memory[i], false); }
+	for (int i = 0; i < MAX_WORKER_THREADS; i++) {
+		wasm_memory_pool_init(&module->pools.memory[i], false);
+		wasm_stack_pool_init(&module->pools.stack[i], false);
+	}
 
 	/* Start listening for requests */
 	rc = module_listen(module);

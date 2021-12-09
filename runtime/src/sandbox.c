@@ -47,7 +47,10 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 	assert(sandbox);
 	assert(sandbox->module);
 
-	return wasm_stack_allocate(&sandbox->stack, sandbox->module->stack_size);
+	sandbox->stack = module_allocate_stack(sandbox->module);
+	if (sandbox->stack == NULL) return -1;
+
+	return 0;
 }
 
 static inline void
@@ -55,7 +58,7 @@ sandbox_free_stack(struct sandbox *sandbox)
 {
 	assert(sandbox);
 
-	return wasm_stack_free(&sandbox->stack);
+	return module_free_stack(sandbox->module, sandbox->stack);
 }
 
 /**
@@ -122,7 +125,7 @@ sandbox_prepare_execution_environemnt(struct sandbox *sandbox)
 
 	/* Initialize the sandbox's context, stack, and instruction pointer */
 	/* stack grows down, so set to high address */
-	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_start, (reg_t)sandbox->stack.high);
+	arch_context_init(&sandbox->ctxt, (reg_t)current_sandbox_start, (reg_t)sandbox->stack->high);
 
 	rc = 0;
 done:
@@ -210,7 +213,7 @@ sandbox_free(struct sandbox *sandbox)
 
 	/* Free Sandbox Struct and HTTP Request and Response Buffers */
 
-	if (likely(sandbox->stack.buffer != NULL)) sandbox_free_stack(sandbox);
+	if (likely(sandbox->stack->buffer != NULL)) sandbox_free_stack(sandbox);
 	free(sandbox);
 
 	if (rc == -1) {
