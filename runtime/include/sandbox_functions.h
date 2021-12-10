@@ -48,12 +48,8 @@ static inline void
 sandbox_free_http_buffers(struct sandbox *sandbox)
 {
 	assert(sandbox);
-	assert(sandbox->request);
-	assert(sandbox->response);
-	vec_u8_free(sandbox->request);
-	vec_u8_free(sandbox->response);
-	sandbox->request  = NULL;
-	sandbox->response = NULL;
+	vec_u8_deinit(&sandbox->request);
+	vec_u8_deinit(&sandbox->response);
 }
 
 /**

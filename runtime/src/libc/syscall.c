@@ -135,18 +135,19 @@ err:
 int32_t
 wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 {
-	struct sandbox *s      = current_sandbox_get();
-	char *          buffer = current_sandbox_get_ptr_void(buf_offset, buf_size);
+	struct sandbox *s        = current_sandbox_get();
+	char *          buffer   = current_sandbox_get_ptr_void(buf_offset, buf_size);
+	struct vec_u8 * response = &s->response;
 
 	if (fd == STDERR_FILENO) { write(STDERR_FILENO, buffer, buf_size); }
 
 	if (fd == STDOUT_FILENO) {
-		int buffer_remaining = s->response->capacity - s->response->length;
+		int buffer_remaining = response->capacity - response->length;
 		int to_write         = buffer_remaining > buf_size ? buf_size : buffer_remaining;
 
 		if (to_write == 0) return 0;
-		memcpy(&s->response->buffer[s->response->length], buffer, to_write);
-		s->response->length += to_write;
+		memcpy(&response->buffer[response->length], buffer, to_write);
+		response->length += to_write;
 
 		return to_write;
 	}

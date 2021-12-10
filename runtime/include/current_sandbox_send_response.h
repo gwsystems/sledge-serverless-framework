@@ -25,7 +25,7 @@ current_sandbox_send_response()
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
-	struct vec_u8 *response = sandbox->response;
+	struct vec_u8 *response = &sandbox->response;
 	assert(response != NULL);
 
 	int rc;

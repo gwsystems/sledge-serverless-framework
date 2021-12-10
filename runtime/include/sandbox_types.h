@@ -50,8 +50,8 @@ struct sandbox {
 	int                 client_socket_descriptor;
 	http_parser         http_parser;
 	struct http_request http_request;
-	struct vec_u8 *     request;
-	struct vec_u8 *     response;
+	struct vec_u8       request;
+	struct vec_u8       response;
 
 	/* WebAssembly Module State */
 	struct module *module; /* the module this is an instance of */

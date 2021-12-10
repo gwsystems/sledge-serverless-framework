@@ -27,7 +27,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 	int rc = 0;
 
-	struct vec_u8 *request = sandbox->request;
+	struct vec_u8 *request = &sandbox->request;
 	assert(request->length == 0);
 	assert(request->capacity > 0);
 
