@@ -69,12 +69,13 @@ sandbox_free_stack(struct sandbox *sandbox)
 static inline int
 sandbox_allocate_http_buffers(struct sandbox *self)
 {
-	self->request = vec_u8_new(self->module->max_request_size);
-	if (self->request == NULL) return -1;
+	int rc;
+	rc = vec_u8_init(&self->request, self->module->max_request_size);
+	if (rc < 0) return -1;
 
-	self->response = vec_u8_new(self->module->max_response_size);
-	if (self->response == NULL) {
-		vec_u8_free(self->request);
+	rc = vec_u8_init(&self->response, self->module->max_response_size);
+	if (rc < 0) {
+		vec_u8_deinit(&self->request);
 		return -1;
 	}
 
@@ -97,7 +98,7 @@ sandbox_allocate(void)
  * @returns 0 on success, -1 on error
  */
 int
-sandbox_prepare_execution_environemnt(struct sandbox *sandbox)
+sandbox_prepare_execution_environment(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 

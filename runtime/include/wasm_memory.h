@@ -11,73 +11,125 @@
 #include "types.h" /* PAGE_SIZE */
 #include "wasm_types.h"
 
-#define WASM_MEMORY_MAX (size_t) UINT32_MAX + 1
+#define WASM_MEMORY_MAX           (size_t) UINT32_MAX + 1
+#define WASM_MEMORY_SIZE_TO_ALLOC ((size_t)WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE)
 
 struct wasm_memory {
 	struct ps_list list;     /* Linked List Node used for object pool */
 	size_t         size;     /* Initial Size in bytes */
 	size_t         capacity; /* Size backed by actual pages */
 	size_t         max;      /* Soft cap in bytes. Defaults to 4GB */
-	uint8_t        data[];
+	uint8_t *      buffer;
 };
 
-static inline struct wasm_memory *
-wasm_memory_new(size_t initial, size_t max)
+static INLINE struct wasm_memory *wasm_memory_alloc(void);
+static INLINE int                 wasm_memory_init(struct wasm_memory *self, size_t initial, size_t max);
+static INLINE struct wasm_memory *wasm_memory_new(size_t initial, size_t max);
+static INLINE void                wasm_memory_deinit(struct wasm_memory *self);
+static INLINE void                wasm_memory_free(struct wasm_memory *self);
+static INLINE void                wasm_memory_delete(struct wasm_memory *self);
+
+
+static INLINE struct wasm_memory *
+wasm_memory_alloc(void)
 {
+	return malloc(sizeof(struct wasm_memory));
+}
+
+static INLINE int
+wasm_memory_init(struct wasm_memory *self, size_t initial, size_t max)
+{
+	assert(self != NULL);
+
+	/* We assume WASI modules, which are required to declare and export a linear memory with a non-zero size to
+	 * allow a standard lib to initialize. Technically, a WebAssembly module that exports pure functions may not use
+	 * a linear memory */
 	assert(initial > 0);
 	assert(initial <= (size_t)UINT32_MAX + 1);
 	assert(max > 0);
 	assert(max <= (size_t)UINT32_MAX + 1);
 
-	/* Allocate contiguous virtual addresses for struct, full linear memory, and guard page */
-	size_t size_to_alloc = sizeof(struct wasm_memory) + WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE;
-	void * temp          = mmap(NULL, size_to_alloc, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (temp == MAP_FAILED) {
-		fprintf(stderr, "wasm_memory_new - allocation failed, (size: %lu) %s\n", size_to_alloc,
-		        strerror(errno));
-		return NULL;
-	}
-	struct wasm_memory *self = (struct wasm_memory *)temp;
+	/* Allocate buffer of contiguous virtual addresses for full wasm32 linear memory and guard page */
+	self->buffer = mmap(NULL, WASM_MEMORY_SIZE_TO_ALLOC, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (self->buffer == MAP_FAILED) return -1;
 
-	/* Set the struct and initial pages to read / write */
-	size_t size_to_read_write = sizeof(struct wasm_memory) + initial;
-
-	int rc = mprotect(self, size_to_read_write, PROT_READ | PROT_WRITE);
+	/* Set the initial bytes to read / write */
+	int rc = mprotect(self->buffer, initial, PROT_READ | PROT_WRITE);
 	if (rc != 0) {
-		perror("wasm_memory_new - prot r/w failed");
-		munmap(self, size_to_alloc);
-		assert(0);
-		return NULL;
+		munmap(self->buffer, WASM_MEMORY_SIZE_TO_ALLOC);
+		return -1;
 	}
 
 	ps_list_init_d(self);
 	self->size     = initial;
 	self->capacity = initial;
 	self->max      = max;
+
+	return 0;
+}
+
+static INLINE struct wasm_memory *
+wasm_memory_new(size_t initial, size_t max)
+{
+	struct wasm_memory *self = wasm_memory_alloc();
+	if (self == NULL) return self;
+
+	int rc = wasm_memory_init(self, initial, max);
+	if (rc < 0) {
+		assert(0);
+		wasm_memory_free(self);
+		return NULL;
+	}
+
 	return self;
 }
 
-static inline void
+static INLINE void
+wasm_memory_deinit(struct wasm_memory *self)
+{
+	assert(self != NULL);
+	assert(self->buffer != NULL);
+
+	munmap(self->buffer, WASM_MEMORY_SIZE_TO_ALLOC);
+	self->buffer   = NULL;
+	self->size     = 0;
+	self->capacity = 0;
+	self->max      = 0;
+}
+
+static INLINE void
+wasm_memory_free(struct wasm_memory *self)
+{
+	assert(self != NULL);
+	/* Assume prior deinitialization so we don't leak buffers */
+	assert(self->buffer == NULL);
+
+	free(self);
+}
+
+static INLINE void
 wasm_memory_delete(struct wasm_memory *self)
 {
-	size_t size_to_free = sizeof(struct wasm_memory) + WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE;
-	munmap(self, size_to_free);
+	assert(self != NULL);
+
+	wasm_memory_deinit(self);
+	wasm_memory_free(self);
 }
 
-static inline void
+static INLINE void
 wasm_memory_wipe(struct wasm_memory *self)
 {
-	memset(self->data, 0, self->size);
+	memset(self->buffer, 0, self->size);
 }
 
-static inline void
+static INLINE void
 wasm_memory_reinit(struct wasm_memory *self, size_t initial)
 {
 	wasm_memory_wipe(self);
 	self->size = initial;
 }
 
-static inline int
+static INLINE int
 wasm_memory_expand(struct wasm_memory *self, size_t size_to_expand)
 {
 	size_t target_size = self->size + size_to_expand;
@@ -86,8 +138,13 @@ wasm_memory_expand(struct wasm_memory *self, size_t size_to_expand)
 		return -1;
 	}
 
+	/* If recycling a wasm_memory from an object pool, a previous execution may have already expanded to or what
+	 * beyond what we need. The capacity represents the "high water mark" of previous executions. If the desired
+	 * size is less than this "high water mark," we just need to update size for accounting purposes. Otherwise, we
+	 * need to actually issue an mprotect syscall. The goal of these optimizations is to reduce mmap and demand
+	 * paging overhead for repeated instantiations of a WebAssembly module. */
 	if (target_size > self->capacity) {
-		int rc = mprotect(self, sizeof(struct wasm_memory) + target_size, PROT_READ | PROT_WRITE);
+		int rc = mprotect(self->buffer, target_size, PROT_READ | PROT_WRITE);
 		if (rc != 0) {
 			perror("wasm_memory_expand mprotect");
 			return -1;
@@ -100,17 +157,39 @@ wasm_memory_expand(struct wasm_memory *self, size_t size_to_expand)
 	return 0;
 }
 
+static INLINE void
+wasm_memory_set_size(struct wasm_memory *self, size_t size)
+{
+	self->size = size;
+}
+
+static INLINE size_t
+wasm_memory_get_size(struct wasm_memory *self)
+{
+	return self->size;
+}
+
+static INLINE void
+wasm_memory_initialize_region(struct wasm_memory *self, uint32_t offset, uint32_t region_size, uint8_t region[])
+{
+	assert((size_t)offset + region_size <= self->size);
+	memcpy(&self->buffer[offset], region, region_size);
+}
+
+/* NOTE: These wasm_memory functions require pointer dereferencing. For this reason, they are not directly by wasm32
+ * instructions. These functions are intended to be used by the runtime to interacts with linear memories. */
+
 /**
  * Translates WASM offsets into runtime VM pointers
  * @param offset an offset into the WebAssembly linear memory
  * @param bounds_check the size of the thing we are pointing to
  * @return void pointer to something in WebAssembly linear memory
  */
-static inline void *
+static INLINE void *
 wasm_memory_get_ptr_void(struct wasm_memory *self, uint32_t offset, uint32_t size)
 {
 	assert(offset + size <= self->size);
-	return (void *)&self->data[offset];
+	return (void *)&self->buffer[offset];
 }
 
 /**
@@ -118,11 +197,11 @@ wasm_memory_get_ptr_void(struct wasm_memory *self, uint32_t offset, uint32_t siz
  * @param offset an offset into the WebAssembly linear memory
  * @return char at the offset
  */
-static inline char
+static INLINE char
 wasm_memory_get_char(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(char) <= self->size);
-	return *(char *)&self->data[offset];
+	return *(char *)&self->buffer[offset];
 }
 
 /**
@@ -130,11 +209,11 @@ wasm_memory_get_char(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return float at the offset
  */
-static inline float
+static INLINE float
 wasm_memory_get_f32(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(float) <= self->size);
-	return *(float *)&self->data[offset];
+	return *(float *)&self->buffer[offset];
 }
 
 /**
@@ -142,11 +221,11 @@ wasm_memory_get_f32(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return double at the offset
  */
-static inline double
+static INLINE double
 wasm_memory_get_f64(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(double) <= self->size);
-	return *(double *)&self->data[offset];
+	return *(double *)&self->buffer[offset];
 }
 
 /**
@@ -154,11 +233,11 @@ wasm_memory_get_f64(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return int8_t at the offset
  */
-static inline int8_t
+static INLINE int8_t
 wasm_memory_get_i8(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
-	return *(int8_t *)&self->data[offset];
+	return *(int8_t *)&self->buffer[offset];
 }
 
 /**
@@ -166,11 +245,11 @@ wasm_memory_get_i8(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return int16_t at the offset
  */
-static inline int16_t
+static INLINE int16_t
 wasm_memory_get_i16(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int16_t) <= self->size);
-	return *(int16_t *)&self->data[offset];
+	return *(int16_t *)&self->buffer[offset];
 }
 
 /**
@@ -178,11 +257,11 @@ wasm_memory_get_i16(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return int32_t at the offset
  */
-static inline int32_t
+static INLINE int32_t
 wasm_memory_get_i32(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int32_t) <= self->size);
-	return *(int32_t *)&self->data[offset];
+	return *(int32_t *)&self->buffer[offset];
 }
 
 /**
@@ -190,14 +269,14 @@ wasm_memory_get_i32(struct wasm_memory *self, uint32_t offset)
  * @param offset an offset into the WebAssembly linear memory
  * @return int32_t at the offset
  */
-static inline int64_t
+static INLINE int64_t
 wasm_memory_get_i64(struct wasm_memory *self, uint32_t offset)
 {
 	assert(offset + sizeof(int64_t) <= self->size);
-	return *(int64_t *)&self->data[offset];
+	return *(int64_t *)&self->buffer[offset];
 }
 
-static inline uint32_t
+static INLINE uint32_t
 wasm_memory_get_page_count(struct wasm_memory *self)
 {
 	return (uint32_t)(self->size / WASM_PAGE_SIZE);
@@ -209,15 +288,16 @@ wasm_memory_get_page_count(struct wasm_memory *self)
  * @param size the maximum expected length in characters
  * @return pointer to the string or NULL if max_length is reached without finding null-terminator
  */
-static inline char *
+static INLINE char *
 wasm_memory_get_string(struct wasm_memory *self, uint32_t offset, uint32_t size)
 {
 	assert(offset + (sizeof(char) * size) <= self->size);
 
-	for (uint32_t i = 0; i < size; i++) {
-		if (self->data[offset + i] == '\0') return (char *)&self->data[offset];
+	if (strnlen((const char *)&self->buffer[offset], size) < size) {
+		return (char *)&self->buffer[offset];
+	} else {
+		return NULL;
 	}
-	return NULL;
 }
 
 /**
@@ -225,11 +305,11 @@ wasm_memory_get_string(struct wasm_memory *self, uint32_t offset, uint32_t size)
  * @param offset an offset into the WebAssembly linear memory
  * @return float at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_f32(struct wasm_memory *self, uint32_t offset, float value)
 {
 	assert(offset + sizeof(float) <= self->size);
-	*(float *)&self->data[offset] = value;
+	*(float *)&self->buffer[offset] = value;
 }
 
 /**
@@ -237,11 +317,11 @@ wasm_memory_set_f32(struct wasm_memory *self, uint32_t offset, float value)
  * @param offset an offset into the WebAssembly linear memory
  * @return double at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_f64(struct wasm_memory *self, uint32_t offset, double value)
 {
 	assert(offset + sizeof(double) <= self->size);
-	*(double *)&self->data[offset] = value;
+	*(double *)&self->buffer[offset] = value;
 }
 
 /**
@@ -249,11 +329,11 @@ wasm_memory_set_f64(struct wasm_memory *self, uint32_t offset, double value)
  * @param offset an offset into the WebAssembly linear memory
  * @return int8_t at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_i8(struct wasm_memory *self, uint32_t offset, int8_t value)
 {
 	assert(offset + sizeof(int8_t) <= self->size);
-	*(int8_t *)&self->data[offset] = value;
+	*(int8_t *)&self->buffer[offset] = value;
 }
 
 /**
@@ -261,11 +341,11 @@ wasm_memory_set_i8(struct wasm_memory *self, uint32_t offset, int8_t value)
  * @param offset an offset into the WebAssembly linear memory
  * @return int16_t at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_i16(struct wasm_memory *self, uint32_t offset, int16_t value)
 {
 	assert(offset + sizeof(int16_t) <= self->size);
-	*(int16_t *)&self->data[offset] = value;
+	*(int16_t *)&self->buffer[offset] = value;
 }
 
 /**
@@ -273,11 +353,11 @@ wasm_memory_set_i16(struct wasm_memory *self, uint32_t offset, int16_t value)
  * @param offset an offset into the WebAssembly linear memory
  * @return int32_t at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_i32(struct wasm_memory *self, uint32_t offset, int32_t value)
 {
 	assert(offset + sizeof(int32_t) <= self->size);
-	*(int32_t *)&self->data[offset] = value;
+	*(int32_t *)&self->buffer[offset] = value;
 }
 
 /**
@@ -285,28 +365,9 @@ wasm_memory_set_i32(struct wasm_memory *self, uint32_t offset, int32_t value)
  * @param offset an offset into the WebAssembly linear memory
  * @return int64_t at the offset
  */
-static inline void
+static INLINE void
 wasm_memory_set_i64(struct wasm_memory *self, uint64_t offset, int64_t value)
 {
 	assert(offset + sizeof(int64_t) <= self->size);
-	*(int64_t *)&self->data[offset] = value;
-}
-
-static inline void
-wasm_memory_set_size(struct wasm_memory *self, size_t size)
-{
-	self->size = size;
-}
-
-static inline size_t
-wasm_memory_get_size(struct wasm_memory *self)
-{
-	return self->size;
-}
-
-static inline void
-wasm_memory_initialize_region(struct wasm_memory *self, uint32_t offset, uint32_t region_size, uint8_t region[])
-{
-	assert((size_t)offset + region_size <= self->size);
-	memcpy(&self->data[offset], region, region_size);
+	*(int64_t *)&self->buffer[offset] = value;
 }

@@ -22,8 +22,13 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 	 * WASI, so not worth fixing*/
 
 	sandbox->arguments_offset = wasm_memory_get_size(sandbox->memory);
-	int rc                    = wasm_memory_expand(sandbox->memory, WASM_PAGE_SIZE);
+
+	/* Assumption: we can fit the arguments in a single wasm page */
+	int rc = wasm_memory_expand(sandbox->memory, WASM_PAGE_SIZE);
 	assert(rc == 0);
+
+	/* We have to update our cache here */
+	memcpy(&current_wasm_module_instance.memory, sandbox->memory, sizeof(struct wasm_memory));
 
 	stub_init(sandbox->arguments_offset);
 }

@@ -40,7 +40,7 @@ typedef void (*void_cb)(void);
  * @param client_socket - the client we are rejecting
  * @param buffer - buffer to write to socket
  * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
- * @returns 0
+ * @returns 0 on success, -1 on error.
  */
 static inline int
 client_socket_send(int client_socket, const char *buffer, size_t buffer_len, void_cb on_eagain)

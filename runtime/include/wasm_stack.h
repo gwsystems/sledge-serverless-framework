@@ -4,8 +4,9 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-/* This structure is not suitable for a flexible array member because it allocates a guard page beneath the buffer. This
- * negates the benefit of tight locality */
+#include "sandbox_types.h"
+#include "types.h"
+
 struct wasm_stack {
 	struct ps_list list;     /* Linked List Node used for object pool */
 	size_t         capacity; /* Usable capacity. Excludes size of guard page that we need to free */
@@ -64,7 +65,7 @@ err_stack_allocation_failed:
 	goto done;
 }
 
-static inline void
+static INLINE void
 wasm_stack_free(struct wasm_stack *self)
 {
 	free(self);

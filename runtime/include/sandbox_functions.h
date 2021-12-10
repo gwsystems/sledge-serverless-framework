@@ -14,7 +14,7 @@
 
 struct sandbox *sandbox_new(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
                             uint64_t request_arrival_timestamp, uint64_t admissions_estimate);
-int             sandbox_prepare_execution_environemnt(struct sandbox *sandbox);
+int             sandbox_prepare_execution_environment(struct sandbox *sandbox);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 void            sandbox_switch_to(struct sandbox *next_sandbox);
@@ -50,12 +50,8 @@ static inline void
 sandbox_free_http_buffers(struct sandbox *sandbox)
 {
 	assert(sandbox);
-	assert(sandbox->request);
-	assert(sandbox->response);
-	vec_u8_free(sandbox->request);
-	vec_u8_free(sandbox->response);
-	sandbox->request  = NULL;
-	sandbox->response = NULL;
+	vec_u8_deinit(&sandbox->request);
+	vec_u8_deinit(&sandbox->response);
 }
 
 /**

@@ -184,7 +184,7 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t relative_deadli
 	/* WebAssembly Indirect Table */
 	/* TODO: Should this be part of the module or per-sandbox? */
 	/* TODO: How should this table be sized? */
-	module->indirect_table = wasm_table_allocate(INDIRECT_TABLE_SIZE);
+	module->indirect_table = wasm_table_new(INDIRECT_TABLE_SIZE);
 
 	/* Request Response Buffer */
 	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;

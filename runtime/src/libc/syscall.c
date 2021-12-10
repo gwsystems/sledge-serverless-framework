@@ -135,18 +135,19 @@ err:
 int32_t
 wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 {
-	struct sandbox *s      = current_sandbox_get();
-	char *          buffer = current_sandbox_get_ptr_void(buf_offset, buf_size);
+	struct sandbox *s        = current_sandbox_get();
+	char *          buffer   = current_sandbox_get_ptr_void(buf_offset, buf_size);
+	struct vec_u8 * response = &s->response;
 
 	if (fd == STDERR_FILENO) { write(STDERR_FILENO, buffer, buf_size); }
 
 	if (fd == STDOUT_FILENO) {
-		int buffer_remaining = s->response->capacity - s->response->length;
+		int buffer_remaining = response->capacity - response->length;
 		int to_write         = buffer_remaining > buf_size ? buf_size : buffer_remaining;
 
 		if (to_write == 0) return 0;
-		memcpy(&s->response->buffer[s->response->length], buffer, to_write);
-		s->response->length += to_write;
+		memcpy(&response->buffer[response->length], buffer, to_write);
+		response->length += to_write;
 
 		return to_write;
 	}
@@ -222,8 +223,8 @@ wasm_mmap(int32_t addr, int32_t len, int32_t prot, int32_t flags, int32_t fd, in
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
-	int32_t result = wasm_memory_get_size(current_wasm_module_instance.memory);
-	if (wasm_memory_expand(current_wasm_module_instance.memory, len) == -1) { result = (uint32_t)-1; }
+	int32_t result = wasm_memory_get_size(&current_wasm_module_instance.memory);
+	if (wasm_memory_expand(&current_wasm_module_instance.memory, len) == -1) { result = (uint32_t)-1; }
 
 	return result;
 }
@@ -320,18 +321,18 @@ wasm_mremap(int32_t offset, int32_t old_size, int32_t new_size, int32_t flags)
 	if (new_size <= old_size) return offset;
 
 	// If at end of linear memory, just expand and return same address
-	if (offset + old_size == current_wasm_module_instance.memory->size) {
+	if (offset + old_size == current_wasm_module_instance.memory.size) {
 		int32_t amount_to_expand = new_size - old_size;
-		wasm_memory_expand(current_wasm_module_instance.memory, amount_to_expand);
+		wasm_memory_expand(&current_wasm_module_instance.memory, amount_to_expand);
 		return offset;
 	}
 
 	// Otherwise allocate at end of address space and copy
-	int32_t new_offset = current_wasm_module_instance.memory->size;
-	wasm_memory_expand(current_wasm_module_instance.memory, new_size);
+	int32_t new_offset = current_wasm_module_instance.memory.size;
+	wasm_memory_expand(&current_wasm_module_instance.memory, new_size);
 
 	// Get pointer of old offset and pointer of new offset
-	uint8_t *linear_mem = current_wasm_module_instance.memory->data;
+	uint8_t *linear_mem = current_wasm_module_instance.memory.buffer;
 	uint8_t *src        = &linear_mem[offset];
 	uint8_t *dest       = &linear_mem[new_offset];
 
