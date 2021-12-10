@@ -43,7 +43,7 @@ sandbox_allocate_linear_memory(struct sandbox *sandbox)
 	assert(initial <= (size_t)UINT32_MAX + 1);
 	assert(max <= (size_t)UINT32_MAX + 1);
 
-	sandbox->memory = wasm_memory_allocate(initial, max);
+	sandbox->memory = wasm_memory_new(initial, max);
 	if (unlikely(sandbox->memory == NULL)) return -1;
 
 	return 0;

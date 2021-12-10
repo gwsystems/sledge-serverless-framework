@@ -16,11 +16,6 @@
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
-thread_local struct wasm_module_instance current_wasm_module_instance = {
-	.memory = NULL,
-	.table  = NULL,
-};
-
 /**
  * @brief Switches from an executing sandbox to the worker thread base context
  *

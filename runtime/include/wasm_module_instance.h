@@ -7,8 +7,6 @@
  * entities https://webassembly.github.io/spec/core/exec/runtime.html#module-instances
  */
 struct wasm_module_instance {
-	struct wasm_memory *memory;
-	struct wasm_table * table;
+	struct wasm_memory memory;
+	struct wasm_table *table;
 };
-
-extern thread_local struct wasm_module_instance current_wasm_module_instance;
