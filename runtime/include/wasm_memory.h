@@ -283,10 +283,11 @@ wasm_memory_get_string(struct wasm_memory *self, uint32_t offset, uint32_t size)
 {
 	assert(offset + (sizeof(char) * size) <= self->size);
 
-	for (uint32_t i = 0; i < size; i++) {
-		if (self->buffer[offset + i] == '\0') return (char *)&self->buffer[offset];
+	if (strnlen((const char *)&self->buffer[offset], size) < size) {
+		return (char *)&self->buffer[offset];
+	} else {
+		return NULL;
 	}
-	return NULL;
 }
 
 /**
