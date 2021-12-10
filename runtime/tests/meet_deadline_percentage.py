@@ -124,6 +124,14 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		"cifar10_2": "305k",
 		"cifar10_3": "5k",
 		"cifar10_4": "40k",
+		"cifar10_5": "105k-2",
+		"cifar10_6": "305k-2",
+		"cifar10_7": "5k-2",
+		"cifar10_8": "40k-2",
+		"cifar10_9": "105k-3",
+		"cifar10_10": "305k-3",
+		"cifar10_11": "5k-3",
+		"cifar10_12": "40k-3",
 		"resize": "resize",
 		"fibonacci": "fibonacci",
 		"resize3": "resize3"
@@ -132,7 +140,15 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		"1": "105k",
                 "2": "305k",
                 "3": "5k",
-                "4": "40k"
+                "4": "40k",
+		"5": "105k-2",
+		"6": "305k-2",
+		"7": "5k-2",
+		"8": "40k-2",
+		"9": "105k-3",
+		"10": "305k-3",
+		"11": "5k-3",
+		"12": "40k-3"
 	}
 	### get execution time
 	for key,value in running_time_dict.items():
