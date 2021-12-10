@@ -214,7 +214,7 @@ sandbox_free(struct sandbox *sandbox)
 
 	/* Free Sandbox Struct and HTTP Request and Response Buffers */
 
-	if (likely(sandbox->stack->buffer != NULL)) sandbox_free_stack(sandbox);
+	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
 	free(sandbox);
 
 	if (rc == -1) {
