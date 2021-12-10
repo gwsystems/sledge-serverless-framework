@@ -97,6 +97,9 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		t = line.split(",")
 		id = t[1]
 		func_idx = t[2][-9]
+		if t[2][-10] == "1":
+			#func_idx = t[2][-10:-9]
+			func_idx = t[2][-10] + t[2][-9]
 		joined_key = id + "_" + func_idx
 		running_time_dict[joined_key] += int(t[9])
 		queuing_times_dict[joined_key] += int(t[6])
@@ -186,7 +189,6 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		real_time_workload_times_dist[key] = [x - min_time for x in value]
 
 	for key,value in running_times.items():
-		#print("function:", key, func_name_with_id[key], key)
 		print("function times:", func_name_with_id[key], np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.median(initializing_times[key]))
 	for key, value in delays_dict.items():  
 		new_value = [i/1000 for i in value]
