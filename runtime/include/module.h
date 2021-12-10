@@ -44,9 +44,9 @@ INIT_POOL(wasm_stack, wasm_stack_delete)
 #define MAX_WORKER_THREADS 64
 
 struct module_pools {
-	struct wasm_memory_pool memory[MAX_WORKER_THREADS];
-	struct wasm_stack_pool  stack[MAX_WORKER_THREADS];
-};
+	struct wasm_memory_pool memory;
+	struct wasm_stack_pool  stack;
+} __attribute__((aligned(8)));
 
 struct module {
 	/* Metadata from JSON Config */
@@ -71,7 +71,7 @@ struct module {
 	_Atomic uint32_t   reference_count; /* ref count how many instances exist here. */
 	struct wasm_table *indirect_table;
 
-	struct module_pools pools;
+	struct module_pools pools[MAX_WORKER_THREADS];
 };
 
 /*************************
@@ -163,7 +163,7 @@ module_allocate_stack(struct module *self)
 {
 	assert(self != NULL);
 
-	struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&self->pools.stack[worker_thread_idx]);
+	struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&self->pools[worker_thread_idx].stack);
 
 	if (stack == NULL) {
 		stack = wasm_stack_new(self->stack_size);
@@ -177,7 +177,7 @@ static inline void
 module_free_stack(struct module *self, struct wasm_stack *stack)
 {
 	wasm_stack_reinit(stack);
-	wasm_stack_pool_add_nolock(&self->pools.stack[worker_thread_idx], stack);
+	wasm_stack_pool_add_nolock(&self->pools[worker_thread_idx].stack, stack);
 }
 
 static inline struct wasm_memory *
@@ -192,7 +192,7 @@ module_allocate_linear_memory(struct module *module)
 	assert(initial <= (size_t)UINT32_MAX + 1);
 	assert(max <= (size_t)UINT32_MAX + 1);
 
-	struct wasm_memory *linear_memory = wasm_memory_pool_remove_nolock(&module->pools.memory[worker_thread_idx]);
+	struct wasm_memory *linear_memory = wasm_memory_pool_remove_nolock(&module->pools[worker_thread_idx].memory);
 	if (linear_memory == NULL) {
 		linear_memory = wasm_memory_new(initial, max);
 		if (unlikely(linear_memory == NULL)) return NULL;
@@ -206,7 +206,7 @@ module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 {
 	wasm_memory_wipe(memory);
 	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
-	wasm_memory_pool_add_nolock(&module->pools.memory[worker_thread_idx], memory);
+	wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
 }
 
 /********************************
