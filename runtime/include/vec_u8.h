@@ -78,8 +78,10 @@ vec_u8_deinit(struct vec_u8 *self)
 	if (self->capacity == 0) {
 		assert(self->buffer == NULL);
 		assert(self->length == 0);
+		return;
 	}
 
+	assert(self->buffer != NULL);
 	free(self->buffer);
 	self->buffer   = NULL;
 	self->length   = 0;

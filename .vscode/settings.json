@@ -102,6 +102,7 @@
 		"software_interrupt_counts.h": "c",
 		"sandbox_set_as_running_sys.h": "c",
 		"wasm_module_instance.h": "c",
+		"wasm_table.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,
