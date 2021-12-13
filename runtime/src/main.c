@@ -352,7 +352,15 @@ main(int argc, char **argv)
 	memset(runtime_worker_threads, 0, sizeof(pthread_t) * RUNTIME_WORKER_THREAD_CORE_COUNT);
 
 	//runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
-	runtime_processor_speed_MHz = 2600;
+	runtime_processor_speed_MHz = 2600; //this is the default value
+	char *cpu_speed_MHz_raw = getenv("SLEDGE_CPU_SPEED");
+	if (cpu_speed_MHz_raw != NULL) {
+                long cpu_speed_MHz = atoi(cpu_speed_MHz_raw);
+                if (unlikely(cpu_speed_MHz < 0)) panic("SLEDGE_CPU_SPEED must be a positive integer, saw %ld\n", cpu_speed_MHz);
+                runtime_processor_speed_MHz = (uint32_t)cpu_speed_MHz;
+        }
+        printf("\tCPU Speed: %u MHz\n", runtime_processor_speed_MHz);
+
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
 
 	software_interrupt_set_interval_duration(runtime_quantum_us * runtime_processor_speed_MHz);
