@@ -31,6 +31,9 @@ static uint64_t software_interrupt_interval_duration_in_cycles;
 /******************
  * Thread Globals *
  *****************/
+extern __thread uint32_t local_workload_count;
+extern __thread int recording_buffer[];
+extern __thread int worker_thread_idx;
 
 __thread _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_kernel_count = 0;
 __thread _Atomic static volatile sig_atomic_t software_interrupt_SIGALRM_thread_count = 0;
@@ -168,6 +171,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
+		assert(TEST_RECORDING_BUFFER_LEN > software_interrupt_SIGALRM_kernel_count + software_interrupt_SIGALRM_thread_count);
+		/* record queuelength of the current worker thread */
+		recording_buffer[software_interrupt_SIGALRM_kernel_count + software_interrupt_SIGALRM_thread_count] = local_workload_count;
 		sigalrm_propagate_workers(signal_info);
 		if (current_sandbox == NULL || current_sandbox->ctxt.preemptable == false) {
 			/* Cannot preempt, so defer signal
@@ -198,8 +204,15 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		goto done;
 	}
 	case SIGINT: {
+		/* Stop the alarm timer first */
+		software_interrupt_disarm_timer();
 		/* Only the thread that receives SIGINT from the kernel or user space will broadcast SIGINT to other worker threads */
 		sigint_propagate_workers_listener(signal_info);
+		mem_log("thread id %d test buffer:",worker_thread_idx);
+		for(int i = 0; i < software_interrupt_SIGALRM_kernel_count + software_interrupt_SIGALRM_thread_count; i++) {
+			mem_log("%d ", recording_buffer[i]);
+		}
+		mem_log("\n");
 		dump_log_to_file();
 		/* terminate itself */	
 		pthread_exit(0);	

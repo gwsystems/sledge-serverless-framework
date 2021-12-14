@@ -356,7 +356,7 @@ main(int argc, char **argv)
 	char *cpu_speed_MHz_raw = getenv("SLEDGE_CPU_SPEED");
 	if (cpu_speed_MHz_raw != NULL) {
                 long cpu_speed_MHz = atoi(cpu_speed_MHz_raw);
-                if (unlikely(cpu_speed_MHz < 0)) panic("SLEDGE_CPU_SPEED must be a positive integer, saw %ld\n", cpu_speed_MHz);
+                if (unlikely(cpu_speed_MHz <= 0)) panic("SLEDGE_CPU_SPEED must be a positive integer, saw %ld\n", cpu_speed_MHz);
                 runtime_processor_speed_MHz = (uint32_t)cpu_speed_MHz;
         }
         printf("\tCPU Speed: %u MHz\n", runtime_processor_speed_MHz);

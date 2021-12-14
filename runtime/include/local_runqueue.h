@@ -4,6 +4,8 @@
 
 #include "sandbox_types.h"
 
+
+#define TEST_RECORDING_BUFFER_LEN       500000
 /* Returns pointer back if successful, null otherwise */
 typedef void (*local_runqueue_add_fn_t)(struct sandbox *);
 typedef bool (*local_runqueue_is_empty_fn_t)(void);

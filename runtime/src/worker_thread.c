@@ -21,6 +21,10 @@
  * Worker Thread State     *
  **************************/
 
+extern uint32_t test_recording_buffer_len;
+/* test recording buffer for saving queuelength */
+__thread int recording_buffer[TEST_RECORDING_BUFFER_LEN] = {0};
+ 
 /* context of the runtime thread before running sandboxes or to resume its "main". */
 __thread struct arch_context worker_thread_base_context;
 
