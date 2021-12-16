@@ -6,7 +6,7 @@
 struct vec_u8 {
 	size_t   length;
 	size_t   capacity;
-	uint8_t *buffer;
+	uint8_t *buffer; /* Backing heap allocation. Different lifetime because realloc might move this */
 };
 
 static inline struct vec_u8 *vec_u8_alloc(void);

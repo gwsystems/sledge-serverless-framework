@@ -56,7 +56,7 @@ perf_window_swap(struct perf_window *perf_window, uint16_t first_by_duration_idx
 	perf_window->by_termination[second_by_termination_idx] = first_by_duration_idx;
 
 	/* Swap by_termination_idx */
-	struct execution_node tmp_node            = perf_window->by_duration[first_by_duration_idx];
+	struct execution_node tmp_node                   = perf_window->by_duration[first_by_duration_idx];
 	perf_window->by_duration[first_by_duration_idx]  = perf_window->by_duration[second_by_duration_idx];
 	perf_window->by_duration[second_by_duration_idx] = tmp_node;
 
@@ -91,7 +91,7 @@ perf_window_add(struct perf_window *perf_window, uint64_t value)
 		for (int i = 0; i < PERF_WINDOW_BUFFER_SIZE; i++) {
 			perf_window->by_termination[i] = i;
 			perf_window->by_duration[i]    = (struct execution_node){ .execution_time     = value,
-                                                                        .by_termination_idx = i };
+                                                                               .by_termination_idx = i };
 		}
 		perf_window->count = PERF_WINDOW_BUFFER_SIZE;
 		goto done;
@@ -112,13 +112,17 @@ perf_window_add(struct perf_window *perf_window, uint64_t value)
 		}
 	} else {
 		for (int i = idx_of_oldest;
-		     i - 1 >= 0 && perf_window->by_duration[i - 1].execution_time > perf_window->by_duration[i].execution_time; i--) {
+		     i - 1 >= 0
+		     && perf_window->by_duration[i - 1].execution_time > perf_window->by_duration[i].execution_time;
+		     i--) {
 			perf_window_swap(perf_window, i, i - 1);
 		}
 	}
 
 	/* The idx that we replaces should still point to the same value */
-	assert(perf_window->by_duration[perf_window->by_termination[perf_window->count % PERF_WINDOW_BUFFER_SIZE]].execution_time == value);
+	assert(perf_window->by_duration[perf_window->by_termination[perf_window->count % PERF_WINDOW_BUFFER_SIZE]]
+	         .execution_time
+	       == value);
 
 /* The by_duration array should be ordered by execution time */
 #ifndef NDEBUG

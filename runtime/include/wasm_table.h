@@ -17,7 +17,7 @@ struct wasm_table_entry {
 struct wasm_table {
 	uint32_t                 length;
 	uint32_t                 capacity;
-	struct wasm_table_entry *buffer;
+	struct wasm_table_entry *buffer; /* Backing heap allocation */
 };
 
 static INLINE struct wasm_table *wasm_table_alloc(void);

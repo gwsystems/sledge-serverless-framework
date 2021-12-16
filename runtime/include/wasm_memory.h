@@ -19,7 +19,7 @@ struct wasm_memory {
 	size_t         size;     /* Initial Size in bytes */
 	size_t         capacity; /* Size backed by actual pages */
 	size_t         max;      /* Soft cap in bytes. Defaults to 4GB */
-	uint8_t *      buffer;
+	uint8_t *      buffer;   /* Backing heap allocation. Different lifetime because realloc might move this */
 };
 
 static INLINE struct wasm_memory *wasm_memory_alloc(void);
@@ -134,7 +134,8 @@ wasm_memory_expand(struct wasm_memory *wasm_memory, size_t size_to_expand)
 {
 	size_t target_size = wasm_memory->size + size_to_expand;
 	if (unlikely(target_size > wasm_memory->max)) {
-		fprintf(stderr, "wasm_memory_expand - Out of Memory!. %lu out of %lu\n", wasm_memory->size, wasm_memory->max);
+		fprintf(stderr, "wasm_memory_expand - Out of Memory!. %lu out of %lu\n", wasm_memory->size,
+		        wasm_memory->max);
 		return -1;
 	}
 

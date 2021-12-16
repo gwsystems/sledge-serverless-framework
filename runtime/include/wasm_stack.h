@@ -7,12 +7,26 @@
 #include "sandbox_types.h"
 #include "types.h"
 
+
+/**
+ * @brief wasm_stack is a stack used to execute an AOT-compiled WebAssembly instance. It is allocated with a static size
+ * and a guard page beneath the lowest usuable address. Because the stack grows down, this protects against stack
+ * overflow.
+ *
+ * Low Address  <---------------------------------------------------------------------------> High Address
+ *              | GUARD PAGE    | USEABE FOR STACK FRAMES (SIZE of capacity)                |
+ *             /\              /\                                                          /\
+ *            buffer           low                                                        high
+ *
+ *                                                            | Frame 2 | Frame 1 | Frame 0 |
+ *                                                          <<<<<<< Direction of Stack Growth
+ */
 struct wasm_stack {
 	struct ps_list list;     /* Linked List Node used for object pool */
 	size_t         capacity; /* Usable capacity. Excludes size of guard page that we need to free */
 	uint8_t *      high;     /* The highest address of the stack. Grows down from here */
-	uint8_t *      low;      /* The address of the lowest usabe address. Above guard page */
-	uint8_t *      buffer;   /* Points to Guard Page */
+	uint8_t *      low;      /* The address of the lowest useabe address. Above guard page */
+	uint8_t *      buffer;   /* Points base address of backing heap allocation (Guard Page) */
 };
 
 static inline struct wasm_stack *
@@ -36,14 +50,14 @@ wasm_stack_init(struct wasm_stack *wasm_stack, size_t capacity)
 	int rc = 0;
 
 	wasm_stack->buffer = (uint8_t *)mmap(NULL, /* guard page */ PAGE_SIZE + capacity, PROT_NONE,
-	                               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	                                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (unlikely(wasm_stack->buffer == MAP_FAILED)) {
 		perror("sandbox allocate stack");
 		goto err_stack_allocation_failed;
 	}
 
-	wasm_stack->low = (uint8_t *)mmap(wasm_stack->buffer + /* guard page */ PAGE_SIZE, capacity, PROT_READ | PROT_WRITE,
-	                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	wasm_stack->low = (uint8_t *)mmap(wasm_stack->buffer + /* guard page */ PAGE_SIZE, capacity,
+	                                  PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	if (unlikely(wasm_stack->low == MAP_FAILED)) {
 		perror("sandbox set stack read/write");
 		goto err_stack_prot_failed;
@@ -61,7 +75,7 @@ err_stack_prot_failed:
 	if (rc == -1) perror("munmap");
 err_stack_allocation_failed:
 	wasm_stack->buffer = NULL;
-	rc           = -1;
+	rc                 = -1;
 	goto done;
 }
 
@@ -76,7 +90,7 @@ static struct wasm_stack *
 wasm_stack_new(size_t capacity)
 {
 	struct wasm_stack *wasm_stack = wasm_stack_allocate();
-	int                rc   = wasm_stack_init(wasm_stack, capacity);
+	int                rc         = wasm_stack_init(wasm_stack, capacity);
 	if (rc < 0) {
 		wasm_stack_free(wasm_stack);
 		return NULL;
