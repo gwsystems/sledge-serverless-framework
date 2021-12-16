@@ -80,7 +80,6 @@
 		"sandbox_set_as_runnable.h": "c",
 		"sandbox_set_as_complete.h": "c",
 		"deque.h": "c",
-		"sandbox_request.h": "c",
 		"sandbox_send_response.h": "c",
 		"sandbox_setup_arguments.h": "c",
 		"worker_thread.h": "c",
@@ -101,7 +100,9 @@
 		"scheduler.h": "c",
 		"sandbox_set_as_returned.h": "c",
 		"software_interrupt_counts.h": "c",
-		"sandbox_set_as_running_sys.h": "c"
+		"sandbox_set_as_running_sys.h": "c",
+		"wasm_module_instance.h": "c",
+		"wasm_table.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

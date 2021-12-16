@@ -13,7 +13,6 @@
 #include "local_runqueue_minheap.h"
 #include "local_runqueue_list.h"
 #include "panic.h"
-#include "sandbox_request.h"
 #include "sandbox_functions.h"
 #include "sandbox_types.h"
 #include "sandbox_set_as_preempted.h"
@@ -74,67 +73,49 @@ static inline struct sandbox *
 scheduler_edf_get_next()
 {
 	/* Get the deadline of the sandbox at the head of the local request queue */
-	struct sandbox *        local          = local_runqueue_get_next();
-	uint64_t                local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
-	struct sandbox_request *request        = NULL;
+	struct sandbox *local          = local_runqueue_get_next();
+	uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
+	struct sandbox *global         = NULL;
 
 	uint64_t global_deadline = global_request_scheduler_peek();
 
 	/* Try to pull and allocate from the global queue if earlier
 	 * This will be placed at the head of the local runqueue */
 	if (global_deadline < local_deadline) {
-		if (global_request_scheduler_remove_if_earlier(&request, local_deadline) == 0) {
-			assert(request != NULL);
-			assert(request->absolute_deadline < local_deadline);
-			struct sandbox *global = sandbox_allocate(request);
-			if (!global) goto err_allocate;
-
+		if (global_request_scheduler_remove_if_earlier(&global, local_deadline) == 0) {
+			assert(global != NULL);
+			assert(global->absolute_deadline < local_deadline);
+			sandbox_prepare_execution_environment(global);
 			assert(global->state == SANDBOX_INITIALIZED);
 			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
 		}
 	}
 
-/* Return what is at the head of the local runqueue or NULL if empty */
-done:
+	/* Return what is at the head of the local runqueue or NULL if empty */
 	return local_runqueue_get_next();
-err_allocate:
-	client_socket_send(request->socket_descriptor, 503);
-	client_socket_close(request->socket_descriptor, &request->socket_address);
-	free(request);
-	goto done;
 }
 
 static inline struct sandbox *
 scheduler_fifo_get_next()
 {
-	struct sandbox *sandbox = local_runqueue_get_next();
+	struct sandbox *local = local_runqueue_get_next();
 
-	struct sandbox_request *sandbox_request = NULL;
+	struct sandbox *global = NULL;
 
-	if (sandbox == NULL) {
+	if (local == NULL) {
 		/* If the local runqueue is empty, pull from global request scheduler */
-		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
+		if (global_request_scheduler_remove(&global) < 0) goto done;
 
-		sandbox = sandbox_allocate(sandbox_request);
-		if (!sandbox) goto err_allocate;
-
-		sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
-	} else if (sandbox == current_sandbox_get()) {
+		sandbox_prepare_execution_environment(global);
+		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+	} else if (local == current_sandbox_get()) {
 		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */
 		local_runqueue_list_rotate();
-		sandbox = local_runqueue_get_next();
 	}
 
 
 done:
-	return sandbox;
-err_allocate:
-	client_socket_send(sandbox_request->socket_descriptor, 503);
-	client_socket_close(sandbox_request->socket_descriptor, &sandbox->client_address);
-	free(sandbox_request);
-err:
-	sandbox = NULL;
-	goto done;
+	return local_runqueue_get_next();
 }
 
 static inline struct sandbox *

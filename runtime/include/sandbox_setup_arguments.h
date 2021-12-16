@@ -7,6 +7,8 @@
 
 #include "sandbox_types.h"
 
+extern void stub_init(int32_t offset);
+
 /**
  * Takes the arguments from the sandbox struct and writes them into the WebAssembly linear memory
  */
@@ -15,12 +17,18 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	int32_t argument_count = 0;
-	/* whatever gregor has, to be able to pass arguments to a module! */
-	sandbox->arguments_offset = local_sandbox_context_cache.memory.size;
-	assert(local_sandbox_context_cache.memory.start == sandbox->memory.start);
-	expand_memory();
 
-	int32_t string_off = sandbox->arguments_offset;
+	/* Copy arguments into linear memory. It seems like malloc would clobber this, but I think this goes away in
+	 * WASI, so not worth fixing*/
 
-	stub_init(string_off);
+	sandbox->arguments_offset = wasm_memory_get_size(sandbox->memory);
+
+	/* Assumption: we can fit the arguments in a single wasm page */
+	int rc = wasm_memory_expand(sandbox->memory, WASM_PAGE_SIZE);
+	assert(rc == 0);
+
+	/* We have to update our cache here */
+	memcpy(&current_wasm_module_instance.memory, sandbox->memory, sizeof(struct wasm_memory));
+
+	stub_init(sandbox->arguments_offset);
 }

@@ -4,6 +4,7 @@
 
 #include "arch/getcycles.h"
 #include "worker_thread.h"
+#include "current_sandbox.h"
 
 extern int32_t inner_syscall_handler(int32_t n, int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f);
 
@@ -36,7 +37,7 @@ env_a_ctz_64(uint64_t x)
 INLINE void
 env_a_and_64(int32_t p_off, uint64_t v)
 {
-	uint64_t *p = worker_thread_get_memory_ptr_void(p_off, sizeof(uint64_t));
+	uint64_t *p = current_sandbox_get_ptr_void(p_off, sizeof(uint64_t));
 	ck_pr_and_64(p, v);
 }
 
@@ -44,7 +45,7 @@ INLINE void
 env_a_or_64(int32_t p_off, int64_t v)
 {
 	assert(sizeof(int64_t) == sizeof(uint64_t));
-	uint64_t *p = worker_thread_get_memory_ptr_void(p_off, sizeof(int64_t));
+	uint64_t *p = current_sandbox_get_ptr_void(p_off, sizeof(int64_t));
 	ck_pr_or_64(p, v);
 }
 
@@ -52,7 +53,7 @@ int32_t
 env_a_cas(int32_t p_off, int32_t t, int32_t s)
 {
 	assert(sizeof(int32_t) == sizeof(volatile int));
-	int *p = worker_thread_get_memory_ptr_void(p_off, sizeof(int32_t));
+	int *p = current_sandbox_get_ptr_void(p_off, sizeof(int32_t));
 
 	return ck_pr_cas_int(p, t, s);
 }
@@ -61,7 +62,7 @@ void
 env_a_or(int32_t p_off, int32_t v)
 {
 	assert(sizeof(int32_t) == sizeof(volatile int));
-	int *p = worker_thread_get_memory_ptr_void(p_off, sizeof(int32_t));
+	int *p = current_sandbox_get_ptr_void(p_off, sizeof(int32_t));
 	ck_pr_or_int(p, v);
 }
 
@@ -69,7 +70,7 @@ int32_t
 env_a_swap(int32_t x_off, int32_t v)
 {
 	assert(sizeof(int32_t) == sizeof(volatile int));
-	int *x = worker_thread_get_memory_ptr_void(x_off, sizeof(int32_t));
+	int *x = current_sandbox_get_ptr_void(x_off, sizeof(int32_t));
 
 	int p;
 	do {
@@ -84,7 +85,7 @@ int32_t
 env_a_fetch_add(int32_t x_off, int32_t v)
 {
 	assert(sizeof(int32_t) == sizeof(volatile int));
-	int *x = worker_thread_get_memory_ptr_void(x_off, sizeof(int32_t));
+	int *x = current_sandbox_get_ptr_void(x_off, sizeof(int32_t));
 	return ck_pr_faa_int(x, v);
 }
 
@@ -92,7 +93,7 @@ void
 env_a_inc(int32_t x_off)
 {
 	assert(sizeof(int32_t) == sizeof(volatile int));
-	int *x = worker_thread_get_memory_ptr_void(x_off, sizeof(int32_t));
+	int *x = current_sandbox_get_ptr_void(x_off, sizeof(int32_t));
 	ck_pr_inc_int(x);
 }
 
@@ -100,7 +101,7 @@ void
 env_a_dec(int32_t x_off)
 {
 	assert(sizeof(int32_t) == sizeof(volatile int));
-	int *x = worker_thread_get_memory_ptr_void(x_off, sizeof(int32_t));
+	int *x = (int *)current_sandbox_get_ptr_void(x_off, sizeof(int32_t));
 	ck_pr_dec_int(x);
 }
 
@@ -108,7 +109,7 @@ void
 env_a_store(int32_t p_off, int32_t x)
 {
 	assert(sizeof(int32_t) == sizeof(volatile int));
-	int *p = worker_thread_get_memory_ptr_void(p_off, sizeof(int32_t));
+	int *p = (int *)current_sandbox_get_ptr_void(p_off, sizeof(int32_t));
 	ck_pr_store_int(p, x);
 }
 

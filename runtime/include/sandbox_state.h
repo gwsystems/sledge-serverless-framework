@@ -32,31 +32,31 @@ sandbox_state_stringify(sandbox_state_t state)
 	return sandbox_state_labels[state];
 }
 
-#ifdef LOG_SANDBOX_COUNT
-extern _Atomic uint32_t sandbox_state_count[SANDBOX_STATE_COUNT];
+#ifdef SANDBOX_STATE_TOTALS
+extern _Atomic uint32_t sandbox_state_totals[SANDBOX_STATE_COUNT];
 #endif
 
 static inline void
-sandbox_count_initialize()
+sandbox_state_totals_initialize()
 {
-#ifdef LOG_SANDBOX_COUNT
-	for (int i = 0; i < SANDBOX_STATE_COUNT; i++) atomic_init(&sandbox_state_count[i], 0);
-#endif
-}
-
-static inline void
-runtime_sandbox_total_increment(sandbox_state_t state)
-{
-#ifdef LOG_SANDBOX_COUNT
-	atomic_fetch_add(&sandbox_state_count[state], 1);
+#ifdef SANDBOX_STATE_TOTALS
+	for (int i = 0; i < SANDBOX_STATE_COUNT; i++) atomic_init(&sandbox_state_totals[i], 0);
 #endif
 }
 
 static inline void
-runtime_sandbox_total_decrement(sandbox_state_t state)
+sandbox_state_totals_increment(sandbox_state_t state)
 {
-#ifdef LOG_SANDBOX_COUNT
-	if (atomic_load(&sandbox_state_count[state]) == 0) panic("Underflow of %s\n", sandbox_state_stringify(state));
-	atomic_fetch_sub(&sandbox_state_count[state], 1);
+#ifdef SANDBOX_STATE_TOTALS
+	atomic_fetch_add(&sandbox_state_totals[state], 1);
+#endif
+}
+
+static inline void
+sandbox_state_totals_decrement(sandbox_state_t state)
+{
+#ifdef SANDBOX_STATE_TOTALS
+	if (atomic_load(&sandbox_state_totals[state]) == 0) panic("Underflow of %s\n", sandbox_state_stringify(state));
+	atomic_fetch_sub(&sandbox_state_totals[state], 1);
 #endif
 }

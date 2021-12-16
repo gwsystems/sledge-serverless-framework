@@ -40,9 +40,9 @@ sandbox_set_as_running_sys(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* State Change Bookkeeping */
 	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
 	sandbox->timestamp_of.last_state_change = now;
-	sandbox_state_history_append(sandbox, SANDBOX_RUNNING_SYS);
-	runtime_sandbox_total_increment(SANDBOX_RUNNING_SYS);
-	runtime_sandbox_total_decrement(last_state);
+	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RUNNING_SYS);
+	sandbox_state_totals_increment(SANDBOX_RUNNING_SYS);
+	sandbox_state_totals_decrement(last_state);
 }
 
 static inline void

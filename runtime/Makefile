@@ -55,7 +55,7 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_LOCK_OVERHEAD
 # CFLAGS += -DLOG_MODULE_LOADING
 # CFLAGS += -DLOG_PREEMPTION
-# CFLAGS += -DLOG_REQUEST_ALLOCATION
+# CFLAGS += -DLOG_SANDBOX_ALLOCATION
 
 # Stores and logs extended signal information for each worker
 # CFLAGS += -DLOG_SOFTWARE_INTERRUPT_COUNTS
@@ -73,10 +73,9 @@ BINARY_NAME=sledgert
 # To log, run `call http_total_log()` while in GDB
 # CFLAGS += -DLOG_TOTAL_REQS_RESPS
 
-# This flag logs the total number of sandboxes in the various states
+# This flag tracks the total number of sandboxes in the various states
 # It is useful to debug if sandboxes are "getting caught" in a particular state
-# To log, run `call runtime_log_sandbox_states()` while in GDB
-# CFLAGS += -DLOG_SANDBOX_COUNT
+# CFLAGS += -DSANDBOX_STATE_TOTALS
 
 # This flag enables an per-worker atomic count of sandbox's local runqueue count in thread local storage
 # Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue
@@ -105,8 +104,6 @@ INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
 CFILES += src/*.c
 CFILES += src/arch/${ARCH}/*.c
 CFILES += src/libc/*.c
-CFILES += src/memory/common.c
-CFILES += src/memory/64bit_nix.c
 CFILES += thirdparty/dist/lib/http_parser.o
 
 # Configuring Jasmine

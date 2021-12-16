@@ -297,7 +297,7 @@ log_compiletime_config()
 	pretty_print_key_disabled("Log Preemption");
 #endif
 
-#ifdef LOG_REQUEST_ALLOCATION
+#ifdef LOG_SANDBOX_ALLOCATION
 	pretty_print_key_enabled("Log Request Allocation");
 #else
 	pretty_print_key_disabled("Log Request Allocation");
@@ -321,10 +321,10 @@ log_compiletime_config()
 	pretty_print_key_disabled("Log Total Reqs/Resps");
 #endif
 
-#ifdef LOG_SANDBOX_COUNT
-	pretty_print_key_enabled("Log Sandbox Count");
+#ifdef SANDBOX_STATE_TOTALS
+	pretty_print_key_enabled("Log Sandbox State Count");
 #else
-	pretty_print_key_disabled("Log Sandbox Count");
+	pretty_print_key_disabled("Log Sandbox State Count");
 #endif
 
 #ifdef LOG_LOCAL_RUNQUEUE

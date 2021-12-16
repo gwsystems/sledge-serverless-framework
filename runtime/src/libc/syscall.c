@@ -14,6 +14,7 @@
 #include "scheduler.h"
 #include "sandbox_functions.h"
 #include "worker_thread.h"
+#include "wasm_module_instance.h"
 
 // What should we tell the child program its UID and GID are?
 #define UID 0xFF
@@ -39,11 +40,12 @@
 void
 stub_init(int32_t offset)
 {
+	struct sandbox *current_sandbox = current_sandbox_get();
 	// What program name will we put in the auxiliary vectors
-	char *program_name = current_sandbox_get()->module->name;
+	char *program_name = current_sandbox->module->name;
 	// Copy the program name into WASM accessible memory
 	int32_t program_name_offset = offset;
-	strcpy(get_memory_ptr_for_runtime(offset, sizeof(program_name)), program_name);
+	strcpy(wasm_memory_get_ptr_void(current_sandbox->memory, offset, sizeof(program_name)), program_name);
 	offset += sizeof(program_name);
 
 	// The construction of this is:
@@ -69,7 +71,8 @@ stub_init(int32_t offset)
 		0,
 	};
 	int32_t env_vec_offset = offset;
-	memcpy(get_memory_ptr_for_runtime(env_vec_offset, sizeof(env_vec)), env_vec, sizeof(env_vec));
+	memcpy(wasm_memory_get_ptr_void(current_sandbox->memory, env_vec_offset, sizeof(env_vec)), env_vec,
+	       sizeof(env_vec));
 
 	module_initialize_libc(current_sandbox_get()->module, env_vec_offset, program_name_offset);
 }
@@ -92,7 +95,7 @@ wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 
 	/* Non-blocking copy on stdin */
 	if (filedes == 0) {
-		char *               buffer          = worker_thread_get_memory_ptr_void(buf_offset, nbyte);
+		char *               buffer          = current_sandbox_get_ptr_void(buf_offset, nbyte);
 		struct http_request *current_request = &current_sandbox->http_request;
 		if (current_request->body_length <= 0) return 0;
 		int bytes_to_read = nbyte > current_request->body_length ? current_request->body_length : nbyte;
@@ -102,7 +105,7 @@ wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 		return bytes_to_read;
 	}
 
-	char *buf = worker_thread_get_memory_ptr_void(buf_offset, nbyte);
+	char *buf = current_sandbox_get_ptr_void(buf_offset, nbyte);
 
 	int32_t res = 0;
 	while (res < nbyte) {
@@ -132,18 +135,19 @@ err:
 int32_t
 wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 {
-	struct sandbox *s      = current_sandbox_get();
-	char *          buffer = worker_thread_get_memory_ptr_void(buf_offset, buf_size);
+	struct sandbox *s        = current_sandbox_get();
+	char *          buffer   = current_sandbox_get_ptr_void(buf_offset, buf_size);
+	struct vec_u8 * response = &s->response;
 
 	if (fd == STDERR_FILENO) { write(STDERR_FILENO, buffer, buf_size); }
 
 	if (fd == STDOUT_FILENO) {
-		int buffer_remaining = s->module->max_response_size - s->response.length;
+		int buffer_remaining = response->capacity - response->length;
 		int to_write         = buffer_remaining > buf_size ? buf_size : buffer_remaining;
 
 		if (to_write == 0) return 0;
-		memcpy(&s->response.base[s->response.length], buffer, to_write);
-		s->response.length += to_write;
+		memcpy(&response->buffer[response->length], buffer, to_write);
+		response->length += to_write;
 
 		return to_write;
 	}
@@ -173,7 +177,7 @@ err:
 int32_t
 wasm_open(int32_t path_off, int32_t flags, int32_t mode)
 {
-	char *path = worker_thread_get_memory_string(path_off, MODULE_MAX_PATH_LENGTH);
+	char *path = current_sandbox_get_string(path_off, MODULE_MAX_PATH_LENGTH);
 
 	int res = ENOTSUP;
 
@@ -219,8 +223,8 @@ wasm_mmap(int32_t addr, int32_t len, int32_t prot, int32_t flags, int32_t fd, in
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
-	int32_t result = local_sandbox_context_cache.memory.size;
-	for (int i = 0; i < len / WASM_PAGE_SIZE; i++) { expand_memory(); }
+	int32_t result = wasm_memory_get_size(&current_wasm_module_instance.memory);
+	if (wasm_memory_expand(&current_wasm_module_instance.memory, len) == -1) { result = (uint32_t)-1; }
 
 	return result;
 }
@@ -252,7 +256,7 @@ int32_t
 wasm_readv(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 {
 	int32_t            read = 0;
-	struct wasm_iovec *iov  = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+	struct wasm_iovec *iov  = current_sandbox_get_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 	for (int i = 0; i < iovcnt; i++) { read += wasm_read(fd, iov[i].base_offset, iov[i].len); }
 
 	return read;
@@ -266,8 +270,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
 		// both 1 and 2 go to client.
 		int                len = 0;
-		struct wasm_iovec *iov = worker_thread_get_memory_ptr_void(iov_offset,
-		                                                           iovcnt * sizeof(struct wasm_iovec));
+		struct wasm_iovec *iov = current_sandbox_get_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 		for (int i = 0; i < iovcnt; i++) { len += wasm_write(fd, iov[i].base_offset, iov[i].len); }
 
 		return len;
@@ -277,7 +280,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	assert(0);
 
 
-	struct wasm_iovec *iov = worker_thread_get_memory_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
+	struct wasm_iovec *iov = current_sandbox_get_ptr_void(iov_offset, iovcnt * sizeof(struct wasm_iovec));
 
 	// If we aren't on MUSL, pass writev to printf if possible
 #if defined(__GLIBC__)
@@ -285,7 +288,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 		int sum = 0;
 		for (int i = 0; i < iovcnt; i++) {
 			int32_t len = iov[i].len;
-			void *  ptr = worker_thread_get_memory_ptr_void(iov[i].base_offset, len);
+			void *  ptr = current_sandbox_get_ptr_void(iov[i].base_offset, len);
 
 			printf("%.*s", len, (char *)ptr);
 			sum += len;
@@ -297,7 +300,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	struct iovec vecs[iovcnt];
 	for (int i = 0; i < iovcnt; i++) {
 		int32_t len = iov[i].len;
-		void *  ptr = worker_thread_get_memory_ptr_void(iov[i].base_offset, len);
+		void *  ptr = current_sandbox_get_ptr_void(iov[i].base_offset, len);
 		vecs[i]     = (struct iovec){ ptr, len };
 	}
 
@@ -318,25 +321,20 @@ wasm_mremap(int32_t offset, int32_t old_size, int32_t new_size, int32_t flags)
 	if (new_size <= old_size) return offset;
 
 	// If at end of linear memory, just expand and return same address
-	if (offset + old_size == local_sandbox_context_cache.memory.size) {
-		int32_t amount_to_expand  = new_size - old_size;
-		int32_t pages_to_allocate = amount_to_expand / WASM_PAGE_SIZE;
-		if (amount_to_expand % WASM_PAGE_SIZE > 0) pages_to_allocate++;
-		for (int i = 0; i < pages_to_allocate; i++) expand_memory();
-
+	if (offset + old_size == current_wasm_module_instance.memory.size) {
+		int32_t amount_to_expand = new_size - old_size;
+		wasm_memory_expand(&current_wasm_module_instance.memory, amount_to_expand);
 		return offset;
 	}
 
 	// Otherwise allocate at end of address space and copy
-	int32_t pages_to_allocate = new_size / WASM_PAGE_SIZE;
-	if (new_size % WASM_PAGE_SIZE > 0) pages_to_allocate++;
-	int32_t new_offset = local_sandbox_context_cache.memory.size;
-	for (int i = 0; i < pages_to_allocate; i++) expand_memory();
+	int32_t new_offset = current_wasm_module_instance.memory.size;
+	wasm_memory_expand(&current_wasm_module_instance.memory, new_size);
 
 	// Get pointer of old offset and pointer of new offset
-	char *linear_mem = local_sandbox_context_cache.memory.start;
-	char *src        = &linear_mem[offset];
-	char *dest       = &linear_mem[new_offset];
+	uint8_t *linear_mem = current_wasm_module_instance.memory.buffer;
+	uint8_t *src        = &linear_mem[offset];
+	uint8_t *dest       = &linear_mem[new_offset];
 
 	// Copy Values. We can use memcpy because we don't overlap
 	memcpy((void *)dest, (void *)src, old_size);
@@ -384,8 +382,7 @@ wasm_get_time(int32_t clock_id, int32_t timespec_off)
 		assert(0);
 	}
 
-	struct wasm_time_spec *timespec = worker_thread_get_memory_ptr_void(timespec_off,
-	                                                                    sizeof(struct wasm_time_spec));
+	struct wasm_time_spec *timespec = current_sandbox_get_ptr_void(timespec_off, sizeof(struct wasm_time_spec));
 
 	struct timespec native_timespec = { 0, 0 };
 	int             res             = clock_gettime(real_clock, &native_timespec);
