@@ -9,22 +9,10 @@ struct vec_u8 {
 	uint8_t *buffer; /* Backing heap allocation. Different lifetime because realloc might move this */
 };
 
-static inline struct vec_u8 *vec_u8_alloc(void);
 static inline int            vec_u8_init(struct vec_u8 *vec_u8, size_t capacity);
-static inline struct vec_u8 *vec_u8_new(size_t capacity);
+static inline struct vec_u8 *vec_u8_alloc(size_t capacity);
 static inline void           vec_u8_deinit(struct vec_u8 *vec_u8);
 static inline void           vec_u8_free(struct vec_u8 *vec_u8);
-static inline void           vec_u8_delete(struct vec_u8 *vec_u8);
-
-/**
- * Allocates an uninitialized vec on the heap'
- * @returns a pointer to an uninitialized vec on the heap
- */
-static inline struct vec_u8 *
-vec_u8_alloc(void)
-{
-	return (struct vec_u8 *)calloc(1, sizeof(struct vec_u8));
-}
 
 /**
  * Initializes a vec, allocating a backing buffer for the provided capcity
@@ -54,9 +42,9 @@ vec_u8_init(struct vec_u8 *vec_u8, size_t capacity)
  * @returns a pointer to an initialized vec on the heap, ready for use
  */
 static inline struct vec_u8 *
-vec_u8_new(size_t capacity)
+vec_u8_alloc(size_t capacity)
 {
-	struct vec_u8 *vec_u8 = vec_u8_alloc();
+	struct vec_u8 *vec_u8 = (struct vec_u8 *)malloc(sizeof(struct vec_u8));
 	if (vec_u8 == NULL) return vec_u8;
 
 	int rc = vec_u8_init(vec_u8, capacity);
@@ -89,25 +77,12 @@ vec_u8_deinit(struct vec_u8 *vec_u8)
 }
 
 /**
- * Frees a vec struct allocated on the heap
- * Assumes that the vec has already been deinitialized
- */
-static inline void
-vec_u8_free(struct vec_u8 *vec_u8)
-{
-	assert(vec_u8->buffer == NULL);
-	assert(vec_u8->length == 0);
-	assert(vec_u8->capacity == 0);
-	free(vec_u8);
-}
-
-/**
  * Deinitializes and frees a vec allocated to the heap
  * @param vec_u8
  */
 static inline void
-vec_u8_delete(struct vec_u8 *vec_u8)
+vec_u8_free(struct vec_u8 *vec_u8)
 {
 	vec_u8_deinit(vec_u8);
-	vec_u8_free(vec_u8);
+	free(vec_u8);
 }

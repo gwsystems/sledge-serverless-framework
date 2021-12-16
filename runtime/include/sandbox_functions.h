@@ -12,8 +12,8 @@
  * Public API              *
  **************************/
 
-struct sandbox *sandbox_new(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
-                            uint64_t request_arrival_timestamp, uint64_t admissions_estimate);
+struct sandbox *sandbox_alloc(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
+                              uint64_t request_arrival_timestamp, uint64_t admissions_estimate);
 int             sandbox_prepare_execution_environment(struct sandbox *sandbox);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
@@ -43,11 +43,11 @@ sandbox_free_linear_memory(struct sandbox *sandbox)
 }
 
 /**
- * Free Linear Memory, leaving stack in place
+ * Deinitialize Linear Memory, cleaning up the backing buffer
  * @param sandbox
  */
 static inline void
-sandbox_free_http_buffers(struct sandbox *sandbox)
+sandbox_deinit_http_buffers(struct sandbox *sandbox)
 {
 	assert(sandbox);
 	vec_u8_deinit(&sandbox->request);

@@ -7,7 +7,6 @@
 #include "sandbox_types.h"
 #include "types.h"
 
-
 /**
  * @brief wasm_stack is a stack used to execute an AOT-compiled WebAssembly instance. It is allocated with a static size
  * and a guard page beneath the lowest usuable address. Because the stack grows down, this protects against stack
@@ -29,11 +28,11 @@ struct wasm_stack {
 	uint8_t *      buffer;   /* Points base address of backing heap allocation (Guard Page) */
 };
 
-static inline struct wasm_stack *
-wasm_stack_allocate(void)
-{
-	return calloc(1, sizeof(struct wasm_stack));
-}
+static struct wasm_stack *wasm_stack_alloc(size_t capacity);
+static inline int         wasm_stack_init(struct wasm_stack *wasm_stack, size_t capacity);
+static inline void        wasm_stack_reinit(struct wasm_stack *wasm_stack);
+static inline void        wasm_stack_deinit(struct wasm_stack *wasm_stack);
+static inline void        wasm_stack_free(struct wasm_stack *wasm_stack);
 
 /**
  * Allocates a static sized stack for a sandbox with a guard page underneath
@@ -79,17 +78,10 @@ err_stack_allocation_failed:
 	goto done;
 }
 
-static INLINE void
-wasm_stack_free(struct wasm_stack *wasm_stack)
-{
-	free(wasm_stack);
-}
-
-
 static struct wasm_stack *
-wasm_stack_new(size_t capacity)
+wasm_stack_alloc(size_t capacity)
 {
-	struct wasm_stack *wasm_stack = wasm_stack_allocate();
+	struct wasm_stack *wasm_stack = calloc(1, sizeof(struct wasm_stack));
 	int                rc         = wasm_stack_init(wasm_stack, capacity);
 	if (rc < 0) {
 		wasm_stack_free(wasm_stack);
@@ -113,12 +105,12 @@ wasm_stack_deinit(struct wasm_stack *wasm_stack)
 }
 
 static inline void
-wasm_stack_delete(struct wasm_stack *wasm_stack)
+wasm_stack_free(struct wasm_stack *wasm_stack)
 {
 	assert(wasm_stack != NULL);
 	assert(wasm_stack->buffer != NULL);
 	wasm_stack_deinit(wasm_stack);
-	wasm_stack_free(wasm_stack);
+	free(wasm_stack);
 }
 
 static inline void

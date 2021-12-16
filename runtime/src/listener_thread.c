@@ -179,9 +179,9 @@ listener_thread_main(void *dummy)
 				}
 
 				/* Allocate a Sandbox */
-				struct sandbox *sandbox = sandbox_new(module, client_socket,
-				                                      (const struct sockaddr *)&client_address,
-				                                      request_arrival_timestamp, work_admitted);
+				struct sandbox *sandbox = sandbox_alloc(module, client_socket,
+				                                        (const struct sockaddr *)&client_address,
+				                                        request_arrival_timestamp, work_admitted);
 				if (unlikely(sandbox == NULL)) {
 					client_socket_send_oneshot(sandbox->client_socket_descriptor,
 					                           http_header_build(503), http_header_len(503));

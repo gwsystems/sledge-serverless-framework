@@ -20,18 +20,10 @@ struct wasm_table {
 	struct wasm_table_entry *buffer; /* Backing heap allocation */
 };
 
-static INLINE struct wasm_table *wasm_table_alloc(void);
 static INLINE int                wasm_table_init(struct wasm_table *wasm_table, size_t capacity);
-static INLINE struct wasm_table *wasm_table_new(size_t capacity);
+static INLINE struct wasm_table *wasm_table_alloc(size_t capacity);
 static INLINE void               wasm_table_deinit(struct wasm_table *wasm_table);
 static INLINE void               wasm_table_free(struct wasm_table *wasm_table);
-static INLINE void               wasm_table_delete(struct wasm_table *wasm_table);
-
-static INLINE struct wasm_table *
-wasm_table_alloc(void)
-{
-	return (struct wasm_table *)malloc(sizeof(struct wasm_table));
-}
 
 static INLINE int
 wasm_table_init(struct wasm_table *wasm_table, size_t capacity)
@@ -50,9 +42,9 @@ wasm_table_init(struct wasm_table *wasm_table, size_t capacity)
 }
 
 static INLINE struct wasm_table *
-wasm_table_new(size_t capacity)
+wasm_table_alloc(size_t capacity)
 {
-	struct wasm_table *wasm_table = wasm_table_alloc();
+	struct wasm_table *wasm_table = (struct wasm_table *)malloc(sizeof(struct wasm_table));
 	if (wasm_table == NULL) return NULL;
 
 	int rc = wasm_table_init(wasm_table, capacity);

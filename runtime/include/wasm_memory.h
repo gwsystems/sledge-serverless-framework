@@ -22,18 +22,51 @@ struct wasm_memory {
 	uint8_t *      buffer;   /* Backing heap allocation. Different lifetime because realloc might move this */
 };
 
-static INLINE struct wasm_memory *wasm_memory_alloc(void);
+/* Object Lifecycle Functions */
+static INLINE struct wasm_memory *wasm_memory_alloc(size_t initial, size_t max);
 static INLINE int                 wasm_memory_init(struct wasm_memory *wasm_memory, size_t initial, size_t max);
-static INLINE struct wasm_memory *wasm_memory_new(size_t initial, size_t max);
 static INLINE void                wasm_memory_deinit(struct wasm_memory *wasm_memory);
 static INLINE void                wasm_memory_free(struct wasm_memory *wasm_memory);
-static INLINE void                wasm_memory_delete(struct wasm_memory *wasm_memory);
+static INLINE void                wasm_memory_reinit(struct wasm_memory *wasm_memory, size_t initial);
 
+/* Memory Size */
+static INLINE int      wasm_memory_expand(struct wasm_memory *wasm_memory, size_t size_to_expand);
+static INLINE size_t   wasm_memory_get_size(struct wasm_memory *wasm_memory);
+static INLINE uint32_t wasm_memory_get_page_count(struct wasm_memory *wasm_memory);
+
+/* Reading and writing to wasm_memory */
+static INLINE void
+wasm_memory_initialize_region(struct wasm_memory *wasm_memory, uint32_t offset, uint32_t region_size, uint8_t region[]);
+static INLINE void *  wasm_memory_get_ptr_void(struct wasm_memory *wasm_memory, uint32_t offset, uint32_t size);
+static INLINE int8_t  wasm_memory_get_i8(struct wasm_memory *wasm_memory, uint32_t offset);
+static INLINE int16_t wasm_memory_get_i16(struct wasm_memory *wasm_memory, uint32_t offset);
+static INLINE int32_t wasm_memory_get_i32(struct wasm_memory *wasm_memory, uint32_t offset);
+static INLINE int64_t wasm_memory_get_i64(struct wasm_memory *wasm_memory, uint32_t offset);
+static INLINE float   wasm_memory_get_f32(struct wasm_memory *wasm_memory, uint32_t offset);
+static INLINE double  wasm_memory_get_f64(struct wasm_memory *wasm_memory, uint32_t offset);
+static INLINE char    wasm_memory_get_char(struct wasm_memory *wasm_memory, uint32_t offset);
+static INLINE char *  wasm_memory_get_string(struct wasm_memory *wasm_memory, uint32_t offset, uint32_t size);
+static INLINE void    wasm_memory_set_i8(struct wasm_memory *wasm_memory, uint32_t offset, int8_t value);
+static INLINE void    wasm_memory_set_i16(struct wasm_memory *wasm_memory, uint32_t offset, int16_t value);
+static INLINE void    wasm_memory_set_i32(struct wasm_memory *wasm_memory, uint32_t offset, int32_t value);
+static INLINE void    wasm_memory_set_i64(struct wasm_memory *wasm_memory, uint64_t offset, int64_t value);
+static INLINE void    wasm_memory_set_f32(struct wasm_memory *wasm_memory, uint32_t offset, float value);
+static INLINE void    wasm_memory_set_f64(struct wasm_memory *wasm_memory, uint32_t offset, double value);
 
 static INLINE struct wasm_memory *
-wasm_memory_alloc(void)
+wasm_memory_alloc(size_t initial, size_t max)
 {
-	return malloc(sizeof(struct wasm_memory));
+	struct wasm_memory *wasm_memory = malloc(sizeof(struct wasm_memory));
+	if (wasm_memory == NULL) return wasm_memory;
+
+	int rc = wasm_memory_init(wasm_memory, initial, max);
+	if (rc < 0) {
+		assert(0);
+		wasm_memory_free(wasm_memory);
+		return NULL;
+	}
+
+	return wasm_memory;
 }
 
 static INLINE int
@@ -68,22 +101,6 @@ wasm_memory_init(struct wasm_memory *wasm_memory, size_t initial, size_t max)
 	return 0;
 }
 
-static INLINE struct wasm_memory *
-wasm_memory_new(size_t initial, size_t max)
-{
-	struct wasm_memory *wasm_memory = wasm_memory_alloc();
-	if (wasm_memory == NULL) return wasm_memory;
-
-	int rc = wasm_memory_init(wasm_memory, initial, max);
-	if (rc < 0) {
-		assert(0);
-		wasm_memory_free(wasm_memory);
-		return NULL;
-	}
-
-	return wasm_memory;
-}
-
 static INLINE void
 wasm_memory_deinit(struct wasm_memory *wasm_memory)
 {
@@ -101,31 +118,14 @@ static INLINE void
 wasm_memory_free(struct wasm_memory *wasm_memory)
 {
 	assert(wasm_memory != NULL);
-	/* Assume prior deinitialization so we don't leak buffers */
-	assert(wasm_memory->buffer == NULL);
-
-	free(wasm_memory);
-}
-
-static INLINE void
-wasm_memory_delete(struct wasm_memory *wasm_memory)
-{
-	assert(wasm_memory != NULL);
-
 	wasm_memory_deinit(wasm_memory);
-	wasm_memory_free(wasm_memory);
-}
-
-static INLINE void
-wasm_memory_wipe(struct wasm_memory *wasm_memory)
-{
-	memset(wasm_memory->buffer, 0, wasm_memory->size);
+	free(wasm_memory);
 }
 
 static INLINE void
 wasm_memory_reinit(struct wasm_memory *wasm_memory, size_t initial)
 {
-	wasm_memory_wipe(wasm_memory);
+	memset(wasm_memory->buffer, 0, wasm_memory->size);
 	wasm_memory->size = initial;
 }
 
@@ -156,12 +156,6 @@ wasm_memory_expand(struct wasm_memory *wasm_memory, size_t size_to_expand)
 
 	wasm_memory->size = target_size;
 	return 0;
-}
-
-static INLINE void
-wasm_memory_set_size(struct wasm_memory *wasm_memory, size_t size)
-{
-	wasm_memory->size = size;
 }
 
 static INLINE size_t

@@ -8,12 +8,14 @@
 #include "admissions_control.h"
 #include "admissions_info.h"
 #include "awsm_abi.h"
+#include "current_wasm_module_instance.h"
 #include "http.h"
 #include "panic.h"
 #include "pool.h"
 #include "types.h"
 #include "wasm_stack.h"
 #include "wasm_memory.h"
+#include "wasm_table.h"
 
 #define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 
@@ -22,8 +24,8 @@
 
 extern thread_local int worker_thread_idx;
 
-INIT_POOL(wasm_memory, wasm_memory_delete)
-INIT_POOL(wasm_stack, wasm_stack_delete)
+INIT_POOL(wasm_memory, wasm_memory_free)
+INIT_POOL(wasm_stack, wasm_stack_free)
 
 /*
  * Defines the listen backlog, the queue length for completely established socketeds waiting to be accepted
@@ -102,13 +104,50 @@ module_initialize_globals(struct module *module)
 }
 
 /**
- * Invoke a module's initialize_tables
+ * @brief Invoke a module's initialize_tables
  * @param module
+ *
+ * Table initialization calls a function that runs within the sandbox. Rather than setting the current sandbox,
+ * we partially fake this out by only setting the table and then clearing after table
+ * initialization is complete.
+ *
+ * assumption: This approach depends on module_alloc only being invoked at program start before preemption is
+ * enabled. We are check that current_wasm_module_instance.table is NULL to gain confidence that
+ * we are not invoking this in a way that clobbers a current module.
+ *
+ * If we want to be able to do this later, we can possibly defer module_initialize_table until the first
+ * invocation. Alternatively, we can maintain the table per sandbox and call initialize
+ * on each sandbox if this "assumption" is too restrictive and we're ready to pay a per-sandbox performance hit.
  */
 static inline void
 module_initialize_table(struct module *module)
 {
+	assert(current_wasm_module_instance.table == NULL);
+	current_wasm_module_instance.table = module->indirect_table;
 	module->abi.initialize_tables();
+	current_wasm_module_instance.table = NULL;
+}
+
+static inline int
+module_alloc_table(struct module *module)
+{
+	/* WebAssembly Indirect Table */
+	/* TODO: Should this be part of the module or per-sandbox? */
+	/* TODO: How should this table be sized? */
+	module->indirect_table = wasm_table_alloc(INDIRECT_TABLE_SIZE);
+	if (module->indirect_table == NULL) return -1;
+
+	module_initialize_table(module);
+	return 0;
+}
+
+static inline void
+module_initialize_pools(struct module *module)
+{
+	for (int i = 0; i < MAX_WORKER_THREADS; i++) {
+		wasm_memory_pool_init(&module->pools[i].memory, false);
+		wasm_stack_pool_init(&module->pools[i].stack, false);
+	}
 }
 
 /**
@@ -166,7 +205,7 @@ module_allocate_stack(struct module *module)
 	struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&module->pools[worker_thread_idx].stack);
 
 	if (stack == NULL) {
-		stack = wasm_stack_new(module->stack_size);
+		stack = wasm_stack_alloc(module->stack_size);
 		if (unlikely(stack == NULL)) return NULL;
 	}
 
@@ -193,7 +232,7 @@ module_allocate_linear_memory(struct module *module)
 
 	struct wasm_memory *linear_memory = wasm_memory_pool_remove_nolock(&module->pools[worker_thread_idx].memory);
 	if (linear_memory == NULL) {
-		linear_memory = wasm_memory_new(initial, max);
+		linear_memory = wasm_memory_alloc(initial, max);
 		if (unlikely(linear_memory == NULL)) return NULL;
 	}
 
@@ -212,6 +251,6 @@ module_free_linear_memory(struct module *module, struct wasm_memory *memory)
  *******************************/
 
 void           module_free(struct module *module);
-struct module *module_new(char *mod_name, char *mod_path, uint32_t stack_sz, uint32_t relative_deadline_us, int port,
-                          int req_sz, int resp_sz, int admissions_percentile, uint32_t expected_execution_us);
-int            module_new_from_json(char *filename);
+struct module *module_alloc(char *mod_name, char *mod_path, uint32_t stack_sz, uint32_t relative_deadline_us, int port,
+                            int req_sz, int resp_sz, int admissions_percentile, uint32_t expected_execution_us);
+int            module_alloc_from_json(char *filename);

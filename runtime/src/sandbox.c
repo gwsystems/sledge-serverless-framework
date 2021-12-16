@@ -82,15 +82,6 @@ sandbox_allocate_http_buffers(struct sandbox *sandbox)
 	return 0;
 }
 
-static inline struct sandbox *
-sandbox_allocate(void)
-{
-	struct sandbox *sandbox                   = NULL;
-	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
-	sandbox                                   = calloc(1, page_aligned_sandbox_size);
-	sandbox_set_as_allocated(sandbox);
-	return sandbox;
-}
 
 /**
  * Allocates HTTP buffers and performs our approximation of "WebAssembly instantiation"
@@ -180,12 +171,15 @@ sandbox_init(struct sandbox *sandbox, struct module *module, int socket_descript
  * @return the new sandbox request
  */
 struct sandbox *
-sandbox_new(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
-            uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
+sandbox_alloc(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
+              uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
 {
-	struct sandbox *sandbox = sandbox_allocate();
-	assert(sandbox);
+	struct sandbox *sandbox                   = NULL;
+	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
+	sandbox                                   = calloc(1, page_aligned_sandbox_size);
+	if (unlikely(sandbox == NULL)) return NULL;
 
+	sandbox_set_as_allocated(sandbox);
 	sandbox_init(sandbox, module, socket_descriptor, socket_address, request_arrival_timestamp,
 	             admissions_estimate);
 
@@ -193,6 +187,21 @@ sandbox_new(struct module *module, int socket_descriptor, const struct sockaddr 
 	return sandbox;
 }
 
+void
+sandbox_deinit(struct sandbox *sandbox)
+{
+	assert(sandbox != NULL);
+	assert(sandbox != current_sandbox_get());
+	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
+
+	module_release(sandbox->module);
+
+	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
+	assert(sandbox->memory == NULL);
+
+	/* Free Sandbox Struct*/
+	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
+}
 
 /**
  * Free stack and heap resources.. also any I/O handles.
@@ -205,27 +214,6 @@ sandbox_free(struct sandbox *sandbox)
 	assert(sandbox != current_sandbox_get());
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
 
-	int rc;
-
-	module_release(sandbox->module);
-
-	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
-	assert(sandbox->memory == NULL);
-
-	/* Free Sandbox Struct and HTTP Request and Response Buffers */
-
-	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
+	sandbox_deinit(sandbox);
 	free(sandbox);
-
-	if (rc == -1) {
-		debuglog("Failed to unmap Sandbox %lu\n", sandbox->id);
-		goto err_free_sandbox_failed;
-	};
-
-done:
-	return;
-err_free_sandbox_failed:
-err_free_stack_failed:
-	/* Errors freeing memory is a fatal error */
-	panic("Failed to free Sandbox %lu\n", sandbox->id);
 }
