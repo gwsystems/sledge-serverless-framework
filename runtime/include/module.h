@@ -185,7 +185,6 @@ module_allocate_linear_memory(struct module *module)
 {
 	assert(module != NULL);
 
-
 	size_t initial = (size_t)module->abi.starting_pages * WASM_PAGE_SIZE;
 	size_t max     = (size_t)module->abi.max_pages * WASM_PAGE_SIZE;
 
