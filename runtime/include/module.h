@@ -203,7 +203,6 @@ module_allocate_linear_memory(struct module *module)
 static inline void
 module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 {
-	wasm_memory_wipe(memory);
 	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
 	wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
 }
