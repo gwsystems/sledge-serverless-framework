@@ -17,7 +17,11 @@
 #define PAGE_ALIGNED __attribute__((aligned(PAGE_SIZE)))
 #define PAGE_SIZE    (unsigned long)(1 << 12)
 #define WEAK         __attribute__((weak))
-#define CACHE_LINE   64
+
+#define CACHE_LINE 64
+/* This might be Intel specific. ARM and x64 both have the same CACHE_LINE size, but x64 uses Intel uses a double
+ * cache-line as a coherency unit */
+#define CACHE_PAD (CACHE_LINE * 2)
 
 #ifndef unlikely
 #define unlikely(x) __builtin_expect(!!(x), 0)
