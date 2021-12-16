@@ -29,93 +29,93 @@ wasm_stack_allocate(void)
  * @returns 0 on success, -1 on error
  */
 static inline int
-wasm_stack_init(struct wasm_stack *self, size_t capacity)
+wasm_stack_init(struct wasm_stack *wasm_stack, size_t capacity)
 {
-	assert(self);
+	assert(wasm_stack);
 
 	int rc = 0;
 
-	self->buffer = (uint8_t *)mmap(NULL, /* guard page */ PAGE_SIZE + capacity, PROT_NONE,
+	wasm_stack->buffer = (uint8_t *)mmap(NULL, /* guard page */ PAGE_SIZE + capacity, PROT_NONE,
 	                               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (unlikely(self->buffer == MAP_FAILED)) {
+	if (unlikely(wasm_stack->buffer == MAP_FAILED)) {
 		perror("sandbox allocate stack");
 		goto err_stack_allocation_failed;
 	}
 
-	self->low = (uint8_t *)mmap(self->buffer + /* guard page */ PAGE_SIZE, capacity, PROT_READ | PROT_WRITE,
+	wasm_stack->low = (uint8_t *)mmap(wasm_stack->buffer + /* guard page */ PAGE_SIZE, capacity, PROT_READ | PROT_WRITE,
 	                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-	if (unlikely(self->low == MAP_FAILED)) {
+	if (unlikely(wasm_stack->low == MAP_FAILED)) {
 		perror("sandbox set stack read/write");
 		goto err_stack_prot_failed;
 	}
 
-	ps_list_init_d(self);
-	self->capacity = capacity;
-	self->high     = self->low + capacity;
+	ps_list_init_d(wasm_stack);
+	wasm_stack->capacity = capacity;
+	wasm_stack->high     = wasm_stack->low + capacity;
 
 	rc = 0;
 done:
 	return rc;
 err_stack_prot_failed:
-	rc = munmap(self->buffer, PAGE_SIZE + capacity);
+	rc = munmap(wasm_stack->buffer, PAGE_SIZE + capacity);
 	if (rc == -1) perror("munmap");
 err_stack_allocation_failed:
-	self->buffer = NULL;
+	wasm_stack->buffer = NULL;
 	rc           = -1;
 	goto done;
 }
 
 static INLINE void
-wasm_stack_free(struct wasm_stack *self)
+wasm_stack_free(struct wasm_stack *wasm_stack)
 {
-	free(self);
+	free(wasm_stack);
 }
 
 
 static struct wasm_stack *
 wasm_stack_new(size_t capacity)
 {
-	struct wasm_stack *self = wasm_stack_allocate();
-	int                rc   = wasm_stack_init(self, capacity);
+	struct wasm_stack *wasm_stack = wasm_stack_allocate();
+	int                rc   = wasm_stack_init(wasm_stack, capacity);
 	if (rc < 0) {
-		wasm_stack_free(self);
+		wasm_stack_free(wasm_stack);
 		return NULL;
 	}
 
-	return self;
+	return wasm_stack;
 }
 
 static inline void
-wasm_stack_deinit(struct wasm_stack *self)
+wasm_stack_deinit(struct wasm_stack *wasm_stack)
 {
-	assert(self != NULL);
-	assert(self->buffer != NULL);
+	assert(wasm_stack != NULL);
+	assert(wasm_stack->buffer != NULL);
 
 	/* The stack start is the bottom of the usable stack, but we allocated a guard page below this */
-	munmap(self->buffer, self->capacity + PAGE_SIZE);
-	self->buffer = NULL;
-	self->high   = NULL;
-	self->low    = NULL;
+	munmap(wasm_stack->buffer, wasm_stack->capacity + PAGE_SIZE);
+	wasm_stack->buffer = NULL;
+	wasm_stack->high   = NULL;
+	wasm_stack->low    = NULL;
 }
 
 static inline void
-wasm_stack_delete(struct wasm_stack *self)
+wasm_stack_delete(struct wasm_stack *wasm_stack)
 {
-	assert(self != NULL);
-	assert(self->buffer != NULL);
-	wasm_stack_deinit(self);
-	wasm_stack_free(self);
+	assert(wasm_stack != NULL);
+	assert(wasm_stack->buffer != NULL);
+	wasm_stack_deinit(wasm_stack);
+	wasm_stack_free(wasm_stack);
 }
 
 static inline void
-wasm_stack_reinit(struct wasm_stack *self)
+wasm_stack_reinit(struct wasm_stack *wasm_stack)
 {
-	assert(self != NULL);
-	assert(self->buffer != NULL);
+	assert(wasm_stack != NULL);
+	assert(wasm_stack->buffer != NULL);
 
-	self->low = self->buffer + /* guard page */ PAGE_SIZE;
+	wasm_stack->low = wasm_stack->buffer + /* guard page */ PAGE_SIZE;
 
-	memset(self->low, 0, self->capacity);
-	ps_list_init_d(self);
-	self->high = self->low + self->capacity;
+	memset(wasm_stack->low, 0, wasm_stack->capacity);
+	ps_list_init_d(wasm_stack);
+	wasm_stack->high = wasm_stack->low + wasm_stack->capacity;
 }

@@ -159,14 +159,14 @@ module_release(struct module *module)
 }
 
 static inline struct wasm_stack *
-module_allocate_stack(struct module *self)
+module_allocate_stack(struct module *module)
 {
-	assert(self != NULL);
+	assert(module != NULL);
 
-	struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&self->pools[worker_thread_idx].stack);
+	struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&module->pools[worker_thread_idx].stack);
 
 	if (stack == NULL) {
-		stack = wasm_stack_new(self->stack_size);
+		stack = wasm_stack_new(module->stack_size);
 		if (unlikely(stack == NULL)) return NULL;
 	}
 
@@ -174,10 +174,10 @@ module_allocate_stack(struct module *self)
 }
 
 static inline void
-module_free_stack(struct module *self, struct wasm_stack *stack)
+module_free_stack(struct module *module, struct wasm_stack *stack)
 {
 	wasm_stack_reinit(stack);
-	wasm_stack_pool_add_nolock(&self->pools[worker_thread_idx].stack, stack);
+	wasm_stack_pool_add_nolock(&module->pools[worker_thread_idx].stack, stack);
 }
 
 static inline struct wasm_memory *

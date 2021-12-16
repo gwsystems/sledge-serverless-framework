@@ -7,16 +7,20 @@
  **************************************************/
 
 void
-http_request_print(struct http_request *self)
+http_request_print(struct http_request *http_request)
 {
-	printf("Header Count %d\n", self->header_count);
+	printf("Header Count %d\n", http_request->header_count);
 	printf("Header Content:\n");
-	for (int i = 0; i < self->header_count; i++) {
-		for (int j = 0; j < self->headers[i].key_length; j++) { putchar(self->headers[i].key[j]); }
+	for (int i = 0; i < http_request->header_count; i++) {
+		for (int j = 0; j < http_request->headers[i].key_length; j++) {
+			putchar(http_request->headers[i].key[j]);
+		}
 		putchar(':');
-		for (int j = 0; j < self->headers[i].value_length; j++) { putchar(self->headers[i].value[j]); }
+		for (int j = 0; j < http_request->headers[i].value_length; j++) {
+			putchar(http_request->headers[i].value[j]);
+		}
 		putchar('\n');
 	}
-	printf("Body Length %d\n", self->body_length);
-	printf("Body Read Length %d\n", self->body_read_length);
+	printf("Body Length %d\n", http_request->body_length);
+	printf("Body Read Length %d\n", http_request->body_read_length);
 }

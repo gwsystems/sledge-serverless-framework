@@ -10,11 +10,11 @@ struct vec_u8 {
 };
 
 static inline struct vec_u8 *vec_u8_alloc(void);
-static inline int            vec_u8_init(struct vec_u8 *self, size_t capacity);
+static inline int            vec_u8_init(struct vec_u8 *vec_u8, size_t capacity);
 static inline struct vec_u8 *vec_u8_new(size_t capacity);
-static inline void           vec_u8_deinit(struct vec_u8 *self);
-static inline void           vec_u8_free(struct vec_u8 *self);
-static inline void           vec_u8_delete(struct vec_u8 *self);
+static inline void           vec_u8_deinit(struct vec_u8 *vec_u8);
+static inline void           vec_u8_free(struct vec_u8 *vec_u8);
+static inline void           vec_u8_delete(struct vec_u8 *vec_u8);
 
 /**
  * Allocates an uninitialized vec on the heap'
@@ -28,22 +28,22 @@ vec_u8_alloc(void)
 
 /**
  * Initializes a vec, allocating a backing buffer for the provided capcity
- * @param self pointer to an uninitialized vec
+ * @param vec_u8 pointer to an uninitialized vec
  * @param capacity
  * @returns 0 on success, -1 on failure
  */
 static inline int
-vec_u8_init(struct vec_u8 *self, size_t capacity)
+vec_u8_init(struct vec_u8 *vec_u8, size_t capacity)
 {
 	if (capacity == 0) {
-		self->buffer = NULL;
+		vec_u8->buffer = NULL;
 	} else {
-		self->buffer = calloc(capacity, sizeof(uint8_t));
-		if (self->buffer == NULL) return -1;
+		vec_u8->buffer = calloc(capacity, sizeof(uint8_t));
+		if (vec_u8->buffer == NULL) return -1;
 	}
 
-	self->length   = 0;
-	self->capacity = capacity;
+	vec_u8->length   = 0;
+	vec_u8->capacity = capacity;
 
 	return 0;
 }
@@ -56,36 +56,36 @@ vec_u8_init(struct vec_u8 *self, size_t capacity)
 static inline struct vec_u8 *
 vec_u8_new(size_t capacity)
 {
-	struct vec_u8 *self = vec_u8_alloc();
-	if (self == NULL) return self;
+	struct vec_u8 *vec_u8 = vec_u8_alloc();
+	if (vec_u8 == NULL) return vec_u8;
 
-	int rc = vec_u8_init(self, capacity);
+	int rc = vec_u8_init(vec_u8, capacity);
 	if (rc < 0) {
-		vec_u8_free(self);
+		vec_u8_free(vec_u8);
 		return NULL;
 	}
 
-	return self;
+	return vec_u8;
 }
 
 /**
  * Deinitialize a vec, clearing out members and releasing the backing buffer
- * @param self
+ * @param vec_u8
  */
 static inline void
-vec_u8_deinit(struct vec_u8 *self)
+vec_u8_deinit(struct vec_u8 *vec_u8)
 {
-	if (self->capacity == 0) {
-		assert(self->buffer == NULL);
-		assert(self->length == 0);
+	if (vec_u8->capacity == 0) {
+		assert(vec_u8->buffer == NULL);
+		assert(vec_u8->length == 0);
 		return;
 	}
 
-	assert(self->buffer != NULL);
-	free(self->buffer);
-	self->buffer   = NULL;
-	self->length   = 0;
-	self->capacity = 0;
+	assert(vec_u8->buffer != NULL);
+	free(vec_u8->buffer);
+	vec_u8->buffer   = NULL;
+	vec_u8->length   = 0;
+	vec_u8->capacity = 0;
 }
 
 /**
@@ -93,21 +93,21 @@ vec_u8_deinit(struct vec_u8 *self)
  * Assumes that the vec has already been deinitialized
  */
 static inline void
-vec_u8_free(struct vec_u8 *self)
+vec_u8_free(struct vec_u8 *vec_u8)
 {
-	assert(self->buffer == NULL);
-	assert(self->length == 0);
-	assert(self->capacity == 0);
-	free(self);
+	assert(vec_u8->buffer == NULL);
+	assert(vec_u8->length == 0);
+	assert(vec_u8->capacity == 0);
+	free(vec_u8);
 }
 
 /**
  * Deinitializes and frees a vec allocated to the heap
- * @param self
+ * @param vec_u8
  */
 static inline void
-vec_u8_delete(struct vec_u8 *self)
+vec_u8_delete(struct vec_u8 *vec_u8)
 {
-	vec_u8_deinit(self);
-	vec_u8_free(self);
+	vec_u8_deinit(vec_u8);
+	vec_u8_free(vec_u8);
 }
