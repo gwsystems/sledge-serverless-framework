@@ -46,7 +46,7 @@ INIT_POOL(wasm_stack, wasm_stack_delete)
 struct module_pools {
 	struct wasm_memory_pool memory;
 	struct wasm_stack_pool  stack;
-} __attribute__((aligned(8)));
+} __attribute__((aligned(CACHE_LINE)));
 
 struct module {
 	/* Metadata from JSON Config */
