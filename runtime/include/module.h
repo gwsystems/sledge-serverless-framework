@@ -224,15 +224,18 @@ module_allocate_linear_memory(struct module *module)
 {
 	assert(module != NULL);
 
-	size_t initial = (size_t)module->abi.starting_pages * WASM_PAGE_SIZE;
-	size_t max     = (size_t)module->abi.max_pages * WASM_PAGE_SIZE;
+	uint64_t starting_bytes = (uint64_t)module->abi.starting_pages * WASM_PAGE_SIZE;
+	uint64_t max_bytes      = (uint64_t)module->abi.max_pages * WASM_PAGE_SIZE;
 
-	assert(initial <= (size_t)UINT32_MAX + 1);
-	assert(max <= (size_t)UINT32_MAX + 1);
+	/* UINT32_MAX is the largest representable integral value that can fit into type uint32_t. Because C counts from
+	zero, the number of states in the range 0..UINT32_MAX is thus UINT32_MAX + 1. This means that the maximum
+	possible buffer that can be byte-addressed by a full 32-bit address space is UNIT32_MAX + 1 */
+	assert(starting_bytes <= (uint64_t)UINT32_MAX + 1);
+	assert(max_bytes <= (uint64_t)UINT32_MAX + 1);
 
 	struct wasm_memory *linear_memory = wasm_memory_pool_remove_nolock(&module->pools[worker_thread_idx].memory);
 	if (linear_memory == NULL) {
-		linear_memory = wasm_memory_alloc(initial, max);
+		linear_memory = wasm_memory_alloc(starting_bytes, max_bytes);
 		if (unlikely(linear_memory == NULL)) return NULL;
 	}
 
