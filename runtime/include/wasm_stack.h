@@ -22,14 +22,14 @@
  */
 struct wasm_stack {
 	struct ps_list list;     /* Linked List Node used for object pool */
-	size_t         capacity; /* Usable capacity. Excludes size of guard page that we need to free */
+	uint64_t       capacity; /* Usable capacity. Excludes size of guard page that we need to free */
 	uint8_t *      high;     /* The highest address of the stack. Grows down from here */
 	uint8_t *      low;      /* The address of the lowest useabe address. Above guard page */
 	uint8_t *      buffer;   /* Points base address of backing heap allocation (Guard Page) */
 };
 
-static struct wasm_stack *wasm_stack_alloc(size_t capacity);
-static inline int         wasm_stack_init(struct wasm_stack *wasm_stack, size_t capacity);
+static struct wasm_stack *wasm_stack_alloc(uint64_t capacity);
+static inline int         wasm_stack_init(struct wasm_stack *wasm_stack, uint64_t capacity);
 static inline void        wasm_stack_reinit(struct wasm_stack *wasm_stack);
 static inline void        wasm_stack_deinit(struct wasm_stack *wasm_stack);
 static inline void        wasm_stack_free(struct wasm_stack *wasm_stack);
@@ -42,7 +42,7 @@ static inline void        wasm_stack_free(struct wasm_stack *wasm_stack);
  * @returns 0 on success, -1 on error
  */
 static inline int
-wasm_stack_init(struct wasm_stack *wasm_stack, size_t capacity)
+wasm_stack_init(struct wasm_stack *wasm_stack, uint64_t capacity)
 {
 	assert(wasm_stack);
 
@@ -79,7 +79,7 @@ err_stack_allocation_failed:
 }
 
 static struct wasm_stack *
-wasm_stack_alloc(size_t capacity)
+wasm_stack_alloc(uint64_t capacity)
 {
 	struct wasm_stack *wasm_stack = calloc(1, sizeof(struct wasm_stack));
 	int                rc         = wasm_stack_init(wasm_stack, capacity);
