@@ -369,7 +369,7 @@ main(int argc, char **argv)
 #ifdef LOG_MODULE_LOADING
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 #endif
-	if (module_new_from_json(argv[1])) panic("failed to initialize module(s) defined in %s\n", argv[1]);
+	if (module_alloc_from_json(argv[1])) panic("failed to initialize module(s) defined in %s\n", argv[1]);
 
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {

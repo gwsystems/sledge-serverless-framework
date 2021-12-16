@@ -38,7 +38,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	case SANDBOX_RUNNING_SYS: {
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
-		sandbox_free_http_buffers(sandbox);
+		sandbox_deinit_http_buffers(sandbox);
 		break;
 	}
 	default: {
