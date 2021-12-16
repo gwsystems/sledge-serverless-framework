@@ -131,18 +131,6 @@ module_init(struct module *module, char *name, char *path, uint32_t stack_size, 
             int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us)
 {
 	assert(module != NULL);
-	assert(name != NULL);
-	assert(strlen(name) > 0);
-	assert(strlen(name) < MODULE_MAX_NAME_LENGTH);
-	assert(path != NULL);
-	assert(strlen(path) > 0);
-	assert(strlen(path) < MODULE_MAX_PATH_LENGTH);
-	assert(stack_size > 0);
-	assert(relative_deadline_us > 0);
-	assert(relative_deadline_us < RUNTIME_RELATIVE_DEADLINE_US_MAX);
-	assert(port > 0);
-	assert(admissions_percentile > 0);
-	assert(expected_execution_us > 0);
 
 	int rc = 0;
 
