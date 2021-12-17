@@ -10,33 +10,18 @@ typedef enum
 {
 	SANDBOX_UNINITIALIZED = 0, /* Assumption: mmap zeros out structure */
 	SANDBOX_ALLOCATED,
-	SANDBOX_SET_AS_INITIALIZED,
 	SANDBOX_INITIALIZED,
-	SANDBOX_SET_AS_RUNNABLE,
 	SANDBOX_RUNNABLE,
-	SANDBOX_SET_AS_RUNNING,
-	SANDBOX_RUNNING,
-	SANDBOX_SET_AS_BLOCKED,
-	SANDBOX_BLOCKED,
-	SANDBOX_SET_AS_RETURNED,
+	SANDBOX_PREEMPTED,
+	SANDBOX_RUNNING_SYS,
+	SANDBOX_RUNNING_USER,
+	SANDBOX_INTERRUPTED,
+	SANDBOX_ASLEEP,
 	SANDBOX_RETURNED,
-	SANDBOX_SET_AS_COMPLETE,
 	SANDBOX_COMPLETE,
-	SANDBOX_SET_AS_ERROR,
 	SANDBOX_ERROR,
 	SANDBOX_STATE_COUNT
 } sandbox_state_t;
-
-/* Duration of time (in cycles) that the sandbox is in each state */
-struct sandbox_state_durations {
-	uint64_t initializing;
-	uint64_t runnable;
-	uint64_t running;
-	uint64_t blocked;
-	uint64_t returned;
-};
-
-extern const bool sandbox_state_is_terminal[SANDBOX_STATE_COUNT];
 
 extern const char *sandbox_state_labels[SANDBOX_STATE_COUNT];
 
@@ -47,42 +32,31 @@ sandbox_state_stringify(sandbox_state_t state)
 	return sandbox_state_labels[state];
 }
 
-
-static inline void
-sandbox_state_log_transition(uint64_t sandbox_id, sandbox_state_t last_state, sandbox_state_t current_state)
-{
-#ifdef LOG_STATE_CHANGES
-	debuglog("Sandbox %lu | %s => %s\n", sandbox_id, sandbox_state_stringify(last_state),
-	         sandbox_state_stringify(current_state));
-#endif
-}
-
-#ifdef LOG_SANDBOX_COUNT
-extern _Atomic uint32_t sandbox_state_count[SANDBOX_STATE_COUNT];
+#ifdef SANDBOX_STATE_TOTALS
+extern _Atomic uint32_t sandbox_state_totals[SANDBOX_STATE_COUNT];
 #endif
 
 static inline void
-sandbox_count_initialize()
+sandbox_state_totals_initialize()
 {
-#ifdef LOG_SANDBOX_COUNT
-	for (int i = 0; i < SANDBOX_STATE_COUNT; i++) atomic_init(&sandbox_state_count[i], 0);
+#ifdef SANDBOX_STATE_TOTALS
+	for (int i = 0; i < SANDBOX_STATE_COUNT; i++) atomic_init(&sandbox_state_totals[i], 0);
 #endif
 }
 
 static inline void
-runtime_sandbox_total_increment(sandbox_state_t state)
+sandbox_state_totals_increment(sandbox_state_t state)
 {
-#ifdef LOG_SANDBOX_COUNT
-	if (!sandbox_state_is_terminal[state]) panic("Unexpectedly logging intermediate transition state");
-	atomic_fetch_add(&sandbox_state_count[state], 1);
+#ifdef SANDBOX_STATE_TOTALS
+	atomic_fetch_add(&sandbox_state_totals[state], 1);
 #endif
 }
 
 static inline void
-runtime_sandbox_total_decrement(sandbox_state_t state)
+sandbox_state_totals_decrement(sandbox_state_t state)
 {
-#ifdef LOG_SANDBOX_COUNT
-	if (atomic_load(&sandbox_state_count[state]) == 0) panic("Underflow of %s\n", sandbox_state_stringify(state));
-	atomic_fetch_sub(&sandbox_state_count[state], 1);
+#ifdef SANDBOX_STATE_TOTALS
+	if (atomic_load(&sandbox_state_totals[state]) == 0) panic("Underflow of %s\n", sandbox_state_stringify(state));
+	atomic_fetch_sub(&sandbox_state_totals[state], 1);
 #endif
 }

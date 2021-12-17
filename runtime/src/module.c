@@ -16,6 +16,7 @@
 #include "panic.h"
 #include "runtime.h"
 #include "scheduler.h"
+#include "wasm_table.h"
 
 const int JSON_MAX_ELEMENT_COUNT = 16;
 const int JSON_MAX_ELEMENT_SIZE  = 1024;
@@ -125,54 +126,29 @@ module_free(struct module *module)
 	free(module);
 }
 
-
-/**
- * Module Contructor
- * Creates a new module, invokes initialize_tables to initialize the indirect table, adds it to the module DB, and
- *starts listening for HTTP Requests
- *
- * @param name
- * @param path
- * @param stack_size
- * @param max_memory
- * @param relative_deadline_us
- * @param port
- * @param request_size
- * @returns A new module or NULL in case of failure
- */
-
-struct module *
-module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uint32_t relative_deadline_us, int port,
-           int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us)
+static inline int
+module_init(struct module *module, char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, int port,
+            int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us)
 {
-	int rc = 0;
+	assert(module != NULL);
 
-	struct module *module = (struct module *)calloc(1, sizeof(struct module));
-	if (!module) {
-		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));
-		goto err;
-	};
+	int rc = 0;
 
 	atomic_init(&module->reference_count, 0);
 
 	rc = awsm_abi_init(&module->abi, path);
-	if (rc != 0) goto awsm_abi_init_err;
+	if (rc != 0) goto err;
 
 	/* Set fields in the module struct */
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
 	strncpy(module->path, path, MODULE_MAX_PATH_LENGTH);
 
-	module->stack_size = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
-	debuglog("Stack Size: %u", module->stack_size);
-	module->max_memory        = max_memory == 0 ? ((uint64_t)WASM_PAGE_SIZE * WASM_MEMORY_PAGES_MAX) : max_memory;
+	module->stack_size        = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
 	module->socket_descriptor = -1;
 	module->port              = port;
 
 	/* Deadlines */
 	module->relative_deadline_us = relative_deadline_us;
-
-	/* This should have been handled when a module was loaded */
-	assert(relative_deadline_us < RUNTIME_RELATIVE_DEADLINE_US_MAX);
 
 	/* This can overflow a uint32_t, so be sure to cast appropriately */
 	module->relative_deadline = (uint64_t)relative_deadline_us * runtime_processor_speed_MHz;
@@ -188,33 +164,52 @@ module_new(char *name, char *path, uint32_t stack_size, uint32_t max_memory, uin
 	module->max_request_size  = round_up_to_page(request_size);
 	module->max_response_size = round_up_to_page(response_size);
 
-	/* Table initialization calls a function that runs within the sandbox. Rather than setting the current sandbox,
-	 * we partially fake this out by only setting the module_indirect_table and then clearing after table
-	 * initialization is complete.
-	 *
-	 * assumption: This approach depends on module_new only being invoked at program start before preemption is
-	 * enabled. We are check that local_sandbox_context_cache.module_indirect_table is NULL to gain confidence that
-	 * we are not invoking this in a way that clobbers a current module.
-	 *
-	 * If we want to be able to do this later, we can possibly defer module_initialize_table until the first
-	 * invocation. Alternatively, we can maintain the module_indirect_table per sandbox and call initialize
-	 * on each sandbox if this "assumption" is too restrictive and we're ready to pay a per-sandbox performance hit.
-	 */
-
-	assert(local_sandbox_context_cache.module_indirect_table == NULL);
-	local_sandbox_context_cache.module_indirect_table = module->indirect_table;
-	module_initialize_table(module);
-	local_sandbox_context_cache.module_indirect_table = NULL;
+	module_alloc_table(module);
+	module_initialize_pools(module);
 
 	/* Start listening for requests */
 	rc = module_listen(module);
-	if (rc < 0) goto err_listen;
+	if (rc < 0) goto err;
+
+done:
+	return rc;
+err:
+	rc = -1;
+	goto done;
+}
+
+/**
+ * Module Contructor
+ * Creates a new module, invokes initialize_tables to initialize the indirect table, adds it to the module DB, and
+ *starts listening for HTTP Requests
+ *
+ * @param name
+ * @param path
+ * @param stack_size
+ * @param relative_deadline_us
+ * @param port
+ * @param request_size
+ * @returns A new module or NULL in case of failure
+ */
+
+struct module *
+module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, int port, int request_size,
+             int response_size, int admissions_percentile, uint32_t expected_execution_us)
+{
+	struct module *module = (struct module *)calloc(1, sizeof(struct module));
+	if (!module) {
+		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));
+		goto err;
+	};
+
+	int rc = module_init(module, name, path, stack_size, relative_deadline_us, port, request_size, response_size,
+	                     admissions_percentile, expected_execution_us);
+	if (rc < 0) goto init_err;
 
 done:
 	return module;
 
-err_listen:
-awsm_abi_init_err:
+init_err:
 	free(module);
 err:
 	module = NULL;
@@ -227,7 +222,7 @@ err:
  * @return RC 0 on Success. -1 on Error
  */
 int
-module_new_from_json(char *file_name)
+module_alloc_from_json(char *file_name)
 {
 	assert(file_name != NULL);
 	int       return_code = -1;
@@ -415,10 +410,10 @@ module_new_from_json(char *file_name)
 #endif
 
 		/* Allocate a module based on the values from the JSON */
-		struct module *module = module_new(module_name, module_path, 0, 0, relative_deadline_us, port,
-		                                   request_size, response_size, admissions_percentile,
-		                                   expected_execution_us);
-		if (module == NULL) goto module_new_err;
+		struct module *module = module_alloc(module_name, module_path, 0, relative_deadline_us, port,
+		                                     request_size, response_size, admissions_percentile,
+		                                     expected_execution_us);
+		if (module == NULL) goto module_alloc_err;
 
 		assert(module);
 		module_set_http_info(module, response_content_type);
@@ -435,7 +430,7 @@ module_new_from_json(char *file_name)
 
 done:
 	return return_code;
-module_new_err:
+module_alloc_err:
 json_parse_err:
 fclose_err:
 	/* We will retry fclose when we fall through into stat_buffer_alloc_err */

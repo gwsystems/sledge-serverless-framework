@@ -6,17 +6,18 @@
 
 #include "client_socket.h"
 #include "panic.h"
-#include "sandbox_request.h"
+#include "sandbox_types.h"
 
 /***************************
  * Public API              *
  **************************/
 
-struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
+struct sandbox *sandbox_alloc(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
+                              uint64_t request_arrival_timestamp, uint64_t admissions_estimate);
+int             sandbox_prepare_execution_environment(struct sandbox *sandbox);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 void            sandbox_switch_to(struct sandbox *next_sandbox);
-
 static inline void
 sandbox_close_http(struct sandbox *sandbox)
 {
@@ -35,9 +36,22 @@ sandbox_close_http(struct sandbox *sandbox)
 static inline void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
-	int rc = munmap(sandbox->memory.start, sandbox->memory.max + PAGE_SIZE);
-	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
-	sandbox->memory.start = NULL;
+	assert(sandbox != NULL);
+	assert(sandbox->memory != NULL);
+	module_free_linear_memory(sandbox->module, sandbox->memory);
+	sandbox->memory = NULL;
+}
+
+/**
+ * Deinitialize Linear Memory, cleaning up the backing buffer
+ * @param sandbox
+ */
+static inline void
+sandbox_deinit_http_buffers(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	vec_u8_deinit(&sandbox->request);
+	vec_u8_deinit(&sandbox->response);
 }
 
 /**
@@ -76,30 +90,4 @@ sandbox_open_http(struct sandbox *sandbox)
 	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_ADD, sandbox->client_socket_descriptor,
 	                   &accept_evt);
 	if (unlikely(rc < 0)) panic_err();
-}
-
-/**
- * Prints key performance metrics for a sandbox to runtime_sandbox_perf_log
- * This is defined by an environment variable
- * @param sandbox
- */
-static inline void
-sandbox_print_perf(struct sandbox *sandbox)
-{
-	/* If the log was not defined by an environment variable, early out */
-	if (runtime_sandbox_perf_log == NULL) return;
-
-	uint64_t queued_duration = sandbox->timestamp_of.allocation - sandbox->timestamp_of.request_arrival;
-
-	/*
-	 * Assumption: A sandbox is never able to free pages. If linear memory management
-	 * becomes more intelligent, then peak linear memory size needs to be tracked
-	 * seperately from current linear memory size.
-	 */
-	fprintf(runtime_sandbox_perf_log, "%lu,%s,%d,%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u,%u\n", sandbox->id,
-	        sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
-	        sandbox->module->relative_deadline, sandbox->total_time, queued_duration,
-	        sandbox->duration_of_state.initializing, sandbox->duration_of_state.runnable,
-	        sandbox->duration_of_state.running, sandbox->duration_of_state.blocked,
-	        sandbox->duration_of_state.returned, runtime_processor_speed_MHz, sandbox->memory.size);
 }

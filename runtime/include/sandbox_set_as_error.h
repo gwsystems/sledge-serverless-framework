@@ -8,6 +8,8 @@
 #include "local_runqueue.h"
 #include "sandbox_state.h"
 #include "sandbox_functions.h"
+#include "sandbox_perf_log.h"
+#include "sandbox_state_history.h"
 #include "sandbox_summarize_page_allocations.h"
 #include "panic.h"
 
@@ -27,20 +29,16 @@ static inline void
 sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-
-	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
-
-	sandbox->state = SANDBOX_SET_AS_ERROR;
+	sandbox->state = SANDBOX_ERROR;
+	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_SET_AS_INITIALIZED:
-		/* Technically, this is a degenerate sandbox that we generate by hand */
-		sandbox->duration_of_state.initializing += duration_of_last_state;
+	case SANDBOX_ALLOCATED:
 		break;
-	case SANDBOX_RUNNING: {
-		sandbox->duration_of_state.running += duration_of_last_state;
+	case SANDBOX_RUNNING_SYS: {
 		local_runqueue_delete(sandbox);
+		sandbox_free_linear_memory(sandbox);
+		sandbox_deinit_http_buffers(sandbox);
 		break;
 	}
 	default: {
@@ -49,17 +47,26 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	uint64_t sandbox_id = sandbox->id;
-	sandbox->state      = SANDBOX_ERROR;
-	sandbox_print_perf(sandbox);
-	sandbox_summarize_page_allocations(sandbox);
-	sandbox_free_linear_memory(sandbox);
-	admissions_control_subtract(sandbox->admissions_estimate);
-	/* Do not touch sandbox after adding to completion queue to avoid use-after-free bugs */
-	local_completion_queue_add(sandbox);
-
 	/* State Change Bookkeeping */
-	sandbox_state_log_transition(sandbox_id, last_state, SANDBOX_ERROR);
-	runtime_sandbox_total_increment(SANDBOX_ERROR);
-	runtime_sandbox_total_decrement(last_state);
+	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
+	sandbox->duration_of_state[last_state] += duration_of_last_state;
+	sandbox_state_history_append(&sandbox->state_history, SANDBOX_ERROR);
+	sandbox_state_totals_increment(SANDBOX_ERROR);
+	sandbox_state_totals_decrement(last_state);
+
+	/* Admissions Control Post Processing */
+	admissions_control_subtract(sandbox->admissions_estimate);
+
+	/* Terminal State Logging */
+	sandbox_perf_log_print_entry(sandbox);
+	sandbox_summarize_page_allocations(sandbox);
+
+	/* Does not add to completion queue until in cooperative scheduler */
+}
+
+static inline void
+sandbox_exit_error(struct sandbox *sandbox)
+{
+	assert(sandbox->state == SANDBOX_RUNNING_SYS);
+	sandbox_set_as_error(sandbox, SANDBOX_RUNNING_SYS);
 }

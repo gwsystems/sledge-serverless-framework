@@ -12,21 +12,17 @@
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_state.h"
+#include "sandbox_state_history.h"
+#include "vec_u8.h"
+#include "wasm_memory.h"
 #include "wasm_types.h"
-#include "wasi_impl.h"
-
+#include "wasm_stack.h"
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
-#define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
 #endif
 
 /*********************
  * Structs and Types *
  ********************/
-
-struct sandbox_stack {
-	void *   start; /* points to the bottom of the usable stack */
-	uint32_t size;
-};
 
 struct sandbox_timestamps {
 	uint64_t last_state_change; /* Used for bookkeeping of actual execution time */
@@ -40,59 +36,32 @@ struct sandbox_timestamps {
 #endif
 };
 
-/*
- * Static In-memory buffers are used for HTTP requests read in via STDIN and HTTP
- * responses written back out via STDOUT. These are allocated in pages immediately
- * adjacent to the sandbox struct in the following layout. The capacity of these
- * buffers are configured in the module spec and stored in sandbox->module.max_request_size
- * and sandbox->module.max_response_size.
- *
- * Because the sandbox struct, the request header, and the response header are sized
- * in pages, we must store the base pointer to the buffer. The length is increased
- * and should not exceed the respective module max size.
- *
- * ---------------------------------------------------
- * | Sandbox | Request         | Response            |
- * ---------------------------------------------------
- *
- * After the sandbox writes its response, a header is written at a negative offset
- * overwriting the tail end of the request buffer. This assumes that the request
- * data is no longer needed because the sandbox has run to completion
- *
- * ---------------------------------------------------
- * | Sandbox | Garbage   | HDR | Response            |
- * ---------------------------------------------------
- */
-struct sandbox_buffer {
-	char * base;
-	size_t length;
-};
-
 struct sandbox {
-	uint64_t        id;
-	sandbox_state_t state;
-	struct ps_list  list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
+	uint64_t                     id;
+	sandbox_state_t              state;
+	struct sandbox_state_history state_history;
+
+	struct ps_list list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
 
 	/* HTTP State */
-	struct sockaddr       client_address; /* client requesting connection! */
-	int                   client_socket_descriptor;
-	http_parser           http_parser;
-	struct http_request   http_request;
-	ssize_t               http_request_length; /* TODO: Get rid of me */
-	struct sandbox_buffer request;
-	struct sandbox_buffer response;
+	struct sockaddr     client_address; /* client requesting connection! */
+	int                 client_socket_descriptor;
+	http_parser         http_parser;
+	struct http_request http_request;
+	struct vec_u8       request;
+	struct vec_u8       response;
 
 	/* WebAssembly Module State */
 	struct module *module; /* the module this is an instance of */
 
 	/* WebAssembly Instance State  */
-	struct arch_context  ctxt;
-	struct sandbox_stack stack;
-	struct wasm_memory   memory;
+	struct arch_context ctxt;
+	struct wasm_stack * stack;
+	struct wasm_memory *memory;
 
 	/* Scheduling and Temporal State */
-	struct sandbox_timestamps      timestamp_of;
-	struct sandbox_state_durations duration_of_state;
+	struct sandbox_timestamps timestamp_of;
+	uint64_t                  duration_of_state[SANDBOX_STATE_COUNT];
 
 	uint64_t absolute_deadline;
 	uint64_t admissions_estimate; /* estimated execution time (cycles) * runtime_admissions_granularity / relative

@@ -13,14 +13,53 @@
 #include "local_runqueue_minheap.h"
 #include "local_runqueue_list.h"
 #include "panic.h"
-#include "sandbox_request.h"
-#include "sandbox_exit.h"
 #include "sandbox_functions.h"
 #include "sandbox_types.h"
-#include "sandbox_set_as_blocked.h"
+#include "sandbox_set_as_preempted.h"
 #include "sandbox_set_as_runnable.h"
-#include "sandbox_set_as_running.h"
-#include "worker_thread_execute_epoll_loop.h"
+#include "sandbox_set_as_running_sys.h"
+#include "sandbox_set_as_interrupted.h"
+#include "sandbox_set_as_running_user.h"
+#include "scheduler_execute_epoll_loop.h"
+
+
+/**
+ * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
+ *
+ * When executing cooperatively, the scheduler is directly invoked via `scheduler_cooperative_sched`. It runs a single
+ * time in the existing context in order to try to execute a direct sandbox-to-sandbox switch. When no sandboxes are
+ * available to execute, the scheduler executes a context switch to `worker_thread_base_context`, which calls
+ * `scheduler_cooperative_sched` in an infinite idle loop. If the scheduler needs to restore a sandbox that was
+ * previously preempted, it raises a SIGUSR1 signal to enter the scheduler handler to be able to restore the full
+ * mcontext structure saved during the last preemption. Otherwise, the cooperative scheduler triggers a "fast switch",
+ * which only updates the instruction and stack pointer.
+ *
+ * Preemptive scheduler is provided by POSIX timers using a set interval defining a scheduling quantum. Our signal
+ * handler is configured to mask nested signals. Given that POSIX specifies that the kernel only delivers a SIGALRM to a
+ * single thread, the lucky thread that receives the kernel thread has the responsibility of propagating this signal
+ * onto all other worker threads. This must occur even when a worker thread is running a sandbox in a nonpreemptable
+ * state.
+ *
+ * When a SIGALRM fires, a worker can be in one of four states:
+ *
+ * 1) "Running a signal handler" - We mask signals when we are executing a signal handler, which results in signals
+ * being ignored. A kernel signal should get delivered to another unmasked worker, so propagation still occurs.
+ *
+ * 2) "Running the Cooperative Scheduler" - This is signified by the thread local current_sandbox being set to NULL. We
+ * propagate the signal and return immediately because we know we're already in the scheduler. We have no sandboxes to
+ * interrupt, so no sandbox state transitions occur.
+ *
+ * 3) "Running a Sandbox in a state other than SANDBOX_RUNNING_USER" - We call sandbox_interrupt on current_sandbox,
+ * propagate the sigalrms to the other workers, defer the sigalrm locally, and then return. The SANDBOX_INTERRUPTED
+ * timekeeping data is increased to account for the time needed to propagate the sigalrms.
+ *
+ * 4) "Running a Sandbox in the SANDBOX_RUNNING_USER state - We call sandbox_interrupt on current_sandbox, propagate
+ * the sigalrms to the other workers, and then actually enter the scheduler via scheduler_preemptive_sched. The
+ * interrupted sandbox may either be preempted or return to depending on the scheduler. If preempted, the interrupted
+ * mcontext is saved to the sandbox structure. The SANDBOX_INTERRUPTED timekeeping data is increased to account for the
+ * time needed to propagate the sigalrms, run epoll, query the scheduler data structure, and (potentially) allocate and
+ * initialize a sandbox.
+ */
 
 enum SCHEDULER
 {
@@ -34,67 +73,49 @@ static inline struct sandbox *
 scheduler_edf_get_next()
 {
 	/* Get the deadline of the sandbox at the head of the local request queue */
-	struct sandbox *        local          = local_runqueue_get_next();
-	uint64_t                local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
-	struct sandbox_request *request        = NULL;
+	struct sandbox *local          = local_runqueue_get_next();
+	uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
+	struct sandbox *global         = NULL;
 
 	uint64_t global_deadline = global_request_scheduler_peek();
 
 	/* Try to pull and allocate from the global queue if earlier
 	 * This will be placed at the head of the local runqueue */
 	if (global_deadline < local_deadline) {
-		if (global_request_scheduler_remove_if_earlier(&request, local_deadline) == 0) {
-			assert(request != NULL);
-			assert(request->absolute_deadline < local_deadline);
-			struct sandbox *global = sandbox_allocate(request);
-			if (!global) goto err_allocate;
-
+		if (global_request_scheduler_remove_if_earlier(&global, local_deadline) == 0) {
+			assert(global != NULL);
+			assert(global->absolute_deadline < local_deadline);
+			sandbox_prepare_execution_environment(global);
 			assert(global->state == SANDBOX_INITIALIZED);
 			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
 		}
 	}
 
-/* Return what is at the head of the local runqueue or NULL if empty */
-done:
+	/* Return what is at the head of the local runqueue or NULL if empty */
 	return local_runqueue_get_next();
-err_allocate:
-	client_socket_send(request->socket_descriptor, 503);
-	client_socket_close(request->socket_descriptor, &request->socket_address);
-	free(request);
-	goto done;
 }
 
 static inline struct sandbox *
 scheduler_fifo_get_next()
 {
-	struct sandbox *sandbox = local_runqueue_get_next();
+	struct sandbox *local = local_runqueue_get_next();
 
-	struct sandbox_request *sandbox_request = NULL;
+	struct sandbox *global = NULL;
 
-	if (sandbox == NULL) {
+	if (local == NULL) {
 		/* If the local runqueue is empty, pull from global request scheduler */
-		if (global_request_scheduler_remove(&sandbox_request) < 0) goto err;
+		if (global_request_scheduler_remove(&global) < 0) goto done;
 
-		sandbox = sandbox_allocate(sandbox_request);
-		if (!sandbox) goto err_allocate;
-
-		sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
-	} else if (sandbox == current_sandbox_get()) {
+		sandbox_prepare_execution_environment(global);
+		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+	} else if (local == current_sandbox_get()) {
 		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */
 		local_runqueue_list_rotate();
-		sandbox = local_runqueue_get_next();
 	}
 
 
 done:
-	return sandbox;
-err_allocate:
-	client_socket_send(sandbox_request->socket_descriptor, 503);
-	client_socket_close(sandbox_request->socket_descriptor, &sandbox->client_address);
-	free(sandbox_request);
-err:
-	sandbox = NULL;
-	goto done;
+	return local_runqueue_get_next();
 }
 
 static inline struct sandbox *
@@ -140,74 +161,6 @@ scheduler_runqueue_initialize()
 	}
 }
 
-/**
- * Called by the SIGALRM handler after a quantum
- * Assumes the caller validates that there is something to preempt
- * @param user_context - The context of our user-level Worker thread
- */
-static inline void
-scheduler_preempt(ucontext_t *user_context)
-{
-	assert(user_context != NULL);
-
-	/* Process epoll to make sure that all runnable jobs are considered for execution */
-	worker_thread_execute_epoll_loop();
-
-	struct sandbox *current = current_sandbox_get();
-	assert(current != NULL);
-	assert(current->state == SANDBOX_RUNNING);
-
-	struct sandbox *next = scheduler_get_next();
-	assert(next != NULL);
-
-	/* If current equals next, no switch is necessary, so resume execution */
-	if (current == next) return;
-
-#ifdef LOG_PREEMPTION
-	debuglog("Preempting sandbox %lu to run sandbox %lu\n", current->id, next->id);
-#endif
-
-	/* Save the context of the currently executing sandbox before switching from it */
-	sandbox_set_as_runnable(current, SANDBOX_RUNNING);
-	arch_mcontext_save(&current->ctxt, &user_context->uc_mcontext);
-
-	/* Update current_sandbox to the next sandbox */
-	assert(next->state == SANDBOX_RUNNABLE);
-	sandbox_set_as_running(next, SANDBOX_RUNNABLE);
-
-	switch (next->ctxt.variant) {
-	case ARCH_CONTEXT_VARIANT_FAST: {
-		arch_context_restore_new(&user_context->uc_mcontext, &next->ctxt);
-		break;
-	}
-	case ARCH_CONTEXT_VARIANT_SLOW: {
-		/* Our scheduler restores a fast context when switching to a sandbox that cooperatively yielded
-		 * (probably by blocking) or when switching to a freshly allocated sandbox that hasn't yet run.
-		 * These conditions can occur in either EDF or FIFO.
-		 *
-		 * A scheduler restores a slow context when switching to a sandbox that was preempted previously.
-		 * Under EDF, a sandbox is only ever preempted by an earlier deadline that either had blocked and since
-		 * become runnable or was just freshly allocated. This means that such EDF preemption context switches
-		 * should always use a fast context.
-		 *
-		 * This is not true under FIFO, where there is no innate ordering between sandboxes. A runqueue is
-		 * normally only a single sandbox, but it may have multiple sandboxes when one blocks and the worker
-		 * pulls an addition request. When the blocked sandbox becomes runnable, the executing sandbox can be
-		 * preempted yielding a slow context. This means that FIFO preemption context switches might cause
-		 * either a fast or a slow context to be restored during "round robin" execution.
-		 */
-		assert(scheduler != SCHEDULER_EDF);
-
-		arch_mcontext_restore(&user_context->uc_mcontext, &next->ctxt);
-		break;
-	}
-	default: {
-		panic("Unexpectedly tried to switch to a context in %s state\n",
-		      arch_context_variant_print(next->ctxt.variant));
-	}
-	}
-}
-
 static inline char *
 scheduler_print(enum SCHEDULER variant)
 {
@@ -228,6 +181,10 @@ scheduler_log_sandbox_switch(struct sandbox *current_sandbox, struct sandbox *ne
 		debuglog("Base Context (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", &worker_thread_base_context,
 		         arch_context_variant_print(worker_thread_base_context.variant), next_sandbox->id,
 		         &next_sandbox->ctxt, arch_context_variant_print(next_sandbox->ctxt.variant));
+	} else if (next_sandbox == NULL) {
+		debuglog("Sandbox %lu (@%p) (%s) > Base Context (@%p) (%s)\n", current_sandbox->id,
+		         &current_sandbox->ctxt, arch_context_variant_print(current_sandbox->ctxt.variant),
+		         &worker_thread_base_context, arch_context_variant_print(worker_thread_base_context.variant));
 	} else {
 		debuglog("Sandbox %lu (@%p) (%s) > Sandbox %lu (@%p) (%s)\n", current_sandbox->id,
 		         &current_sandbox->ctxt, arch_context_variant_print(current_sandbox->ctxt.variant),
@@ -236,78 +193,199 @@ scheduler_log_sandbox_switch(struct sandbox *current_sandbox, struct sandbox *ne
 #endif
 }
 
+static inline void
+scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *next)
+{
+	/* Switch to next sandbox */
+	switch (next->ctxt.variant) {
+	case ARCH_CONTEXT_VARIANT_FAST: {
+		assert(next->state == SANDBOX_RUNNABLE);
+		arch_context_restore_fast(&interrupted_context->uc_mcontext, &next->ctxt);
+		current_sandbox_set(next);
+		sandbox_set_as_running_sys(next, SANDBOX_RUNNABLE);
+		break;
+	}
+	case ARCH_CONTEXT_VARIANT_SLOW: {
+		assert(next->state == SANDBOX_PREEMPTED);
+		arch_context_restore_slow(&interrupted_context->uc_mcontext, &next->ctxt);
+		current_sandbox_set(next);
+		sandbox_set_as_running_user(next, SANDBOX_PREEMPTED);
+		break;
+	}
+	default: {
+		panic("Unexpectedly tried to switch to a context in %s state\n",
+		      arch_context_variant_print(next->ctxt.variant));
+	}
+	}
+}
+
 /**
- * @brief Switches to the next sandbox, placing the current sandbox on the completion queue if in
- * SANDBOX_RETURNED state
- * @param next_sandbox The Sandbox Context to switch to
+ * Called by the SIGALRM handler after a quantum
+ * Assumes the caller validates that there is something to preempt
+ * @param interrupted_context - The context of our user-level Worker thread
+ * @returns the sandbox that the scheduler chose to run
  */
 static inline void
-scheduler_switch_to(struct sandbox *next_sandbox)
+scheduler_preemptive_sched(ucontext_t *interrupted_context)
 {
-	assert(next_sandbox != NULL);
-	assert(next_sandbox->state == SANDBOX_RUNNABLE);
-	struct arch_context *next_context = &next_sandbox->ctxt;
+	assert(interrupted_context != NULL);
 
-	/* Get the old sandbox we're switching from.
-	 * This is null if switching from base context
-	 */
-	struct sandbox *current_sandbox = current_sandbox_get();
-	assert(next_sandbox != current_sandbox);
+	/* Process epoll to make sure that all runnable jobs are considered for execution */
+	scheduler_execute_epoll_loop();
 
-	struct arch_context *current_context = NULL;
-	if (current_sandbox != NULL) {
-		current_context = &current_sandbox->ctxt;
-		sandbox_exit(current_sandbox);
+	struct sandbox *interrupted_sandbox = current_sandbox_get();
+	assert(interrupted_sandbox != NULL);
+	assert(interrupted_sandbox->state == SANDBOX_INTERRUPTED);
+
+	struct sandbox *next = scheduler_get_next();
+	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
+	assert(next != NULL);
+
+	/* If current equals next, no switch is necessary, so resume execution */
+	if (interrupted_sandbox == next) {
+		sandbox_interrupt_return(interrupted_sandbox, SANDBOX_RUNNING_USER);
+		return;
 	}
 
-	scheduler_log_sandbox_switch(current_sandbox, next_sandbox);
-	sandbox_set_as_running(next_sandbox, next_sandbox->state);
+#ifdef LOG_PREEMPTION
+	debuglog("Preempting sandbox %lu to run sandbox %lu\n", interrupted_sandbox->id, next->id);
+#endif
+
+	/* Preempt executing sandbox */
+	scheduler_log_sandbox_switch(interrupted_sandbox, next);
+	sandbox_preempt(interrupted_sandbox);
+	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
+	scheduler_preemptive_switch_to(interrupted_context, next);
+}
+
+/**
+ * @brief Switches to the next sandbox
+ * Assumption: only called by the "base context"
+ * @param next_sandbox The Sandbox to switch to
+ */
+static inline void
+scheduler_cooperative_switch_to(struct arch_context *current_context, struct sandbox *next_sandbox)
+{
+	assert(current_sandbox_get() == NULL);
+
+	struct arch_context *next_context = &next_sandbox->ctxt;
+
+	/* Switch to next sandbox */
+	switch (next_sandbox->state) {
+	case SANDBOX_RUNNABLE: {
+		assert(next_context->variant == ARCH_CONTEXT_VARIANT_FAST);
+		current_sandbox_set(next_sandbox);
+		sandbox_set_as_running_sys(next_sandbox, SANDBOX_RUNNABLE);
+		break;
+	}
+	case SANDBOX_PREEMPTED: {
+		assert(next_context->variant == ARCH_CONTEXT_VARIANT_SLOW);
+		current_sandbox_set(next_sandbox);
+		/* arch_context_switch triggers a SIGUSR1, which transitions next_sandbox to running_user */
+		break;
+	}
+	default: {
+		panic("Unexpectedly tried to switch to a sandbox in %s state\n",
+		      sandbox_state_stringify(next_sandbox->state));
+	}
+	}
 	arch_context_switch(current_context, next_context);
 }
 
-
-/**
- * @brief Switches to the base context, placing the current sandbox on the completion queue if in RETURNED state
- */
 static inline void
-scheduler_yield()
+scheduler_switch_to_base_context(struct arch_context *current_context)
 {
-	struct sandbox *current_sandbox = current_sandbox_get();
-	assert(current_sandbox != NULL);
-
-	struct arch_context *current_context = &current_sandbox->ctxt;
-
-	/* Assumption: Base Context should never switch to Base Context */
-	assert(current_context != &worker_thread_base_context);
-
-#ifdef LOG_CONTEXT_SWITCHES
-	debuglog("Sandbox %lu (@%p) (%s) > Base Context (@%p) (%s)\n", current_sandbox->id, current_context,
-	         arch_context_variant_print(current_sandbox->ctxt.variant), &worker_thread_base_context,
-	         arch_context_variant_print(worker_thread_base_context.variant));
-#endif
-
-	sandbox_exit(current_sandbox);
-	current_sandbox_set(NULL);
-	runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
-
 	/* Assumption: Base Worker context should never be preempted */
 	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
 	arch_context_switch(current_context, &worker_thread_base_context);
 }
 
+
+/* The idle_loop is executed by the base_context. This should not be called directly */
+static inline void
+scheduler_idle_loop()
+{
+	while (true) {
+		/* Assumption: only called by the "base context" */
+		assert(current_sandbox_get() == NULL);
+
+		/* Deferred signals should have been cleared by this point */
+		assert(deferred_sigalrm == 0);
+
+		/* Try to wakeup sleeping sandboxes */
+		scheduler_execute_epoll_loop();
+
+		/* Switch to a sandbox if one is ready to run */
+		struct sandbox *next_sandbox = scheduler_get_next();
+		if (next_sandbox != NULL) {
+			scheduler_cooperative_switch_to(&worker_thread_base_context, next_sandbox);
+		}
+
+		/* Clear the completion queue */
+		local_completion_queue_free();
+	}
+}
+
 /**
- * Mark the currently executing sandbox as blocked, remove it from the local runqueue,
- * and switch to base context
+ * @brief Used to cooperative switch sandboxes when a sandbox sleeps or exits
+ * Because of use-after-free bugs that interfere with our loggers, when a sandbox exits and switches away never to
+ * return, the boolean add_to_completion_queue needs to be set to true. Otherwise, we will leak sandboxes.
+ * @param add_to_completion_queue - Indicates that the sandbox should be added to the completion queue before switching
+ * away
  */
 static inline void
-scheduler_block(void)
+scheduler_cooperative_sched(bool add_to_completion_queue)
 {
-	/* Remove the sandbox we were just executing from the runqueue and mark as blocked */
-	struct sandbox *current_sandbox = current_sandbox_get();
+	struct sandbox *exiting_sandbox = current_sandbox_get();
+	assert(exiting_sandbox != NULL);
 
-	assert(current_sandbox->state == SANDBOX_RUNNING);
-	sandbox_set_as_blocked(current_sandbox, SANDBOX_RUNNING);
-	generic_thread_dump_lock_overhead();
+	/* Clearing current sandbox indicates we are entering the cooperative scheduler */
+	current_sandbox_set(NULL);
+	barrier();
+	software_interrupt_deferred_sigalrm_clear();
 
-	scheduler_yield();
+	struct arch_context *exiting_context = &exiting_sandbox->ctxt;
+
+	/* Assumption: Called by an exiting or sleeping sandbox */
+	assert(current_sandbox_get() == NULL);
+
+	/* Deferred signals should have been cleared by this point */
+	assert(deferred_sigalrm == 0);
+
+	/* Try to wakeup sleeping sandboxes */
+	scheduler_execute_epoll_loop();
+
+	/* We have not added ourself to the completion queue, so we can free */
+	local_completion_queue_free();
+
+	/* Switch to a sandbox if one is ready to run */
+	struct sandbox *next_sandbox = scheduler_get_next();
+
+	/* If our sandbox slept and immediately woke up, we can just return */
+	if (next_sandbox == exiting_sandbox) {
+		sandbox_set_as_running_sys(next_sandbox, SANDBOX_RUNNABLE);
+		current_sandbox_set(next_sandbox);
+		return;
+	}
+
+	scheduler_log_sandbox_switch(exiting_sandbox, next_sandbox);
+
+	if (add_to_completion_queue) local_completion_queue_add(exiting_sandbox);
+	/* Do not touch sandbox struct after this point! */
+
+	if (next_sandbox != NULL) {
+		scheduler_cooperative_switch_to(exiting_context, next_sandbox);
+	} else {
+		scheduler_switch_to_base_context(exiting_context);
+	}
+}
+
+
+static inline bool
+scheduler_worker_would_preempt(int worker_idx)
+{
+	assert(scheduler == SCHEDULER_EDF);
+	uint64_t local_deadline  = runtime_worker_threads_deadline[worker_idx];
+	uint64_t global_deadline = global_request_scheduler_peek();
+	return global_deadline < local_deadline;
 }

@@ -7,6 +7,7 @@
 #include "generic_thread.h"
 #include "listener_thread.h"
 #include "runtime.h"
+#include "sandbox_functions.h"
 
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
@@ -169,21 +170,27 @@ listener_thread_main(void *dummy)
 				 */
 				uint64_t work_admitted = admissions_control_decide(module->admissions_info.estimate);
 				if (work_admitted == 0) {
-					client_socket_send(client_socket, 503);
+					client_socket_send_oneshot(client_socket, http_header_build(503),
+					                           http_header_len(503));
 					if (unlikely(close(client_socket) < 0))
 						debuglog("Error closing client socket - %s", strerror(errno));
 
 					continue;
 				}
 
-				/* Allocate a Sandbox Request */
-				struct sandbox_request *sandbox_request =
-				  sandbox_request_allocate(module, client_socket,
-				                           (const struct sockaddr *)&client_address,
-				                           request_arrival_timestamp, work_admitted);
+				/* Allocate a Sandbox */
+				struct sandbox *sandbox = sandbox_alloc(module, client_socket,
+				                                        (const struct sockaddr *)&client_address,
+				                                        request_arrival_timestamp, work_admitted);
+				if (unlikely(sandbox == NULL)) {
+					client_socket_send_oneshot(sandbox->client_socket_descriptor,
+					                           http_header_build(503), http_header_len(503));
+					client_socket_close(sandbox->client_socket_descriptor,
+					                    &sandbox->client_address);
+				}
 
 				/* Add to the Global Sandbox Request Scheduler */
-				global_request_scheduler_add(sandbox_request);
+				global_request_scheduler_add(sandbox);
 
 			} /* while true */
 		}         /* for loop */

@@ -27,4 +27,4 @@ struct http_request {
 	bool message_end;    /* boolean flag set when body processing is complete */
 };
 
-void http_request_print(struct http_request *self);
+void http_request_print(struct http_request *http_request);

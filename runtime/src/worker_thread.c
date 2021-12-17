@@ -15,7 +15,6 @@
 #include "runtime.h"
 #include "scheduler.h"
 #include "worker_thread.h"
-#include "worker_thread_execute_epoll_loop.h"
 
 /***************************
  * Worker Thread State     *
@@ -67,21 +66,7 @@ worker_thread_main(void *argument)
 		software_interrupt_unmask_signal(SIGUSR1);
 	}
 
-	/* Begin Worker Execution Loop */
-	struct sandbox *next_sandbox = NULL;
-	while (true) {
-		/* Assumption: current_sandbox should be unset at start of loop */
-		assert(current_sandbox_get() == NULL);
+	scheduler_idle_loop();
 
-		worker_thread_execute_epoll_loop();
-
-		/* Switch to a sandbox if one is ready to run */
-		next_sandbox = scheduler_get_next();
-		if (next_sandbox != NULL) { scheduler_switch_to(next_sandbox); }
-
-		/* Clear the completion queue */
-		local_completion_queue_free();
-	}
-
-	panic("Worker Thread unexpectedly completed run loop.");
+	panic("Worker Thread unexpectedly completed idle loop.");
 }

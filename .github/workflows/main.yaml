@@ -96,26 +96,26 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gocr.so
-          key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/gocr/**', './runtime/compiletime/**') }}
-        if: success()
-      # - name: Hyde
-      #   run: |
-      #     make -f test.mk ocr__hyde
-      #   if: success() || failure()
-      # - name: Upload Hyde Logs on Failure
-      #   uses: actions/upload-artifact@v2
-      #   if: failure()
-      #   with:
-      #     name: hyde-logs
-      #     path: ./runtime/experiments/applications/ocr/hyde/res/**/
-      # - name: Handwriting
-      #   run: |
-      #     make -f test.mk ocr__handwriting
-      #   if: success() || failure()
-      # - name: Five by Eight
-      #   run: |
-      #     make -f test.mk ocr__fivebyeight
-      # if: success() || failure()
+          key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/Makefile', './runtime/tests/gocr/**', './runtime/compiletime/**') }}
+        if: success() || failure()
+      - name: Hyde
+        run: |
+          ./test.sh ocr_hyde
+        if: success() || failure()
+      - name: Upload Hyde Logs on Failure
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: hyde-logs
+          path: ./runtime/experiments/applications/ocr/hyde/res/**/
+      - name: Handwriting
+        run: |
+          ./test.sh ocr_handwriting
+        if: success() || failure()
+      - name: Five by Eight
+        run: |
+          ./test.sh ocr_fivebyeight
+        if: success() || failure()
       # - name: OCR by Word
       #   run: |
       #     make -f test.mk ocr__by_word
@@ -133,7 +133,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gps_ekf.so
-          key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/TinyEKF/**', './runtime/compiletime/**') }}
+          key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/Makefile', './runtime/tests/TinyEKF/**', './runtime/compiletime/**') }}
         if: success() || failure()
       - name: EKF one iteration
         run: |

@@ -20,7 +20,7 @@
 #include "listener_thread.h"
 #include "module.h"
 #include "runtime.h"
-#include "sandbox_request.h"
+#include "sandbox_total.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
 
@@ -40,13 +40,12 @@ uint64_t *runtime_worker_threads_deadline;
 void
 runtime_cleanup()
 {
-	if (runtime_sandbox_perf_log != NULL) fflush(runtime_sandbox_perf_log);
+	sandbox_perf_log_cleanup();
 
 	if (runtime_worker_threads_deadline) free(runtime_worker_threads_deadline);
 	if (runtime_worker_threads_argument) free(runtime_worker_threads_argument);
 	if (runtime_worker_threads) free(runtime_worker_threads);
 
-	software_interrupt_deferred_sigalrm_max_print();
 	software_interrupt_cleanup();
 	exit(EXIT_SUCCESS);
 }
@@ -81,11 +80,11 @@ runtime_set_resource_limits_to_max()
 			snprintf(max, uint64_t_max_digits, "%lu", limit.rlim_max);
 		}
 		if (limit.rlim_cur == limit.rlim_max) {
-			printf("\t%s: %s\n", resource_names[i], max);
+			pretty_print_key_value(resource_names[i], "%s\n", max);
 		} else {
 			limit.rlim_cur = limit.rlim_max;
 			if (setrlimit(resource, &limit) < 0) panic_err();
-			printf("\t%s: %s (Increased from %s)\n", resource_names[i], max, lim);
+			pretty_print_key_value(resource_names[i], "%s (Increased from %s)\n", max, lim);
 		}
 	}
 }
@@ -102,8 +101,8 @@ runtime_initialize(void)
 	memset(runtime_worker_threads_deadline, UINT8_MAX, runtime_worker_threads_count * sizeof(uint64_t));
 
 	http_total_init();
-	sandbox_request_count_initialize();
-	sandbox_count_initialize();
+	sandbox_total_initialize();
+	sandbox_state_totals_initialize();
 
 	/* Setup Scheduler */
 	scheduler_initialize();

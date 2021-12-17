@@ -24,10 +24,12 @@ static inline int
 sandbox_receive_request(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-	assert(sandbox->module->max_request_size > 0);
-	assert(sandbox->request.length == 0);
 
 	int rc = 0;
+
+	struct vec_u8 *request = &sandbox->request;
+	assert(request->length == 0);
+	assert(request->capacity > 0);
 
 	while (!sandbox->http_request.message_end) {
 		/* Read from the Socket */
@@ -36,18 +38,20 @@ sandbox_receive_request(struct sandbox *sandbox)
 		http_parser *               parser   = &sandbox->http_parser;
 		const http_parser_settings *settings = http_parser_settings_get();
 
-		if (sandbox->module->max_request_size <= sandbox->request.length) {
+		size_t request_length   = request->length;
+		size_t request_capacity = request->capacity;
+
+		if (request_length >= request_capacity) {
 			debuglog("Sandbox %lu: Ran out of Request Buffer before message end\n", sandbox->id);
 			goto err_nobufs;
 		}
 
-		ssize_t bytes_received = recv(sandbox->client_socket_descriptor,
-		                              &sandbox->request.base[sandbox->request.length],
-		                              sandbox->module->max_request_size - sandbox->request.length, 0);
+		ssize_t bytes_received = recv(sandbox->client_socket_descriptor, &request->buffer[request_length],
+		                              request_capacity - request_length, 0);
 
-		if (bytes_received == -1) {
+		if (bytes_received < 0) {
 			if (errno == EAGAIN) {
-				scheduler_block();
+				current_sandbox_sleep();
 				continue;
 			} else {
 				debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor,
@@ -70,24 +74,26 @@ sandbox_receive_request(struct sandbox *sandbox)
 			goto err;
 		}
 
+		assert(bytes_received > 0);
+
 #ifdef LOG_HTTP_PARSER
-		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings, buf,
-		         bytes_received);
+		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings,
+		         &sandbox->request.base[sandbox->request.length], bytes_received);
 #endif
 		size_t bytes_parsed = http_parser_execute(parser, settings,
-		                                          &sandbox->request.base[sandbox->request.length],
-		                                          bytes_received);
+		                                          (const char *)&request->buffer[request_length],
+		                                          (size_t)bytes_received);
 
-		if (bytes_parsed != bytes_received) {
+		if (bytes_parsed != (size_t)bytes_received) {
 			debuglog("Error: %s, Description: %s\n",
 			         http_errno_name((enum http_errno)sandbox->http_parser.http_errno),
 			         http_errno_description((enum http_errno)sandbox->http_parser.http_errno));
-			debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, bytes_received);
+			debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, (size_t)bytes_received);
 			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
 			goto err;
 		}
 
-		sandbox->request.length += bytes_parsed;
+		request->length += bytes_parsed;
 	}
 
 	rc = 0;

@@ -10,6 +10,6 @@ struct admissions_info {
 	uint64_t           relative_deadline; /* Relative deadline in cycles. This is duplicated state */
 };
 
-void admissions_info_initialize(struct admissions_info *self, int percentile, uint64_t expected_execution,
+void admissions_info_initialize(struct admissions_info *admissions_info, int percentile, uint64_t expected_execution,
                                 uint64_t relative_deadline);
-void admissions_info_update(struct admissions_info *self, uint64_t execution_duration);
+void admissions_info_update(struct admissions_info *admissions_info, uint64_t execution_duration);

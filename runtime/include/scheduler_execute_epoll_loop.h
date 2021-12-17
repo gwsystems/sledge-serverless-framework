@@ -18,7 +18,7 @@
  * Run all outstanding events in the local thread's epoll loop
  */
 static inline void
-worker_thread_execute_epoll_loop(void)
+scheduler_execute_epoll_loop(void)
 {
 	while (true) {
 		struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
@@ -35,13 +35,11 @@ worker_thread_execute_epoll_loop(void)
 
 		for (int i = 0; i < descriptor_count; i++) {
 			if (epoll_events[i].events & (EPOLLIN | EPOLLOUT)) {
-				/* Re-add to runqueue if blocked */
+				/* Re-add to runqueue if asleep */
 				struct sandbox *sandbox = (struct sandbox *)epoll_events[i].data.ptr;
 				assert(sandbox);
 
-				if (sandbox->state == SANDBOX_BLOCKED) {
-					sandbox_set_as_runnable(sandbox, SANDBOX_BLOCKED);
-				}
+				if (sandbox->state == SANDBOX_ASLEEP) { sandbox_wakeup(sandbox); }
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
 				/* Mystery: This seems to never fire. Why? Issue #130 */
 
@@ -60,15 +58,13 @@ worker_thread_execute_epoll_loop(void)
 				}
 
 				switch (sandbox->state) {
-				case SANDBOX_SET_AS_RETURNED:
 				case SANDBOX_RETURNED:
-				case SANDBOX_SET_AS_COMPLETE:
 				case SANDBOX_COMPLETE:
-				case SANDBOX_SET_AS_ERROR:
 				case SANDBOX_ERROR:
 					panic("Expected to have closed socket");
 				default:
-					client_socket_send(sandbox->client_socket_descriptor, 503);
+					client_socket_send_oneshot(sandbox->client_socket_descriptor,
+					                           http_header_build(503), http_header_len(503));
 					sandbox_close_http(sandbox);
 					sandbox_set_as_error(sandbox, sandbox->state);
 				}

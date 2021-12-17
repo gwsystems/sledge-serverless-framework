@@ -8,6 +8,7 @@
 #include "panic.h"
 #include "sandbox_functions.h"
 #include "sandbox_state.h"
+#include "sandbox_state_history.h"
 #include "sandbox_types.h"
 
 /**
@@ -23,19 +24,16 @@ static inline void
 sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
-
-	uint64_t now                    = __getcycles();
-	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
-
-	sandbox->state = SANDBOX_SET_AS_RETURNED;
+	sandbox->state = SANDBOX_RETURNED;
+	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_RUNNING: {
+	case SANDBOX_RUNNING_SYS: {
 		sandbox->timestamp_of.response = now;
 		sandbox->total_time            = now - sandbox->timestamp_of.request_arrival;
-		sandbox->duration_of_state.running += duration_of_last_state;
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
+		sandbox_deinit_http_buffers(sandbox);
 		break;
 	}
 	default: {
@@ -44,11 +42,10 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 	}
 
-	sandbox->timestamp_of.last_state_change = now;
-	sandbox->state                          = SANDBOX_RETURNED;
-
 	/* State Change Bookkeeping */
-	sandbox_state_log_transition(sandbox->id, last_state, SANDBOX_RETURNED);
-	runtime_sandbox_total_increment(SANDBOX_RETURNED);
-	runtime_sandbox_total_decrement(last_state);
+	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
+	sandbox->timestamp_of.last_state_change = now;
+	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RETURNED);
+	sandbox_state_totals_increment(SANDBOX_RETURNED);
+	sandbox_state_totals_decrement(last_state);
 }

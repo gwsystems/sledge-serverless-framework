@@ -47,7 +47,7 @@ run_samples() {
 	local -ir perf_window_buffer_size
 
 	printf "Running Samples: "
-	hey -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -cpus 3 -o csv -m GET "http://${hostname}:10000" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -cpus 3 -o csv -m GET "http://${hostname}:10000" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "samples failed"
 		return 1
@@ -79,7 +79,7 @@ run_experiments() {
 	printf "Running Experiments:\n"
 	for conn in ${concurrency[*]}; do
 		printf "\t%d Concurrency: " "$conn"
-		hey -n "$iterations" -c "$conn" -cpus 2 -o csv -m GET "http://$hostname:10000" > "$results_directory/con$conn.csv" 2> /dev/null || {
+		hey -disable-compression -disable-keepalive -disable-redirects -n "$iterations" -c "$conn" -cpus 2 -o csv -m GET "http://$hostname:10000" > "$results_directory/con$conn.csv" 2> /dev/null || {
 			printf "[ERR]\n"
 			panic "experiment failed"
 			return 1
