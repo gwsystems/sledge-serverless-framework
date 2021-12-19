@@ -83,11 +83,18 @@ sigalrm_propagate_workers(siginfo_t *signal_info)
 			/* If using EDF, conditionally send signals. If not, broadcast */
 			switch (runtime_sigalrm_handler) {
 			case RUNTIME_SIGALRM_HANDLER_TRIAGED: {
-				assert(scheduler == SCHEDULER_EDF);
-				uint64_t local_deadline  = runtime_worker_threads_deadline[i];
-				uint64_t global_deadline = global_request_scheduler_peek();
-				if (global_deadline < local_deadline) pthread_kill(runtime_worker_threads[i], SIGALRM);
-				continue;
+				//assert(scheduler == SCHEDULER_EDF);
+				if (scheduler == SCHEDULER_EDF) {
+					uint64_t local_deadline  = runtime_worker_threads_deadline[i];
+					uint64_t global_deadline = global_request_scheduler_peek();
+					if (global_deadline < local_deadline) pthread_kill(runtime_worker_threads[i], SIGALRM);
+					continue;
+				} else if (scheduler == SCHEDULER_SRSF) {
+					uint64_t local_remaining_slack = runtime_worker_threads_remaining_slack[i];
+					uint64_t global_slack = global_request_scheduler_peek();
+					if (global_slack < local_remaining_slack) pthread_kill(runtime_worker_threads[i], SIGALRM);
+                                        continue;
+				}
 			}
 			case RUNTIME_SIGALRM_HANDLER_BROADCAST: {
 				pthread_kill(runtime_worker_threads[i], SIGALRM);
@@ -175,6 +182,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		/* record queuelength of the current worker thread */
 		recording_buffer[software_interrupt_SIGALRM_kernel_count + software_interrupt_SIGALRM_thread_count] = local_workload_count;
 		sigalrm_propagate_workers(signal_info);
+		/* if disable preemption, then return directly */
+		if (!runtime_preemption_enabled) return;
+
 		if (current_sandbox == NULL || current_sandbox->ctxt.preemptable == false) {
 			/* Cannot preempt, so defer signal
 			 * TODO: First worker gets tons of kernel sigalrms, should these be treated the same?
@@ -208,7 +218,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		software_interrupt_disarm_timer();
 		/* Only the thread that receives SIGINT from the kernel or user space will broadcast SIGINT to other worker threads */
 		sigint_propagate_workers_listener(signal_info);
-		mem_log("thread id %d test buffer:",worker_thread_idx);
+		mem_log("thread id %d kernal sig %u thread sig %u test buffer:",worker_thread_idx, software_interrupt_SIGALRM_kernel_count, software_interrupt_SIGALRM_thread_count);
 		for(int i = 0; i < software_interrupt_SIGALRM_kernel_count + software_interrupt_SIGALRM_thread_count; i++) {
 			mem_log("%d ", recording_buffer[i]);
 		}
@@ -245,6 +255,10 @@ software_interrupt_arm_timer(void)
 {
 	if (!runtime_preemption_enabled) return;
 
+	/* if preemption disabled, broadcast sig alarm to all other threads to record the queuelength info */
+	if (!runtime_preemption_enabled) {
+		runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST; 
+	}
 	struct itimerval interval_timer;
 
 	memset(&interval_timer, 0, sizeof(struct itimerval));

@@ -197,7 +197,7 @@ runtime_configure()
 	if (strcmp(sigalrm_policy, "BROADCAST") == 0) {
 		runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 	} else if (strcmp(sigalrm_policy, "TRIAGED") == 0) {
-		if (unlikely(scheduler != SCHEDULER_EDF)) panic("triaged sigalrm handlers are only valid with EDF\n");
+		if (unlikely(scheduler != SCHEDULER_EDF && scheduler != SCHEDULER_SRSF)) panic("triaged sigalrm handlers are only valid with EDF and SRSF\n");
 		runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_TRIAGED;
 	} else {
 		panic("Invalid sigalrm policy: %s. Must be {BROADCAST|TRIAGED}\n", sigalrm_policy);

@@ -357,6 +357,7 @@ scheduler_yield()
 	sandbox_exit(current_sandbox);
 	current_sandbox_set(NULL);
 	runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
+	runtime_worker_threads_remaining_slack[worker_thread_idx] = UINT64_MAX;
 
 	/* Assumption: Base Worker context should never be preempted */
 	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);

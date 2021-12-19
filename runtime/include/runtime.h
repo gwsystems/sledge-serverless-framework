@@ -43,6 +43,7 @@ extern pthread_t                    runtime_worker_threads[];
 extern uint32_t                     runtime_worker_threads_count;
 extern int                          runtime_worker_threads_argument[RUNTIME_WORKER_THREAD_CORE_COUNT];
 extern uint64_t                     runtime_worker_threads_deadline[RUNTIME_WORKER_THREAD_CORE_COUNT];
+extern uint64_t                     runtime_worker_threads_remaining_slack[RUNTIME_WORKER_THREAD_CORE_COUNT];
 
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);
