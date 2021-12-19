@@ -20,6 +20,9 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	initializing_times_dict = defaultdict(def_value)
 	execution_times_dict = defaultdict(def_value)
 
+	### queuelength
+	queuelength_dict = defaultdict(list)
+	###
 	running_times = defaultdict(list) 
 	queuing_times = defaultdict(list)
 	total_times = defaultdict(list)
@@ -91,8 +94,12 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 				total_workload_dist[thread] = total_workload
 			if total_real_time_workload_dist[thread] < total_real_time_workload:
 				total_real_time_workload_dist[thread] = total_real_time_workload
+		if "thread id" in line:
+			part1,queue_len = line.split(":")
+			thread_id = part1.split(" ")[2]
+			queuelength_dict[thread_id] = queue_len.split(" ")	
 		### calculate the execution time
-		if "memory" in line or "total_time" in line or "min" in line or "miss" in line or "meet" in line or "time " in line or "scheduling count" in line:
+		if "memory" in line or "total_time" in line or "min" in line or "miss" in line or "meet" in line or "time " in line or "scheduling count" in line or "thread id" in line:
                 	continue
 		t = line.split(",")
 		id = t[1]
@@ -252,9 +259,16 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	f8 = open("request_time.txt", 'w')
 	f8.write(js8)
 	f8.close()
+
+	js9 = json.dumps(queuelength_dict)
+	f9 = open("5m_queuelength.txt", "w")
+	f9.write(js9)
+	f9.close()
 	
 	for key,value in total_time_dist.items():
                 print(key + ": time list length is ", len(value))
+	for key,value in queuelength_dict.items():
+		print("thread id:", key, " queuelength:", len(value)) 
 if __name__ == "__main__":
 	argv = sys.argv[1:]
 	if len(argv) < 1:

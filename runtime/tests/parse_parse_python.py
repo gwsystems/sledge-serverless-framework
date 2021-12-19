@@ -31,6 +31,7 @@ def file_name(file_dir, key_str):
 def get_values(key, value, miss_deadline_rate, total_latency, preemption_count, total_miss_deadline_rate):
 	for i in range(len(value)):
 		file_name = value[i]
+		print("file name++++++++++++++++++++++++++", file_name)
 		cmd='python3 ~/sledge-serverless-framework/runtime/tests/meet_deadline_percentage.py %s 50' % file_name
 		rt=os.popen(cmd).read().strip()
 		#print(rt)
