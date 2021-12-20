@@ -4,8 +4,6 @@
 #include "current_wasm_module_instance.h"
 #include "wasm_memory.h"
 
-typedef uint32_t u32;
-
 INLINE void
 check_bounds(uint32_t offset, uint32_t bounds_check)
 {
@@ -29,7 +27,7 @@ get_memory_ptr_for_runtime(uint32_t offset, uint32_t length)
 	if (unlikely(offset + length > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, length,
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	char *mem_as_chars = (char *)current_wasm_module_instance.memory.buffer;

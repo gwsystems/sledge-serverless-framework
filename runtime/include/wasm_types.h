@@ -25,8 +25,6 @@ typedef enum
 	WASM_TRAP_COUNT
 } wasm_trap_t;
 
-extern void current_sandbox_trap(wasm_trap_t trapno);
-
 #define AWSM_ABI_STARTING_PAGES "starting_pages"
 #define AWSM_ABI_MAX_PAGES      "max_pages"
 

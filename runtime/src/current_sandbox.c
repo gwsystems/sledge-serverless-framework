@@ -48,19 +48,6 @@ current_sandbox_sleep()
 	scheduler_cooperative_sched(false);
 }
 
-void
-current_sandbox_trap(wasm_trap_t trapno)
-{
-	assert(trapno != 0);
-	assert(trapno < WASM_TRAP_COUNT);
-
-	struct sandbox *sandbox = current_sandbox_get();
-	assert(sandbox != NULL);
-	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_RUNNING_SYS);
-
-	longjmp(sandbox->ctxt.start_buf, trapno);
-}
-
 /**
  * @brief Switches from an executing sandbox to the worker thread base context
  *

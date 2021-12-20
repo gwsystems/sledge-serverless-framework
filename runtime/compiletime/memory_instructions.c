@@ -2,8 +2,6 @@
 
 #include "current_wasm_module_instance.h"
 
-extern void current_sandbox_trap(wasm_trap_t trapno);
-
 INLINE uint32_t
 instruction_memory_size()
 {
@@ -19,7 +17,7 @@ get_f32(uint32_t offset)
 	if (unlikely(offset + (uint32_t)sizeof(float) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(float),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	return *(float *)&current_wasm_module_instance.memory.buffer[offset];
@@ -33,7 +31,7 @@ get_f64(uint32_t offset)
 	if (unlikely(offset + (uint32_t)sizeof(double) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(double),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	return *(double *)&current_wasm_module_instance.memory.buffer[offset];
@@ -47,7 +45,7 @@ get_i8(uint32_t offset)
 	if (unlikely(offset + (uint32_t)sizeof(int8_t) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int8_t),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	return *(int8_t *)&current_wasm_module_instance.memory.buffer[offset];
@@ -61,7 +59,7 @@ get_i16(uint32_t offset)
 	if (unlikely(offset + (uint32_t)sizeof(int16_t) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int16_t),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	return *(int16_t *)&current_wasm_module_instance.memory.buffer[offset];
@@ -75,7 +73,7 @@ get_i32(uint32_t offset)
 	if (unlikely(offset + (uint32_t)sizeof(int32_t) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int32_t),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	return *(int32_t *)&current_wasm_module_instance.memory.buffer[offset];
@@ -89,7 +87,7 @@ get_i64(uint32_t offset)
 	if (unlikely(offset + (uint32_t)sizeof(int64_t) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int64_t),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	return *(int64_t *)&current_wasm_module_instance.memory.buffer[offset];
@@ -116,7 +114,7 @@ set_f32(uint32_t offset, float value)
 	if (unlikely(offset + (uint32_t)sizeof(float) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(float),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	*(float *)&current_wasm_module_instance.memory.buffer[offset] = value;
@@ -130,7 +128,7 @@ set_f64(uint32_t offset, double value)
 	if (unlikely(offset + (uint32_t)sizeof(double) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(double),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	*(double *)&current_wasm_module_instance.memory.buffer[offset] = value;
@@ -144,7 +142,7 @@ set_i8(uint32_t offset, int8_t value)
 	if (unlikely(offset + (uint32_t)sizeof(int8_t) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int8_t),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	*(int8_t *)&current_wasm_module_instance.memory.buffer[offset] = value;
@@ -158,7 +156,7 @@ set_i16(uint32_t offset, int16_t value)
 	if (unlikely(offset + (uint32_t)sizeof(int16_t) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int16_t),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	*(int16_t *)&current_wasm_module_instance.memory.buffer[offset] = value;
@@ -172,7 +170,7 @@ set_i32(uint32_t offset, int32_t value)
 	if (unlikely(offset + (uint32_t)sizeof(int32_t) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int32_t),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	*(int32_t *)&current_wasm_module_instance.memory.buffer[offset] = value;
@@ -186,7 +184,7 @@ set_i64(uint32_t offset, int64_t value)
 	if (unlikely(offset + (uint32_t)sizeof(int64_t) > current_wasm_module_instance.memory.size)) {
 		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int64_t),
 		        current_wasm_module_instance.memory.size);
-		current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
 
 	*(int64_t *)&current_wasm_module_instance.memory.buffer[offset] = value;

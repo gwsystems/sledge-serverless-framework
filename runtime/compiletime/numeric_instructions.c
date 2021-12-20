@@ -2,10 +2,9 @@
 
 #include "types.h"
 #include "wasm_types.h"
+#include "current_wasm_module_instance.h"
 
 #define CHAR_BIT 8
-
-extern void current_sandbox_trap(wasm_trap_t trapno);
 
 // ROTL and ROTR helper functions
 INLINE uint32_t
@@ -58,7 +57,7 @@ u32_div(uint32_t a, uint32_t b)
 {
 	if (unlikely(b == 0)) {
 		fprintf(stderr, "u32_div: Divide by zero\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return a / b;
@@ -69,7 +68,7 @@ u32_rem(uint32_t a, uint32_t b)
 {
 	if (unlikely(b == 0)) {
 		fprintf(stderr, "u32_rem: Modulo by zero\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return a % b;
@@ -80,11 +79,11 @@ i32_div(int32_t a, int32_t b)
 {
 	if (unlikely(b == 0)) {
 		fprintf(stderr, "i32_div: Divide by zero\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(a == INT32_MIN && b == -1)) {
 		fprintf(stderr, "i32_div: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return a / b;
@@ -95,11 +94,11 @@ i32_rem(int32_t a, int32_t b)
 {
 	if (unlikely(b == 0)) {
 		fprintf(stderr, "i32_rem: Modulo by zero\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(a == INT32_MIN && b == -1)) {
 		fprintf(stderr, "i32_rem: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return a % b;
@@ -110,7 +109,7 @@ u64_div(uint64_t a, uint64_t b)
 {
 	if (unlikely(b == 0)) {
 		fprintf(stderr, "u64_div: Divide by zero\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return a / b;
@@ -121,7 +120,7 @@ u64_rem(uint64_t a, uint64_t b)
 {
 	if (unlikely(b == 0)) {
 		fprintf(stderr, "u64_rem: Modulo by zero\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return a % b;
@@ -132,11 +131,11 @@ i64_div(int64_t a, int64_t b)
 {
 	if (unlikely(b == 0)) {
 		fprintf(stderr, "i64_div: Divide by zero\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(a == INT64_MIN && b == -1)) {
 		fprintf(stderr, "i64_div: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return a / b;
@@ -147,11 +146,11 @@ i64_rem(int64_t a, int64_t b)
 {
 	if (unlikely(b == 0)) {
 		fprintf(stderr, "i64_rem: Modulo by zero\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(a == INT64_MIN && b == -1)) {
 		fprintf(stderr, "i64_rem: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return a % b;
@@ -165,11 +164,11 @@ u32_trunc_f32(float f)
 {
 	if (unlikely(f < (float)0)) {
 		fprintf(stderr, "u32_trunc_f32: Underflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(f > (float)UINT32_MAX)) {
 		fprintf(stderr, "u32_trunc_f32: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return (uint32_t)f;
@@ -180,11 +179,11 @@ i32_trunc_f32(float f)
 {
 	if (unlikely(f < (float)INT32_MIN)) {
 		fprintf(stderr, "i32_trunc_f32: Underflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(f > (float)INT32_MAX)) {
 		fprintf(stderr, "i32_trunc_f32: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return (int32_t)f;
@@ -195,11 +194,11 @@ u32_trunc_f64(double f)
 {
 	if (unlikely(f < (double)0)) {
 		fprintf(stderr, "u32_trunc_f64: Underflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(f > (double)UINT32_MAX)) {
 		fprintf(stderr, "u32_trunc_f64: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return (uint32_t)f;
@@ -210,11 +209,11 @@ i32_trunc_f64(double f)
 {
 	if (unlikely(f < (double)INT32_MIN)) {
 		fprintf(stderr, "u32_trunc_f64: Underflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(f > (double)INT32_MAX)) {
 		fprintf(stderr, "u32_trunc_f64: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return (int32_t)f;
@@ -225,11 +224,11 @@ u64_trunc_f32(float f)
 {
 	if (unlikely(f < (float)0)) {
 		fprintf(stderr, "u64_trunc_f32: Underflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(f > (float)UINT64_MAX)) {
 		fprintf(stderr, "u64_trunc_f32: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return (uint64_t)f;
@@ -240,11 +239,11 @@ i64_trunc_f32(float f)
 {
 	if (unlikely(f < (float)INT64_MIN)) {
 		fprintf(stderr, "i64_trunc_f32: Underflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(f > (float)INT64_MAX)) {
 		fprintf(stderr, "i64_trunc_f32: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return (int64_t)f;
@@ -255,11 +254,11 @@ u64_trunc_f64(double f)
 {
 	if (unlikely(f < (double)0)) {
 		fprintf(stderr, "u64_trunc_f64: Underflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(f > (double)UINT64_MAX)) {
 		fprintf(stderr, "u64_trunc_f64: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return (uint64_t)f;
@@ -270,11 +269,11 @@ i64_trunc_f64(double f)
 {
 	if (unlikely(f < (double)INT64_MIN)) {
 		fprintf(stderr, "i64_trunc_f64: Underflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 	if (unlikely(f > (double)INT64_MAX)) {
 		fprintf(stderr, "i64_trunc_f64: Overflow\n");
-		current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		current_wasm_module_instance_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	}
 
 	return (int64_t)f;

@@ -27,3 +27,16 @@ current_wasm_module_instance_memory_writeback(void)
 	struct sandbox *current_sandbox = current_sandbox_get();
 	memcpy(current_sandbox->memory, &current_wasm_module_instance.memory, sizeof(struct wasm_memory));
 }
+
+void
+current_wasm_module_instance_trap(wasm_trap_t trapno)
+{
+	assert(trapno != 0);
+	assert(trapno < WASM_TRAP_COUNT);
+
+	struct sandbox *sandbox = current_sandbox_get();
+	assert(sandbox != NULL);
+	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_RUNNING_SYS);
+
+	longjmp(sandbox->ctxt.start_buf, trapno);
+}

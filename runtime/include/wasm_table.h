@@ -6,6 +6,9 @@
 
 #include "types.h"
 
+/* Redeclared due to circular header dependency */
+extern void current_wasm_module_instance_trap(wasm_trap_t trapno);
+
 /* memory also provides the table access functions */
 #define INDIRECT_TABLE_SIZE (1 << 10)
 
@@ -88,19 +91,19 @@ wasm_table_get(struct wasm_table *wasm_table, uint32_t idx, uint32_t type_id)
 
 	if (unlikely(idx >= wasm_table->capacity)) {
 		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
-		current_sandbox_trap(WASM_TRAP_INVALID_INDEX);
+		current_wasm_module_instance_trap(WASM_TRAP_INVALID_INDEX);
 	}
 
 	struct wasm_table_entry f = wasm_table->buffer[idx];
 
 	if (unlikely(f.type_id != type_id)) {
 		fprintf(stderr, "Function Type mismatch. Expected: %u, Actual: %u\n", type_id, f.type_id);
-		current_sandbox_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+		current_wasm_module_instance_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
 	}
 
 	if (unlikely(f.func_pointer == NULL)) {
 		fprintf(stderr, "Function Type mismatch. Index %u resolved to NULL Pointer\n", idx);
-		current_sandbox_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+		current_wasm_module_instance_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
 	}
 
 	assert(f.func_pointer != NULL);
@@ -115,7 +118,7 @@ wasm_table_set(struct wasm_table *wasm_table, uint32_t idx, uint32_t type_id, ch
 
 	if (unlikely(idx >= wasm_table->capacity)) {
 		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
-		current_sandbox_trap(WASM_TRAP_INVALID_INDEX);
+		current_wasm_module_instance_trap(WASM_TRAP_INVALID_INDEX);
 	}
 
 	assert(pointer != NULL);
