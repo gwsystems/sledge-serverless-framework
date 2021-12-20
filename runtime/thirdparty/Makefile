@@ -67,7 +67,7 @@ awsm-wasi: ${DIST_PREFIX}/include/wasi_backing.h ${DIST_PREFIX}/include/wasi_imp
 
 .PHONY: clean
 clean:
-	-@rm ck/Makefile
-	-@make -C ck uninstall
+	-@make -k -C ck uninstall
+	-@rm -f ck/Makefile
 	-@rm -rf ${DIST_PREFIX}
 

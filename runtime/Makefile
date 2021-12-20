@@ -118,10 +118,17 @@ JSMNCFLAGS += -DJSMN_STRICT
 .PHONY: all
 all: runtime
 
-bin/sledgert: ${CFILES}
+thirdparty/dist/lib/http_parser.o: thirdparty
+thirdparty/dist/include/*.h: thirdparty
+
+# Force the runtime to rebuild when header files change
+# This is a bit fragile, as it does not recurse subdirectories when detecting last changed times
+HEADER_DEPS = thirdparty/dist/include/*.h include/*.h include/arch/x86_64/*.h include/arch/aarch64/*.h
+
+bin/sledgert: ${HEADER_DEPS} ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
+	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ ${CFILES} -o bin/sledgert
 
 .PHONY: runtime
 runtime: bin/sledgert
