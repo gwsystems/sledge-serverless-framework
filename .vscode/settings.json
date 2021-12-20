@@ -91,7 +91,6 @@
 		"wasm_types.h": "c",
 		"wasi_impl.h": "c",
 		"wasi_backing.h": "c",
-		"sysexits.h": "c",
 		"wasi_serdes.h": "c",
 		"atomic": "c",
 		"sandbox_set_as_running_kernel.h": "c",
