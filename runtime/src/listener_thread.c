@@ -166,12 +166,13 @@ listener_thread_main(void *dummy)
 
 				/*
 				 * Perform admissions control.
-				 * If 0, workload was rejected, so close with 503 and continue
+				 * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+				 * TODO: Consider providing a Retry-After header
 				 */
 				uint64_t work_admitted = admissions_control_decide(module->admissions_info.estimate);
 				if (work_admitted == 0) {
-					client_socket_send_oneshot(client_socket, http_header_build(503),
-					                           http_header_len(503));
+					client_socket_send_oneshot(client_socket, http_header_build(429),
+					                           http_header_len(429));
 					if (unlikely(close(client_socket) < 0))
 						debuglog("Error closing client socket - %s", strerror(errno));
 

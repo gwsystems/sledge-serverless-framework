@@ -22,6 +22,18 @@
 	"Connection: close\r\n"              \
 	"\r\n"
 
+#define HTTP_RESPONSE_429_TOO_MANY_REQUESTS  \
+	"HTTP/1.1 429 Too Many Requests\r\n" \
+	"Server: SLEdge\r\n"                 \
+	"Connection: close\r\n"              \
+	"\r\n"
+
+#define HTTP_RESPONSE_500_INTERNAL_SERVER_ERROR  \
+	"HTTP/1.1 500 Internal Server Error\r\n" \
+	"Server: SLEdge\r\n"                     \
+	"Connection: close\r\n"                  \
+	"\r\n"
+
 #define HTTP_RESPONSE_503_SERVICE_UNAVAILABLE  \
 	"HTTP/1.1 503 Service Unavailable\r\n" \
 	"Server: SLEdge\r\n"                   \
@@ -56,8 +68,16 @@ http_header_build(int status_code)
 		response = HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
 		http_total_increment_5XX();
 		break;
+	case 500:
+		response = HTTP_RESPONSE_500_INTERNAL_SERVER_ERROR;
+		http_total_increment_5XX();
+		break;
 	case 413:
 		response = HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE;
+		http_total_increment_4XX();
+		break;
+	case 429:
+		response = HTTP_RESPONSE_429_TOO_MANY_REQUESTS;
 		http_total_increment_4XX();
 		break;
 	case 400:
@@ -77,8 +97,12 @@ http_header_len(int status_code)
 	switch (status_code) {
 	case 503:
 		return strlen(HTTP_RESPONSE_503_SERVICE_UNAVAILABLE);
+	case 500:
+		return strlen(HTTP_RESPONSE_500_INTERNAL_SERVER_ERROR);
 	case 413:
 		return strlen(HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE);
+	case 429:
+		return strlen(HTTP_RESPONSE_429_TOO_MANY_REQUESTS);
 	case 400:
 		return strlen(HTTP_RESPONSE_400_BAD_REQUEST);
 	default:
