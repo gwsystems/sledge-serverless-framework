@@ -14,8 +14,8 @@ get_f32(uint32_t offset)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(float) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(float),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(float) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "get_f32 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(float),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -28,8 +28,8 @@ get_f64(uint32_t offset)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(double) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(double),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(double) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "get_f64 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(double),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -42,8 +42,8 @@ get_i8(uint32_t offset)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(int8_t) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int8_t),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int8_t) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "get_i8 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int8_t),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -56,8 +56,8 @@ get_i16(uint32_t offset)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(int16_t) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int16_t),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int16_t) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "get_i16 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int16_t),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -70,8 +70,8 @@ get_i32(uint32_t offset)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(int32_t) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int32_t),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int32_t) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "get_i32 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int32_t),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -84,8 +84,8 @@ get_i64(uint32_t offset)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(int64_t) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int64_t),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int64_t) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "get_i64 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int64_t),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -111,8 +111,8 @@ set_f32(uint32_t offset, float value)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(float) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(float),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(float) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "set_f32 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(float),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -125,8 +125,8 @@ set_f64(uint32_t offset, double value)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(double) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(double),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(double) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "set_f64 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(double),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -139,8 +139,8 @@ set_i8(uint32_t offset, int8_t value)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(int8_t) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int8_t),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int8_t) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "set_i8 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int8_t),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -153,8 +153,8 @@ set_i16(uint32_t offset, int16_t value)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(int16_t) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int16_t),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int16_t) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "set_i16 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int16_t),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -167,8 +167,8 @@ set_i32(uint32_t offset, int32_t value)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(int32_t) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int32_t),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int32_t) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "set_i32 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int32_t),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
@@ -181,8 +181,8 @@ set_i64(uint32_t offset, int64_t value)
 {
 	assert(current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely(offset + (uint32_t)sizeof(int64_t) > current_wasm_module_instance.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int64_t),
+	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int64_t) > current_wasm_module_instance.memory.size)) {
+		fprintf(stderr, "set_i64 OOB: offset %u + length %u > size %lu\n", offset, (uint32_t)sizeof(int64_t),
 		        current_wasm_module_instance.memory.size);
 		current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 	}
