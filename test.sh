@@ -11,12 +11,12 @@ base_dir=$(pwd)
 
 # Commented out Hyde, Handwriting, and FiveByEight tests because gocr currently is buggy on WASI-SDK
 declare -ra tests=(
-	# ocr_hyde
-	# ocr_handwriting
-	# ocr_fivebyeight
-	# ocr_by_word
-	# ocr_by_font
-	# ocr_by_dpi
+	ocr_hyde
+	ocr_handwriting
+	ocr_fivebyeight
+	ocr_by_word
+	ocr_by_font
+	ocr_by_dpi
 	ekf_by_iteration
 	ekf_one_iteration
 	image_classification
