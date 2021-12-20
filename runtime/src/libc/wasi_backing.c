@@ -4,18 +4,16 @@
 #include "current_wasm_module_instance.h"
 #include "wasm_memory.h"
 
-#define awsm_assert assert
-
 typedef uint32_t u32;
 
 INLINE void
-check_bounds(u32 offset, u32 bounds_check)
+check_bounds(uint32_t offset, uint32_t bounds_check)
 {
 	// Due to how we setup memory for x86, the virtual memory mechanism will catch the error, if bounds <
 	// WASM_PAGE_SIZE
-	awsm_assert(bounds_check < WASM_PAGE_SIZE
-	            || (current_wasm_module_instance.memory.size > bounds_check
-	                && offset <= current_wasm_module_instance.memory.size - bounds_check));
+	assert(bounds_check < WASM_PAGE_SIZE
+	       || (current_wasm_module_instance.memory.size > bounds_check
+	           && offset <= current_wasm_module_instance.memory.size - bounds_check));
 }
 
 /**
