@@ -1,6 +1,7 @@
 #include <math.h>
 
 #include "types.h"
+#include "wasm_types.h"
 
 #define CHAR_BIT 8
 

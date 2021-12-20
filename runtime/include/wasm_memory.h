@@ -16,9 +16,9 @@
 
 struct wasm_memory {
 	struct ps_list list;     /* Linked List Node used for object pool */
-	size_t         size;     /* Initial Size in bytes */
-	size_t         capacity; /* Size backed by actual pages */
-	size_t         max;      /* Soft cap in bytes. Defaults to 4GB */
+	uint64_t       size;     /* Initial Size in bytes */
+	uint64_t       capacity; /* Size backed by actual pages */
+	uint64_t       max;      /* Soft cap in bytes. Defaults to 4GB */
 	uint8_t *      buffer;   /* Backing heap allocation. Different lifetime because realloc might move this */
 };
 
