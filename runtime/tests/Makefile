@@ -63,11 +63,11 @@ exit.wasm: ./exit/exit.wasm
 exit.install: ../../runtime/bin/exit_wasm.so
 
 # EKF
-./TinyEKF/extras/c/gps_ekf_fn.wasm:
-	@make gps_ekf_fn.wasm -C ./TinyEKF/extras/c/ -f wasm.mk
+./TinyEKF/gps_ekf.wasm:
+	@make gps_ekf.wasm -C ./TinyEKF/ -f wasm.mk
 
-ekf.wasm: ./TinyEKF/extras/c/gps_ekf_fn.wasm
-	@cp ./TinyEKF/extras/c/gps_ekf_fn.wasm ekf.wasm
+ekf.wasm: ./TinyEKF/gps_ekf.wasm
+	@cp ./TinyEKF/gps_ekf.wasm ekf.wasm
 
 .PHONY: ekf.install
 ekf.install: ../../runtime/bin/ekf_wasm.so
@@ -93,21 +93,21 @@ gocr.wasm: ./gocr/gocr.wasm
 gocr.install: ../../runtime/bin/gocr_wasm.so
 
 # LPD
-./sod/bin/license_plate_detection.wasm:
-	@make dir license_plate_detection.wasm -C ./sod/
+./sod/license_plate_detection.wasm:
+	@make license_plate_detection.wasm -C ./sod/
 
-lpd.wasm: ./sod/bin/license_plate_detection.wasm
-	@cp ./sod/bin/license_plate_detection.wasm lpd.wasm
+lpd.wasm: ./sod/license_plate_detection.wasm
+	@cp ./sod/license_plate_detection.wasm lpd.wasm
 
 .PHONY: lpd.install
 lpd.install: ../../runtime/bin/lpd_wasm.so
 
 # Resize
-./sod/bin/resize_image.wasm:
-	@make dir resize_image.wasm -C ./sod/
+./sod/resize_image.wasm:
+	@make resize_image.wasm -C ./sod/
 
-resize.wasm: ./sod/bin/resize_image.wasm
-	@cp ./sod/bin/resize_image.wasm resize.wasm
+resize.wasm: ./sod/resize_image.wasm
+	@cp ./sod/resize_image.wasm resize.wasm
 
 .PHONY: resize.install
 resize.install: ../../runtime/bin/resize_wasm.so
