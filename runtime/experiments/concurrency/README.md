@@ -18,7 +18,7 @@ _How does increasing levels of concurrent client requests affect tail latency, t
 
 - You have a modern bash shell. My Linux environment shows version 4.4.20(1)-release
 - `hey` (https://github.com/rakyll/hey) is available in your PATH
-- You have compiled `sledgert` and the `empty.so` test workload
+- You have compiled `sledgert` and the `empty_wasm.so` test workload
 
 ## TODO
 

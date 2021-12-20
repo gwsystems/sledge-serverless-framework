@@ -1,7 +1,7 @@
 [
 	{
 		"name": "cifar10_rand",
-		"path": "cifar10.so",
+		"path": "cifar10_wasm.so",
 		"port": 10000,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
@@ -11,7 +11,7 @@
 	},
 	{
 		"name": "cifar10_same",
-		"path": "cifar10.so",
+		"path": "cifar10_wasm.so",
 		"port": 10001,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,

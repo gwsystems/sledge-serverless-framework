@@ -1,6 +1,6 @@
 {
 	"name": "resize_image",
-	"path": "resize_image.so",
+	"path": "resize_wasm.so",
 	"port": 10000,
 	"expected-execution-us": 1000,
 	"relative-deadline-us": 50000,

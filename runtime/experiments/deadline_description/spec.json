@@ -1,7 +1,7 @@
 [
 	{
 		"name": "ekf",
-		"path": "gps_ekf.so",
+		"path": "ekf_wasm.so",
 		"port": 10000,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
@@ -11,7 +11,7 @@
 	},
 	{
 		"name": "resize",
-		"path": "resize_image.so",
+		"path": "resize_wasm.so",
 		"port": 10001,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
@@ -21,7 +21,7 @@
 	},
 	{
 		"name": "lpd",
-		"path": "license_plate_detection.so",
+		"path": "lpd_wasm.so",
 		"port": 10002,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
@@ -31,7 +31,7 @@
 	},
 	{
 		"name": "gocr",
-		"path": "gocr.so",
+		"path": "gocr_wasm.so",
 		"port": 10003,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 360000,
@@ -41,7 +41,7 @@
 	},
 	{
 		"name": "cifar10",
-		"path": "cifar10.so",
+		"path": "cifar10_wasm.so",
 		"port": 10004,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,

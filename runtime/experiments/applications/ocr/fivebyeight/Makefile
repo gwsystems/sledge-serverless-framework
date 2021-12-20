@@ -7,19 +7,19 @@ default: run
 clean: 
 	make -C ../../../../ clean
 	make -C ${SLEDGE_TESTS_DIR} clean
-	rm -f ${SLEDGE_BINARY_DIR}/gocr.so
+	rm -f ${SLEDGE_BINARY_DIR}/gocr_wasm.so
 
 ${SLEDGE_BINARY_DIR}/sledgert:
 	make -C ../../../../ runtime
 
-${SLEDGE_BINARY_DIR}/so/gocr.so:
-	make -C ${SLEDGE_TESTS_DIR} so/gocr.so
-	cp ${SLEDGE_TESTS_DIR}/so/gocr.so ${SLEDGE_BINARY_DIR}
+${SLEDGE_BINARY_DIR}/so/gocr_wasm.so:
+	make -C ${SLEDGE_TESTS_DIR} so/gocr_wasm.so
+	cp ${SLEDGE_TESTS_DIR}/so/gocr_wasm.so ${SLEDGE_BINARY_DIR}
 
-run: ${SLEDGE_BINARY_DIR}/sledgert ${SLEDGE_BINARY_DIR}/so/gocr.so
+run: ${SLEDGE_BINARY_DIR}/sledgert ${SLEDGE_BINARY_DIR}/so/gocr_wasm.so
 	LD_LIBRARY_PATH=${SLEDGE_BINARY_DIR} ${SLEDGE_BINARY_DIR}/sledgert spec.json
 
-debug: ${SLEDGE_BINARY_DIR}/sledgert ${SLEDGE_BINARY_DIR}/so/gocr.so
+debug: ${SLEDGE_BINARY_DIR}/sledgert ${SLEDGE_BINARY_DIR}/so/gocr_wasm.so
 	LD_LIBRARY_PATH=${SLEDGE_BINARY_DIR} gdb ${SLEDGE_BINARY_DIR}/sledgert --eval-command="run spec.json"
 
 client:

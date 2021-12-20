@@ -9,7 +9,7 @@ all: run
 clean: 
 	make -C ${RUNTIME_DIR} clean
 	make -C ${SLEDGE_TESTS_DIR} clean
-	rm -f ${SLEDGE_BINARY_DIR}/fibonacci.so
+	rm -f ${SLEDGE_BINARY_DIR}/fibonacci_wasm.so
 
 .PHONY: ${SLEDGE_BINARY_DIR}/sledgert
 ${SLEDGE_BINARY_DIR}/sledgert:
@@ -18,13 +18,13 @@ ${SLEDGE_BINARY_DIR}/sledgert:
 .PHONY: sledgert
 sledgert: ${SLEDGE_BINARY_DIR}/sledgert
 
-.PHONY: ${SLEDGE_BINARY_DIR}/fibonacci.so
-${SLEDGE_BINARY_DIR}/fibonacci.so:
-	make -C ${SLEDGE_TESTS_DIR} so/fibonacci.so
-	cp ${SLEDGE_TESTS_DIR}/so/fibonacci.so ${SLEDGE_BINARY_DIR}
+.PHONY: ${SLEDGE_BINARY_DIR}/fibonacci_wasm.so
+${SLEDGE_BINARY_DIR}/fibonacci_wasm.so:
+	make -C ${SLEDGE_TESTS_DIR} so/fibonacci_wasm.so
+	cp ${SLEDGE_TESTS_DIR}/so/fibonacci_wasm.so ${SLEDGE_BINARY_DIR}
 
 .PHONY: fibonacci
-fibonacci: ${SLEDGE_BINARY_DIR}/fibonacci.so
+fibonacci: ${SLEDGE_BINARY_DIR}/fibonacci_wasm.so
 
 run: sledgert fibonacci
 	LD_LIBRARY_PATH=${SLEDGE_BINARY_DIR} ${SLEDGE_BINARY_DIR}/sledgert spec.json

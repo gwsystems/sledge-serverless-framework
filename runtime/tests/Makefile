@@ -52,6 +52,16 @@ empty.wasm: ./empty/empty.wasm
 .PHONY: empty.install
 empty.install: ../../runtime/bin/empty_wasm.so
 
+# Exit
+./exit/exit.wasm:
+	@make exit.wasm -C ./exit
+
+exit.wasm: ./exit/exit.wasm
+	@cp ./exit/exit.wasm exit.wasm
+
+.PHONY: exit.install
+exit.install: ../../runtime/bin/exit_wasm.so
+
 # EKF
 ./TinyEKF/extras/c/gps_ekf_fn.wasm:
 	@make gps_ekf_fn.wasm -C ./TinyEKF/extras/c/ -f wasm.mk
@@ -73,11 +83,11 @@ cifar10.wasm: ./CMSIS_5_NN/cifar10.wasm
 cifar10.install: ../../runtime/bin/cifar10_wasm.so
 
 # GOCR
-./gocr/src/gocr.wasm:
-	@make gocr.wasm -C ./gocr/src/ -f wasm.mk
+./gocr/gocr.wasm:
+	@make gocr.wasm -C ./gocr/ -f wasm.mk
 
-gocr.wasm: ./gocr/src/gocr.wasm
-	@cp ./gocr/src/gocr.wasm gocr.wasm
+gocr.wasm: ./gocr/gocr.wasm
+	@cp ./gocr/gocr.wasm gocr.wasm
 
 .PHONY: gocr.install
 gocr.install: ../../runtime/bin/gocr_wasm.so
