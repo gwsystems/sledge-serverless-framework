@@ -21,10 +21,7 @@ run_functional_tests() {
 	local -ir total_count=50
 
 	local tmpfs_dir=/tmp/sledge_ekf_by_iteration
-	[[ -d "$tmpfs_dir" ]] && {
-		echo "$tmpfs_dir directory exists. Delete via rm -r $tmpfs_dir and rerun."
-		return 1
-	}
+	rm -rf "$tmpfs_dir"
 	mkdir "$tmpfs_dir" || {
 		echo "Failed to create tmp directory"
 		return 1
