@@ -100,7 +100,7 @@ jobs:
         if: success() || failure()
       - name: Hyde
         run: |
-          ./test.sh ocr_hyde
+          make -f test.mk ocr__hyde
         if: success() || failure()
       - name: Upload Hyde Logs on Failure
         uses: actions/upload-artifact@v2
@@ -110,11 +110,11 @@ jobs:
           path: ./runtime/experiments/applications/ocr/hyde/res/**/
       - name: Handwriting
         run: |
-          ./test.sh ocr_handwriting
+          make -f test.mk ocr__handwriting
         if: success() || failure()
       - name: Five by Eight
         run: |
-          ./test.sh ocr_fivebyeight
+          make -f test.mk ocr__fivebyeight
         if: success() || failure()
       # - name: OCR by Word
       #   run: |

@@ -16,9 +16,9 @@ all: fibonacci.install empty.install ekf.install cifar10.install gocr.install lp
 clean:
 	@make clean -C ./fibonacci
 	@make clean -C ./empty
-	@make clean -C ./TinyEKF/extras/c/ -f wasm.mk
+	@make clean -C ./TinyEKF/ -f wasm.mk
 	@make clean -C ./CMSIS_5_NN/ -f Makefile
-	@make clean -C ./gocr/src/ -f wasm.mk
+	@make clean -C ./gocr/ -f wasm.mk
 	@make clean -C ./sod/
 	@rm -f *.wasm
 	@rm -f ../../runtime/bin/*.so
