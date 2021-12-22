@@ -103,7 +103,7 @@ LDFLAGS += -Wl,--export-dynamic -ldl -lm
 
 # Our third-party dependencies build into a single dist directory to simplify configuration here.
 LDFLAGS += -Lthirdparty/dist/lib/
-INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
+INCLUDES += -Iinclude/ -Ithirdparty/dist/include/ -I../libsledge/include/
 
 # CFILES
 CFILES += src/*.c

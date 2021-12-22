@@ -38,7 +38,7 @@ sandbox_free_linear_memory(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	assert(sandbox->memory != NULL);
-	module_free_linear_memory(sandbox->module, sandbox->memory);
+	module_free_linear_memory(sandbox->module, (struct wasm_memory *)sandbox->memory);
 	sandbox->memory = NULL;
 }
 

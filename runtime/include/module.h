@@ -7,12 +7,12 @@
 
 #include "admissions_control.h"
 #include "admissions_info.h"
-#include "awsm_abi.h"
 #include "current_wasm_module_instance.h"
 #include "http.h"
 #include "panic.h"
 #include "pool.h"
 #include "types.h"
+#include "sledge_abi_symbols.h"
 #include "wasm_stack.h"
 #include "wasm_memory.h"
 #include "wasm_table.h"
@@ -68,10 +68,10 @@ struct module {
 	int                socket_descriptor;
 
 	/* Handle and ABI Symbols for *.so file */
-	struct awsm_abi abi;
+	struct sledge_abi_symbols abi;
 
-	_Atomic uint32_t   reference_count; /* ref count how many instances exist here. */
-	struct wasm_table *indirect_table;
+	_Atomic uint32_t               reference_count; /* ref count how many instances exist here. */
+	struct sledge_abi__wasm_table *indirect_table;
 
 	struct module_pools pools[MAX_WORKER_THREADS];
 };
@@ -112,7 +112,7 @@ module_initialize_globals(struct module *module)
  * initialization is complete.
  *
  * assumption: This approach depends on module_alloc only being invoked at program start before preemption is
- * enabled. We are check that current_wasm_module_instance.table is NULL to gain confidence that
+ * enabled. We are check that sledge_abi__current_wasm_module_instance.table is NULL to gain confidence that
  * we are not invoking this in a way that clobbers a current module.
  *
  * If we want to be able to do this later, we can possibly defer module_initialize_table until the first
@@ -122,10 +122,10 @@ module_initialize_globals(struct module *module)
 static inline void
 module_initialize_table(struct module *module)
 {
-	assert(current_wasm_module_instance.table == NULL);
-	current_wasm_module_instance.table = module->indirect_table;
+	assert(sledge_abi__current_wasm_module_instance.abi.table == NULL);
+	sledge_abi__current_wasm_module_instance.abi.table = module->indirect_table;
 	module->abi.initialize_tables();
-	current_wasm_module_instance.table = NULL;
+	sledge_abi__current_wasm_module_instance.abi.table = NULL;
 }
 
 static inline int

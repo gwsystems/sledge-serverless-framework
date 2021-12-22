@@ -1,0 +1,94 @@
+#include "sledge_abi.h"
+
+#define unlikely(X)         __builtin_expect(!!(X), 0)
+#define INDIRECT_TABLE_SIZE (1 << 10)
+#define INLINE              __attribute__((always_inline))
+#define likely(X)           __builtin_expect(!!(X), 1)
+#define unlikely(X)         __builtin_expect(!!(X), 0)
+
+/* This is private and NOT in the sledge_abi.h header because the runtime uses an overlay struct that extends this
+ * symbol with private members */
+extern thread_local struct sledge_abi__wasm_module_instance sledge_abi__current_wasm_module_instance;
+
+static INLINE void *
+wasm_table_get(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t type_id)
+{
+	assert(wasm_table != NULL);
+
+	if (unlikely(idx >= wasm_table->capacity)) {
+		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	}
+
+	struct sledge_abi__wasm_table_entry f = wasm_table->buffer[idx];
+
+	if (unlikely(f.type_id != type_id)) {
+		fprintf(stderr, "Function Type mismatch. Expected: %u, Actual: %u\n", type_id, f.type_id);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+	}
+
+	if (unlikely(f.func_pointer == NULL)) {
+		fprintf(stderr, "Function Type mismatch. Index %u resolved to NULL Pointer\n", idx);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+	}
+
+	assert(f.func_pointer != NULL);
+
+	return f.func_pointer;
+}
+
+static INLINE void
+wasm_table_set(struct sledge_abi__wasm_table *sledge_abi__wasm_table, uint32_t idx, uint32_t type_id, char *pointer)
+{
+	assert(sledge_abi__wasm_table != NULL);
+
+	if (unlikely(idx >= sledge_abi__wasm_table->capacity)) {
+		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	}
+
+	assert(pointer != NULL);
+
+	/* TODO: atomic for multiple concurrent invocations? Issue #97 */
+	if (sledge_abi__wasm_table->buffer[idx].type_id == type_id
+	    && sledge_abi__wasm_table->buffer[idx].func_pointer == pointer)
+		return;
+
+	sledge_abi__wasm_table->buffer[idx] = (struct sledge_abi__wasm_table_entry){ .type_id      = type_id,
+		                                                                     .func_pointer = pointer };
+}
+
+
+INLINE void
+add_function_to_table(uint32_t idx, uint32_t type_id, char *pointer)
+{
+	wasm_table_set(sledge_abi__current_wasm_module_instance.table, idx, type_id, pointer);
+}
+
+/* char * is used as a generic pointer to a function pointer */
+INLINE char *
+get_function_from_table(uint32_t idx, uint32_t type_id)
+{
+	assert(sledge_abi__current_wasm_module_instance.table != NULL);
+
+	if (unlikely(idx >= sledge_abi__current_wasm_module_instance.table->capacity)) {
+		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	}
+
+	struct sledge_abi__wasm_table_entry f = sledge_abi__current_wasm_module_instance.table->buffer[idx];
+
+	if (unlikely(f.type_id != type_id)) {
+		fprintf(stderr, "Function Type mismatch. Expected: %u, Actual: %u\n", type_id, f.type_id);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+	}
+
+	if (unlikely(f.func_pointer == NULL)) {
+		fprintf(stderr, "Function Type mismatch. Index %u resolved to NULL Pointer\n", idx);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+	}
+
+	assert(f.func_pointer != NULL);
+
+	return f.func_pointer;
+}

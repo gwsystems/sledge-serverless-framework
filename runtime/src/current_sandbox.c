@@ -157,10 +157,10 @@ current_sandbox_init()
 	/* Initialize WASI */
 	wasi_options_t options;
 	wasi_options_init(&options);
-	options.argc                              = dummy_argc;
-	options.argv                              = dummy_argv;
-	sandbox->wasi_context                     = wasi_context_init(&options);
-	current_wasm_module_instance.wasi_context = sandbox->wasi_context;
+	options.argc                                          = dummy_argc;
+	options.argv                                          = dummy_argv;
+	sandbox->wasi_context                                 = wasi_context_init(&options);
+	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
 	assert(sandbox->wasi_context != NULL);
 
 	sandbox_return(sandbox);
