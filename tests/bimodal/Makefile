@@ -1,4 +1,4 @@
-RUNTIME_DIR=../..
+RUNTIME_DIR=../../runtime/
 SLEDGE_BINARY_DIR=${RUNTIME_DIR}/bin
 SLEDGE_TESTS_DIR=${RUNTIME_DIR}/tests
 HOSTNAME=localhost
@@ -9,22 +9,19 @@ all: run
 clean: 
 	make -C ${RUNTIME_DIR} clean
 	make -C ${SLEDGE_TESTS_DIR} clean
-	rm -f ${SLEDGE_BINARY_DIR}/fibonacci_wasm.so
+	rm -f ${SLEDGE_BINARY_DIR}/fibonacci.wasm.so
 
-.PHONY: ${SLEDGE_BINARY_DIR}/sledgert
 ${SLEDGE_BINARY_DIR}/sledgert:
 	make -C ${RUNTIME_DIR} runtime
 
 .PHONY: sledgert
 sledgert: ${SLEDGE_BINARY_DIR}/sledgert
 
-.PHONY: ${SLEDGE_BINARY_DIR}/fibonacci_wasm.so
-${SLEDGE_BINARY_DIR}/fibonacci_wasm.so:
-	make -C ${SLEDGE_TESTS_DIR} so/fibonacci_wasm.so
-	cp ${SLEDGE_TESTS_DIR}/so/fibonacci_wasm.so ${SLEDGE_BINARY_DIR}
+${SLEDGE_BINARY_DIR}/fibonacci.wasm.so:
+	make -C .. fibonacci.install
 
 .PHONY: fibonacci
-fibonacci: ${SLEDGE_BINARY_DIR}/fibonacci_wasm.so
+fibonacci: ${SLEDGE_BINARY_DIR}/fibonacci.wasm.so
 
 run: sledgert fibonacci
 	LD_LIBRARY_PATH=${SLEDGE_BINARY_DIR} ${SLEDGE_BINARY_DIR}/sledgert spec.json

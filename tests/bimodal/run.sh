@@ -40,10 +40,10 @@ run_samples() {
 
 	# Scrape the perf window size from the source if possible
 	# TODO: Make a util function
-	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../include/perf_window_t.h)"
+	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../runtime/include/perf_window_t.h)"
 	local -i perf_window_buffer_size
 	if ! perf_window_buffer_size=$(grep "#define PERF_WINDOW_BUFFER_SIZE" < "$perf_window_path" | cut -d\  -f3); then
-		printf "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../include/perf_window.h\n"
+		printf "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../runtime/include/perf_window.h\n"
 		printf "Defaulting to 16\n"
 		perf_window_buffer_size=16
 	fi
