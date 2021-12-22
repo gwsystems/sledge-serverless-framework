@@ -1,6 +1,6 @@
 {
 	"name": "lpd",
-	"path": "lpd_wasm.so",
+	"path": "lpd.wasm.so",
 	"port": 10000,
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 50000,

@@ -2,7 +2,7 @@
 
 # Add bash_libraries directory to path
 __run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
-__run_sh__bash_libraries_relative_path="../../../bash_libraries"
+__run_sh__bash_libraries_relative_path="../../bash_libraries"
 __run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
 export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
@@ -53,7 +53,7 @@ experiment_client() {
 # Copy data if not here
 if  [[ ! -f "$__run_sh__base_path/initial_state.dat" ]]; then
 	pushd "$__run_sh__base_path" || exit 1
-	pushd "../../../../tests/TinyEKF/extras/c/" || exit 1
+	pushd "../../../applications/wasm_apps/TinyEKF/extras/c/" || exit 1
 	cp ekf_raw.dat "$__run_sh__base_path/initial_state.dat" || exit 1
 	popd || exit 1
 	popd || exit 1

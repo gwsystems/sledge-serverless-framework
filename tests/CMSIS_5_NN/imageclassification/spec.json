@@ -1,0 +1,22 @@
+[
+	{
+		"name": "cifar10_rand",
+		"path": "cifar10.wasm.so",
+		"port": 10000,
+		"expected-execution-us": 5000,
+		"relative-deadline-us": 50000,
+		"http-req-size": 4096,
+		"http-resp-size": 128,
+		"http-resp-content-type": "text/plain"
+	},
+	{
+		"name": "cifar10_same",
+		"path": "cifar10.wasm.so",
+		"port": 10001,
+		"expected-execution-us": 5000,
+		"relative-deadline-us": 50000,
+		"http-req-size": 4096,
+		"http-resp-size": 128,
+		"http-resp-content-type": "text/plain"
+	}
+]

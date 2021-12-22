@@ -1,4 +1,4 @@
-SLEDGE_BINARY_DIR=../../../runtime/bin
+SLEDGE_BINARY_DIR=../../runtime/bin
 HOSTNAME=localhost
 
 default: run
@@ -12,5 +12,3 @@ run:
 debug:
 	LD_LIBRARY_PATH=${SLEDGE_BINARY_DIR} gdb ${SLEDGE_BINARY_DIR}/sledgert --eval-command="run spec.json"
 
-client:
-	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@5x8.pnm" "${HOSTNAME}:10000"

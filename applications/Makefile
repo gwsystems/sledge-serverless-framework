@@ -39,6 +39,9 @@ dist/%.wasm.so: dist/%.bc ../libsledge/dist/libsledge.a
 fibonacci.install: ../runtime/bin/fibonacci.wasm.so
 
 .PHONY: empty.install
+empty.install: ../runtime/bin/empty.wasm.so
+
+.PHONY: exit.install
 exit.install: ../runtime/bin/exit.wasm.so
 
 # EKF
@@ -68,4 +71,4 @@ dist/resize.wasm.so: dist/resize_image.wasm.so
 	mv $< $@
 
 .PHONY: resize.install
-resize.install: ../runtime/bin/resize_wasm.so
+resize.install: ../runtime/bin/resize.wasm.so

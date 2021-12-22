@@ -1,32 +1,32 @@
 [
 	{
-		"name": "ekf_first_iter",
-		"path": "ekf.wasm.so",
+		"name": "resize_small",
+		"path": "resize.wasm.so",
 		"port": 10000,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
 		"http-req-size": 1024000,
 		"http-resp-size": 1024000,
-		"http-resp-content-type": "application/octet-stream"
+		"http-resp-content-type": "image/png"
 	},
 	{
-		"name": "ekf_second_iter",
-		"path": "ekf.wasm.so",
+		"name": "resize_medium",
+		"path": "resize.wasm.so",
 		"port": 10001,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
 		"http-req-size": 1024000,
 		"http-resp-size": 1024000,
-		"http-resp-content-type": "application/octet-stream"
+		"http-resp-content-type": "image/png"
 	},
 	{
-		"name": "ekf_third_iter",
-		"path": "ekf.wasm.so",
+		"name": "resize_large",
+		"path": "resize.wasm.so",
 		"port": 10002,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
-		"http-req-size": 1024000,
-		"http-resp-size": 1024000,
-		"http-resp-content-type": "application/octet-stream"
+		"http-req-size": 1524000,
+		"http-resp-size": 1524000,
+		"http-resp-content-type": "image/png"
 	}
 ]
