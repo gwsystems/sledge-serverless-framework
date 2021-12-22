@@ -12,23 +12,7 @@ url = https://github.com/gwsystems/ck.git
 [submodule "jsmn"]
 path = runtime/thirdparty/jsmn
 url = https://github.com/gwsystems/jsmn.git
-[submodule "runtime/tests/gocr"]
-path = runtime/tests/gocr
-url = https://github.com/gwsystems/gocr.git
-branch = wasi
-[submodule "runtime/tests/TinyEKF"]
-path = runtime/tests/TinyEKF
-url = https://github.com/gwsystems/TinyEKF.git
-branch = wasi
-[submodule "runtime/tests/CMSIS_5_NN"]
-path = runtime/tests/CMSIS_5_NN
-url = https://github.com/gwsystems/CMSIS_5_NN.git
-branch = wasi
-[submodule "runtime/tests/sod"]
-path = runtime/tests/sod
-url = https://github.com/gwsystems/sod.git
-branch = wasi
-[submodule "runtime/tests/speechtotext"]
-path = runtime/tests/speechtotext
-url = https://github.com/gwsystems/speechtotext.git
-branch = wasi
+[submodule "wasm_apps"]
+	path = applications/wasm_apps
+	url = https://github.com/gwsystems/wasm_apps.git
+	branch = master
