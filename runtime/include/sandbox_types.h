@@ -17,6 +17,7 @@
 #include "wasm_memory.h"
 #include "wasm_types.h"
 #include "wasm_stack.h"
+#include "wasm_globals.h"
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 #endif
 
@@ -55,9 +56,10 @@ struct sandbox {
 	struct module *module; /* the module this is an instance of */
 
 	/* WebAssembly Instance State  */
-	struct arch_context ctxt;
-	struct wasm_stack * stack;
-	struct wasm_memory *memory;
+	struct arch_context       ctxt;
+	struct wasm_stack *       stack;
+	struct wasm_memory *      memory;
+	struct vec_wasm_global_t *globals;
 
 	/* Scheduling and Temporal State */
 	struct sandbox_timestamps timestamp_of;

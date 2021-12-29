@@ -106,18 +106,6 @@ get_i64(uint32_t offset)
 	return *(int64_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
-INLINE int32_t
-get_global_i32(uint32_t offset)
-{
-	return get_i32(offset);
-}
-
-INLINE int64_t
-get_global_i64(uint32_t offset)
-{
-	return get_i64(offset);
-}
-
 // Now setting routines
 INLINE void
 set_f32(uint32_t offset, float value)
@@ -209,17 +197,6 @@ set_i64(uint32_t offset, int64_t value)
 	*(int64_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 
-INLINE void
-set_global_i32(uint32_t offset, int32_t value)
-{
-	set_i32(offset, value);
-}
-
-INLINE void
-set_global_i64(uint32_t offset, int64_t value)
-{
-	set_i64(offset, value);
-}
 
 /**
  * @brief Stub that implements the WebAssembly memory.grow instruction

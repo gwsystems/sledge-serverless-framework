@@ -32,3 +32,31 @@ sledge_abi__wasm_memory_initialize_region(struct sledge_abi__wasm_memory *wasm_m
 {
 	return wasm_memory_initialize_region((struct wasm_memory *)wasm_memory, offset, region_size, region);
 }
+
+int32_t
+sledge_abi__wasm_globals_get_i32(uint32_t idx)
+{
+	struct sandbox *current = current_sandbox_get();
+	return wasm_globals_get_i32(current->globals, idx);
+}
+
+int64_t
+sledge_abi__wasm_globals_get_i64(uint32_t idx)
+{
+	struct sandbox *current = current_sandbox_get();
+	return wasm_globals_get_i64(current->globals, idx);
+}
+
+int32_t
+sledge_abi__wasm_globals_set_i32(uint32_t idx, int32_t value)
+{
+	struct sandbox *current = current_sandbox_get();
+	return wasm_globals_set_i32(current->globals, idx, value);
+}
+
+int32_t
+sledge_abi__wasm_globals_set_i64(uint32_t idx, int64_t value)
+{
+	struct sandbox *current = current_sandbox_get();
+	return wasm_globals_set_i64(current->globals, idx, value);
+}
