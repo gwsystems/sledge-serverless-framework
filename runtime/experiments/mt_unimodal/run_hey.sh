@@ -32,7 +32,7 @@ declare -Ar deadlines_us=(
 )
 
 
-# Execute the experiments sequentially and concurrently
+# Execute the experiments
 # $1 (hostname)
 # $2 (results_directory) - a directory where we will store our results
 run_experiments() {
