@@ -1,7 +1,12 @@
 AWSMCC=awsm
 CC=clang
 
-OPTFLAGS=-O3 -flto
+# Used by aWsm when compiling the *.wasm to *.bc
+AWSMFLAGS= --inline-constant-globals --runtime-globals
+
+# Used by clang when compiling the *.so module
+# FIXME: Why does -O0 cause compilation to fail?
+CFLAGS=-O3 -flto
 
 # Compiletime Components to link into *.so
 SLEDGE_BASE_DIR=../
@@ -12,7 +17,14 @@ dist:
 	mkdir dist
 
 .PHONY: all
-all: fibonacci.install empty.install ekf.install cifar10.install gocr.install lpd.install resize.install
+all: \
+	cifar10.install \
+	empty.install \
+	fibonacci.install \
+	gocr.install \
+	gpf_ekf.install \
+	license_plate_detection.install \
+	resize_image.install
 
 .PHONY: clean
 clean:
@@ -21,22 +33,27 @@ clean:
 	@rm -rf ../../runtime/bin/*.so
 
 wasm_apps/dist/%.wasm:
-	make -C wasm_apps all
+	make -C wasm_apps $(addprefix dist/,$(notdir $@))
 
 ../libsledge/dist/libsledge.a:
 	make -C .. dist/libsledge.a
 
 dist/%.bc: ./wasm_apps/dist/%.wasm dist
-	${AWSMCC} --inline-constant-globals --runtime-globals $< -o $@
+	${AWSMCC} ${AWSMFLAGS} $< -o $@
+
+dist/%.ll: dist/%.bc
+	llvm-dis-12 $< -o $@
 
 dist/%.wasm.so: dist/%.bc ../libsledge/dist/libsledge.a
-	${CC} --shared -fPIC ${OPTFLAGS} $^ -o $@
+	${CC} --shared -fPIC ${CFLAGS} $^ -o $@
 
 ../runtime/bin/%.wasm.so: dist/%.wasm.so
 	cp $^ $@
 
-.PHONY: fibonacci.install
-fibonacci.install: ../runtime/bin/fibonacci.wasm.so
+.PHONY: cifar10.install
+cifar10.install: ../runtime/bin/cifar10.wasm.so
+
+# Echo?
 
 .PHONY: empty.install
 empty.install: ../runtime/bin/empty.wasm.so
@@ -44,31 +61,17 @@ empty.install: ../runtime/bin/empty.wasm.so
 .PHONY: exit.install
 exit.install: ../runtime/bin/exit.wasm.so
 
-# EKF
-dist/ekf.wasm.so: dist/gps_ekf.wasm.so
-	mv $< $@
+.PHONY: fibonacci.install
+fibonacci.install: ../runtime/bin/fibonacci.wasm.so
 
-.PHONY: ekf.install
-ekf.install: ../runtime/bin/ekf.wasm.so
-
-# CIFAR10
-.PHONY: cifar10.install
-cifar10.install: ../runtime/bin/cifar10.wasm.so
-
-# GOCR
 .PHONY: gocr.install
 gocr.install: ../runtime/bin/gocr.wasm.so
 
-# LPD
-dist/lpd.wasm.so: dist/license_plate_detection.wasm.so
-	mv $< $@
+.PHONY: resize_image.install
+resize_image.install: ../runtime/bin/resize_image.wasm.so
 
-.PHONY: lpd.install
-lpd.install: ../runtime/bin/lpd.wasm.so
+.PHONY: gpf_ekf.install
+gpf_ekf.install: ../runtime/bin/gpf_ekf.wasm.so
 
-# Resize
-dist/resize.wasm.so: dist/resize_image.wasm.so
-	mv $< $@
-
-.PHONY: resize.install
-resize.install: ../runtime/bin/resize.wasm.so
+.PHONY: license_plate_detection.install
+license_plate_detection.install: ../runtime/bin/license_plate_detection.wasm.so

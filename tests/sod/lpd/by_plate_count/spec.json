@@ -1,7 +1,7 @@
 [
 	{
 		"name": "lpd1",
-		"path": "lpd.wasm.so",
+		"path": "license_plate_detection.wasm.so",
 		"port": 10000,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
@@ -11,7 +11,7 @@
 	},
 	{
 		"name": "lpd2",
-		"path": "lpd.wasm.so",
+		"path": "license_plate_detection.wasm.so",
 		"port": 10001,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
@@ -21,7 +21,7 @@
 	},
 	{
 		"name": "lpd4",
-		"path": "lpd.wasm.so",
+		"path": "license_plate_detection.wasm.so",
 		"port": 10002,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,

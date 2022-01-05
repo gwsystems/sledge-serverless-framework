@@ -42,15 +42,15 @@ gocr__all: \
 	gocr__hyde
 
 # Extended Kalman Filter applied to binary GPS data
-./runtime/bin/ekf.wasm.so:
-	make ekf.install -C ./applications
+./runtime/bin/gpf_ekf.wasm.so:
+	make gpf_ekf.install -C ./applications
 
 PHONY: ekf__by_iteration
-ekf__by_iteration: ./runtime/bin/ekf.wasm.so
+ekf__by_iteration: ./runtime/bin/gpf_ekf.wasm.so
 	cd ./runtime/experiments/applications/ekf/by_iteration && ./run.sh 
 
 PHONY: ekf__one_iteration
-ekf__one_iteration: ./runtime/bin/ekf.wasm.so
+ekf__one_iteration: ./runtime/bin/gpf_ekf.wasm.so
 	cd ./runtime/experiments/applications/ekf/one_iteration && ./run.sh
 
 PHONY: ekf__all
@@ -74,26 +74,26 @@ cifar10__all: \
 # https://sod.pixlab.io/
 
 # SOD - Image Resize
-./runtime/bin/resize.wasm.so:
-	make resize.install -C ./applications
+./runtime/bin/resize_image.wasm.so:
+	make resize_image.install -C ./applications
 	
 # Commented out command installs imagemagick. Requires password for sudo to install
 PHONY: sod__image_resize__test
-sod__image_resize__test: ./runtime/bin/resize.wasm.so
+sod__image_resize__test: ./runtime/bin/resize_image.wasm.so
 	# cd ./runtime/experiments/applications/imageresize/test && ./install.sh
 	cd ./runtime/experiments/applications/imageresize/test && ./run.sh
 
 PHONY: sod__image_resize__by_resolution
-sod__image_resize__by_resolution: ./runtime/bin/resize.wasm.so
+sod__image_resize__by_resolution: ./runtime/bin/resize_image.wasm.so
 	# cd ./runtime/experiments/applications/imageresize/by_resolution && ./install.sh
 	cd ./runtime/experiments/applications/imageresize/by_resolution && ./run.sh
 
 # SOD - License Plate Detection
-./runtime/bin/lpd.wasm.so:
-	make lpd.install -C ./applications
+./runtime/bin/license_plate_detection.wasm.so:
+	make license_plate_detection.install -C ./applications
 
 PHONY: sod__lpd__by_plate_count
-sod__lpd__by_plate_count: ./runtime/bin/lpd.wasm.so
+sod__lpd__by_plate_count: ./runtime/bin/license_plate_detection.wasm.so
 	cd ./runtime/experiments/applications/licenseplate/by_plate_count && ./run.sh
 
 PHONY: sod__all
@@ -118,7 +118,7 @@ empty__concurrency: ./runtime/bin/empty.wasm.so
 # TODO: Refactor payload experiment
 
 all: \
-	ocr__all \
+	gocr__all \
 	ekf__all \
 	cifar10__all \
 	sod__all \
