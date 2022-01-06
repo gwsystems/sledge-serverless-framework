@@ -14,7 +14,7 @@ json_file="test_multiple_image_processing4.json"
 rm -rf $json_file
 touch $json_file
 
-base_exec_time=(53010 118148 18269 35289)
+base_exec_time=(49444 124753 10799 29602)
 base_port=10000
 base_m_index=1
 func1_base_name="resize"
