@@ -22,7 +22,7 @@ all: \
 	empty.install \
 	fibonacci.install \
 	gocr.install \
-	gpf_ekf.install \
+	gps_ekf.install \
 	license_plate_detection.install \
 	resize_image.install
 
@@ -70,8 +70,8 @@ gocr.install: ../runtime/bin/gocr.wasm.so
 .PHONY: resize_image.install
 resize_image.install: ../runtime/bin/resize_image.wasm.so
 
-.PHONY: gpf_ekf.install
-gpf_ekf.install: ../runtime/bin/gpf_ekf.wasm.so
+.PHONY: gps_ekf.install
+gps_ekf.install: ../runtime/bin/gps_ekf.wasm.so
 
 .PHONY: license_plate_detection.install
 license_plate_detection.install: ../runtime/bin/license_plate_detection.wasm.so
