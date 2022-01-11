@@ -1,7 +1,7 @@
 CFILES := src/*.c
 INCLUDES := -Iinclude/
 
-CFLAGS := -fPIC
+CFLAGS := -fPIC -O0 -g
 
 all: dist/libsledge.a
 

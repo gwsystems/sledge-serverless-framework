@@ -6,7 +6,7 @@ AWSMFLAGS= --inline-constant-globals --runtime-globals
 
 # Used by clang when compiling the *.so module
 # FIXME: Why does -O0 cause compilation to fail?
-CFLAGS=-O3 -flto
+CFLAGS=-O0 -g
 
 # Compiletime Components to link into *.so
 SLEDGE_BASE_DIR=../
@@ -35,7 +35,10 @@ clean:
 wasm_apps/dist/%.wasm:
 	make -C wasm_apps $(addprefix dist/,$(notdir $@))
 
-../libsledge/dist/libsledge.a:
+../libsledge/dist/:
+	mkdir ../libsledge/dist
+
+../libsledge/dist/libsledge.a: ../libsledge/dist/
 	make -C .. libsledge
 
 dist/%.bc: ./wasm_apps/dist/%.wasm dist

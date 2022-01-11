@@ -14,3 +14,9 @@ debug:
 
 client:
 	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@hyde.pnm" "${HOSTNAME}:10000"
+
+client2:
+	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@../handwriting/handwrt1.pnm" "${HOSTNAME}:10000"
+
+client3:
+	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@../fivebyeight/5x8.pnm" "${HOSTNAME}:10000"

@@ -14,10 +14,10 @@ CFLAGS=-std=c18 -pthread
 CFLAGS+=-D_GNU_SOURCE 
 
 # Release Flags
-CFLAGS+=-O3 -flto
+# CFLAGS+=-O3 -flto
 
 # Debugging Flags
-# CFLAGS+=-O0 -g
+CFLAGS+=-O0 -g
 
 # CFI Sanitizer
 # CFLAGS+=-O0 -g -flto -fvisibility=default -fsanitize=cfi

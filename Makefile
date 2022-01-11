@@ -24,6 +24,7 @@ awsm.clean:
 
 # libsledge: the support library linked with LLVM bitcode emitted by aWsm when building *.so modules
 .PHONY: libsledge
+libsledge:
 	make -C libsledge dist/libsledge.a
 
 .PHONY: libsledge.clean
