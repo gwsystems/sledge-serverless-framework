@@ -1,38 +1,61 @@
 SHELL:=/bin/bash
 
-.PHONY: awsm/target/release/awsm
+.PHONY: all
+all: awsm libsledge sledgert
+
+.PHONY: clean
+clean: awsm.clean libsledge.clean sledgert.clean
+
+.PHONY: submodules
+submodules:
+	git submodule update --init --recursive
+
+.PHONY: install
+install: submodules all
+
+# aWsm: the WebAssembly to LLVM bitcode compiler
 awsm/target/release/awsm:
-	@echo "Building aWsm compiler"
-	@cd awsm && cargo build --release
+	cd awsm && cargo build --release
 
 .PHONY: awsm
 awsm: awsm/target/release/awsm
 
-.PHONY: clean-compiler
-clean-compiler:
-	@echo "Cleaning aWsm compiler"
-	@cd awsm && cargo clean
+.PHONY: awsm.clean
+awsm.clean:
+	cd awsm && cargo clean
 
-.PHONY: clean-runtime
-clean-runtime:
-	@echo "Cleaning SLEdge runtime"
-	@make -C runtime clean
+# libsledge: the support library linked with LLVM bitcode emitted by aWsm when building *.so modules
+libsledge/dist/libsledge.a:
+	make -C libsledge dist/libsledge.a
 
-.PHONY: clean
-clean: clean-compiler clean-runtime
+.PHONY: libsledge
+libsledge: libsledge/dist/libsledge.a
 
-.PHONY: rtinit
-rtinit: awsm
-	@echo "Building runtime for the first time!"
-	make -C runtime init
+.PHONY: libsledge.clean
+libsledge.clean:
+	make -C libsledge clean
 
-.PHONY: runtime
-runtime:
-	@echo "Building runtime!"
+# sledgert: the runtime that executes *.so modules
+runtime/bin/sledgert:
 	make -C runtime
 
-.PHONY: install
-install: rtinit
+.PHONY: sledgert
+sledgert: runtime/bin/sledgert
 
-.PHONY: all
-all: runtime awsm
+.PHONY: sledgert.clean
+sledgert.clean:
+	make -C runtime clean
+
+# SLEdge Applications
+.PHONY: applications
+applications:
+	make -C applications all
+
+.PHONY: applications.clean
+applications.clean:
+	make -C applications clean
+
+# Tests
+.PHONY: test
+test:
+	make -f test.mk all

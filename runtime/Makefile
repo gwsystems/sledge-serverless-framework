@@ -115,16 +115,17 @@ CFILES += thirdparty/dist/lib/http_parser.o
 JSMNCFLAGS += -DJSMN_STATIC
 JSMNCFLAGS += -DJSMN_STRICT
 
-.PHONY: all
-all: runtime
-
-thirdparty/dist/lib/http_parser.o: thirdparty
-thirdparty/dist/include/*.h: thirdparty
-
-# Force the runtime to rebuild when header files change
+# Force sledgert to rebuild when header files change
 # This is a bit fragile, as it does not recurse subdirectories when detecting last changed times
 HEADER_DEPS = thirdparty/dist/include/*.h include/*.h include/arch/x86_64/*.h include/arch/aarch64/*.h
 
+.PHONY: all
+all: thirdparty runtime
+
+.PHONY: clean
+clean: thirdparty.clean runtime.clean
+
+# sledgert Rules
 bin/sledgert: ${HEADER_DEPS} ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
@@ -133,24 +134,19 @@ bin/sledgert: ${HEADER_DEPS} ${CFILES}
 .PHONY: runtime
 runtime: bin/sledgert
 
+.PHONY: runtime.clean
+runtime.clean:
+	@rm -f bin/${BINARY_NAME}
+
+# Thirdparty Dependency Rules
+thirdparty/dist/lib/http_parser.o: thirdparty
+thirdparty/dist/include/*.h: thirdparty
+
 .PHONY: thirdparty
 thirdparty:
 	@echo "Compiling thirdparty"
 	@make --no-print-directory -C thirdparty build
 
-.PHONY: clean
-clean:
-	@rm -f core
-	@echo "Cleaning up runtime"
-	@rm -f bin/${BINARY_NAME}
-
-.PHONY: distclean
-distclean: clean
+.PHONY: thirdparty.clean
+thirdparty.clean:
 	@make --no-print-directory -C thirdparty clean
-
-.PHONY: submodules
-submodules:
-	@git submodule update --init --recursive
-
-.PHONY: init
-init: submodules clean thirdparty runtime
