@@ -1,3 +1,5 @@
+#!/bin/bash
+
 function usage {
         echo "$0 [perf output file, chain_function_perf.log or single_function_perf.log or opt_function_perf.log]"
         exit 1
@@ -18,7 +20,10 @@ declare project_path="$(
 echo $project_path
 path=`pwd`
 #export SLEDGE_DISABLE_PREEMPTION=true
+export SLEDGE_CPU_SPEED=2400
 export SLEDGE_SCHEDULER=SRSF
+export SLEDGE_SIGALRM_HANDLER=BROADCAST
+#export SLEDGE_SIGALRM_HANDLER=TRIAGED
 #export SLEDGE_NWORKERS=1
 #export SLEDGE_SCHEDULER=EDF
 export SLEDGE_SANDBOX_PERF_LOG=$path/$output
@@ -31,7 +36,8 @@ cd $project_path/runtime/bin
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_image_processing.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/mulitple_linear_chain.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_multiple_image_processing.json
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_multiple_image_processing3.json
+#LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_multiple_image_processing3.json
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_multiple_image_processing4.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/my_fibonacci.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_sodresize.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/my_sodresize.json
