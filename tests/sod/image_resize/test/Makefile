@@ -1,5 +1,6 @@
 RUNTIME_DIR=../../../../runtime/
 SLEDGE_BINARY_DIR=${RUNTIME_DIR}/bin
+HOSTNAME=localhost
 
 all: run
 
@@ -15,3 +16,6 @@ debug:
 		--eval-command="handle SIGPIPE noprint nostop" \
 		--eval-command="set pagination off" \
 		--eval-command="run spec.json"
+
+client:
+	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "result.jpg" "${HOSTNAME}:10000"
