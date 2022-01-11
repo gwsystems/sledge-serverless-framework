@@ -36,7 +36,7 @@ wasm_apps/dist/%.wasm:
 	make -C wasm_apps $(addprefix dist/,$(notdir $@))
 
 ../libsledge/dist/libsledge.a:
-	make -C .. dist/libsledge.a
+	make -C .. libsledge
 
 dist/%.bc: ./wasm_apps/dist/%.wasm dist
 	${AWSMCC} ${AWSMFLAGS} $< -o $@
