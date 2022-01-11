@@ -42,16 +42,16 @@ gocr__all: \
 	gocr__hyde
 
 # Extended Kalman Filter applied to binary GPS data
-./runtime/bin/gpf_ekf.wasm.so:
-	make gpf_ekf.install -C ./applications
+./runtime/bin/gps_ekf.wasm.so:
+	make gps_ekf.install -C ./applications
 
 PHONY: ekf__by_iteration
-ekf__by_iteration: ./runtime/bin/gpf_ekf.wasm.so
-	cd ./runtime/experiments/applications/ekf/by_iteration && ./run.sh 
+ekf__by_iteration: ./runtime/bin/gps_ekf.wasm.so
+	cd ./tests/TinyEKF/by_iteration && ./run.sh 
 
 PHONY: ekf__one_iteration
-ekf__one_iteration: ./runtime/bin/gpf_ekf.wasm.so
-	cd ./runtime/experiments/applications/ekf/one_iteration && ./run.sh
+ekf__one_iteration: ./runtime/bin/gps_ekf.wasm.so
+	cd ./tests/TinyEKF/one_iteration && ./run.sh
 
 PHONY: ekf__all
 ekf__all: \
@@ -64,7 +64,7 @@ ekf__all: \
 
 PHONY: cifar10__image_classification
 cifar10__image_classification: ./runtime/bin/cifar10.wasm.so
-	cd ./runtime/experiments/applications/imageclassification && ./run.sh
+	cd ./tests/CMSIS_5_NN/imageclassification && ./run.sh
 
 PHONY: cifar10__all
 cifar10__all: \
@@ -80,8 +80,8 @@ cifar10__all: \
 # Commented out command installs imagemagick. Requires password for sudo to install
 PHONY: sod__image_resize__test
 sod__image_resize__test: ./runtime/bin/resize_image.wasm.so
-	# cd ./runtime/experiments/applications/imageresize/test && ./install.sh
-	cd ./runtime/experiments/applications/imageresize/test && ./run.sh
+	# cd ./tests/sod_image_resize/test && ./install.sh
+	cd ./tests/sod/image_resize/test && ./run.sh
 
 PHONY: sod__image_resize__by_resolution
 sod__image_resize__by_resolution: ./runtime/bin/resize_image.wasm.so
@@ -94,7 +94,7 @@ sod__image_resize__by_resolution: ./runtime/bin/resize_image.wasm.so
 
 PHONY: sod__lpd__by_plate_count
 sod__lpd__by_plate_count: ./runtime/bin/license_plate_detection.wasm.so
-	cd ./runtime/experiments/applications/licenseplate/by_plate_count && ./run.sh
+	cd ./tests/sod/lpd/by_plate_count && ./run.sh
 
 PHONY: sod__all
 sod__all: sod__image_resize__test sod__image_resize__by_resolution sod__lpd__by_plate_count
@@ -105,15 +105,15 @@ sod__all: sod__image_resize__test sod__image_resize__by_resolution sod__lpd__by_
 
 PHONY: fibonacci__bimodal
 fibonacci__bimodal: ./runtime/bin/fibonacci.wasm.so
-	cd ./runtime/experiments/bimodal/ && ./run.sh
+	cd ./tests/fibonacci/bimodal/ && ./run.sh
 
 ./runtime/bin/empty.wasm.so:
 	make empty.install -C ./applications
 
 PHONY: empty__concurrency
 empty__concurrency: ./runtime/bin/empty.wasm.so
-	# ./runtime/experiments/concurrency/ && install.sh
-	./runtime/experiments/concurrency/ && run.sh
+	# ./tests/empty/concurrency/ && install.sh
+	./tests/empty/concurrency/ && run.sh
 
 # TODO: Refactor payload experiment
 
