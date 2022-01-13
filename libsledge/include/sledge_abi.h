@@ -55,11 +55,10 @@ enum sledge_abi__wasm_trap
 
 /* Symbols expected from sledgert */
 
-extern void sledge_abi__wasm_trap_raise(enum sledge_abi__wasm_trap trapno);
-extern void sledge_abi__wasm_memory_writeback(void);
-extern int  sledge_abi__wasm_memory_expand(struct sledge_abi__wasm_memory *wasm_memory, size_t size_to_expand);
-void        sledge_abi__wasm_memory_initialize_region(struct sledge_abi__wasm_memory *wasm_memory, uint32_t offset,
-                                                      uint32_t region_size, uint8_t region[]);
+extern void    sledge_abi__wasm_trap_raise(enum sledge_abi__wasm_trap trapno);
+extern int32_t sledge_abi__wasm_memory_expand(struct sledge_abi__wasm_memory *wasm_memory, uint32_t page_count);
+void           sledge_abi__wasm_memory_initialize_region(struct sledge_abi__wasm_memory *wasm_memory, uint32_t offset,
+                                                         uint32_t region_size, uint8_t region[]);
 
 extern int32_t sledge_abi__wasm_globals_get_i32(uint32_t idx);
 extern int64_t sledge_abi__wasm_globals_get_i64(uint32_t idx);

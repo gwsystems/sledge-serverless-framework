@@ -12,8 +12,8 @@
 #include "sledge_abi.h"
 #include "wasm_types.h"
 
-#define WASM_MEMORY_MAX           (size_t) UINT32_MAX + 1
-#define WASM_MEMORY_SIZE_TO_ALLOC ((size_t)WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE)
+#define WASM_MEMORY_MAX           (uint64_t) UINT32_MAX + 1
+#define WASM_MEMORY_SIZE_TO_ALLOC ((uint64_t)WASM_MEMORY_MAX + /* guard page */ PAGE_SIZE)
 
 struct wasm_memory {
 	/* Public */
@@ -23,15 +23,15 @@ struct wasm_memory {
 };
 
 /* Object Lifecycle Functions */
-static INLINE struct wasm_memory *wasm_memory_alloc(size_t initial, size_t max);
-static INLINE int                 wasm_memory_init(struct wasm_memory *wasm_memory, size_t initial, size_t max);
+static INLINE struct wasm_memory *wasm_memory_alloc(uint64_t initial, uint64_t max);
+static INLINE int32_t             wasm_memory_init(struct wasm_memory *wasm_memory, uint64_t initial, uint64_t max);
 static INLINE void                wasm_memory_deinit(struct wasm_memory *wasm_memory);
 static INLINE void                wasm_memory_free(struct wasm_memory *wasm_memory);
-static INLINE void                wasm_memory_reinit(struct wasm_memory *wasm_memory, size_t initial);
+static INLINE void                wasm_memory_reinit(struct wasm_memory *wasm_memory, uint64_t initial);
 
 /* Memory Size */
-static INLINE int      wasm_memory_expand(struct wasm_memory *wasm_memory, size_t size_to_expand);
-static INLINE size_t   wasm_memory_get_size(struct wasm_memory *wasm_memory);
+static INLINE int32_t  wasm_memory_expand(struct wasm_memory *wasm_memory, uint64_t size_to_expand);
+static INLINE uint64_t wasm_memory_get_size(struct wasm_memory *wasm_memory);
 static INLINE uint32_t wasm_memory_get_page_count(struct wasm_memory *wasm_memory);
 
 /* Reading and writing to wasm_memory */
@@ -54,7 +54,7 @@ static INLINE void    wasm_memory_set_f32(struct wasm_memory *wasm_memory, uint3
 static INLINE void    wasm_memory_set_f64(struct wasm_memory *wasm_memory, uint32_t offset, double value);
 
 static INLINE struct wasm_memory *
-wasm_memory_alloc(size_t initial, size_t max)
+wasm_memory_alloc(uint64_t initial, uint64_t max)
 {
 	struct wasm_memory *wasm_memory = malloc(sizeof(struct wasm_memory));
 	if (wasm_memory == NULL) return wasm_memory;
@@ -70,7 +70,7 @@ wasm_memory_alloc(size_t initial, size_t max)
 }
 
 static INLINE int
-wasm_memory_init(struct wasm_memory *wasm_memory, size_t initial, size_t max)
+wasm_memory_init(struct wasm_memory *wasm_memory, uint64_t initial, uint64_t max)
 {
 	assert(wasm_memory != NULL);
 
@@ -123,16 +123,16 @@ wasm_memory_free(struct wasm_memory *wasm_memory)
 }
 
 static INLINE void
-wasm_memory_reinit(struct wasm_memory *wasm_memory, size_t initial)
+wasm_memory_reinit(struct wasm_memory *wasm_memory, uint64_t initial)
 {
 	memset(wasm_memory->abi.buffer, 0, wasm_memory->abi.size);
 	wasm_memory->abi.size = initial;
 }
 
 static int
-wasm_memory_expand(struct wasm_memory *wasm_memory, size_t size_to_expand)
+wasm_memory_expand(struct wasm_memory *wasm_memory, uint64_t size_to_expand)
 {
-	size_t target_size = wasm_memory->abi.size + size_to_expand;
+	uint64_t target_size = wasm_memory->abi.size + size_to_expand;
 	if (unlikely(target_size > wasm_memory->abi.max)) {
 		fprintf(stderr, "wasm_memory_expand - Out of Memory!. %lu out of %lu\n", wasm_memory->abi.size,
 		        wasm_memory->abi.max);
@@ -158,7 +158,7 @@ wasm_memory_expand(struct wasm_memory *wasm_memory, size_t size_to_expand)
 	return 0;
 }
 
-static INLINE size_t
+static INLINE uint64_t
 wasm_memory_get_size(struct wasm_memory *wasm_memory)
 {
 	return wasm_memory->abi.size;

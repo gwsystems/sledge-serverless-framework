@@ -8,6 +8,7 @@
 
 enum wasm_global_type
 {
+	WASM_GLOBAL_TYPE_UNUSED,
 	WASM_GLOBAL_TYPE_I32,
 	WASM_GLOBAL_TYPE_I64,
 	// WASM_GLOBAL_TYPE_F32,
@@ -34,19 +35,19 @@ typedef struct wasm_global {
 VEC(wasm_global_t)
 
 static inline int
-wasm_globals_init(struct vec_wasm_global_t *globals, size_t capacity)
+wasm_globals_init(struct vec_wasm_global_t *globals, uint32_t capacity)
 {
 	return vec_wasm_global_t_init(globals, capacity);
 }
 
 static inline struct vec_wasm_global_t *
-wasm_globals_alloc(size_t capacity)
+wasm_globals_alloc(uint32_t capacity)
 {
 	return vec_wasm_global_t_alloc(capacity);
 }
 
 static inline int32_t
-wasm_globals_get_i32(struct vec_wasm_global_t *globals, size_t idx)
+wasm_globals_get_i32(struct vec_wasm_global_t *globals, uint32_t idx)
 {
 	wasm_global_t *global = vec_wasm_global_t_get(globals, idx);
 
@@ -58,7 +59,7 @@ wasm_globals_get_i32(struct vec_wasm_global_t *globals, size_t idx)
 }
 
 static inline int32_t
-wasm_globals_get_i64(struct vec_wasm_global_t *globals, size_t idx)
+wasm_globals_get_i64(struct vec_wasm_global_t *globals, uint32_t idx)
 {
 	wasm_global_t *global = vec_wasm_global_t_get(globals, idx);
 
@@ -71,7 +72,7 @@ wasm_globals_get_i64(struct vec_wasm_global_t *globals, size_t idx)
 
 /* TODO: Add API to set mutability */
 static inline int32_t
-wasm_globals_set_i32(struct vec_wasm_global_t *globals, size_t idx, int32_t value)
+wasm_globals_set_i32(struct vec_wasm_global_t *globals, uint32_t idx, int32_t value)
 {
 	/* TODO: Trap if immutable */
 	int rc = vec_wasm_global_t_insert(globals, idx,
@@ -81,7 +82,7 @@ wasm_globals_set_i32(struct vec_wasm_global_t *globals, size_t idx, int32_t valu
 
 /* TODO: Add API to set mutability */
 static inline int32_t
-wasm_globals_set_i64(struct vec_wasm_global_t *globals, size_t idx, int64_t value)
+wasm_globals_set_i64(struct vec_wasm_global_t *globals, uint32_t idx, int64_t value)
 {
 	/* TODO: Trap if immutable */
 	int rc = vec_wasm_global_t_insert(globals, idx,

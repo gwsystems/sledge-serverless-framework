@@ -110,7 +110,7 @@ The ABI includes the
 | f32.store    | `set_f32`                 | `fprintf`, `stderr` | `sledge_abi__current_wasm_module_instance.memory`, `sledge_abi__wasm_trap_raise`, `WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY` |
 | f64.load     | `get_f64`                 | `fprintf`, `stderr` | `sledge_abi__current_wasm_module_instance.memory`, `sledge_abi__wasm_trap_raise`, `WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY` |
 | f64.store    | `set_f64`                 | `fprintf`, `stderr` | `sledge_abi__current_wasm_module_instance.memory`, `sledge_abi__wasm_trap_raise`, `WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY` |
-| memory.grow  | `instruction_memory_grow` |                     | `sledge_abi__current_wasm_module_instance.memory`, `sledge_abi__wasm_memory_expand`, `sledge_abi__wasm_memory_writeback`  |
+| memory.grow  | `instruction_memory_grow` |                     | `sledge_abi__current_wasm_module_instance.memory`, `sledge_abi__wasm_memory_expand`                                       |
 | memory.size  | `instruction_memory_size` |                     | `sledge_abi__current_wasm_module_instance.memory`                                                                         |
 | None         | `initialize_region`       |                     | `sledge_abi__current_wasm_module_instance.memory`, `sledge_abi__wasm_memory_initialize_region`                            |
 

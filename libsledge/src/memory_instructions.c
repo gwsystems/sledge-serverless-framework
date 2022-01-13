@@ -12,7 +12,7 @@ extern thread_local struct sledge_abi__wasm_module_instance sledge_abi__current_
 INLINE uint32_t
 instruction_memory_size()
 {
-	return (uint32_t)(sledge_abi__current_wasm_module_instance.memory.size / WASM_PAGE_SIZE);
+	return (uint32_t)(sledge_abi__current_wasm_module_instance.memory.size / (uint64_t)WASM_PAGE_SIZE);
 }
 
 // These functions are equivalent to those in wasm_memory.h, but they minimize pointer dereferencing
@@ -207,28 +207,7 @@ set_i64(uint32_t offset, int64_t value)
 INLINE int32_t
 instruction_memory_grow(uint32_t count)
 {
-	int old_page_count = sledge_abi__current_wasm_module_instance.memory.size / WASM_PAGE_SIZE;
-
-	/* Return -1 if we've hit the linear memory max */
-	int rc = sledge_abi__wasm_memory_expand(&sledge_abi__current_wasm_module_instance.memory,
-	                                        WASM_PAGE_SIZE * count);
-	if (unlikely(rc == -1)) return -1;
-
-	/* We updated "forked state" in sledge_abi__current_wasm_module_instance.memory. We need to write this back to
-	 * persist  */
-	sledge_abi__wasm_memory_writeback();
-
-#ifdef LOG_SANDBOX_MEMORY_PROFILE
-	// Cache the runtime of the first N page allocations
-	for (int i = 0; i < count; i++) {
-		if (likely(sandbox->timestamp_of.page_allocations_size < SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT)) {
-			sandbox->timestamp_of.page_allocations[sandbox->timestamp_of.page_allocations_size++] =
-			  sandbox->duration_of_state.running
-			  + (uint32_t)(__getcycles() - sandbox->timestamp_of.last_state_change);
-		}
-	}
-#endif
-	return rc;
+	return sledge_abi__wasm_memory_expand(&sledge_abi__current_wasm_module_instance.memory, count);
 }
 
 
