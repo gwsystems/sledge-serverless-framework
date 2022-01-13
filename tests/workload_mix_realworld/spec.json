@@ -67,7 +67,7 @@
 	},
 	{
 		"name": "ekf_1.5",
-		"path": "gpf_ekf.wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10000,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 237,
@@ -78,7 +78,7 @@
 	},
 	{
 		"name": "ekf_1.6",
-		"path": "gpf_ekf.wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10001,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 253,
@@ -89,7 +89,7 @@
 	},
 	{
 		"name": "ekf_1.7",
-		"path": "gpf_ekf.wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10002,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 269,
@@ -100,7 +100,7 @@
 	},
 	{
 		"name": "ekf_1.8",
-		"path": "gpf_ekf.wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10003,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 284,
@@ -111,7 +111,7 @@
 	},
 	{
 		"name": "ekf_1.9",
-		"path": "gpf_ekf.wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10004,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 300,
@@ -122,7 +122,7 @@
 	},
 	{
 		"name": "ekf_2.0",
-		"path": "gpf_ekf.wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10005,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 316,
