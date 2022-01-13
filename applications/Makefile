@@ -1,12 +1,13 @@
-AWSMCC=awsm
+AWSMCC=../awsm/target/release/awsm
 CC=clang
 
 # Used by aWsm when compiling the *.wasm to *.bc
 AWSMFLAGS= --inline-constant-globals --runtime-globals
 
 # Used by clang when compiling the *.so module
-# FIXME: Why does -O0 cause compilation to fail?
 CFLAGS=-O0 -g
+LDFLAGS=-Wl,--export-dynamic -fPIC
+# LDFLAGS=-flto -fvisibility=hidden
 
 # Compiletime Components to link into *.so
 SLEDGE_BASE_DIR=../
@@ -47,8 +48,9 @@ dist/%.bc: ./wasm_apps/dist/%.wasm dist
 dist/%.ll: dist/%.bc
 	llvm-dis-12 $< -o $@
 
-dist/%.wasm.so: dist/%.bc ../libsledge/dist/libsledge.a
-	${CC} --shared -fPIC ${CFLAGS} $^ -o $@
+# FIXME visibility hack. How to export symbols from archive?
+dist/%.wasm.so: dist/%.bc ../libsledge/dist/libsledge.a ../libsledge/src/instantiation.c
+	${CC} --shared  -I../libsledge/include ${CFLAGS} ${LDFLAGS} $^ -o $@
 
 ../runtime/bin/%.wasm.so: dist/%.wasm.so
 	cp $^ $@

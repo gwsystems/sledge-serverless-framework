@@ -14,25 +14,26 @@ CFLAGS=-std=c18 -pthread
 CFLAGS+=-D_GNU_SOURCE 
 
 # Release Flags
-# CFLAGS+=-O3 -flto
+CFLAGS+=-O3 -flto
 
 # Debugging Flags
-CFLAGS+=-O0 -g
+# CFLAGS+=-O0 -g
 
 # CFI Sanitizer
-# CFLAGS+=-O0 -g -flto -fvisibility=default -fsanitize=cfi
+# CFLAGS+=-fvisibility=default -fsanitize=cfi
 
-# Undefined Sanitizer
-# CFLAGS+=-O0 -g -fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds
+# Undefined Sanitizer - https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+# CFLAGS+=-fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds,nullability
+
 
 # Clang SafeStack - https://clang.llvm.org/docs/SafeStack.html
-# CFLAGS+=-O0 -g -fsanitize=safe-stack
+# CFLAGS+=-fsanitize=safe-stack
 
 # Memory Sanitizer - https://clang.llvm.org/docs/MemorySanitizer.html
-# CFLAGS+=-O0 -g -fsanitize=memory -fno-omit-frame-pointer
+# CFLAGS+=-fsanitize=memory -fno-omit-frame-pointer
 
-# Address Sanitizer - https://clang.llvm.org/docs/AddressSanitizer.html
-# CFLAGS+=-O0 -g -fsanitize=address -fno-omit-frame-pointer 
+# Address Sanitizer - "Fast Memory Error Detector" - https://clang.llvm.org/docs/AddressSanitizer.html
+# CFLAGS+=-fsanitize=address -fno-omit-frame-pointer
 
 BINARY_NAME=sledgert
 
