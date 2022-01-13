@@ -5,8 +5,10 @@ CC=clang
 AWSMFLAGS= --inline-constant-globals --runtime-globals
 
 # Used by clang when compiling the *.so module
-CFLAGS=-O0 -g
-LDFLAGS=-Wl,--export-dynamic -fPIC
+# --whole-archive causes the symbols in the listed static archive to be exported from the resulting *.so
+# https://stackoverflow.com/questions/805555/ld-linker-question-the-whole-archive-option
+CFLAGS=-O3 -flto
+LDFLAGS=-fPIC -Wl,--export-dynamic,--whole-archive -L../libsledge/dist/ -lsledge -Wl,--no-whole-archive
 # LDFLAGS=-flto -fvisibility=hidden
 
 # Compiletime Components to link into *.so
@@ -48,9 +50,8 @@ dist/%.bc: ./wasm_apps/dist/%.wasm dist
 dist/%.ll: dist/%.bc
 	llvm-dis-12 $< -o $@
 
-# FIXME visibility hack. How to export symbols from archive?
-dist/%.wasm.so: dist/%.bc ../libsledge/dist/libsledge.a ../libsledge/src/instantiation.c
-	${CC} --shared  -I../libsledge/include ${CFLAGS} ${LDFLAGS} $^ -o $@
+dist/%.wasm.so: dist/%.bc
+	${CC} --shared ${CFLAGS} ${LDFLAGS} $^ -o $@
 
 ../runtime/bin/%.wasm.so: dist/%.wasm.so
 	cp $^ $@
