@@ -5,7 +5,7 @@ on: [push, pull_request]
 env:
   LLVM_VERSION: 12
   WASI_SDK_URL: https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
-  WASI_SDK: /opt/wasi-sdk
+  WASI_SDK_PATH: /opt/wasi-sdk
   LANG: C.UTF-8
   LANGUAGE: C.UTF-8
   LC_ALL: C.UTF-8
@@ -64,8 +64,8 @@ jobs:
       - name: Get wasi-sdk
         run: |
           wget $WASI_SDK_URL -O wasi-sdk.tar.gz
-          mkdir -p /opt/wasi-sdk
-          tar xvfz wasi-sdk.tar.gz --strip-components=1 -C /opt/wasi-sdk
+          mkdir -p $WASI_SDK_PATH
+          tar xvfz wasi-sdk.tar.gz --strip-components=1 -C $WASI_SDK_PATH
       - name: Install Test Script Utilities
         run: |
           sudo apt-get install -y --no-install-recommends \
@@ -99,10 +99,12 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gocr.wasm.so
-          key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/Makefile', './runtime/tests/gocr/**', './runtime/compiletime/**') }}
+          key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/wasm_apps/gocr/**', './libsledge/**') }}
         if: success() || failure()
       - name: Hyde
         run: |
+          echo $WASI_SDK_PATH
+          ls $WASI_SDK_PATH
           make -f test.mk gocr__hyde
         if: success() || failure()
       - name: Upload Hyde Logs on Failure
@@ -110,7 +112,7 @@ jobs:
         if: failure()
         with:
           name: hyde-logs
-          path: ./runtime/experiments/applications/ocr/hyde/res/**/
+          path: ./tests/gocr/hyde/res/**/
       - name: Handwriting
         run: |
           make -f test.mk gocr__handwriting
@@ -136,7 +138,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gps_ekf.wasm.so
-          key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/Makefile', './runtime/tests/TinyEKF/**', './runtime/compiletime/**') }}
+          key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/TinyEKF/**', './libsledge/**') }}
         if: success() || failure()
       - name: EKF one iteration
         run: |
