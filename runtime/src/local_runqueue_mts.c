@@ -232,25 +232,31 @@ local_runqueue_mts_demote(struct perworker_module_sandbox_queue *pwm)
 void
 local_timeout_queue_process_promotions()
 {
-	uint64_t now = __getcycles();
-
 	struct module_timeout *top_module_timeout = NULL;
 
 	/* Check the timeout queue for a potential tenant to get PRomoted */
 	priority_queue_top_nolock(worker_thread_timeout_queue, (void **)&top_module_timeout);
-	if (top_module_timeout == NULL || now <= top_module_timeout->timeout) return;
-	struct perworker_module_sandbox_queue *pwm_to_promote = top_module_timeout->pwm;
-	assert(priority_queue_length_nolock(pwm_to_promote->sandboxes) > 0);
+	if (top_module_timeout == NULL) return; // no guaranteed tenants
 
-	if (pwm_to_promote->mt_class == MT_DEFAULT) {
-		local_runqueue_mts_promote(pwm_to_promote);
-		pwm_to_promote->mt_class = MT_GUARANTEED;
-		// debuglog("Promoted '%s' locally", top_module_timeout->module->name);
+	struct perworker_module_sandbox_queue *pwm_to_promote = NULL;
+	uint64_t                               now            = __getcycles();
+
+	while (now >= top_module_timeout->timeout) {
+		pwm_to_promote = top_module_timeout->pwm;
+		assert(priority_queue_length_nolock(pwm_to_promote->sandboxes) > 0);
+
+		if (pwm_to_promote->mt_class == MT_DEFAULT) {
+			local_runqueue_mts_promote(pwm_to_promote);
+			pwm_to_promote->mt_class = MT_GUARANTEED;
+			// debuglog("Promoted '%s' locally", top_module_timeout->module->name);
+		}
+
+		/* Reheapify the timeout queue with the updated timeout value of the module */
+		priority_queue_delete_nolock(worker_thread_timeout_queue, top_module_timeout);
+		top_module_timeout->timeout = get_next_timeout_of_module(
+		  top_module_timeout->module->replenishment_period);
+		priority_queue_enqueue_nolock(worker_thread_timeout_queue, top_module_timeout);
+
+		priority_queue_top_nolock(worker_thread_timeout_queue, (void **)&top_module_timeout);
 	}
-
-
-	/* Reheapify the timeout queue with the updated timeout value of the module */
-	priority_queue_delete_nolock(worker_thread_timeout_queue, top_module_timeout);
-	top_module_timeout->timeout = get_next_timeout_of_module(top_module_timeout->module->replenishment_period);
-	priority_queue_enqueue_nolock(worker_thread_timeout_queue, top_module_timeout);
 }

@@ -123,7 +123,8 @@ int
 global_request_scheduler_mts_remove_with_mt_class(struct sandbox_request **removed_sandbox_request,
                                                   uint64_t target_deadline, enum MULTI_TENANCY_CLASS target_mt_class)
 {
-	int rc = -ENOENT;;
+	int rc = -ENOENT;
+	;
 
 	LOCK_LOCK(&global_lock);
 
@@ -268,6 +269,7 @@ global_request_scheduler_mts_promote_lock(struct module_global_request_queue *mg
 	LOCK_LOCK(&global_lock);
 
 	if (mgrq->mt_class == MT_GUARANTEED) goto done;
+	if (priority_queue_length_nolock(mgrq->sandbox_requests) == 0) goto done;
 
 	/* Delete the corresponding MGRQ from the Guaranteed queue */
 	int rc = priority_queue_delete_nolock(global_request_scheduler_mts_default, mgrq);
@@ -292,33 +294,39 @@ done:
 void
 global_timeout_queue_process_promotions()
 {
-	uint64_t now = __getcycles();
-
 	struct module_timeout *top_module_timeout = NULL;
 
 	/* Check the timeout queue for a potential tenant to get PRomoted */
 	priority_queue_top_nolock(global_module_timeout_queue, (void **)&top_module_timeout);
+	if (top_module_timeout == NULL) return; // no guaranteed tenants
 
-	if (top_module_timeout == NULL || now < top_module_timeout->timeout) return;
+	struct module *                     module          = NULL;
+	struct module_global_request_queue *mgrq_to_promote = NULL;
+	uint64_t                            now             = __getcycles();
+	int64_t                             prev_budget;
 
-	struct module *                     module          = top_module_timeout->module;
-	struct module_global_request_queue *mgrq_to_promote = module->mgrq_requests;
+	while (now >= top_module_timeout->timeout) {
+		module          = top_module_timeout->module;
+		mgrq_to_promote = module->mgrq_requests;
 
-	if (mgrq_to_promote->mt_class == MT_DEFAULT) {
-		global_request_scheduler_mts_promote_lock(mgrq_to_promote);
-		mgrq_to_promote->mt_class = MT_GUARANTEED;
-		// debuglog("Promoted '%s' GLOBALLY", module->name);
+		if (mgrq_to_promote->mt_class == MT_DEFAULT) {
+			if (priority_queue_length_nolock(mgrq_to_promote->sandbox_requests) > 0)
+				global_request_scheduler_mts_promote_lock(mgrq_to_promote);
+			mgrq_to_promote->mt_class = MT_GUARANTEED;
+			// debuglog("Promoted '%s' GLOBALLY", module->name);
+		}
+
+		// TODO: We need a smarter technique to reset budget to consider budget overusage:
+		prev_budget = atomic_load(&module->remaining_budget);
+		while (!atomic_compare_exchange_strong(&module->remaining_budget, &prev_budget, module->max_budget))
+			;
+
+		/* Reheapify the timeout queue with the updated timeout value of the module */
+		priority_queue_delete_nolock(global_module_timeout_queue, top_module_timeout);
+		top_module_timeout->timeout = get_next_timeout_of_module(module->replenishment_period);
+		priority_queue_enqueue_nolock(global_module_timeout_queue, top_module_timeout);
+
+		priority_queue_top_nolock(global_module_timeout_queue, (void **)&top_module_timeout);
+		now = __getcycles();
 	}
-
-	// TODO: We need a smarter technique to reset budget to consider budget overusage:
-	int64_t prev_budget = atomic_load(&module->remaining_budget);
-	while (!atomic_compare_exchange_strong(&module->remaining_budget, &prev_budget, module->max_budget))
-		;
-
-	/* Reheapify the timeout queue with the updated timeout value of the module */
-	int rc = priority_queue_delete_nolock(global_module_timeout_queue, top_module_timeout);
-	assert(rc == 0);
-	top_module_timeout->timeout = get_next_timeout_of_module(module->replenishment_period);
-	// top_module_timeout->timeout += module->replenishment_period;
-	priority_queue_enqueue_nolock(global_module_timeout_queue, top_module_timeout);
 }
