@@ -88,9 +88,12 @@ jobs:
       - name: Compile aWsm
         run: |
           make awsm
+      - name: Compile libsledge
+        run: |
+          make libsledge
       - name: Compile SLEdge
         run: |
-          make rtinit runtime
+          make runtime
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache gocr
         uses: actions/cache@v2
@@ -100,7 +103,7 @@ jobs:
         if: success() || failure()
       - name: Hyde
         run: |
-          make -f test.mk ocr__hyde
+          make -f test.mk gocr__hyde
         if: success() || failure()
       - name: Upload Hyde Logs on Failure
         uses: actions/upload-artifact@v2
@@ -110,23 +113,23 @@ jobs:
           path: ./runtime/experiments/applications/ocr/hyde/res/**/
       - name: Handwriting
         run: |
-          make -f test.mk ocr__handwriting
+          make -f test.mk gocr__handwriting
         if: success() || failure()
       - name: Five by Eight
         run: |
-          make -f test.mk ocr__fivebyeight
+          make -f test.mk gocr__fivebyeight
         if: success() || failure()
       # - name: OCR by Word
       #   run: |
-      #     make -f test.mk ocr__by_word
+      #     make -f test.mk gocr__by_word
       #   if: success() || failure()
       # - name: OCR by Font
       #   run: |
-      #     make -f test.mk ocr__by_font
+      #     make -f test.mk gocr__by_font
       #   if: success() || failure()
       # - name: OCR by DPI
       #   run: |
-      #     make -f test.mk ocr__by_dpi
+      #     make -f test.mk gocr__by_dpi
       #   if: success() || failure()
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache EKF
@@ -151,7 +154,7 @@ jobs:
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Image Resize
         run: |
-          make -f test.mk sod__image_resize
+          make -f test.mk sod__image_resize_test
         if: success() || failure()
       # - name: Image Resize by Resolution
       #   run: |
