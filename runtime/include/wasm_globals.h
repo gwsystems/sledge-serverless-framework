@@ -6,6 +6,7 @@
 
 /* https://webassembly.github.io/spec/core/syntax/modules.html#globals */
 
+/* This only supports i32 and i64 because this is all that aWsm currently supports */
 enum wasm_global_type
 {
 	WASM_GLOBAL_TYPE_UNUSED,
@@ -51,9 +52,9 @@ wasm_globals_get_i32(struct vec_wasm_global_t *globals, uint32_t idx)
 {
 	wasm_global_t *global = vec_wasm_global_t_get(globals, idx);
 
-	/* TODO: Replace with traps */
-	if (global == NULL) assert(0);
-	if (global->type != WASM_GLOBAL_TYPE_I32) assert(0);
+	if (unlikely(global == NULL)) sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	if (unlikely(global->type != WASM_GLOBAL_TYPE_I32))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_GLOBAL_TYPE);
 
 	return global->value.i32;
 }
@@ -63,29 +64,32 @@ wasm_globals_get_i64(struct vec_wasm_global_t *globals, uint32_t idx)
 {
 	wasm_global_t *global = vec_wasm_global_t_get(globals, idx);
 
-	/* TODO: Replace with traps */
-	if (global == NULL) assert(0);
-	if (global->type != WASM_GLOBAL_TYPE_I64) assert(0);
+	if (unlikely(global == NULL)) sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	if (unlikely(global->type != WASM_GLOBAL_TYPE_I64))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_GLOBAL_TYPE);
 
 	return global->value.i64;
 }
 
-/* TODO: Add API to set mutability */
 static inline int32_t
-wasm_globals_set_i32(struct vec_wasm_global_t *globals, uint32_t idx, int32_t value)
+wasm_globals_set_i32(struct vec_wasm_global_t *globals, uint32_t idx, int32_t value, bool is_mutable)
 {
-	/* TODO: Trap if immutable */
+	wasm_global_t *current = vec_wasm_global_t_get(globals, idx);
+	if (unlikely(current->mut == false)) sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_GLOBAL_TYPE);
+
 	int rc = vec_wasm_global_t_insert(globals, idx,
-	                                  (wasm_global_t){ .mut = true, .type = WASM_GLOBAL_TYPE_I32, .value = value });
+	                                  (wasm_global_t){
+	                                    .mut = is_mutable, .type = WASM_GLOBAL_TYPE_I32, .value = value });
 	return rc;
 }
 
-/* TODO: Add API to set mutability */
 static inline int32_t
-wasm_globals_set_i64(struct vec_wasm_global_t *globals, uint32_t idx, int64_t value)
+wasm_globals_set_i64(struct vec_wasm_global_t *globals, uint32_t idx, int64_t value, bool is_mutable)
 {
-	/* TODO: Trap if immutable */
+	wasm_global_t *current = vec_wasm_global_t_get(globals, idx);
+	if (unlikely(current->mut == false)) sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_GLOBAL_TYPE);
+
 	int rc = vec_wasm_global_t_insert(globals, idx,
-	                                  (wasm_global_t){ .mut = true, .type = WASM_GLOBAL_TYPE_I64, .value = value });
+	                                  (wasm_global_t){ .mut = is_mutable, .type = WASM_GLOBAL_TYPE_I64, .value = value });
 	return rc;
 }

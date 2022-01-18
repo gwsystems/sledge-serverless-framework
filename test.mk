@@ -115,8 +115,6 @@ empty__concurrency: ./runtime/bin/empty.wasm.so
 	# ./tests/empty/concurrency/ && install.sh
 	./tests/empty/concurrency/ && run.sh
 
-# TODO: Refactor payload experiment
-
 all: \
 	gocr__all \
 	ekf__all \

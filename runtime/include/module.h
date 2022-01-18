@@ -132,8 +132,7 @@ static inline int
 module_alloc_table(struct module *module)
 {
 	/* WebAssembly Indirect Table */
-	/* TODO: Should this be part of the module or per-sandbox? */
-	/* TODO: How should this table be sized? */
+	/* TODO: Can this table be more intelligently sized? */
 	module->indirect_table = wasm_table_alloc(INDIRECT_TABLE_SIZE);
 	if (module->indirect_table == NULL) return -1;
 

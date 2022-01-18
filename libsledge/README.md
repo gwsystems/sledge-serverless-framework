@@ -146,7 +146,6 @@ The path to the JSON file is passed to `module_alloc_from_json`, which uses the 
 
 `module init` then calls `module.abi.initialize_table`, which populates the indirect function table with the actual functions. This is performed once during module initialization because this table does not actually vary between instances of a module.
 
-When compiling the \*.so module, function imports were already translated into ELF symbols. There is thus no per instance imports and symbol mismatches result in link-time errors. **TODO: Is this at `dlopen` or when called for the first time**
 
 # SLEdge \*.so Module Instantiation
 

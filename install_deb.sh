@@ -28,4 +28,6 @@ LLVM_VERSION=12
 ./install_llvm.sh $LLVM_VERSION
 
 curl -sS -L -O $WASI_SDK_URL && dpkg -i wasi-sdk_12.0_amd64.deb && rm -f wasi-sdk_12.0_amd64.deb
-# TODO: add WASI_SDK export to bashrc and re-source
+
+echo "Add WASI_SDK_PATH to your bashrc and resource!"
+echo "Example: export WASI_SDK_PATH=/opt/wasi-sdk"

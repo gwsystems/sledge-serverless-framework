@@ -41,7 +41,6 @@ sledge_abi__wasm_memory_starting_pages(void)
 	return starting_pages;
 }
 
-// This symbol may not actually exist...
 EXPORT uint32_t
 sledge_abi__wasm_memory_max_pages(void)
 {
