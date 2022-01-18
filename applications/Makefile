@@ -33,7 +33,7 @@ all: \
 clean:
 	@make -C wasm_apps clean
 	@rm -rf dist
-	@rm -rf ../../runtime/bin/*.so
+	@rm -rf ../runtime/bin/*.so
 
 wasm_apps/dist/%.wasm:
 	make -C wasm_apps $(addprefix dist/,$(notdir $@))
