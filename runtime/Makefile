@@ -11,7 +11,7 @@ CFLAGS=-std=c18 -pthread
 
 # We use several non-standard glibc / Linux features: 
 # sched_getcpu, MAP_ANONYMOUS, acceess to 'gregs' in 'mcontext_t', REG_RIP, REG_RSP
-CFLAGS+=-D_GNU_SOURCE 
+CFLAGS+=-D_GNU_SOURCE
 
 # Release Flags
 CFLAGS+=-O3 -flto
@@ -63,6 +63,7 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_MODULE_LOADING
 # CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_SANDBOX_ALLOCATION
+# CFLAGS += -DLOG_UNSUPPORTED_WASI
 
 # Stores and logs extended signal information for each worker
 # CFLAGS += -DLOG_SOFTWARE_INTERRUPT_COUNTS
