@@ -114,6 +114,11 @@ current_sandbox_wasm_trap_handler(int trapno)
 		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
+	case WASM_TRAP_MISMATCHED_GLOBAL_TYPE:
+		error_message = "WebAssembly Trap: Mismatched Global Type\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
 	}
 
 	fprintf(stderr, "%s\n", error_message);
@@ -220,15 +225,12 @@ err:
 void
 current_sandbox_start(void)
 {
-	struct sandbox *sandbox        = current_sandbox_init();
-	struct module * current_module = sandbox_get_module(sandbox);
-
-	/* Executing the function */
-	char *error_message;
+	struct sandbox *sandbox = current_sandbox_init();
 
 	int rc = setjmp(sandbox->ctxt.start_buf);
 	if (rc == 0) {
-		sandbox->return_value = module_entrypoint(current_module);
+		struct module *current_module = sandbox_get_module(sandbox);
+		sandbox->return_value         = module_entrypoint(current_module);
 	} else {
 		current_sandbox_wasm_trap_handler(rc);
 	}
