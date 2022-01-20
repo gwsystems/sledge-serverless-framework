@@ -90,6 +90,7 @@ wasm_globals_set_i64(struct vec_wasm_global_t *globals, uint32_t idx, int64_t va
 	if (unlikely(current->mut == false)) sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_GLOBAL_TYPE);
 
 	int rc = vec_wasm_global_t_insert(globals, idx,
-	                                  (wasm_global_t){ .mut = is_mutable, .type = WASM_GLOBAL_TYPE_I64, .value = value });
+	                                  (wasm_global_t){
+	                                    .mut = is_mutable, .type = WASM_GLOBAL_TYPE_I64, .value = value });
 	return rc;
 }
