@@ -53,7 +53,6 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 	return 0;
 }
 
-/* TODO: Free */
 static inline int
 sandbox_allocate_globals(struct sandbox *sandbox)
 {
@@ -64,6 +63,17 @@ sandbox_allocate_globals(struct sandbox *sandbox)
 	if (sandbox->globals == NULL) return -1;
 
 	return 0;
+}
+
+static inline void
+sandbox_free_globals(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	assert(sandbox->module);
+	assert(sandbox->globals != NULL);
+
+	wasm_globals_free(sandbox->globals);
+	sandbox->globals = NULL;
 }
 
 static inline void
@@ -218,8 +228,9 @@ sandbox_deinit(struct sandbox *sandbox)
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
 	assert(sandbox->memory == NULL);
 
-	/* Free Sandbox Struct*/
 	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
+
+	if (likely(sandbox->globals != NULL)) sandbox_free_globals(sandbox);
 }
 
 /**
