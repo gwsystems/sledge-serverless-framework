@@ -138,6 +138,8 @@ When done, terminal the SLEdge runtime with `Ctrl+c`
 
 Various synthetic and real-world tests can be found in `runtime/tests`. Generally, each experiment can be run by Make rules in the top level `test.mk`.
 
+`make -f test.mk all`
+
 ## Problems or Feedback?
 
 If you encountered bugs or have feedback, please let us know in our [issue tracker.](https://github.com/gwsystems/sledge-serverless-framework/issues)
