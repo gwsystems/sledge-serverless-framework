@@ -16,8 +16,10 @@ if ! command -v loadtest > /dev/null; then
 
 	if ! command -v npm > /dev/null; then
 		if [[ $(whoami) == "root" ]]; then
+			apt update
 			apt install npm
 		else
+			sudo apt update
 			sudo apt install npm
 		fi
 	fi
@@ -26,5 +28,16 @@ if ! command -v loadtest > /dev/null; then
 		npm install -g loadtest
 	else
 		sudo npm install -g loadtest
+	fi
+fi
+
+if ! command -v gnuplot > /dev/null; then
+
+	if [[ $(whoami) == "root" ]]; then
+		apt-get update
+		apt-get install gnuplot
+	else
+		sudo apt-get update
+		sudo apt-get install gnuplot
 	fi
 fi

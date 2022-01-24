@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
+# This experiment is intended to document how the given reservations knobs influence latency, throughput, and success rate
 # Success - The percentage of requests that complete by their deadlines
 # Throughput - The mean number of successful requests per second
-# Latency - the rount-trip resonse time (unit?) of successful requests at the p50, p90, p99, and p100 percetiles
+# Latency - the rount-trip resonse time (us) of successful requests at the p50, p90, p99, and p100 percentiles
 
 # Add bash_libraries directory to path
 __run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
@@ -13,16 +13,20 @@ export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
 source csv_to_dat.sh || exit 1
 source framework.sh || exit 1
-# source generate_gnuplots.sh || exit 1
+source generate_gnuplots.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
 source percentiles_table.sh || exit 1
 
-validate_dependencies loadtest jq
+validate_dependencies loadtest gnuplot jq
 
-# The four types of results that we are capturing.
+# The types of results that we are capturing.
 declare -ar workloads=(fib30 fib30_rich)
+
+# The global configs for the scripts
+declare -gi iterations=10000
+declare -gi duration_sec=60
 
 # The deadlines for each of the workloads
 # TODO: Scrape these from spec.json
@@ -31,8 +35,7 @@ declare -Ar deadlines_us=(
 	[fib30_rich]=10000
 )
 
-
-# Execute the experiments sequentially and concurrently
+# Execute the experiments concurrently
 # $1 (hostname)
 # $2 (results_directory) - a directory where we will store our results
 run_experiments() {
@@ -64,12 +67,12 @@ run_experiments() {
 	local fib30_rich_PID
 	local fib30_PID
 
-	loadtest -t 30 -c 36 --rps 3600 -P "30" "http://${hostname}:10030" > "$results_directory/fib30.txt" & #2> /dev/null &
+	loadtest -t "$duration_sec" -c 36 --rps 3600 -P "30" "http://${hostname}:10030" > "$results_directory/fib30.txt" & #2> /dev/null &
 	fib30_PID="$!"
 
 	sleep 3s
 
-	loadtest -t 30 -c 18 --rps 1800 -P "30" "http://${hostname}:20030" > "$results_directory/fib30_rich.txt" & #2> /dev/null &
+	loadtest -t "$duration_sec" -c 18 --rps 1800 -P "30" "http://${hostname}:20030" > "$results_directory/fib30_rich.txt" & #2> /dev/null &
 	fib30_rich_PID="$!"
 
 	wait -f "$fib30_rich_PID" || {
@@ -106,47 +109,40 @@ process_client_results() {
 	printf "Processing Results: "
 
 	# Write headers to CSVs
-	printf "workload,Success_Rate\n" >> "$results_directory/success.csv"
-	printf "workload,Throughput\n" >> "$results_directory/throughput.csv"
-	percentiles_table_header "$results_directory/latency.csv"
+	# printf "Workload,Success_Rate\n" >> "$results_directory/success.csv" # not possible to figure out with loadtest
+	printf "Workload,Throughput\n" >> "$results_directory/throughput.csv"
+	percentiles_table_header "$results_directory/latency.csv" "Con"
 
 	for workload in "${workloads[@]}"; do
-		# Strip the  suffix when getting the deadline
-		local -i deadline=${deadlines_us[${workload//}]}
 
-		# Calculate Success Rate for csv (percent of requests that return 200 within deadline)
-		awk -F, '
-			$7 == 200 && ($1 * 1000000) <= '"$deadline"' {ok++}
-			END{printf "'"$workload"',%3.5f\n", (ok / (NR - 1) * 100)}
-		' < "$results_directory/$workload.csv" >> "$results_directory/success.csv"
+		if [[ ! -f "$results_directory/$workload.txt" ]]; then
+			printf "[ERR]\n"
+			error_msg "Missing $results_directory/$workload.txt"
+			return 1
+		fi
 
-		# Filter on 200s, convert from s to us, and sort
-		awk -F, '$7 == 200 {print ($1 * 1000000)}' < "$results_directory/$workload.csv" \
-			| sort -g > "$results_directory/$workload-response.csv"
-
-		# Get Number of 200s
-		oks=$(wc -l < "$results_directory/$workload-response.csv")
-		((oks == 0)) && continue # If all errors, skip line
-
-		# We determine duration by looking at the timestamp of the last complete request
-		# TODO: Should this instead just use the client-side synthetic duration_sec value?
-		duration=$(tail -n1 "$results_directory/$workload.csv" | cut -d, -f8)
+		ok=$(grep "Completed requests:" "$results_directory/$workload.txt" | cut -d ' ' -f 14)
 
 		# Throughput is calculated as the mean number of successful requests per second
-		throughput=$(echo "$oks/$duration" | bc)
-		printf "%s,%f\n" "$workload" "$throughput" >> "$results_directory/throughput.csv"
+		throughput=$(grep "Requests per second" "$results_directory/$workload.txt" | cut -d ' ' -f 14 | tail -n 1)
+		printf "%d,%d\n" "$workload" "$throughput" >> "$results_directory/throughput.csv"
 
-		# Generate Latency Data for csv
-		percentiles_table_row "$results_directory/$workload-response.csv" "$results_directory/latency.csv" "$workload"
+		# Generate Latency Data
+		min=0
+		p50=$(echo 1000*"$(grep 50% "$results_directory/$workload.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
+		p90=$(echo 1000*"$(grep 90% "$results_directory/$workload.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
+		p99=$(echo 1000*"$(grep 99% "$results_directory/$workload.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
+		p100=$(echo 1000*"$(grep 100% "$results_directory/$workload.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
+		mean=$(echo 1000*"$(grep "Mean latency:" "$results_directory/$workload.txt" | tr -s ' ' | cut -d ' ' -f 13)" | bc)
 
-		# Delete scratch file used for sorting/counting
-		rm -rf "$results_directory/$workload-response.csv"
+		printf "%s,%d,%d,%.2f,%d,%d,%d,%d\n", "$workload" "$ok" "$min" "$mean" "$p50" "$p90" "$p99" "$p100" >> "$results_directory/latency.csv"
 	done
 
 	# Transform csvs to dat files for gnuplot
-	csv_to_dat "$results_directory/success.csv" "$results_directory/throughput.csv" "$results_directory/latency.csv"
+	csv_to_dat "$results_directory/throughput.csv" "$results_directory/latency.csv" #"$results_directory/success.csv"
+	rm "$results_directory/throughput.csv" "$results_directory/latency.csv" #"$results_directory/success.csv"
 
-	# Generate gnuplots. Commented out because we don't have *.gnuplots defined
+	# Generate gnuplots
 	# generate_gnuplots "$results_directory" "$__run_sh__base_path" || {
 	# 	printf "[ERR]\n"
 	# 	panic "failed to generate gnuplots"
@@ -168,7 +164,7 @@ process_server_results() {
 
 	# Write headers to CSVs
 	printf "Payload,Success_Rate\n" >> "$results_directory/success.csv"
-	#printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
+	# printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
 	# percentiles_table_header "$results_directory/latency.csv"
 
 	local -a metrics=(total queued uninitialized allocated initialized runnable preempted running_sys running_user asleep returned complete error)
@@ -269,7 +265,7 @@ experiment_client() {
 	local -r results_directory="$2"
 
 	run_experiments "$target_hostname" "$results_directory" || return 1
-	#process_client_results "$results_directory" || return 1
+	process_client_results "$results_directory" || return 1
 
 	return 0
 }
