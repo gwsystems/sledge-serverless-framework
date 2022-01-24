@@ -4,7 +4,7 @@ set term jpeg
 set output "latency.jpg"
 
 set xlabel "Concurrency"
-set ylabel "Latency (ms)"
+set ylabel "Latency (us)"
 
 set key left top
 

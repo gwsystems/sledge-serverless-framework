@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
+# This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success rate
+# Success - The percentage of requests that complete by their deadlines
+# Throughput - The mean number of successful requests per second
+# Latency - the rount-trip resonse time (us) of successful requests at the p50, p90, p99, and p100 percentiles
 
 # Add bash_libraries directory to path
 __run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
@@ -16,11 +19,10 @@ source panic.sh || exit 1
 source path_join.sh || exit 1
 source percentiles_table.sh || exit 1
 
-validate_dependencies hey gnuplot
+validate_dependencies hey gnuplot jq
 
-# The four types of results that we are capturing.
 declare -gi iterations=10000
-declare -gi duration_sec=60 # 1min
+declare -gi duration_sec=60
 declare -ga concurrency=(1 9 18 20 30 40 60 80 100)
 declare -gi deadline_ms=10 #10ms for fib30
 
@@ -57,8 +59,7 @@ run_samples() {
 	return 0
 }
 
-
-# Execute the experiments
+# Execute the experiments concurrently
 # $1 (hostname)
 # $2 (results_directory) - a directory where we will store our results
 run_experiments() {
@@ -179,7 +180,7 @@ process_server_results() {
 
 	# Write headers to CSVs
 	printf "Payload,Success_Rate\n" >> "$results_directory/success.csv"
-	#printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
+	# printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
 	# percentiles_table_header "$results_directory/latency.csv"
 
 	local -a metrics=(total queued uninitialized allocated initialized runnable preempted running_sys running_user asleep returned complete error)
@@ -264,14 +265,14 @@ experiment_server_post() {
 	local -r results_directory="$1"
 
 	# Only process data if SLEDGE_SANDBOX_PERF_LOG was set when running sledgert
-	# if [[ -n "$SLEDGE_SANDBOX_PERF_LOG" ]]; then
-	# 	if [[ -f "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" ]]; then
-	# 		mv "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" "$results_directory/perf.log"
-	# 		process_server_results "$results_directory" || return 1
-	# 	else
-	# 		echo "Perf Log was set, but perf.log not found!"
-	# 	fi
-	# fi
+	if [[ -n "$SLEDGE_SANDBOX_PERF_LOG" ]]; then
+		if [[ -f "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" ]]; then
+			mv "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" "$results_directory/perf.log"
+			# process_server_results "$results_directory" || return 1
+		else
+			echo "Perf Log was set, but perf.log not found!"
+		fi
+	fi
 }
 
 # Expected Symbol used by the framework

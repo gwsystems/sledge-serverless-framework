@@ -1,6 +1,9 @@
 #!/bin/bash
 
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
+# Success - The percentage of requests that complete out of the total expected
+# Throughput - The mean number of successful requests per second
+# Latency - the rount-trip resonse time (unit?) of successful requests at the p50, p90, p99, and p100 percentiles
 
 # Add bash_libraries directory to path
 __run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
@@ -20,7 +23,7 @@ validate_dependencies loadtest gnuplot
 
 # The global configs for the scripts
 declare -gi iterations=10000
-declare -gi duration_sec=60 # 1min
+declare -gi duration_sec=60
 declare -g using_rps=true # should mostly be true 
 declare -ga concurrency=(1 9 18 20 30 40 60 80 100)
 declare -gi deadline_ms=10 #10ms for fib30
@@ -48,7 +51,7 @@ run_samples() {
 	local -ir perf_window_buffer_size
 
 	printf "Running Samples: "
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -cpus 3 -o csv -m GET "http://${hostname}:10030" 1> /dev/null 2> /dev/null || {
+	loadtest -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" --rps 216 -P "30" "http://${hostname}:10030" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "samples failed"
 		return 1
@@ -58,8 +61,7 @@ run_samples() {
 	return 0
 }
 
-
-# Execute the experiments
+# Execute the experiments concurrently
 # $1 (hostname)
 # $2 (results_directory) - a directory where we will store our results
 run_experiments() {
@@ -179,7 +181,7 @@ process_server_results() {
 
 	# Write headers to CSVs
 	printf "Payload,Success_Rate\n" >> "$results_directory/success.csv"
-	#printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
+	# printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
 	# percentiles_table_header "$results_directory/latency.csv"
 
 	local -a metrics=(total queued uninitialized allocated initialized runnable preempted running_sys running_user asleep returned complete error)
@@ -264,14 +266,14 @@ experiment_server_post() {
 	local -r results_directory="$1"
 
 	# Only process data if SLEDGE_SANDBOX_PERF_LOG was set when running sledgert
-	# if [[ -n "$SLEDGE_SANDBOX_PERF_LOG" ]]; then
-	# 	if [[ -f "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" ]]; then
-	# 		mv "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" "$results_directory/perf.log"
-	# 		process_server_results "$results_directory" || return 1
-	# 	else
-	# 		echo "Perf Log was set, but perf.log not found!"
-	# 	fi
-	# fi
+	if [[ -n "$SLEDGE_SANDBOX_PERF_LOG" ]]; then
+		if [[ -f "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" ]]; then
+			mv "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" "$results_directory/perf.log"
+			# process_server_results "$results_directory" || return 1
+		else
+			echo "Perf Log was set, but perf.log not found!"
+		fi
+	fi
 }
 
 # Expected Symbol used by the framework
