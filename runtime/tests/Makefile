@@ -1,6 +1,6 @@
 include Makefile.inc
 
-TESTS=fibonacci empty empty
+TESTS=fibonacci empty
 
 TESTSRT=$(TESTS:%=%_rt)
 
