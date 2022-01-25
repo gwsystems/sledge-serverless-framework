@@ -1,15 +1,12 @@
-AWSMCC=awsm
-CC=clang
+AWSMCC=../awsm/target/release/awsm
+CC=clang-8
 
 # Used by aWsm when compiling the *.wasm to *.bc
 AWSMFLAGS= --inline-constant-globals --runtime-globals
 
 # Used by clang when compiling the *.so module
-# --whole-archive causes the symbols in the listed static archive to be exported from the resulting *.so
-# https://stackoverflow.com/questions/805555/ld-linker-question-the-whole-archive-option
-CFLAGS=-O3 -flto
-LDFLAGS=-fPIC -Wl
-# LDFLAGS=-flto -fvisibility=hidden
+CFLAGS=-O3
+LDFLAGS=--shared -fPIC -flto
 
 # Compiletime Components to link into *.so
 SLEDGE_BASE_DIR=../
@@ -47,7 +44,7 @@ dist:
 
 %_wasm.so: %.bc ${SLEDGE_COMPILETIME_SRC}
 	mkdir -p dist
-	${CC} --shared -fPIC ${OPTFLAGS} -I${SLEDGE_COMPILETIME_INC} $^ -o $@
+	${CC} ${CFLAGS} ${LDFLAGS} -I${SLEDGE_COMPILETIME_INC} $^ -o $@
 
 ../runtime/bin/%_wasm.so: dist/%_wasm.so
 	cp $^ $@
