@@ -223,8 +223,11 @@ wasm_mmap(int32_t addr, int32_t len, int32_t prot, int32_t flags, int32_t fd, in
 
 	assert(len % WASM_PAGE_SIZE == 0);
 
-	int32_t result = wasm_memory_get_size(&current_wasm_module_instance.memory);
-	if (wasm_memory_expand(&current_wasm_module_instance.memory, len) == -1) { result = (uint32_t)-1; }
+	int32_t result = wasm_memory_get_size(
+	  (struct wasm_memory *)&sledge_abi__current_wasm_module_instance.abi.memory);
+	if (wasm_memory_expand((struct wasm_memory *)&sledge_abi__current_wasm_module_instance.abi.memory, len) == -1) {
+		result = (uint32_t)-1;
+	}
 
 	return result;
 }
@@ -321,18 +324,19 @@ wasm_mremap(int32_t offset, int32_t old_size, int32_t new_size, int32_t flags)
 	if (new_size <= old_size) return offset;
 
 	// If at end of linear memory, just expand and return same address
-	if (offset + old_size == current_wasm_module_instance.memory.size) {
+	if (offset + old_size == sledge_abi__current_wasm_module_instance.abi.memory.size) {
 		int32_t amount_to_expand = new_size - old_size;
-		wasm_memory_expand(&current_wasm_module_instance.memory, amount_to_expand);
+		wasm_memory_expand((struct wasm_memory *)&sledge_abi__current_wasm_module_instance.abi.memory,
+		                   amount_to_expand);
 		return offset;
 	}
 
 	// Otherwise allocate at end of address space and copy
-	int32_t new_offset = current_wasm_module_instance.memory.size;
-	wasm_memory_expand(&current_wasm_module_instance.memory, new_size);
+	int32_t new_offset = sledge_abi__current_wasm_module_instance.abi.memory.size;
+	wasm_memory_expand((struct wasm_memory *)&sledge_abi__current_wasm_module_instance.abi.memory, new_size);
 
 	// Get pointer of old offset and pointer of new offset
-	uint8_t *linear_mem = current_wasm_module_instance.memory.buffer;
+	uint8_t *linear_mem = sledge_abi__current_wasm_module_instance.abi.memory.buffer;
 	uint8_t *src        = &linear_mem[offset];
 	uint8_t *dest       = &linear_mem[new_offset];
 

@@ -53,6 +53,29 @@ sandbox_allocate_stack(struct sandbox *sandbox)
 	return 0;
 }
 
+static inline int
+sandbox_allocate_globals(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	assert(sandbox->module);
+
+	sandbox->globals = wasm_globals_alloc(100);
+	if (sandbox->globals == NULL) return -1;
+
+	return 0;
+}
+
+static inline void
+sandbox_free_globals(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	assert(sandbox->module);
+	assert(sandbox->globals != NULL);
+
+	wasm_globals_free(sandbox->globals);
+	sandbox->globals = NULL;
+}
+
 static inline void
 sandbox_free_stack(struct sandbox *sandbox)
 {
@@ -103,6 +126,12 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 		goto err_http_allocation_failed;
 	}
 
+	rc = sandbox_allocate_globals(sandbox);
+	if (rc < 0) {
+		error_message = "failed to allocate globals";
+		goto err_globals_allocation_failed;
+	}
+
 	/* Allocate linear memory in a 4GB address space */
 	if (sandbox_allocate_linear_memory(sandbox)) {
 		error_message = "failed to allocate sandbox linear memory";
@@ -124,6 +153,7 @@ done:
 	return rc;
 err_stack_allocation_failed:
 err_memory_allocation_failed:
+err_globals_allocation_failed:
 err_http_allocation_failed:
 	client_socket_send_oneshot(sandbox->client_socket_descriptor, http_header_build(503), http_header_len(503));
 	client_socket_close(sandbox->client_socket_descriptor, &sandbox->client_address);
@@ -201,6 +231,8 @@ sandbox_deinit(struct sandbox *sandbox)
 
 	/* Free Sandbox Struct*/
 	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
+
+	if (likely(sandbox->globals != NULL)) sandbox_free_globals(sandbox);
 }
 
 /**

@@ -20,19 +20,19 @@ CFLAGS+=-O3 -flto
 # CFLAGS+=-O0 -g
 
 # CFI Sanitizer
-# CFLAGS+=-O0 -g -flto -fvisibility=default -fsanitize=cfi
+# CFLAGS+=-fvisibility=default -fsanitize=cfi
 
-# Undefined Sanitizer
-# CFLAGS+=-O0 -g -fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds
+# Undefined Sanitizer - https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+# CFLAGS+=-fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds,nullability
 
 # Clang SafeStack - https://clang.llvm.org/docs/SafeStack.html
-# CFLAGS+=-O0 -g -fsanitize=safe-stack
+# CFLAGS+=-fsanitize=safe-stack
 
 # Memory Sanitizer - https://clang.llvm.org/docs/MemorySanitizer.html
-# CFLAGS+=-O0 -g -fsanitize=memory -fno-omit-frame-pointer
+# CFLAGS+=-fsanitize=memory -fno-omit-frame-pointer
 
-# Address Sanitizer - https://clang.llvm.org/docs/AddressSanitizer.html
-# CFLAGS+=-O0 -g -fsanitize=address -fno-omit-frame-pointer 
+# Address Sanitizer - "Fast Memory Error Detector" - https://clang.llvm.org/docs/AddressSanitizer.html
+# CFLAGS+=-fsanitize=address -fno-omit-frame-pointer
 
 BINARY_NAME=sledgert
 
@@ -86,7 +86,6 @@ BINARY_NAME=sledgert
 # Sets a flag equal to the processor architecture
 CFLAGS += -D${ARCH}
 
-
 # Preprocessor
 
 # SLEdge serverless functions are *.so shared-libraries. The runtime thus requires the dynamic linker
@@ -98,7 +97,7 @@ LDFLAGS += -Wl,--export-dynamic -ldl -lm
 
 # Our third-party dependencies build into a single dist directory to simplify configuration here.
 LDFLAGS += -Lthirdparty/dist/lib/
-INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
+INCLUDES += -Iinclude/ -Ithirdparty/dist/include/ -I../libsledge/include/
 
 # CFILES
 CFILES += src/*.c
@@ -110,30 +109,40 @@ CFILES += thirdparty/dist/lib/http_parser.o
 JSMNCFLAGS += -DJSMN_STATIC
 JSMNCFLAGS += -DJSMN_STRICT
 
-.PHONY: all
-all: runtime
+# Force sledgert to rebuild when header files change
+# This is a bit fragile, as it does not recurse subdirectories when detecting last changed times
+HEADER_DEPS = thirdparty/dist/include/*.h include/*.h include/arch/x86_64/*.h include/arch/aarch64/*.h
 
-bin/sledgert: ${CFILES}
+.PHONY: all
+all: thirdparty runtime
+
+.PHONY: clean
+clean: thirdparty.clean runtime.clean
+
+# sledgert Rules
+bin/sledgert: ${HEADER_DEPS} ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
+	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ ${CFILES} -o bin/sledgert
 
 .PHONY: runtime
-runtime: thirdparty bin/sledgert
+runtime: bin/sledgert
+
+.PHONY: runtime.clean
+runtime.clean:
+	@rm -f bin/${BINARY_NAME}
+
+# Thirdparty Dependency Rules
+thirdparty/dist/lib/http_parser.o: thirdparty
+thirdparty/dist/include/*.h: thirdparty
 
 .PHONY: thirdparty
 thirdparty:
 	@echo "Compiling thirdparty"
 	@make --no-print-directory -C thirdparty build
 
-.PHONY: clean
-clean:
-	@rm -f core
-	@echo "Cleaning up runtime"
-	@rm -f bin/${BINARY_NAME}
-
-.PHONY: distclean
-distclean: clean
+.PHONY: thirdparty.clean
+thirdparty.clean:
 	@make --no-print-directory -C thirdparty clean
 
 .PHONY: submodules
