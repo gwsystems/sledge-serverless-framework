@@ -5,7 +5,7 @@ __run_sh__bash_libraries_relative_path="../../../bash_libraries"
 __run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
 export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
-__run_sh__project_base_relative_path="../../../.."
+__run_sh__project_base_relative_path="../../../../"
 __run_sh__project_base_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__project_base_relative_path" && pwd)
 
 source csv_to_dat.sh || exit 1
@@ -22,12 +22,8 @@ experiment_client() {
 	local -i success_count=0
 	local -ri total_count=10
 
-	local tmpfs_dir=/tmp/sledge_imageresize_test/
-	[[ -d "$tmpfs_dir" ]] && {
-		panic "tmpfs directory exists. Aborting"
-		return 1
-	}
-	mkdir $tmpfs_dir
+	local tmpfs_dir=/tmp/sledge_image_resize_test/
+	mkdir -p $tmpfs_dir
 
 	for ((i = 0; i < total_count; i++)); do
 		ext="$RANDOM"
@@ -60,7 +56,7 @@ validate_dependencies curl compare
 
 # Copy Flower Image if not here
 if [[ ! -f "./flower.jpg" ]]; then
-	cp "$__run_sh__project_base_absolute_path/applications/sod/bin/flower.jpg" ./flower.jpg
+	cp "$__run_sh__project_base_absolute_path/applications/wasmception_apps/sod/samples/flower.jpg" ./flower.jpg
 fi
 
 framework_init "$@"

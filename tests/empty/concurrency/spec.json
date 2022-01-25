@@ -1,6 +1,6 @@
 {
 	"name": "empty",
-	"path": "empty_wasm.so",
+	"path": "empty.wasm.so",
 	"port": 10000,
 	"expected-execution-us": 500,
 	"admissions-percentile": 70,

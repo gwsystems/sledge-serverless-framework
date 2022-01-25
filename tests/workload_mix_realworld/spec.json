@@ -1,7 +1,7 @@
 [
 	{
 		"name": "cifar10_1.5",
-		"path": "cifar10_wasm.so",
+		"path": "cifar10.wasm.so",
 		"port": 10018,
 		"expected-execution-us": 2777,
 		"relative-deadline-us": 4166,
@@ -12,7 +12,7 @@
 	},
 	{
 		"name": "cifar10_1.6",
-		"path": "cifar10_wasm.so",
+		"path": "cifar10.wasm.so",
 		"port": 10019,
 		"expected-execution-us": 2777,
 		"relative-deadline-us": 4443,
@@ -23,7 +23,7 @@
 	},
 	{
 		"name": "cifar10_1.7",
-		"path": "cifar10_wasm.so",
+		"path": "cifar10.wasm.so",
 		"port": 10020,
 		"expected-execution-us": 2777,
 		"relative-deadline-us": 4721,
@@ -34,7 +34,7 @@
 	},
 	{
 		"name": "cifar10_1.8",
-		"path": "cifar10_wasm.so",
+		"path": "cifar10.wasm.so",
 		"port": 10021,
 		"expected-execution-us": 2777,
 		"relative-deadline-us": 4999,
@@ -45,7 +45,7 @@
 	},
 	{
 		"name": "cifar10_1.9",
-		"path": "cifar10_wasm.so",
+		"path": "cifar10.wasm.so",
 		"port": 10022,
 		"expected-execution-us": 2777,
 		"relative-deadline-us": 5276,
@@ -56,7 +56,7 @@
 	},
 	{
 		"name": "cifar10_2.0",
-		"path": "cifar10_wasm.so",
+		"path": "cifar10.wasm.so",
 		"port": 10023,
 		"expected-execution-us": 2777,
 		"relative-deadline-us": 5554,
@@ -67,7 +67,7 @@
 	},
 	{
 		"name": "ekf_1.5",
-		"path": "ekf_wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10000,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 237,
@@ -78,7 +78,7 @@
 	},
 	{
 		"name": "ekf_1.6",
-		"path": "ekf_wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10001,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 253,
@@ -89,7 +89,7 @@
 	},
 	{
 		"name": "ekf_1.7",
-		"path": "ekf_wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10002,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 269,
@@ -100,7 +100,7 @@
 	},
 	{
 		"name": "ekf_1.8",
-		"path": "ekf_wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10003,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 284,
@@ -111,7 +111,7 @@
 	},
 	{
 		"name": "ekf_1.9",
-		"path": "ekf_wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10004,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 300,
@@ -122,7 +122,7 @@
 	},
 	{
 		"name": "ekf_2.0",
-		"path": "ekf_wasm.so",
+		"path": "gps_ekf.wasm.so",
 		"port": 10005,
 		"expected-execution-us": 158,
 		"relative-deadline-us": 316,
@@ -133,7 +133,7 @@
 	},
 	{
 		"name": "gocr_1.5",
-		"path": "gocr_wasm.so",
+		"path": "gocr.wasm.so",
 		"port": 10006,
 		"expected-execution-us": 461831,
 		"relative-deadline-us": 692746,
@@ -144,7 +144,7 @@
 	},
 	{
 		"name": "gocr_1.6",
-		"path": "gocr_wasm.so",
+		"path": "gocr.wasm.so",
 		"port": 10007,
 		"expected-execution-us": 461831,
 		"relative-deadline-us": 738930,
@@ -155,7 +155,7 @@
 	},
 	{
 		"name": "gocr_1.7",
-		"path": "gocr_wasm.so",
+		"path": "gocr.wasm.so",
 		"port": 10008,
 		"expected-execution-us": 461831,
 		"relative-deadline-us": 785113,
@@ -166,7 +166,7 @@
 	},
 	{
 		"name": "gocr_1.8",
-		"path": "gocr_wasm.so",
+		"path": "gocr.wasm.so",
 		"port": 10009,
 		"expected-execution-us": 461831,
 		"relative-deadline-us": 831296,
@@ -177,7 +177,7 @@
 	},
 	{
 		"name": "gocr_1.9",
-		"path": "gocr_wasm.so",
+		"path": "gocr.wasm.so",
 		"port": 10010,
 		"expected-execution-us": 461831,
 		"relative-deadline-us": 877479,
@@ -188,7 +188,7 @@
 	},
 	{
 		"name": "gocr_2.0",
-		"path": "gocr_wasm.so",
+		"path": "gocr.wasm.so",
 		"port": 10011,
 		"expected-execution-us": 461831,
 		"relative-deadline-us": 923662,
@@ -199,7 +199,7 @@
 	},
 	{
 		"name": "lpd_1.5",
-		"path": "lpd_wasm.so",
+		"path": "license_plate_detection.wasm.so",
 		"port": 10012,
 		"expected-execution-us": 31597,
 		"relative-deadline-us": 47396,
@@ -210,7 +210,7 @@
 	},
 	{
 		"name": "lpd_1.6",
-		"path": "lpd_wasm.so",
+		"path": "license_plate_detection.wasm.so",
 		"port": 10013,
 		"expected-execution-us": 31597,
 		"relative-deadline-us": 50555,
@@ -221,7 +221,7 @@
 	},
 	{
 		"name": "lpd_1.7",
-		"path": "lpd_wasm.so",
+		"path": "license_plate_detection.wasm.so",
 		"port": 10014,
 		"expected-execution-us": 31597,
 		"relative-deadline-us": 53715,
@@ -232,7 +232,7 @@
 	},
 	{
 		"name": "lpd_1.8",
-		"path": "lpd_wasm.so",
+		"path": "license_plate_detection.wasm.so",
 		"port": 10015,
 		"expected-execution-us": 31597,
 		"relative-deadline-us": 56875,
@@ -243,7 +243,7 @@
 	},
 	{
 		"name": "lpd_1.9",
-		"path": "lpd_wasm.so",
+		"path": "license_plate_detection.wasm.so",
 		"port": 10016,
 		"expected-execution-us": 31597,
 		"relative-deadline-us": 60034,
@@ -254,7 +254,7 @@
 	},
 	{
 		"name": "lpd_2.0",
-		"path": "lpd_wasm.so",
+		"path": "license_plate_detection.wasm.so",
 		"port": 10017,
 		"expected-execution-us": 31597,
 		"relative-deadline-us": 63194,
@@ -265,7 +265,7 @@
 	},
 	{
 		"name": "resize_1.5",
-		"path": "resize_wasm.so",
+		"path": "resize_image.wasm.so",
 		"port": 10018,
 		"expected-execution-us": 138903,
 		"relative-deadline-us": 208354,
@@ -276,7 +276,7 @@
 	},
 	{
 		"name": "resize_1.6",
-		"path": "resize_wasm.so",
+		"path": "resize_image.wasm.so",
 		"port": 10019,
 		"expected-execution-us": 138903,
 		"relative-deadline-us": 222245,
@@ -287,7 +287,7 @@
 	},
 	{
 		"name": "resize_1.7",
-		"path": "resize_wasm.so",
+		"path": "resize_image.wasm.so",
 		"port": 10020,
 		"expected-execution-us": 138903,
 		"relative-deadline-us": 236135,
@@ -298,7 +298,7 @@
 	},
 	{
 		"name": "resize_1.8",
-		"path": "resize_wasm.so",
+		"path": "resize_image.wasm.so",
 		"port": 10021,
 		"expected-execution-us": 138903,
 		"relative-deadline-us": 250025,
@@ -309,7 +309,7 @@
 	},
 	{
 		"name": "resize_1.9",
-		"path": "resize_wasm.so",
+		"path": "resize_image.wasm.so",
 		"port": 10022,
 		"expected-execution-us": 138903,
 		"relative-deadline-us": 263916,
@@ -320,7 +320,7 @@
 	},
 	{
 		"name": "resize_2.0",
-		"path": "resize_wasm.so",
+		"path": "resize_image.wasm.so",
 		"port": 10023,
 		"expected-execution-us": 138903,
 		"relative-deadline-us": 277806,
