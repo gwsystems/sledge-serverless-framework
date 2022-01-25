@@ -38,7 +38,10 @@ client-fib10-once:
 	echo "10" | http :10010
 
 client-fib40-once:
-	echo "40" | http :10010
+	echo "40" | http :10040
+
+client-preempt:
+	(echo "40" | http :10040 &); echo "10" | http :10010
 
 client-fib10-multi:
 	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${HOSTNAME}:10010"
