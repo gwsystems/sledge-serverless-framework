@@ -75,7 +75,7 @@ cifar10__all: \
 
 # SOD - Image Resize
 ./runtime/bin/resize_wasm.so:
-	make resize_image.install -C ./runtime/tests
+	make resize.install -C ./runtime/tests
 	
 # Commented out command installs imagemagick. Requires password for sudo to install
 PHONY: sod__image_resize__test
@@ -90,7 +90,7 @@ sod__image_resize__by_resolution: ./runtime/bin/resize_wasm.so
 
 # SOD - License Plate Detection
 ./runtime/bin/lpd_wasm.so:
-	make license_plate_detection.install -C ./runtime/tests
+	make lpd.install -C ./runtime/tests
 
 PHONY: sod__lpd__by_plate_count
 sod__lpd__by_plate_count: ./runtime/bin/lpd_wasm.so
