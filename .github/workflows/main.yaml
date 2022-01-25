@@ -101,7 +101,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gocr_wasm.so
-          key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/Makefile', './runtime/tests/gocr/**', './runtime/compiletime/**') }}
+          key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/wasmception_apps/gocr/**', './runtime/compiletime/**') }}
         if: success() || failure()
       - name: Hyde
         run: |
@@ -138,7 +138,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/ekf_wasm.so
-          key: ${{ runner.os }}-gocr2-${{ hashFiles('./runtime/tests/Makefile', './runtime/tests/TinyEKF/**', './runtime/compiletime/**') }}
+          key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/wasmception_apps/TinyEKF/**', './runtime/compiletime/**') }}
         if: success() || failure()
       - name: EKF one iteration
         run: |
