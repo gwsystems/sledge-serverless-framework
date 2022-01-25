@@ -73,8 +73,8 @@ empty.install: ../runtime/bin/empty.wasm.so
 ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm:
 	@make gps_ekf_fn.wasm -C ./wasmception_apps/TinyEKF/extras/c/ -f wasm.mk
 
-dist/ekf.wasm: ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm dist
-	@cp ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm dist/ekf.wasm
+dist/gps_ekf.wasm: ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm dist
+	@cp ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm dist/gps_ekf.wasm
 
 .PHONY: gps_ekf.install
 gps_ekf.install: ../runtime/bin/gps_ekf.wasm.so
