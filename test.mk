@@ -80,13 +80,13 @@ cifar10__all: \
 # Commented out command installs imagemagick. Requires password for sudo to install
 PHONY: sod__image_resize__test
 sod__image_resize__test: ./runtime/bin/resize_image.wasm.so
-	# cd ./tests/sod_image_resize/test && ./install.sh
+	# cd ./tests/sod/image_resize/test && ./install.sh
 	cd ./tests/sod/image_resize/test && ./run.sh
 
 PHONY: sod__image_resize__by_resolution
 sod__image_resize__by_resolution: ./runtime/bin/resize_image.wasm.so
-	# cd ./runtime/experiments/applications/imageresize/by_resolution && ./install.sh
-	cd ./runtime/experiments/applications/imageresize/by_resolution && ./run.sh
+	# cd ./tests/sod/image_resize/by_resolution && ./install.sh
+	cd ./tests/sod/image_resize/by_resolution && ./run.sh
 
 # SOD - License Plate Detection
 ./runtime/bin/license_plate_detection.wasm.so:
