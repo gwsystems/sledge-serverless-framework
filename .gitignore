@@ -52,10 +52,10 @@ dkms.conf
 
 runtime/tags
 runtime/bin
-runtime/tests/tmp/
-runtime/tests/**/*.csv
-runtime/tests/**/*.txt
-runtime/tests/**/*.xlsx
+applications/tmp/
+applications/**/*.csv
+applications/**/*.txt
+applications/**/*.xlsx
 
 # Swap Files
 *.swp

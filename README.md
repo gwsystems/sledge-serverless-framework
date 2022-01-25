@@ -44,10 +44,10 @@ cd /sledge/runtime
 make clean all
 ```
 
-There are a set of benchmarking applications in the `/sledge/runtime/tests` directory. Run the following to compile all benchmarks runtime tests using the aWsm compiler and then copy all resulting `<application>.wasm.so` files to /sledge/runtime/bin.
+There are a set of benchmarking applications in the `/sledge/applications` directory. Run the following to compile all benchmarks runtime tests using the aWsm compiler and then copy all resulting `<application>.wasm.so` files to /sledge/runtime/bin.
 
 ```bash
-cd /sledge/runtime/tests/
+cd /sledge/applications/
 make clean all
 ```
 
@@ -106,7 +106,7 @@ From the root project directory of the host environment (not the Docker containe
 cd runtime/bin/
 ```
 
-Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `runtime/tests/` directory to LD_LIBRARY_PATH.
+Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `applications/` directory to LD_LIBRARY_PATH.
 
 ```bash
 LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_fibonacci.json
