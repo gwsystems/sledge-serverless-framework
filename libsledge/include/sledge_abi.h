@@ -36,6 +36,7 @@ struct sledge_abi__wasm_memory {
  * entities https://webassembly.github.io/spec/core/exec/runtime.html#module-instances
  */
 struct sledge_abi__wasm_module_instance {
+	uint64_t                       wasmg_0; /* Used to refer to the shadow stack */
 	struct sledge_abi__wasm_table *table;
 	/* Note: memory has an opaque type due to private state. Do not reorder members below this! */
 	struct sledge_abi__wasm_memory memory;
