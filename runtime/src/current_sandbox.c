@@ -121,7 +121,7 @@ current_sandbox_wasm_trap_handler(int trapno)
 		break;
 	}
 
-	fprintf(stderr, "%s\n", error_message);
+	debuglog("%s", error_message);
 	sandbox_close_http(sandbox);
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
@@ -173,6 +173,7 @@ current_sandbox_init()
 	return sandbox;
 
 err:
+	debuglog("%s", error_message);
 	sandbox_close_http(sandbox);
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
