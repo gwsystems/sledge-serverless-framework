@@ -60,7 +60,7 @@ ekf__all: \
 
 # CIFAR10-based Image Classification
 ./runtime/bin/cifar10_wasm.so: 
-	make cifar10.install -C ./applications
+	make cifar10.install -C ./runtime/tests
 
 PHONY: cifar10__image_classification
 cifar10__image_classification: ./runtime/bin/cifar10_wasm.so
@@ -75,7 +75,7 @@ cifar10__all: \
 
 # SOD - Image Resize
 ./runtime/bin/resize_wasm.so:
-	make resize_image.install -C ./applications
+	make resize_image.install -C ./runtime/tests
 	
 # Commented out command installs imagemagick. Requires password for sudo to install
 PHONY: sod__image_resize__test
@@ -90,7 +90,7 @@ sod__image_resize__by_resolution: ./runtime/bin/resize_wasm.so
 
 # SOD - License Plate Detection
 ./runtime/bin/lpd_wasm.so:
-	make license_plate_detection.install -C ./applications
+	make license_plate_detection.install -C ./runtime/tests
 
 PHONY: sod__lpd__by_plate_count
 sod__lpd__by_plate_count: ./runtime/bin/lpd_wasm.so
@@ -101,14 +101,14 @@ sod__all: sod__image_resize__test sod__image_resize__by_resolution sod__lpd__by_
 
 # Scheduler Experiments with synthetic workloads
 ./runtime/bin/fibonacci_wasm.so:
-	make fibonacci.install -C ./applications
+	make fibonacci.install -C ./runtime/tests
 
 PHONY: fibonacci__bimodal
 fibonacci__bimodal: ./runtime/bin/fibonacci_wasm.so
 	cd ./runtime/experiments/bimodal/ && ./run.sh
 
 ./runtime/bin/empty_wasm.so:
-	make empty.install -C ./applications
+	make empty.install -C ./runtime/tests
 
 PHONY: empty__concurrency
 empty__concurrency: ./runtime/bin/empty_wasm.so
