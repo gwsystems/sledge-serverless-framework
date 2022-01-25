@@ -12,22 +12,22 @@ url = https://github.com/gwsystems/ck.git
 path = runtime/thirdparty/jsmn
 url = https://github.com/gwsystems/jsmn.git
 [submodule "runtime/tests/gocr"]
-path = runtime/tests/gocr
+	path = applications/wasmception_apps/gocr
 url = https://github.com/gwsystems/gocr.git
 branch = sledge
 [submodule "runtime/tests/TinyEKF"]
-path = runtime/tests/TinyEKF
+	path = applications/wasmception_apps/TinyEKF
 url = https://github.com/gwsystems/TinyEKF.git
 branch = sledge
 [submodule "runtime/tests/CMSIS_5_NN"]
-path = runtime/tests/CMSIS_5_NN
+	path = applications/wasmception_apps/CMSIS_5_NN
 url = https://github.com/gwsystems/CMSIS_5_NN.git
 branch = sledge
 [submodule "runtime/tests/sod"]
-path = runtime/tests/sod
+	path = applications/wasmception_apps/sod
 url = https://github.com/gwsystems/sod.git
 branch = sledge
 [submodule "runtime/tests/speechtotext"]
-path = runtime/tests/speechtotext
+	path = applications/wasmception_apps/speechtotext
 url = https://github.com/gwsystems/speechtotext.git
 branch = sledge

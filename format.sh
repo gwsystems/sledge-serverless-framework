@@ -43,14 +43,14 @@ help() {
 
 dry_run() {
 	find runtime \
-		\( -path "runtime/thirdparty" -o -path "runtime/tests/gocr" -o -path "runtime/tests/TinyEKF" -o -path "runtime/tests/CMSIS_5_NN" -o -path "runtime/tests/sod" -o -path "runtime/tests/**/thirdparty" \) -prune -false -o \
+		\( -path "runtime/thirdparty" -o -path "applications/gocr" -o -path "applications/TinyEKF" -o -path "applications/CMSIS_5_NN" -o -path "applications/sod" -o -path "applications/**/thirdparty" \) -prune -false -o \
 		-type f \( -iname \*.h -o -iname \*.c -o -iname \*.s \) -print \
 		| xargs clang-format -Werror -n -ferror-limit=0
 }
 
 format() {
 	find runtime \
-		\( -path "runtime/thirdparty" -o -path "runtime/tests/gocr" -o -path "runtime/tests/TinyEKF" -o -path "runtime/tests/CMSIS_5_NN" -o -path "runtime/tests/sod" -o -path "runtime/tests/**/thirdparty" \) -prune -false -o \
+		\( -path "runtime/thirdparty" -o -path "applications/gocr" -o -path "applications/TinyEKF" -o -path "applications/CMSIS_5_NN" -o -path "applications/sod" -o -path "applications/**/thirdparty" \) -prune -false -o \
 		-type f \( -iname \*.h -o -iname \*.c -o -iname \*.s \) -print \
 		| xargs clang-format -i
 }

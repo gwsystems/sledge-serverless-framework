@@ -4,6 +4,6 @@ Executes TinyEKF as shows by [You Chong's GPS example](http://www.mathworks.com/
 
 In order to be compatible with the stdin/stdout model of serverless, the input and output files are binary concatenations of various C structs.
 
-See `main()` in `runtime/tests/TinyEKF/extras/c/gps_ekf_fn.c` for specifics.
+See `main()` in `applications/TinyEKF/extras/c/gps_ekf_fn.c` for specifics.
 
 This test executes multiple iterations, comparing the binary result against a known memoized result stored at `expected_result.dat`.
