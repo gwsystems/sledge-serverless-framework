@@ -18,11 +18,11 @@ SLEDGE_COMPILETIME_SRC=${SLEDGE_RT_DIR}/compiletime/*.c
 all: \
 	cifar10.install \
 	empty.install \
-	ekf.install \
+	gps_ekf.install \
 	fibonacci.install \
 	gocr.install \
-	lpd.install \
-	resize.install
+	license_plate_detection.install \
+	resize_image.install
 
 .PHONY: clean
 clean:
@@ -42,11 +42,11 @@ dist:
 %.bc: %.wasm dist
 	${AWSMCC} ${AWSMFLAGS} $< -o $@
 
-%_wasm.so: %.bc ${SLEDGE_COMPILETIME_SRC}
+%.wasm.so: %.bc ${SLEDGE_COMPILETIME_SRC}
 	mkdir -p dist
 	${CC} ${CFLAGS} ${LDFLAGS} -I${SLEDGE_COMPILETIME_INC} $^ -o $@
 
-../runtime/bin/%_wasm.so: dist/%_wasm.so
+../runtime/bin/%.wasm.so: dist/%.wasm.so
 	cp $^ $@
 
 # Fibonacci
@@ -57,7 +57,7 @@ dist/fibonacci.wasm: ./wasmception_apps/fibonacci/fibonacci.wasm dist
 	@cp ./wasmception_apps/fibonacci/fibonacci.wasm dist/fibonacci.wasm
 
 .PHONY: fibonacci.install
-fibonacci.install: ../runtime/bin/fibonacci_wasm.so
+fibonacci.install: ../runtime/bin/fibonacci.wasm.so
 
 # Empty
 ./wasmception_apps/empty/empty.wasm:
@@ -67,17 +67,17 @@ dist/empty.wasm: ./wasmception_apps/empty/empty.wasm dist
 	@cp ./wasmception_apps/empty/empty.wasm dist/empty.wasm
 
 .PHONY: empty.install
-empty.install: ../runtime/bin/empty_wasm.so
+empty.install: ../runtime/bin/empty.wasm.so
 
 # EKF
 ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm:
 	@make gps_ekf_fn.wasm -C ./wasmception_apps/TinyEKF/extras/c/ -f wasm.mk
 
-dist/ekf.wasm: ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm dist
-	@cp ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm dist/ekf.wasm
+dist/gps_ekf.wasm: ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm dist
+	@cp ./wasmception_apps/TinyEKF/extras/c/gps_ekf_fn.wasm dist/gps_ekf.wasm
 
-.PHONY: ekf.install
-ekf.install: ../runtime/bin/ekf_wasm.so
+.PHONY: gps_ekf.install
+gps_ekf.install: ../runtime/bin/gps_ekf.wasm.so
 
 # CIFAR10
 ./wasmception_apps/CMSIS_5_NN/cifar10.wasm:
@@ -87,7 +87,7 @@ dist/cifar10.wasm: ./wasmception_apps/CMSIS_5_NN/cifar10.wasm dist
 	@cp ./wasmception_apps/CMSIS_5_NN/cifar10.wasm dist/cifar10.wasm
 
 .PHONY: cifar10.install
-cifar10.install: ../runtime/bin/cifar10_wasm.so
+cifar10.install: ../runtime/bin/cifar10.wasm.so
 
 # GOCR
 ./wasmception_apps/gocr/src/gocr.wasm:
@@ -97,24 +97,24 @@ dist/gocr.wasm: ./wasmception_apps/gocr/src/gocr.wasm dist
 	@cp ./wasmception_apps/gocr/src/gocr.wasm dist/gocr.wasm
 
 .PHONY: gocr.install
-gocr.install: ../runtime/bin/gocr_wasm.so
+gocr.install: ../runtime/bin/gocr.wasm.so
 
 # LPD
 ./wasmception_apps/sod/bin/license_plate_detection.wasm:
 	@make dir license_plate_detection.wasm -C ./wasmception_apps/sod/
 
-dist/lpd.wasm: ./wasmception_apps/sod/bin/license_plate_detection.wasm dist
-	@cp ./wasmception_apps/sod/bin/license_plate_detection.wasm dist/lpd.wasm
+dist/license_plate_detection.wasm: ./wasmception_apps/sod/bin/license_plate_detection.wasm dist
+	@cp ./wasmception_apps/sod/bin/license_plate_detection.wasm dist/license_plate_detection.wasm
 
-.PHONY: lpd.install
-lpd.install: ../runtime/bin/lpd_wasm.so
+.PHONY: license_plate_detection.install
+license_plate_detection.install: ../runtime/bin/license_plate_detection.wasm.so
 
 # Resize
 ./wasmception_apps/sod/bin/resize_image.wasm:
 	@make dir resize_image.wasm -C ./wasmception_apps/sod/
 
-dist/resize.wasm: ./wasmception_apps/sod/bin/resize_image.wasm dist
-	@cp ./wasmception_apps/sod/bin/resize_image.wasm dist/resize.wasm
+dist/resize_image.wasm: ./wasmception_apps/sod/bin/resize_image.wasm dist
+	@cp ./wasmception_apps/sod/bin/resize_image.wasm dist/resize_image.wasm
 
-.PHONY: resize.install
-resize.install: ../runtime/bin/resize_wasm.so
+.PHONY: resize_image.install
+resize_image.install: ../runtime/bin/resize_image.wasm.so

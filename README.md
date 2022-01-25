@@ -33,7 +33,7 @@ cd /sledge/runtime
 make clean all
 ```
 
-There are a set of benchmarking applications in the `/sledge/applications` directory. Run the following to compile all benchmarks runtime tests using the aWsm compiler and then copy all resulting `<application>_wasm.so` files to /sledge/runtime/bin.
+There are a set of benchmarking applications in the `/sledge/applications` directory. Run the following to compile all benchmarks runtime tests using the aWsm compiler and then copy all resulting `<application>.wasm.so` files to /sledge/runtime/bin.
 
 ```bash
 cd /sledge/applications/
@@ -61,7 +61,7 @@ An SLEdge serverless function consists of a shared library (\*.so) and a JSON co
 ```json
 {
   "name": "fibonacci",
-  "path": "fibonacci_wasm.so",
+  "path": "fibonacci.wasm.so",
   "port": 10000,
   "expected-execution-us": 600,
   "relative-deadline-us": 2000,
