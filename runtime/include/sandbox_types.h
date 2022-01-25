@@ -21,7 +21,6 @@
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 #endif
 
-
 #define u8 uint8_t
 VEC(u8)
 
