@@ -112,8 +112,8 @@ fibonacci__bimodal: ./runtime/bin/fibonacci.wasm.so
 
 PHONY: empty__concurrency
 empty__concurrency: ./runtime/bin/empty.wasm.so
-	# ./tests/empty/concurrency/ && install.sh
-	./tests/empty/concurrency/ && run.sh
+	# cd ./tests/empty/concurrency/ && ./install.sh
+	cd ./tests/empty/concurrency/ && ./run.sh
 
 all: \
 	gocr__all \
