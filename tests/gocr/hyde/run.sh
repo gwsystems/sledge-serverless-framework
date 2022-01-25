@@ -1,7 +1,7 @@
 #!/bin/bash
 
 __run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
-__run_sh__bash_libraries_relative_path="../../../bash_libraries"
+__run_sh__bash_libraries_relative_path="../../bash_libraries"
 __run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
 export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
@@ -17,12 +17,11 @@ experiment_client() {
 	local -r results_directory="$2"
 
 	local -r expected_result="$(cat ./expected_result.txt)"
-
 	local -i success_count=0
 	local -ir total_count=10
 
 	for ((i = 0; i < total_count; i++)); do
-		result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@handwrt1.pnm" "$hostname:10000" 2> /dev/null)
+		result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@hyde.pnm" "$hostname:10000" 2> /dev/null)
 		if [[ "$result" == "$expected_result" ]]; then
 			((success_count++))
 		else
