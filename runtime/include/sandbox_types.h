@@ -13,7 +13,7 @@
 #include "ps_list.h"
 #include "sandbox_state.h"
 #include "sandbox_state_history.h"
-#include "vec_u8.h"
+#include "vec.h"
 #include "wasm_memory.h"
 #include "wasm_types.h"
 #include "wasm_stack.h"
@@ -21,6 +21,9 @@
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 #define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
 #endif
+
+#define u8 uint8_t
+VEC(u8)
 
 /*********************
  * Structs and Types *
