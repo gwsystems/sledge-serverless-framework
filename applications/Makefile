@@ -103,7 +103,7 @@ gocr.install: ../runtime/bin/gocr.wasm.so
 ./wasmception_apps/sod/bin/license_plate_detection.wasm:
 	@make dir license_plate_detection.wasm -C ./wasmception_apps/sod/
 
-dist/lpd.wasm: ./wasmception_apps/sod/bin/license_plate_detection.wasm dist
+dist/license_plate_detection.wasm: ./wasmception_apps/sod/bin/license_plate_detection.wasm dist
 	@cp ./wasmception_apps/sod/bin/license_plate_detection.wasm dist/license_plate_detection.wasm
 
 .PHONY: license_plate_detection.install
@@ -113,7 +113,7 @@ license_plate_detection.install: ../runtime/bin/license_plate_detection.wasm.so
 ./wasmception_apps/sod/bin/resize_image.wasm:
 	@make dir resize_image.wasm -C ./wasmception_apps/sod/
 
-dist/resize.wasm: ./wasmception_apps/sod/bin/resize_image.wasm dist
+dist/resize_image.wasm: ./wasmception_apps/sod/bin/resize_image.wasm dist
 	@cp ./wasmception_apps/sod/bin/resize_image.wasm dist/resize_image.wasm
 
 .PHONY: resize_image.install
