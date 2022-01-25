@@ -2,7 +2,7 @@
 
 # Add bash_libraries directory to path
 __run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
-__run_sh__bash_libraries_relative_path="../../../bash_libraries"
+__run_sh__bash_libraries_relative_path="../../bash_libraries"
 __run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
 export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 

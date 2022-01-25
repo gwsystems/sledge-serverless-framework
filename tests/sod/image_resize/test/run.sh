@@ -5,7 +5,7 @@ __run_sh__bash_libraries_relative_path="../../../bash_libraries"
 __run_sh__bash_libraries_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__bash_libraries_relative_path" && pwd)
 export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
-__run_sh__project_base_relative_path="../../../../.."
+__run_sh__project_base_relative_path="../../../.."
 __run_sh__project_base_absolute_path=$(cd "$__run_sh__base_path" && cd "$__run_sh__project_base_relative_path" && pwd)
 
 source csv_to_dat.sh || exit 1
