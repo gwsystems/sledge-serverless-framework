@@ -46,7 +46,7 @@ current_sandbox_set(struct sandbox *sandbox)
 		worker_thread_current_sandbox                      = NULL;
 		runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	} else {
-		memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, sandbox->memory,
+		memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, &sandbox->memory->abi,
 		       sizeof(struct sledge_abi__wasm_memory));
 		sledge_abi__current_wasm_module_instance.abi.table = sandbox->module->indirect_table,
 		worker_thread_current_sandbox                      = sandbox;
@@ -87,6 +87,6 @@ static inline void
 current_sandbox_memory_writeback(void)
 {
 	struct sandbox *current_sandbox = current_sandbox_get();
-	memcpy(current_sandbox->memory, &sledge_abi__current_wasm_module_instance.abi.memory,
+	memcpy(&current_sandbox->memory->abi, &sledge_abi__current_wasm_module_instance.abi.memory,
 	       sizeof(struct sledge_abi__wasm_memory));
 }

@@ -43,22 +43,8 @@ struct sledge_abi__wasm_module_instance {
 	/* Private runtime state follows */
 };
 
-/* Based on example traps listed at https://webassembly.org/docs/security/ */
-enum sledge_abi__wasm_trap
-{
-	WASM_TRAP_EXIT                          = 1,
-	WASM_TRAP_INVALID_INDEX                 = 2,
-	WASM_TRAP_MISMATCHED_FUNCTION_TYPE      = 3,
-	WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW = 4,
-	WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY   = 5,
-	WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION  = 6,
-	WASM_TRAP_MISMATCHED_GLOBAL_TYPE        = 7,
-	WASM_TRAP_COUNT
-};
-
 /* Symbols expected from sledgert */
 
-extern void    sledge_abi__wasm_trap_raise(enum sledge_abi__wasm_trap trapno);
 extern int32_t sledge_abi__wasm_memory_expand(struct sledge_abi__wasm_memory *wasm_memory, uint32_t page_count);
 void           sledge_abi__wasm_memory_initialize_region(struct sledge_abi__wasm_memory *wasm_memory, uint32_t offset,
                                                          uint32_t region_size, uint8_t region[]);
