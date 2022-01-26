@@ -79,19 +79,21 @@ jobs:
             ~/.cargo/git
             ./awsm/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('./awsm/Cargo.lock') }}
-      - name: Compile aWsm
+      - name: Compile sledge
         run: |
-          make awsm
+          make build 
+          make rtinit
+          mkdir bin
+          mkdir lib
+          SYS_PREFIX="$(pwd)" ./install.sh
+          PATH="$(pwd)/bin:$PATH"
+          echo "$PATH" >> $GITHUB_PATH
+          LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          make build-validate
       - name: Compile libsledge
         run: |
           make libsledge
-      - name: Compile SLEdge
-        run: |
-          make runtime
-      - name: Debug Permissions Issues
-        run: |
-          ls -al $(dirname $(which wasm32-unknown-unknown-wasm-clang))
-          whoami
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache gocr
         uses: actions/cache@v2

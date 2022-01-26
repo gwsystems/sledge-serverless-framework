@@ -52,3 +52,6 @@ runtime:
 install: build rtinit
 	@./install.sh wasmception
 
+.PHONY: libsledge
+libsledge:
+	make -C libsledge clean all
