@@ -3,7 +3,7 @@ name: sledge
 on: [push, pull_request]
 
 env:
-LLVM_VERSION: 8
+  LLVM_VERSION: 8
   WASMCEPTION_URL: https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
   LANG: C.UTF-8
   LANGUAGE: C.UTF-8
