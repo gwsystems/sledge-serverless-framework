@@ -8,7 +8,7 @@ extern void     populate_globals(void);
 extern void     populate_memory(void);
 extern void     populate_table(void);
 extern void     populate_table(void);
-extern void     wasmf_internal___init_libc(int32_t, int32_t);
+extern void     wasmf___init_libc(int32_t, int32_t);
 extern int32_t  wasmf_main(int32_t, int32_t);
 extern uint32_t starting_pages;
 extern uint32_t max_pages;
@@ -38,7 +38,7 @@ EXPORT void
 sledge_abi__init_libc(int32_t envp, int32_t pn)
 {
 	/* TODO: Figure out how to properly export */
-	wasmf_internal___init_libc(envp, pn);
+	wasmf___init_libc(envp, pn);
 }
 
 EXPORT int32_t
