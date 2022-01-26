@@ -3,9 +3,8 @@ name: sledge
 on: [push, pull_request]
 
 env:
-  LLVM_VERSION: 8
+LLVM_VERSION: 8
   WASMCEPTION_URL: https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
-  # WASI_SDK: /opt/wasi-sdk
   LANG: C.UTF-8
   LANGUAGE: C.UTF-8
   LC_ALL: C.UTF-8
@@ -61,10 +60,6 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
           echo "/root/.cargo/bin:$PATH" >> $GITHUB_PATH
-      # - name: Get WASI-SDK
-      #   run: |
-      #     curl -sS -L -O https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-8/wasi-sdk_8.0_amd64.deb && sudo dpkg -i wasi-sdk_8.0_amd64.deb && rm -f wasi-sdk_8.0_amd64.deb
-      #     echo "ENV WASI_SDK=/opt/wasi-sdk" >> $GITHUB_ENV
       - name: Install Test Script Utilities
         run: |
           sudo apt-get install -y --no-install-recommends \
@@ -84,18 +79,15 @@ jobs:
             ~/.cargo/git
             ./awsm/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('./awsm/Cargo.lock') }}
-      - name: Compile sledge
+      - name: Compile aWsm
         run: |
-          make build 
-          make rtinit
-          mkdir bin
-          mkdir lib
-          SYS_PREFIX="$(pwd)" ./install.sh
-          PATH="$(pwd)/bin:$PATH"
-          echo "$PATH" >> $GITHUB_PATH
-          LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
-          make build-validate
+          make awsm
+      - name: Compile libsledge
+        run: |
+          make libsledge
+      - name: Compile SLEdge
+        run: |
+          make runtime
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache gocr
         uses: actions/cache@v2
@@ -112,7 +104,7 @@ jobs:
         if: failure()
         with:
           name: hyde-logs
-          path: ./runtime/experiments/applications/ocr/hyde/res/**/
+          path: ./tests/gocr/hyde/res/**/
       - name: Handwriting
         run: |
           make -f test.mk gocr__handwriting
@@ -138,7 +130,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gps_ekf.wasm.so
-          key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/wasmception_apps/TinyEKF/**', './runtime/compiletime/**') }}
+           key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/wasmception_apps/TinyEKF/**', './runtime/compiletime/**') }}
         if: success() || failure()
       - name: EKF one iteration
         run: |
