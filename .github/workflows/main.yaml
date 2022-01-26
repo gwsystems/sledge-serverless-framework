@@ -88,6 +88,10 @@ jobs:
       - name: Compile SLEdge
         run: |
           make runtime
+      - name: Debug Permissions Issues
+        run: |
+          ls -al $(dirname $(which wasm32-unknown-unknown-wasm-clang))
+          whoami
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache gocr
         uses: actions/cache@v2
