@@ -50,7 +50,8 @@ current_sandbox_set(struct sandbox *sandbox)
 		memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, &sandbox->memory->abi,
 		       sizeof(struct sledge_abi__wasm_memory));
 		sledge_abi__current_wasm_module_instance.abi.table = sandbox->module->indirect_table;
-		wasm_globals_update_if_used(sandbox->globals, 0, &sledge_abi__current_wasm_module_instance.abi.wasmg_0);
+		wasm_globals_update_if_used(&sandbox->globals, 0,
+		                            &sledge_abi__current_wasm_module_instance.abi.wasmg_0);
 		worker_thread_current_sandbox                      = sandbox;
 		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 	}

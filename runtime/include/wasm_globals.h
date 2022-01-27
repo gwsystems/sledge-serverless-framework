@@ -36,15 +36,15 @@ typedef struct wasm_global {
 VEC(wasm_global_t)
 
 static inline void
-wasm_globals_free(struct vec_wasm_global_t *globals)
+wasm_globals_deinit(struct vec_wasm_global_t *globals)
 {
-	vec_wasm_global_t_free(globals);
+	vec_wasm_global_t_deinit(globals);
 }
 
-static inline struct vec_wasm_global_t *
-wasm_globals_alloc(uint32_t capacity)
+static inline int
+wasm_globals_init(struct vec_wasm_global_t *globals, uint32_t capacity)
 {
-	return vec_wasm_global_t_alloc(capacity);
+	return vec_wasm_global_t_init(globals, capacity);
 }
 
 static inline void
