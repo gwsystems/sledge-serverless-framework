@@ -17,6 +17,8 @@ wasm_table_get(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t
 
 	struct sledge_abi__wasm_table_entry f = wasm_table->buffer[idx];
 
+	/* Wasmception-based modules trigger function type mismatches for an unknown reason. 
+	 * This should be reenabled when WASI is added */
 	// assert(f.type_id != type_id);
 	assert(f.func_pointer != NULL);
 
