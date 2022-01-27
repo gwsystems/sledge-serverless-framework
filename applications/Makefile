@@ -5,14 +5,12 @@ CC=clang-8
 AWSMFLAGS= --inline-constant-globals --runtime-globals
 
 # Used by clang when compiling the *.so module
-CFLAGS=-O3
-LDFLAGS=--shared -fPIC -flto
+# --whole-archive causes the symbols in the listed static archive to be exported from the resulting *.so
+# https://stackoverflow.com/questions/805555/ld-linker-question-the-whole-archive-option
+CFLAGS=-O3 -flto
+LDFLAGS=-shared -fPIC -Wl,--export-dynamic,--whole-archive -L../libsledge/dist/ -lsledge -Wl,--no-whole-archive -lm
+# LDFLAGS=-flto -fvisibility=hidden
 
-# Compiletime Components to link into *.so
-SLEDGE_BASE_DIR=../
-SLEDGE_RT_DIR=${SLEDGE_BASE_DIR}/runtime/
-SLEDGE_COMPILETIME_INC=${SLEDGE_RT_DIR}/include
-SLEDGE_COMPILETIME_SRC=${SLEDGE_RT_DIR}/compiletime/*.c
 
 .PHONY: all
 all: \
@@ -39,12 +37,18 @@ clean:
 dist:
 	mkdir -p dist
 
+../libsledge/dist/:
+	mkdir ../libsledge/dist
+
+../libsledge/dist/libsledge.a: ../libsledge/dist/
+	make -C .. libsledge
+
 %.bc: %.wasm dist
 	${AWSMCC} ${AWSMFLAGS} $< -o $@
 
-%.wasm.so: %.bc ${SLEDGE_COMPILETIME_SRC}
+%.wasm.so: %.bc
 	mkdir -p dist
-	${CC} ${CFLAGS} ${LDFLAGS} -I${SLEDGE_COMPILETIME_INC} $^ -o $@
+	${CC} ${CFLAGS} ${LDFLAGS} $^ -o $@
 
 ../runtime/bin/%.wasm.so: dist/%.wasm.so
 	cp $^ $@

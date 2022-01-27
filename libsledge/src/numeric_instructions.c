@@ -1,13 +1,11 @@
-#include <assert.h>
+#include <limits.h>
 #include <math.h>
 
-#include "types.h"
+#include "sledge_abi.h"
 
-#define CHAR_BIT 8
-
-// TODO: Throughout here we use `assert` for error conditions, which isn't optimal
-// Instead we should use `unlikely` branches to a single trapping function (which should optimize better)
-// The below functions are for implementing WASM instructions
+#define INLINE      __attribute__((always_inline))
+#define likely(X)   __builtin_expect(!!(X), 1)
+#define unlikely(X) __builtin_expect(!!(X), 0)
 
 // ROTL and ROTR helper functions
 INLINE uint32_t

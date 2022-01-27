@@ -45,7 +45,7 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 	        sandbox->duration_of_state[SANDBOX_RUNNING_SYS], sandbox->duration_of_state[SANDBOX_RUNNING_USER],
 	        sandbox->duration_of_state[SANDBOX_ASLEEP], sandbox->duration_of_state[SANDBOX_RETURNED],
 	        sandbox->duration_of_state[SANDBOX_COMPLETE], sandbox->duration_of_state[SANDBOX_ERROR],
-	        runtime_processor_speed_MHz, sandbox->memory->size);
+	        runtime_processor_speed_MHz, sandbox->memory->abi.size);
 }
 
 static inline void

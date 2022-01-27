@@ -28,7 +28,8 @@ sandbox_setup_arguments(struct sandbox *sandbox)
 	assert(rc == 0);
 
 	/* We have to update our cache here */
-	memcpy(&current_wasm_module_instance.memory, sandbox->memory, sizeof(struct wasm_memory));
+	memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, &sandbox->memory->abi,
+	       sizeof(struct sledge_abi__wasm_memory));
 
 	stub_init(sandbox->arguments_offset);
 }

@@ -122,7 +122,7 @@ module_free(struct module *module)
 	if (module->reference_count) return;
 
 	close(module->socket_descriptor);
-	awsm_abi_deinit(&module->abi);
+	sledge_abi_symbols_deinit(&module->abi);
 	free(module);
 }
 
@@ -136,7 +136,7 @@ module_init(struct module *module, char *name, char *path, uint32_t stack_size, 
 
 	atomic_init(&module->reference_count, 0);
 
-	rc = awsm_abi_init(&module->abi, path);
+	rc = sledge_abi_symbols_init(&module->abi, path);
 	if (rc != 0) goto err;
 
 	/* Set fields in the module struct */

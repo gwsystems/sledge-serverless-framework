@@ -103,7 +103,8 @@
 		"sandbox_set_as_running_sys.h": "c",
 		"wasm_module_instance.h": "c",
 		"wasm_stack.h": "c",
-		"wasm_table.h": "c"
+		"wasm_table.h": "c",
+		"sledge_abi.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	fonts-cascadia-code \
 	fonts-roboto \
 	gnuplot \
+	httpie \
 	imagemagick \
 	jq \
 	libz3-4 \

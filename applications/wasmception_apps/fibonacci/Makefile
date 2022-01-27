@@ -1,6 +1,6 @@
 WASMCC=wasm32-unknown-unknown-wasm-clang
 OPTFLAGS=-O3 -flto
-WASMLINKFLAGS=-Wl,-z,stack-size=524288,--allow-undefined,--no-threads,--stack-first,--no-entry,--export-all,--export=main,--export=dummy
+WASMLINKFLAGS=-Wl,-z,stack-size=524288,--allow-undefined,--no-threads,--stack-first,--no-entry,--export=main,--export=dummy,--export=__init_libc
 WASMCFLAGS=${WASMLINKFLAGS} -nostartfiles
 
 all: fibonacci.wasm

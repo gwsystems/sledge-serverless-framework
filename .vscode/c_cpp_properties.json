@@ -8,7 +8,8 @@
 				"${workspaceFolder}/runtime/include/",
 				"${workspaceFolder}/runtime/thirdparty/ck/include/",
 				"${workspaceFolder}/runtime/thirdparty/http-parser/",
-				"${workspaceFolder}/runtime/thirdparty/jsmn/"
+				"${workspaceFolder}/runtime/thirdparty/jsmn/",
+				"${workspaceFolder}/libsledge/include"
 			],
 			"defines": [
 				"x86_64",
