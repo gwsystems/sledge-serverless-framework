@@ -46,7 +46,6 @@ sledge_abi__init_tbl(void)
 EXPORT void
 sledge_abi__init_libc(int32_t envp, int32_t pn)
 {
-	/* TODO: Figure out how to properly export */
 	wasmf___init_libc(envp, pn);
 }
 
