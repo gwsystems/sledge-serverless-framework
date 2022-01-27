@@ -1,6 +1,5 @@
 #include "sledge_abi.h"
 
-#define unlikely(X)         __builtin_expect(!!(X), 0)
 #define INDIRECT_TABLE_SIZE (1 << 10)
 #define INLINE              __attribute__((always_inline))
 #define likely(X)           __builtin_expect(!!(X), 1)
