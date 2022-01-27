@@ -104,9 +104,6 @@
 		"wasm_module_instance.h": "c",
 		"wasm_stack.h": "c",
 		"wasm_table.h": "c",
-		"__bit_reference": "c",
-		"memory": "c",
-		"thread": "c",
 		"sledge_abi.h": "c"
 	},
 	"files.exclude": {
