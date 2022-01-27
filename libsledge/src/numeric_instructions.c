@@ -1,8 +1,8 @@
+#include <limits.h>
 #include <math.h>
 
 #include "sledge_abi.h"
 
-#define CHAR_BIT    8
 #define INLINE      __attribute__((always_inline))
 #define likely(X)   __builtin_expect(!!(X), 1)
 #define unlikely(X) __builtin_expect(!!(X), 0)
