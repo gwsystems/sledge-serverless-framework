@@ -1,6 +1,5 @@
 #include "sledge_abi.h"
 
-#define unlikely(X)         __builtin_expect(!!(X), 0)
 #define INDIRECT_TABLE_SIZE (1 << 10)
 #define INLINE              __attribute__((always_inline))
 #define likely(X)           __builtin_expect(!!(X), 1)
@@ -38,25 +37,15 @@ wasm_table_get(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t
 }
 
 static INLINE void
-wasm_table_set(struct sledge_abi__wasm_table *sledge_abi__wasm_table, uint32_t idx, uint32_t type_id, char *pointer)
+wasm_table_set(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t type_id, char *pointer)
 {
-	assert(sledge_abi__wasm_table != NULL);
-
-	if (unlikely(idx >= sledge_abi__wasm_table->capacity)) {
-		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
-		sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
-	}
-
+	assert(wasm_table != NULL);
+	assert(idx < wasm_table->capacity);
 	assert(pointer != NULL);
 
-	if (sledge_abi__wasm_table->buffer[idx].type_id == type_id
-	    && sledge_abi__wasm_table->buffer[idx].func_pointer == pointer)
-		return;
-
-	sledge_abi__wasm_table->buffer[idx] = (struct sledge_abi__wasm_table_entry){ .type_id      = type_id,
-		                                                                     .func_pointer = pointer };
+	if (wasm_table->buffer[idx].type_id == type_id && wasm_table->buffer[idx].func_pointer == pointer) return;
+	wasm_table->buffer[idx] = (struct sledge_abi__wasm_table_entry){ .type_id = type_id, .func_pointer = pointer };
 }
-
 
 INLINE void
 add_function_to_table(uint32_t idx, uint32_t type_id, char *pointer)

@@ -59,10 +59,7 @@ sandbox_allocate_globals(struct sandbox *sandbox)
 	assert(sandbox);
 	assert(sandbox->module);
 
-	sandbox->globals = wasm_globals_alloc(100);
-	if (sandbox->globals == NULL) return -1;
-
-	return 0;
+	return wasm_globals_init(&sandbox->globals, 10);
 }
 
 static inline void
@@ -70,10 +67,9 @@ sandbox_free_globals(struct sandbox *sandbox)
 {
 	assert(sandbox);
 	assert(sandbox->module);
-	assert(sandbox->globals != NULL);
+	assert(sandbox->globals.buffer != NULL);
 
-	wasm_globals_free(sandbox->globals);
-	sandbox->globals = NULL;
+	wasm_globals_deinit(&sandbox->globals);
 }
 
 static inline void
@@ -131,6 +127,7 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 		error_message = "failed to allocate globals";
 		goto err_globals_allocation_failed;
 	}
+	
 	/* Allocate linear memory in a 4GB address space */
 	if (sandbox_allocate_linear_memory(sandbox)) {
 		error_message = "failed to allocate sandbox linear memory";
@@ -230,7 +227,7 @@ sandbox_deinit(struct sandbox *sandbox)
 
 	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
 
-	if (likely(sandbox->globals != NULL)) sandbox_free_globals(sandbox);
+	if (likely(sandbox->globals.buffer != NULL)) sandbox_free_globals(sandbox);
 }
 
 /**

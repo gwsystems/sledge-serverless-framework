@@ -146,7 +146,6 @@ The path to the JSON file is passed to `module_alloc_from_json`, which uses the 
 
 `module init` then calls `module.abi.initialize_table`, which populates the indirect function table with the actual functions. This is performed once during module initialization because this table does not actually vary between instances of a module.
 
-
 # SLEdge \*.so Module Instantiation
 
 When `sledgert` receives a request at the registered port specified in the JSON, it performs assorted allocation and initialization steps. The scheduler sets the expected ABI symbols and yields to `current_sandbox_start`, which immediately calls `current_sandbox_init`. This function initializes the associated runtime state and

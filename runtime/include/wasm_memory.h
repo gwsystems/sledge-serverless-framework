@@ -69,7 +69,7 @@ wasm_memory_alloc(uint64_t initial, uint64_t max)
 	return wasm_memory;
 }
 
-static INLINE int
+static INLINE int32_t
 wasm_memory_init(struct wasm_memory *wasm_memory, uint64_t initial, uint64_t max)
 {
 	assert(wasm_memory != NULL);
@@ -129,7 +129,7 @@ wasm_memory_reinit(struct wasm_memory *wasm_memory, uint64_t initial)
 	wasm_memory->abi.size = initial;
 }
 
-static int
+static INLINE int32_t
 wasm_memory_expand(struct wasm_memory *wasm_memory, uint64_t size_to_expand)
 {
 	uint64_t target_size = wasm_memory->abi.size + size_to_expand;

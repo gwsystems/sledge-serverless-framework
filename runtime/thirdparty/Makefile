@@ -70,4 +70,3 @@ clean:
 	-@test -f ck/Makefile && make -k -C ck uninstall || echo "Makefile not generated. Skipping!"
 	-@rm -f ck/Makefile
 	-@rm -rf ${DIST_PREFIX}
-

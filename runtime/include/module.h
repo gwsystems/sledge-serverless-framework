@@ -11,6 +11,7 @@
 #include "http.h"
 #include "panic.h"
 #include "pool.h"
+#include "sledge_abi_symbols.h"
 #include "types.h"
 #include "sledge_abi_symbols.h"
 #include "wasm_stack.h"
@@ -112,8 +113,8 @@ module_initialize_globals(struct module *module)
  * initialization is complete.
  *
  * assumption: This approach depends on module_alloc only being invoked at program start before preemption is
- * enabled. We are check that sledge_abi__current_wasm_module_instance.table is NULL to gain confidence that
- * we are not invoking this in a way that clobbers a current module.
+ * enabled. We are check that sledge_abi__current_wasm_module_instance.abi.table is NULL to gain confidence
+ * that we are not invoking this in a way that clobbers a current module.
  *
  * If we want to be able to do this later, we can possibly defer module_initialize_table until the first
  * invocation. Alternatively, we can maintain the table per sandbox and call initialize

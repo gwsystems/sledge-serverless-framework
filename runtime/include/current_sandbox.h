@@ -40,7 +40,8 @@ current_sandbox_set(struct sandbox *sandbox)
 			        .max      = 0,
 			        .buffer   = NULL,
 			      },
-			    .table = NULL,
+			    .table   = NULL,
+			    .wasmg_0 = 0,
 			  },
 			/* Private */
 			.wasi_context = NULL,
@@ -48,12 +49,14 @@ current_sandbox_set(struct sandbox *sandbox)
 		worker_thread_current_sandbox                      = NULL;
 		runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	} else {
-		memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, sandbox->memory,
-		       sizeof(struct sledge_abi__wasm_memory));
-		sledge_abi__current_wasm_module_instance.abi.table    = sandbox->module->indirect_table,
-		worker_thread_current_sandbox                         = sandbox;
-		runtime_worker_threads_deadline[worker_thread_idx]    = sandbox->absolute_deadline;
 		sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
+		memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, &sandbox->memory->abi,
+		       sizeof(struct sledge_abi__wasm_memory));
+		sledge_abi__current_wasm_module_instance.abi.table = sandbox->module->indirect_table;
+		wasm_globals_update_if_used(&sandbox->globals, 0,
+		                            &sledge_abi__current_wasm_module_instance.abi.wasmg_0);
+		worker_thread_current_sandbox                      = sandbox;
+		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 	}
 }
 
@@ -90,7 +93,7 @@ static inline void
 current_sandbox_memory_writeback(void)
 {
 	struct sandbox *current_sandbox = current_sandbox_get();
-	memcpy(current_sandbox->memory, &sledge_abi__current_wasm_module_instance.abi.memory,
+	memcpy(&current_sandbox->memory->abi, &sledge_abi__current_wasm_module_instance.abi.memory,
 	       sizeof(struct sledge_abi__wasm_memory));
 }
 

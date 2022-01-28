@@ -18,7 +18,7 @@ ${SLEDGE_BINARY_DIR}/sledgert:
 sledgert: ${SLEDGE_BINARY_DIR}/sledgert
 
 ${SLEDGE_BINARY_DIR}/fibonacci.wasm.so:
-	make -C .. fibonacci.install
+	make -C ../../../applications fibonacci.install
 
 .PHONY: fibonacci
 fibonacci: ${SLEDGE_BINARY_DIR}/fibonacci.wasm.so

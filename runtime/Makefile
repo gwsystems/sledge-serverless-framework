@@ -25,7 +25,6 @@ CFLAGS+=-O3 -flto
 # Undefined Sanitizer - https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
 # CFLAGS+=-fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds,nullability
 
-
 # Clang SafeStack - https://clang.llvm.org/docs/SafeStack.html
 # CFLAGS+=-fsanitize=safe-stack
 

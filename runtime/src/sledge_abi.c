@@ -45,26 +45,26 @@ EXPORT int32_t
 sledge_abi__wasm_globals_get_i32(uint32_t idx)
 {
 	struct sandbox *current = current_sandbox_get();
-	return wasm_globals_get_i32(current->globals, idx);
+	return wasm_globals_get_i32(&current->globals, idx);
 }
 
 EXPORT int64_t
 sledge_abi__wasm_globals_get_i64(uint32_t idx)
 {
 	struct sandbox *current = current_sandbox_get();
-	return wasm_globals_get_i64(current->globals, idx);
+	return wasm_globals_get_i64(&current->globals, idx);
 }
 
 EXPORT int32_t
 sledge_abi__wasm_globals_set_i32(uint32_t idx, int32_t value, bool is_mutable)
 {
 	struct sandbox *current = current_sandbox_get();
-	return wasm_globals_set_i32(current->globals, idx, value, true);
+	return wasm_globals_set_i32(&current->globals, idx, value, true);
 }
 
 EXPORT int32_t
 sledge_abi__wasm_globals_set_i64(uint32_t idx, int64_t value, bool is_mutable)
 {
 	struct sandbox *current = current_sandbox_get();
-	return wasm_globals_set_i64(current->globals, idx, value, true);
+	return wasm_globals_set_i64(&current->globals, idx, value, true);
 }
