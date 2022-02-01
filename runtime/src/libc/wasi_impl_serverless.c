@@ -5,7 +5,6 @@
 #include <limits.h>
 #include <math.h>
 #include <printf.h>
-#include <setjmp.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>

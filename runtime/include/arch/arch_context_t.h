@@ -1,6 +1,5 @@
 #pragma once
 
-#include <setjmp.h>
 #include <ucontext.h>
 
 #include "arch/reg_t.h"

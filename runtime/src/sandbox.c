@@ -127,7 +127,7 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 		error_message = "failed to allocate globals";
 		goto err_globals_allocation_failed;
 	}
-	
+
 	/* Allocate linear memory in a 4GB address space */
 	if (sandbox_allocate_linear_memory(sandbox)) {
 		error_message = "failed to allocate sandbox linear memory";

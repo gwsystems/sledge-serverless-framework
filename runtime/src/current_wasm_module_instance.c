@@ -16,16 +16,3 @@ thread_local struct wasm_module_instance sledge_abi__current_wasm_module_instanc
 	.abi.wasmg_0  = 0xDEADBEEF,
 	.wasi_context = NULL,
 };
-
-void
-sledge_abi__current_wasm_module_instance_trap(enum sledge_abi__wasm_trap trapno)
-{
-	assert(trapno != 0);
-	assert(trapno < WASM_TRAP_COUNT);
-
-	struct sandbox *sandbox = current_sandbox_get();
-	assert(sandbox != NULL);
-	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_RUNNING_SYS);
-
-	longjmp(sandbox->ctxt.start_buf, trapno);
-}

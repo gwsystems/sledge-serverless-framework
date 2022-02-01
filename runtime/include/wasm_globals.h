@@ -80,7 +80,6 @@ static inline int32_t
 wasm_globals_set_i32(struct vec_wasm_global_t *globals, uint32_t idx, int32_t value, bool is_mutable)
 {
 	wasm_global_t *current = vec_wasm_global_t_get(globals, idx);
-
 	assert(current->type == WASM_GLOBAL_TYPE_UNUSED || current->mut == true);
 
 	int rc = vec_wasm_global_t_insert(globals, idx,
@@ -93,7 +92,6 @@ static inline int32_t
 wasm_globals_set_i64(struct vec_wasm_global_t *globals, uint32_t idx, int64_t value, bool is_mutable)
 {
 	wasm_global_t *current = vec_wasm_global_t_get(globals, idx);
-
 	assert(current->type == WASM_GLOBAL_TYPE_UNUSED || current->mut == true);
 
 	int rc = vec_wasm_global_t_insert(globals, idx,
