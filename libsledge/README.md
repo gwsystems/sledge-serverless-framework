@@ -160,4 +160,3 @@ When `sledgert` receives a request at the registered port specified in the JSON,
 # Questions:
 
 - Should `sledge_abi__current_wasm_module_instance` be turned into a macro defined int the ABI header?
-- What happens if the runtime is executing and calls `sledge_abi__current_wasm_module_instance_trap`?

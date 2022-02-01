@@ -25,12 +25,7 @@ check_bounds(uint32_t offset, uint32_t bounds_check)
 INLINE char *
 get_memory_ptr_for_runtime(uint32_t offset, uint32_t length)
 {
-	if (unlikely(offset + length > sledge_abi__current_wasm_module_instance.abi.memory.size)) {
-		fprintf(stderr, "OOB: offset %u + length %u > size %lu\n", offset, length,
-		        sledge_abi__current_wasm_module_instance.abi.memory.size);
-		sledge_abi__current_wasm_module_instance_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
-
+	assert((uint64_t)offset + length < sledge_abi__current_wasm_module_instance.abi.memory.size);
 	char *mem_as_chars = (char *)sledge_abi__current_wasm_module_instance.abi.memory.buffer;
 	char *address      = &mem_as_chars[offset];
 	return address;
