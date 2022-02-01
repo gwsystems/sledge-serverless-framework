@@ -1,4 +1,6 @@
 #include "current_sandbox.h"
+#include "sandbox_set_as_running_sys.h"
+#include "sandbox_set_as_running_user.h"
 #include "sledge_abi.h"
 #include "wasm_memory.h"
 
@@ -7,7 +9,11 @@ sledge_abi__wasm_memory_expand(struct sledge_abi__wasm_memory *wasm_memory, uint
 {
 	int32_t old_page_count = wasm_memory->size / WASM_PAGE_SIZE;
 
+	struct sandbox *sandbox = current_sandbox_get();
+	sandbox_syscall(sandbox);
 	int rc = wasm_memory_expand((struct wasm_memory *)wasm_memory, page_count * WASM_PAGE_SIZE);
+	sandbox_return(sandbox);
+
 	if (unlikely(rc == -1)) return -1;
 
 	/* We updated "forked state" in sledge_abi__current_wasm_module_instance.memory. We need to write this back to
