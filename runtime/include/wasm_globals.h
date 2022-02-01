@@ -59,9 +59,8 @@ wasm_globals_get_i32(struct vec_wasm_global_t *globals, uint32_t idx)
 {
 	wasm_global_t *global = vec_wasm_global_t_get(globals, idx);
 
-	if (unlikely(global == NULL)) sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
-	if (unlikely(global->type != WASM_GLOBAL_TYPE_I32))
-		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_GLOBAL_TYPE);
+	assert(global != NULL);
+	assert(global->type == WASM_GLOBAL_TYPE_I32);
 
 	return global->value.i32;
 }
@@ -71,9 +70,8 @@ wasm_globals_get_i64(struct vec_wasm_global_t *globals, uint32_t idx)
 {
 	wasm_global_t *global = vec_wasm_global_t_get(globals, idx);
 
-	if (unlikely(global == NULL)) sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
-	if (unlikely(global->type != WASM_GLOBAL_TYPE_I64))
-		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_GLOBAL_TYPE);
+	assert(global != NULL);
+	assert(global->type == WASM_GLOBAL_TYPE_I64);
 
 	return global->value.i64;
 }
@@ -82,8 +80,8 @@ static inline int32_t
 wasm_globals_set_i32(struct vec_wasm_global_t *globals, uint32_t idx, int32_t value, bool is_mutable)
 {
 	wasm_global_t *current = vec_wasm_global_t_get(globals, idx);
-	if (unlikely(current->type != WASM_GLOBAL_TYPE_UNUSED && current->mut == false))
-		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_GLOBAL_TYPE);
+
+	assert(current->type == WASM_GLOBAL_TYPE_UNUSED || current->mut == true);
 
 	int rc = vec_wasm_global_t_insert(globals, idx,
 	                                  (wasm_global_t){
@@ -95,8 +93,8 @@ static inline int32_t
 wasm_globals_set_i64(struct vec_wasm_global_t *globals, uint32_t idx, int64_t value, bool is_mutable)
 {
 	wasm_global_t *current = vec_wasm_global_t_get(globals, idx);
-	if (unlikely(current->type != WASM_GLOBAL_TYPE_UNUSED && current->mut == false))
-		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_GLOBAL_TYPE);
+
+	assert(current->type == WASM_GLOBAL_TYPE_UNUSED || current->mut == true);
 
 	int rc = vec_wasm_global_t_insert(globals, idx,
 	                                  (wasm_global_t){

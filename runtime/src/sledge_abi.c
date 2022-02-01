@@ -2,12 +2,6 @@
 #include "sledge_abi.h"
 #include "wasm_memory.h"
 
-EXPORT void
-sledge_abi__wasm_trap_raise(enum sledge_abi__wasm_trap trapno)
-{
-	return current_sandbox_trap(trapno);
-}
-
 EXPORT int32_t
 sledge_abi__wasm_memory_expand(struct sledge_abi__wasm_memory *wasm_memory, uint32_t page_count)
 {
