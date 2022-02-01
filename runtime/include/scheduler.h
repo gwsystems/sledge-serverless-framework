@@ -254,6 +254,10 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	/* Preempt executing sandbox */
 	scheduler_log_sandbox_switch(interrupted_sandbox, next);
 	sandbox_preempt(interrupted_sandbox);
+
+	// Write back global at idx 0
+	sledge_abi__wasm_globals_set_i64(0, sledge_abi__current_wasm_module_instance.abi.wasmg_0, true);
+
 	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
 	scheduler_preemptive_switch_to(interrupted_context, next);
 }
