@@ -1119,9 +1119,7 @@ wasi_snapshot_preview1_backing_poll_oneoff(void *wasi_context, const __wasi_subs
 noreturn void
 wasi_snapshot_preview1_backing_proc_exit(void *wasi_context, __wasi_exitcode_t exitcode)
 {
-	struct sandbox *s = current_sandbox_get();
-	s->return_value   = exitcode;
-	longjmp(s->ctxt.start_buf, WASM_TRAP_EXIT);
+	assert(0);
 }
 
 /**
