@@ -45,7 +45,8 @@ BINARY_NAME=sledgert
 # Enables logs of WASI syscalls
 # CFLAGS += -DLOG_WASI
 
-# Writes sandbox stderr to host stderr
+# Sandbox writes to stdout and stderr are both written to the client socket
+# However, when set, stderr is also written to the host stderr to assist with debugging
 # CFLAGS += -DLOG_SANDBOX_STDERR
 
 # Strips out calls to assert() and disables debuglog
