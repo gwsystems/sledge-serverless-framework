@@ -128,10 +128,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			/* We transition the sandbox to an interrupted state to exclude time propagating signals and
 			 * running the scheduler from per-sandbox accounting */
 			sandbox_state_t interrupted_state = current_sandbox->state;
-			sandbox_interrupt(current_sandbox);
 			propagate_sigalrm(signal_info);
 			atomic_fetch_add(&deferred_sigalrm, 1);
-			sandbox_interrupt_return(current_sandbox, interrupted_state);
 		}
 
 		break;
