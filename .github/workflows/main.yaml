@@ -3,7 +3,7 @@ name: sledge
 on: [push, pull_request]
 
 env:
-  LLVM_VERSION: 12
+  LLVM_VERSION: 13
   WASI_SDK_URL: https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
   WASI_SDK_PATH: /opt/wasi-sdk
   LANG: C.UTF-8
