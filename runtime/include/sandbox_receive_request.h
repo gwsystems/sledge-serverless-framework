@@ -35,7 +35,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 		/* Read from the Socket */
 
 		/* Structured to closely follow usage example at https://github.com/nodejs/http-parser */
-		http_parser *               parser   = &sandbox->http_parser;
+		http_parser                *parser   = &sandbox->http_parser;
 		const http_parser_settings *settings = http_parser_settings_get();
 
 		size_t request_length   = request->length;

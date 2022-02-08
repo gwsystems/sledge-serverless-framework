@@ -254,6 +254,11 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	/* Preempt executing sandbox */
 	scheduler_log_sandbox_switch(interrupted_sandbox, next);
 	sandbox_preempt(interrupted_sandbox);
+
+	// Write back global at idx 0
+	wasm_globals_set_i64(&interrupted_sandbox->globals, 0, sledge_abi__current_wasm_module_instance.abi.wasmg_0,
+	                     true);
+
 	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
 	scheduler_preemptive_switch_to(interrupted_context, next);
 }
@@ -369,6 +374,9 @@ scheduler_cooperative_sched(bool add_to_completion_queue)
 	}
 
 	scheduler_log_sandbox_switch(exiting_sandbox, next_sandbox);
+
+	// Write back global at idx 0
+	wasm_globals_set_i64(&exiting_sandbox->globals, 0, sledge_abi__current_wasm_module_instance.abi.wasmg_0, true);
 
 	if (add_to_completion_queue) local_completion_queue_add(exiting_sandbox);
 	/* Do not touch sandbox struct after this point! */

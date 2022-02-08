@@ -87,16 +87,7 @@ wasm_table_get(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t
 	}
 
 	struct sledge_abi__wasm_table_entry f = wasm_table->buffer[idx];
-
-	if (unlikely(f.type_id != type_id)) {
-		fprintf(stderr, "Function Type mismatch. Expected: %u, Actual: %u\n", type_id, f.type_id);
-		sledge_abi__current_wasm_module_instance_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
-	}
-
-	if (unlikely(f.func_pointer == NULL)) {
-		fprintf(stderr, "Function Type mismatch. Index %u resolved to NULL Pointer\n", idx);
-		sledge_abi__current_wasm_module_instance_trap(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
-	}
+	assert(f.type_id == type_id);
 
 	assert(f.func_pointer != NULL);
 

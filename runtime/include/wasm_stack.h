@@ -23,9 +23,9 @@
 struct wasm_stack {
 	struct ps_list list;     /* Linked List Node used for object pool */
 	uint64_t       capacity; /* Usable capacity. Excludes size of guard page that we need to free */
-	uint8_t *      high;     /* The highest address of the stack. Grows down from here */
-	uint8_t *      low;      /* The address of the lowest useabe address. Above guard page */
-	uint8_t *      buffer;   /* Points base address of backing heap allocation (Guard Page) */
+	uint8_t       *high;     /* The highest address of the stack. Grows down from here */
+	uint8_t       *low;      /* The address of the lowest useabe address. Above guard page */
+	uint8_t       *buffer;   /* Points base address of backing heap allocation (Guard Page) */
 };
 
 static struct wasm_stack *wasm_stack_alloc(uint64_t capacity);

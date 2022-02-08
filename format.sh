@@ -1,7 +1,7 @@
 #!/bin/bash
 
 validate() {
-	utility="clang-format"
+	utility="clang-format-13"
 	utility_version="$("$utility" --version 2> /dev/null)" || {
 		echo "$utility not found in path!"
 		exit 1
@@ -11,7 +11,7 @@ validate() {
 	declare -i major=0
 	declare -i minor=0
 	declare -i patch=0
-	declare -i required_major=11
+	declare -i required_major=13
 	declare -i required_minor=0
 	declare -i required_patch=0
 
@@ -51,8 +51,8 @@ dry_run() {
 format() {
 	find runtime \
 		\( -path "runtime/thirdparty" -o -path "applications/gocr" -o -path "applications/TinyEKF" -o -path "applications/CMSIS_5_NN" -o -path "applications/sod" -o -path "applications/**/thirdparty" \) -prune -false -o \
-		-type f \( -iname \*.h -o -iname \*.c -o -iname \*.s \) -print \
-		| xargs clang-format -i
+		-type f \( -iname \*.h -o -iname \*.c -o -iname \*.s \) -print0 \
+		| xargs --null clang-format -i
 }
 
 case $1 in

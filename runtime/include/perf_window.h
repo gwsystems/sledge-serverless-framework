@@ -91,7 +91,7 @@ perf_window_add(struct perf_window *perf_window, uint64_t value)
 		for (int i = 0; i < PERF_WINDOW_BUFFER_SIZE; i++) {
 			perf_window->by_termination[i] = i;
 			perf_window->by_duration[i]    = (struct execution_node){ .execution_time     = value,
-                                                                               .by_termination_idx = i };
+				                                                  .by_termination_idx = i };
 		}
 		perf_window->count = PERF_WINDOW_BUFFER_SIZE;
 		goto done;

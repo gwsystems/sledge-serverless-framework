@@ -37,7 +37,7 @@ static INLINE uint32_t wasm_memory_get_page_count(struct wasm_memory *wasm_memor
 /* Reading and writing to wasm_memory */
 static INLINE void
 wasm_memory_initialize_region(struct wasm_memory *wasm_memory, uint32_t offset, uint32_t region_size, uint8_t region[]);
-static INLINE void *  wasm_memory_get_ptr_void(struct wasm_memory *wasm_memory, uint32_t offset, uint32_t size);
+static INLINE void   *wasm_memory_get_ptr_void(struct wasm_memory *wasm_memory, uint32_t offset, uint32_t size);
 static INLINE int8_t  wasm_memory_get_i8(struct wasm_memory *wasm_memory, uint32_t offset);
 static INLINE int16_t wasm_memory_get_i16(struct wasm_memory *wasm_memory, uint32_t offset);
 static INLINE int32_t wasm_memory_get_i32(struct wasm_memory *wasm_memory, uint32_t offset);
@@ -45,7 +45,7 @@ static INLINE int64_t wasm_memory_get_i64(struct wasm_memory *wasm_memory, uint3
 static INLINE float   wasm_memory_get_f32(struct wasm_memory *wasm_memory, uint32_t offset);
 static INLINE double  wasm_memory_get_f64(struct wasm_memory *wasm_memory, uint32_t offset);
 static INLINE char    wasm_memory_get_char(struct wasm_memory *wasm_memory, uint32_t offset);
-static INLINE char *  wasm_memory_get_string(struct wasm_memory *wasm_memory, uint32_t offset, uint32_t size);
+static INLINE char   *wasm_memory_get_string(struct wasm_memory *wasm_memory, uint32_t offset, uint32_t size);
 static INLINE void    wasm_memory_set_i8(struct wasm_memory *wasm_memory, uint32_t offset, int8_t value);
 static INLINE void    wasm_memory_set_i16(struct wasm_memory *wasm_memory, uint32_t offset, int16_t value);
 static INLINE void    wasm_memory_set_i32(struct wasm_memory *wasm_memory, uint32_t offset, int32_t value);

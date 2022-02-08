@@ -8,13 +8,8 @@ AWSMFLAGS= --inline-constant-globals --runtime-globals
 # --whole-archive causes the symbols in the listed static archive to be exported from the resulting *.so
 # https://stackoverflow.com/questions/805555/ld-linker-question-the-whole-archive-option
 CFLAGS=-O3 -flto
-LDFLAGS=-fPIC -Wl,--export-dynamic,--whole-archive -L../libsledge/dist/ -lsledge -Wl,--no-whole-archive
+LDFLAGS=-shared -fPIC -Wl,--export-dynamic,--whole-archive -L../libsledge/dist/ -lsledge -Wl,--no-whole-archive
 # LDFLAGS=-flto -fvisibility=hidden
-
-# Compiletime Components to link into *.so
-SLEDGE_BASE_DIR=../
-SLEDGE_RT_DIR=${SLEDGE_BASE_DIR}/runtime/
-SLEDGE_INSTALL_TARGET=${SLEDGE_RT_DIR}/bin/
 
 dist:
 	mkdir dist
@@ -51,7 +46,7 @@ dist/%.ll: dist/%.bc
 	llvm-dis-12 $< -o $@
 
 dist/%.wasm.so: dist/%.bc
-	${CC} --shared ${CFLAGS} ${LDFLAGS} $^ -o $@
+	${CC} ${CFLAGS} ${LDFLAGS} $^ -o $@
 
 ../runtime/bin/%.wasm.so: dist/%.wasm.so
 	cp $^ $@

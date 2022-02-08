@@ -14,7 +14,7 @@
 #include "sandbox_set_as_running_sys.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
-#include "wasi_impl.h"
+#include "wasi.h"
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
@@ -82,7 +82,7 @@ current_sandbox_exit()
 void
 current_sandbox_wasm_trap_handler(int trapno)
 {
-	char *          error_message = NULL;
+	char           *error_message = NULL;
 	struct sandbox *sandbox       = current_sandbox_get();
 	sandbox_syscall(sandbox);
 
