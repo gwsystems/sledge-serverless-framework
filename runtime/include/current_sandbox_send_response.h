@@ -32,7 +32,7 @@ current_sandbox_send_response()
 
 	/* Determine values to template into our HTTP response */
 	size_t      response_body_size  = response->length;
-	char *      module_content_type = sandbox->module->response_content_type;
+	char       *module_content_type = sandbox->module->response_content_type;
 	const char *content_type        = strlen(module_content_type) > 0 ? module_content_type : "text/plain";
 
 	/* Capture Timekeeping data for end-to-end latency */

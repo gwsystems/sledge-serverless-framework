@@ -715,7 +715,7 @@ wasi_snapshot_preview1_backing_fd_read(void *wasi_context, __wasi_fd_t fd, const
 {
 	/* Non-blocking copy on stdin */
 	if (fd == STDIN_FILENO) {
-		struct sandbox *     current_sandbox = current_sandbox_get();
+		struct sandbox      *current_sandbox = current_sandbox_get();
 		struct http_request *current_request = &current_sandbox->http_request;
 		int                  old_read        = current_request->body_read_length;
 		int                  bytes_to_read   = current_request->body_length - old_read;

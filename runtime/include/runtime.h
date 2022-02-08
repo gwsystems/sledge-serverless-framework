@@ -40,10 +40,10 @@ extern bool                         runtime_preemption_enabled;
 extern uint32_t                     runtime_processor_speed_MHz;
 extern uint32_t                     runtime_quantum_us;
 extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
-extern pthread_t *                  runtime_worker_threads;
+extern pthread_t                   *runtime_worker_threads;
 extern uint32_t                     runtime_worker_threads_count;
-extern int *                        runtime_worker_threads_argument;
-extern uint64_t *                   runtime_worker_threads_deadline;
+extern int                         *runtime_worker_threads_argument;
+extern uint64_t                    *runtime_worker_threads_deadline;
 
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);

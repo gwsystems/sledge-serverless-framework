@@ -144,10 +144,10 @@ sledge_abi__wasi_snapshot_preview1_args_get(__wasi_size_t argv_retoffset, __wasi
 	const __wasi_size_t argc = sandbox->wasi_context->argc;
 	if (unlikely(argc == 0)) { goto done; }
 
-	__wasi_size_t *     argv_retptr     = (__wasi_size_t *)get_memory_ptr_for_runtime(argv_retoffset,
-                                                                                 WASI_SERDES_SIZE_size_t * argc);
+	__wasi_size_t      *argv_retptr     = (__wasi_size_t *)get_memory_ptr_for_runtime(argv_retoffset,
+	                                                                                  WASI_SERDES_SIZE_size_t * argc);
 	const __wasi_size_t argv_buf_size   = sandbox->wasi_context->argv_buf_size;
-	char *              argv_buf_retptr = get_memory_ptr_for_runtime(argv_buf_retoffset, argv_buf_size);
+	char	       *argv_buf_retptr = get_memory_ptr_for_runtime(argv_buf_retoffset, argv_buf_size);
 
 	/* args_get backings return a vector of host pointers. We need a host buffer to store this
 	 * temporarily before unswizzling and writing to linear memory */
@@ -190,7 +190,7 @@ sledge_abi__wasi_snapshot_preview1_args_sizes_get(__wasi_size_t argc_retoffset, 
 
 	sandbox_syscall(sandbox);
 	__wasi_size_t *argc_retptr         = (__wasi_size_t *)get_memory_ptr_for_runtime(argc_retoffset,
-                                                                                 WASI_SERDES_SIZE_size_t);
+	                                                                                 WASI_SERDES_SIZE_size_t);
 	__wasi_size_t *argv_buf_len_retptr = (__wasi_size_t *)get_memory_ptr_for_runtime(argv_buf_len_retoffset,
 	                                                                                 WASI_SERDES_SIZE_size_t);
 
@@ -271,8 +271,8 @@ sledge_abi__wasi_snapshot_preview1_environ_get(__wasi_size_t env_retoffset, __wa
 	if (unlikely(env_temp == NULL)) { goto done; }
 
 	__wasi_size_t *env_retptr     = (__wasi_size_t *)get_memory_ptr_for_runtime(env_retoffset,
-                                                                                WASI_SERDES_SIZE_size_t * envc);
-	char *         env_buf_retptr = get_memory_ptr_for_runtime(env_buf_retoffset, env_buf_size);
+	                                                                            WASI_SERDES_SIZE_size_t * envc);
+	char          *env_buf_retptr = get_memory_ptr_for_runtime(env_buf_retoffset, env_buf_size);
 
 	rc = wasi_snapshot_preview1_backing_environ_get(sandbox->wasi_context, env_temp, env_buf_retptr);
 	if (unlikely(rc != __WASI_ERRNO_SUCCESS)) { goto done; }
@@ -305,7 +305,7 @@ sledge_abi__wasi_snapshot_preview1_environ_sizes_get(__wasi_size_t envc_retoffse
 
 	sandbox_syscall(sandbox);
 	__wasi_size_t *envc_retptr        = (__wasi_size_t *)get_memory_ptr_for_runtime(envc_retoffset,
-                                                                                 WASI_SERDES_SIZE_size_t);
+	                                                                                WASI_SERDES_SIZE_size_t);
 	__wasi_size_t *env_buf_len_retptr = (__wasi_size_t *)get_memory_ptr_for_runtime(env_buf_len_retoffset,
 	                                                                                WASI_SERDES_SIZE_size_t);
 

@@ -110,7 +110,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	assert(handler_depth == 0);
 	atomic_fetch_add(&handler_depth, 1);
 
-	ucontext_t *    interrupted_context = (ucontext_t *)interrupted_context_raw;
+	ucontext_t     *interrupted_context = (ucontext_t *)interrupted_context_raw;
 	struct sandbox *current_sandbox     = current_sandbox_get();
 
 	switch (signal_type) {

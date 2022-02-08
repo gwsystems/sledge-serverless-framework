@@ -42,7 +42,7 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 int
 http_parser_settings_on_message_begin(http_parser *parser)
 {
-	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
+	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 	assert(!sandbox->http_request.message_end);
@@ -70,7 +70,7 @@ http_parser_settings_on_message_begin(http_parser *parser)
 int
 http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
+	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 #ifdef LOG_HTTP_PARSER
@@ -113,7 +113,7 @@ http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t
 int
 http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
+	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 
@@ -145,7 +145,7 @@ http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t
 int
 http_parser_settings_on_header_end(http_parser *parser)
 {
-	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
+	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 	assert(!sandbox->http_request.message_end);
@@ -160,7 +160,7 @@ http_parser_settings_on_header_end(http_parser *parser)
 }
 
 const size_t http_methods_len               = 8;
-const char * http_methods[http_methods_len] = { "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT" };
+const char  *http_methods[http_methods_len] = { "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT" };
 
 /**
  * http-parser callback called for HTTP Bodies
@@ -174,7 +174,7 @@ const char * http_methods[http_methods_len] = { "OPTIONS", "GET", "HEAD", "POST"
 int
 http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
+	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 	assert(sandbox->http_request.header_end);
@@ -216,7 +216,7 @@ http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 int
 http_parser_settings_on_msg_end(http_parser *parser)
 {
-	struct sandbox *     sandbox      = (struct sandbox *)parser->data;
+	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
 	struct http_request *http_request = &sandbox->http_request;
 
 	assert(sandbox->http_request.header_end);

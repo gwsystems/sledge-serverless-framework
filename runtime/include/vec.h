@@ -8,7 +8,7 @@
 	struct vec_##TYPE {                                                                                      \
 		size_t length;                                                                                   \
 		size_t capacity;                                                                                 \
-		TYPE * buffer; /* Backing heap allocation. Different lifetime because realloc might move this */ \
+		TYPE  *buffer; /* Backing heap allocation. Different lifetime because realloc might move this */ \
 	};                                                                                                       \
                                                                                                                  \
 	static inline int                vec_##TYPE##_init(struct vec_##TYPE *vec, size_t capacity);             \

@@ -9,7 +9,7 @@
 #include "sledge_abi.h"
 
 struct sledge_abi_symbols {
-	void *                        handle;
+	void	                 *handle;
 	sledge_abi__init_globals_fn_t initialize_globals;
 	sledge_abi__init_mem_fn_t     initialize_memory;
 	sledge_abi__init_tbl_fn_t     initialize_tables;

@@ -15,6 +15,7 @@ apt-get install -y --no-install-recommends \
 	"libunwind-$LLVM_VERSION" \
 	"libunwind-$LLVM_VERSION-dev"
 
+update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-$LLVM_VERSION" 100
 update-alternatives --install /usr/bin/clang clang "/usr/bin/clang-$LLVM_VERSION" 100
 update-alternatives --install /usr/bin/clang++ clang++ "/usr/bin/clang++-$LLVM_VERSION" 100
 update-alternatives --install /usr/bin/llvm-config llvm-config "/usr/bin/llvm-config-$LLVM_VERSION" 100
@@ -22,4 +23,8 @@ update-alternatives --install /usr/bin/llvm-objdump llvm-objdump "/usr/bin/llvm-
 
 apt-get install -y --no-install-recommends \
 	"clang-format-$LLVM_VERSION"
+
+# clang tidy seems to lag
+apt-get install clang-tidy
+
 update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-$LLVM_VERSION" 100

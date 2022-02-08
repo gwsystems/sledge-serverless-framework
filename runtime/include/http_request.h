@@ -15,7 +15,7 @@ struct http_header {
 struct http_request {
 	struct http_header headers[HTTP_MAX_HEADER_COUNT];
 	int                header_count;
-	char *             body;
+	char	      *body;
 	int                body_length;
 	int                body_read_length; /* How far we've read */
 

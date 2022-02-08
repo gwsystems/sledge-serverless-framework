@@ -177,7 +177,7 @@ void
 current_sandbox_start(void)
 {
 	struct sandbox *sandbox        = current_sandbox_init();
-	struct module * current_module = sandbox_get_module(sandbox);
+	struct module  *current_module = sandbox_get_module(sandbox);
 	sandbox->return_value          = module_entrypoint(current_module);
 	current_sandbox_fini();
 }

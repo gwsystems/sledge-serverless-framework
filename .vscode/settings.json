@@ -132,9 +132,11 @@
 	],
 	"shellformat.path": "/usr/local/bin/shfmt",
 	"shellformat.flag": "-ln=bash -i 0 -bn -ci -sr -kp",
-	"terminal.integrated.shell.linux": "bash",
 	"[jsonc]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"[yaml]": {
+		"editor.formatOnSave": false,
 	},
 	"[json]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
@@ -161,5 +163,12 @@
 		"*.o": true,
 		"*.bc": true,
 		"*.wasm": true,
-	}
+	},
+	"C_Cpp.formatting": "clangFormat",
+	"cSpell.words": [
+		"gregs",
+		"mctx",
+		"TKILL",
+		"WASI"
+	]
 }
