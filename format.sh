@@ -1,7 +1,7 @@
 #!/bin/bash
 
 validate() {
-	utility="clang-format-15"
+	utility="clang-format-13"
 	utility_version="$("$utility" --version 2> /dev/null)" || {
 		echo "$utility not found in path!"
 		exit 1
@@ -11,7 +11,7 @@ validate() {
 	declare -i major=0
 	declare -i minor=0
 	declare -i patch=0
-	declare -i required_major=15
+	declare -i required_major=13
 	declare -i required_minor=0
 	declare -i required_patch=0
 

@@ -147,7 +147,7 @@ sledge_abi__wasi_snapshot_preview1_args_get(__wasi_size_t argv_retoffset, __wasi
 	__wasi_size_t      *argv_retptr     = (__wasi_size_t *)get_memory_ptr_for_runtime(argv_retoffset,
 	                                                                                  WASI_SERDES_SIZE_size_t * argc);
 	const __wasi_size_t argv_buf_size   = sandbox->wasi_context->argv_buf_size;
-	char	       *argv_buf_retptr = get_memory_ptr_for_runtime(argv_buf_retoffset, argv_buf_size);
+	char               *argv_buf_retptr = get_memory_ptr_for_runtime(argv_buf_retoffset, argv_buf_size);
 
 	/* args_get backings return a vector of host pointers. We need a host buffer to store this
 	 * temporarily before unswizzling and writing to linear memory */
