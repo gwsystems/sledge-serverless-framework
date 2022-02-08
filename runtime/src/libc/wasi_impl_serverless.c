@@ -23,21 +23,6 @@
 #include "sandbox_types.h"
 #include "wasi_impl.h"
 
-/*
- * Essentially based off the uvwasi_t
- * TODO: Add file descriptors in support of preopens
- */
-typedef struct wasi_context_s {
-	__wasi_size_t argc;
-	char **       argv;
-	char *        argv_buf;
-	__wasi_size_t argv_buf_size;
-	__wasi_size_t envc;
-	char **       env;
-	char *        env_buf;
-	__wasi_size_t env_buf_size;
-} wasi_context_t;
-
 /* Return abstract handle */
 void *
 wasi_context_init(wasi_options_t *options)
@@ -45,7 +30,7 @@ wasi_context_init(wasi_options_t *options)
 	/* TODO: Add default types */
 	assert(options != NULL);
 
-	wasi_context_t *wasi_context = malloc(sizeof(wasi_context_t));
+	wasi_context_t *wasi_context = (wasi_context_t *)malloc(sizeof(wasi_context_t));
 
 	if (options->argc > 0) {
 		assert(options->argv != NULL);
@@ -123,13 +108,13 @@ wasi_context_init(wasi_options_t *options)
 
 	if (envc > 0) {
 		/* Allocate env and env_buf */
-		wasi_context->env = calloc(envc, sizeof(char **));
+		wasi_context->env = (char **)calloc(envc, sizeof(char **));
 		if (wasi_context->env == NULL) {
 			fprintf(stderr, "Error allocating env: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		wasi_context->env_buf_size = env_buf_size;
-		wasi_context->env_buf      = calloc(env_buf_size, sizeof(char));
+		wasi_context->env_buf      = (char *)calloc(env_buf_size, sizeof(char));
 		if (wasi_context->env_buf == NULL) {
 			fprintf(stderr, "Error allocating env_buf: %s", strerror(errno));
 			exit(EXIT_FAILURE);
@@ -167,7 +152,6 @@ wasi_context_get_argc(void *wasi_context)
 {
 	return ((wasi_context_t *)wasi_context)->argc;
 }
-
 
 char **
 wasi_context_get_argv(void *wasi_context)
@@ -1152,16 +1136,17 @@ wasi_snapshot_preview1_backing_random_get(void *wasi_context, uint8_t *buf, __wa
 {
 	static bool has_udev = true;
 	static bool did_seed = false;
+	int         urandom_fd;
+	ssize_t     nread = 0;
 
 	if (!has_udev) goto NO_UDEV;
 
-	int urandom_fd = open("/dev/urandom", O_RDONLY);
+	urandom_fd = open("/dev/urandom", O_RDONLY);
 	if (urandom_fd < 0) {
 		has_udev = false;
 		goto NO_UDEV;
 	}
 
-	ssize_t nread = 0;
 	while (nread < buf_len) {
 		size_t rc = read(urandom_fd, buf, buf_len);
 		if (rc < 0) goto ERR_READ;

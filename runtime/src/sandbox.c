@@ -202,7 +202,8 @@ sandbox_alloc(struct module *module, int socket_descriptor, const struct sockadd
 {
 	struct sandbox *sandbox                   = NULL;
 	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
-	sandbox                                   = calloc(1, page_aligned_sandbox_size);
+	sandbox                                   = aligned_alloc(PAGE_SIZE, page_aligned_sandbox_size);
+	memset(sandbox, 0, page_aligned_sandbox_size);
 	if (unlikely(sandbox == NULL)) return NULL;
 
 	sandbox_set_as_allocated(sandbox);

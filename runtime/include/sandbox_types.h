@@ -18,6 +18,7 @@
 #include "wasm_types.h"
 #include "wasm_stack.h"
 #include "wasm_globals.h"
+#include "wasi_impl.h"
 
 #define u8 uint8_t
 VEC(u8)
@@ -72,7 +73,7 @@ struct sandbox {
 	uint64_t total_time;          /* Total time from Request to Response */
 
 	/* System Interface State */
-	int32_t return_value;
-	void *  wasi_context;
+	int32_t         return_value;
+	wasi_context_t *wasi_context;
 
 } PAGE_ALIGNED;
