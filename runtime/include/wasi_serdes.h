@@ -32,7 +32,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "wasi_spec.h"
+#include "wasi.h"
 
 /* Basic uint{8,16,32,64}_t read/write functions. */
 

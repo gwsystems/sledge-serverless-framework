@@ -12,7 +12,7 @@
 #include "sandbox_set_as_running_sys.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
-#include "wasi_impl.h"
+#include "wasi.h"
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 

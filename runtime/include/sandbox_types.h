@@ -18,7 +18,7 @@
 #include "wasm_types.h"
 #include "wasm_stack.h"
 #include "wasm_globals.h"
-#include "wasi_impl.h"
+#include "wasi.h"
 
 #define u8 uint8_t
 VEC(u8)

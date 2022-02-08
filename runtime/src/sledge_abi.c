@@ -3,7 +3,7 @@
 #include "sandbox_set_as_running_user.h"
 #include "sledge_abi.h"
 #include "wasm_memory.h"
-#include "wasi_spec.h"
+#include "wasi.h"
 #include "wasi_serdes.h"
 
 /**
@@ -257,10 +257,10 @@ sledge_abi__wasi_snapshot_preview1_environ_get(__wasi_size_t env_retoffset, __wa
 	sandbox_syscall(sandbox);
 	__wasi_errno_t rc = 0;
 
-	const __wasi_size_t envc = wasi_context_get_envc(sandbox->wasi_context);
+	const __wasi_size_t envc = sandbox->wasi_context->envc;
 	if (envc == 0) { goto done; }
 
-	const __wasi_size_t env_buf_size = wasi_context_get_env_buf_size(sandbox->wasi_context);
+	const __wasi_size_t env_buf_size = sandbox->wasi_context->env_buf_size;
 	assert(env_buf_size > envc);
 
 	/* wasi_snapshot_preview1_backing_environ_get returns a vector of host pointers. We write
