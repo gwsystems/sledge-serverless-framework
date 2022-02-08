@@ -2,8 +2,6 @@
 
 #define INLINE         __attribute__((always_inline))
 #define WASM_PAGE_SIZE (1024 * 64) /* 64KB */
-#define likely(X)      __builtin_expect(!!(X), 1)
-#define unlikely(X)    __builtin_expect(!!(X), 0)
 
 /* This is private and NOT in the sledge_abi.h header because the runtime uses an overlay struct that extends this
  * symbol with private members */

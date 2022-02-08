@@ -3,9 +3,7 @@
 
 #include "sledge_abi.h"
 
-#define INLINE      __attribute__((always_inline))
-#define likely(X)   __builtin_expect(!!(X), 1)
-#define unlikely(X) __builtin_expect(!!(X), 0)
+#define INLINE __attribute__((always_inline))
 
 // ROTL and ROTR helper functions
 INLINE uint32_t
