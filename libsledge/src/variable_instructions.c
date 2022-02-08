@@ -35,8 +35,7 @@ set_global_i32(uint32_t idx, int32_t value)
 	} else {
 		/* aWsm does not currently pass the is_mutable flag, so all runtime globals are assumed to be mutable.
 		This is true if aWsm uses the flags to inline constant globals */
-		int rc = sledge_abi__wasm_globals_set_i32(idx, value, true);
-		assert(rc == 0);
+		sledge_abi__wasm_globals_set_i32(idx, value, true);
 	}
 }
 
@@ -48,7 +47,6 @@ set_global_i64(uint32_t idx, int64_t value)
 	} else {
 		/* aWsm does not currently pass the is_mutable flag, so all runtime globals are assumed to be mutable.
 		This is true if aWsm uses the flags to inline constant globals */
-		int rc = sledge_abi__wasm_globals_set_i64(idx, value, true);
-		assert(rc == 0);
+		sledge_abi__wasm_globals_set_i64(idx, value, true);
 	}
 }

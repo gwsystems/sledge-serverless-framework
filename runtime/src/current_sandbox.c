@@ -94,8 +94,8 @@ current_sandbox_wasm_trap_handler(int trapno)
 		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
-	case WASM_TRAP_MISMATCHED_FUNCTION_TYPE:
-		error_message = "WebAssembly Trap: Mismatched Function Type\n";
+	case WASM_TRAP_MISMATCHED_TYPE:
+		error_message = "WebAssembly Trap: Mismatched Type\n";
 		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
@@ -111,11 +111,6 @@ current_sandbox_wasm_trap_handler(int trapno)
 		break;
 	case WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION:
 		error_message = "WebAssembly Trap: Illegal Arithmetic Operation\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
-		                   current_sandbox_sleep);
-		break;
-	case WASM_TRAP_MISMATCHED_GLOBAL_TYPE:
-		error_message = "WebAssembly Trap: Mismatched Global Type\n";
 		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;

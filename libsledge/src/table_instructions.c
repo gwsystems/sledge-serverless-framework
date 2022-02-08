@@ -21,15 +21,13 @@ wasm_table_get(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t
 
 	if (unlikely(f.type_id != type_id)) {
 		fprintf(stderr, "Function Type mismatch. Expected: %u, Actual: %u\n", type_id, f.type_id);
-		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE);
 	}
 
 	if (unlikely(f.func_pointer == NULL)) {
 		fprintf(stderr, "Function Type mismatch. Index %u resolved to NULL Pointer\n", idx);
-		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE);
 	}
-
-	assert(f.func_pointer != NULL);
 
 	return f.func_pointer;
 }
@@ -66,15 +64,13 @@ get_function_from_table(uint32_t idx, uint32_t type_id)
 
 	if (unlikely(f.type_id != type_id)) {
 		fprintf(stderr, "Function Type mismatch. Expected: %u, Actual: %u\n", type_id, f.type_id);
-		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE);
 	}
 
 	if (unlikely(f.func_pointer == NULL)) {
 		fprintf(stderr, "Function Type mismatch. Index %u resolved to NULL Pointer\n", idx);
-		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_FUNCTION_TYPE);
+		sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE);
 	}
-
-	assert(f.func_pointer != NULL);
 
 	return f.func_pointer;
 }
