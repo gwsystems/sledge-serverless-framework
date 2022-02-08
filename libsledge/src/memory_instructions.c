@@ -2,8 +2,6 @@
 
 #define INLINE         __attribute__((always_inline))
 #define WASM_PAGE_SIZE (1024 * 64) /* 64KB */
-#define likely(X)      __builtin_expect(!!(X), 1)
-#define unlikely(X)    __builtin_expect(!!(X), 0)
 
 /* This is private and NOT in the sledge_abi.h header because the runtime uses an overlay struct that extends this
  * symbol with private members */
@@ -12,7 +10,7 @@ extern thread_local struct sledge_abi__wasm_module_instance sledge_abi__current_
 INLINE uint32_t
 instruction_memory_size()
 {
-	return (uint32_t)(sledge_abi__current_wasm_module_instance.memory.size / WASM_PAGE_SIZE);
+	return (uint32_t)(sledge_abi__current_wasm_module_instance.memory.size / (uint64_t)WASM_PAGE_SIZE);
 }
 
 // These functions are equivalent to those in wasm_memory.h, but they minimize pointer dereferencing
@@ -20,7 +18,7 @@ INLINE float
 get_f32(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(float) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(float) <= sledge_abi__current_wasm_module_instance.memory.size);
 	return *(float *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
@@ -28,7 +26,7 @@ INLINE double
 get_f64(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(double) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(double) <= sledge_abi__current_wasm_module_instance.memory.size);
 	return *(double *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
@@ -36,7 +34,7 @@ INLINE int8_t
 get_i8(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(int8_t) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(int8_t) <= sledge_abi__current_wasm_module_instance.memory.size);
 	return *(int8_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
@@ -44,7 +42,7 @@ INLINE int16_t
 get_i16(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(int16_t) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(int16_t) <= sledge_abi__current_wasm_module_instance.memory.size);
 	return *(int16_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
@@ -52,7 +50,7 @@ INLINE int32_t
 get_i32(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(int32_t) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(int32_t) <= sledge_abi__current_wasm_module_instance.memory.size);
 	return *(int32_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
@@ -60,7 +58,7 @@ INLINE int64_t
 get_i64(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(int64_t) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(int64_t) <= sledge_abi__current_wasm_module_instance.memory.size);
 	return *(int64_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
@@ -69,7 +67,7 @@ INLINE void
 set_f32(uint32_t offset, float value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(float) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(float) <= sledge_abi__current_wasm_module_instance.memory.size);
 	*(float *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 
@@ -77,8 +75,7 @@ INLINE void
 set_f64(uint32_t offset, double value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(double) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(double) <= sledge_abi__current_wasm_module_instance.memory.size);
 	*(double *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 
@@ -86,7 +83,7 @@ INLINE void
 set_i8(uint32_t offset, int8_t value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(int8_t) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(int8_t) <= sledge_abi__current_wasm_module_instance.memory.size);
 	*(int8_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 
@@ -94,8 +91,7 @@ INLINE void
 set_i16(uint32_t offset, int16_t value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-
-	assert(offset + sizeof(int16_t) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(int16_t) <= sledge_abi__current_wasm_module_instance.memory.size);
 	*(int16_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 
@@ -103,7 +99,7 @@ INLINE void
 set_i32(uint32_t offset, int32_t value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(int32_t) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(int32_t) <= sledge_abi__current_wasm_module_instance.memory.size);
 	*(int32_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 
@@ -111,7 +107,7 @@ INLINE void
 set_i64(uint32_t offset, int64_t value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-	assert(offset + sizeof(int64_t) <= sledge_abi__current_wasm_module_instance.memory.size);
+	assert((uint64_t)offset + sizeof(int64_t) <= sledge_abi__current_wasm_module_instance.memory.size);
 	*(int64_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 

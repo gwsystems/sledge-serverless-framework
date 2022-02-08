@@ -9,6 +9,7 @@
 				"${workspaceFolder}/runtime/thirdparty/ck/include/",
 				"${workspaceFolder}/runtime/thirdparty/http-parser/",
 				"${workspaceFolder}/runtime/thirdparty/jsmn/",
+				"${workspaceFolder}/awsm/runtime/libc/wasi/include/",
 				"${workspaceFolder}/libsledge/include"
 			],
 			"defines": [

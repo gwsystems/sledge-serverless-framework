@@ -3,8 +3,9 @@ name: sledge
 on: [push, pull_request]
 
 env:
-  LLVM_VERSION: 8
-  WASMCEPTION_URL: https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
+  LLVM_VERSION: 13
+  WASI_SDK_URL: https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
+  WASI_SDK_PATH: /opt/wasi-sdk
   LANG: C.UTF-8
   LANGUAGE: C.UTF-8
   LC_ALL: C.UTF-8
@@ -14,13 +15,12 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
+      - name: Apt Update
+        run: sudo apt-get update
       - uses: actions/checkout@v2
-      - name: Install clang-format-11
+      - name: Install LLVM
         run: |
-          sudo apt-get remove -y --no-install-recommends clang-format-10 && sudo apt-get install -y --no-install-recommends clang-format-11
-      - name: Update alternatives
-        run: |
-          sudo update-alternatives --remove-all clang-format && sudo update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-11" 100
+          sudo ./install_llvm.sh $LLVM_VERSION
       - name: Clang Format
         run: ./format.sh -d
   test:
@@ -60,6 +60,11 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
           echo "/root/.cargo/bin:$PATH" >> $GITHUB_PATH
+      - name: Get wasi-sdk
+        run: |
+          wget $WASI_SDK_URL -O wasi-sdk.tar.gz
+          mkdir -p $WASI_SDK_PATH
+          tar xvfz wasi-sdk.tar.gz --strip-components=1 -C $WASI_SDK_PATH
       - name: Install Test Script Utilities
         run: |
           sudo apt-get install -y --no-install-recommends \
@@ -79,30 +84,26 @@ jobs:
             ~/.cargo/git
             ./awsm/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('./awsm/Cargo.lock') }}
-      - name: Compile sledge
+      - name: Compile aWsm
         run: |
-          make build 
-          make rtinit
-          mkdir bin
-          mkdir lib
-          SYS_PREFIX="$(pwd)" ./install.sh
-          PATH="$(pwd)/bin:$PATH"
-          echo "$PATH" >> $GITHUB_PATH
-          LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
-          make build-validate
+          make awsm
       - name: Compile libsledge
         run: |
           make libsledge
+      - name: Compile SLEdge
+        run: |
+          make runtime
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache gocr
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gocr.wasm.so
-          key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/wasmception_apps/gocr/**', './runtime/compiletime/**') }}
+          key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/wasm_apps/gocr/**', './libsledge/Makefile' , './libsledge/src/**', './libsledge/include/**') }}
         if: success() || failure()
       - name: Hyde
         run: |
+          echo $WASI_SDK_PATH
+          ls $WASI_SDK_PATH
           make -f test.mk gocr__hyde
         if: success() || failure()
       - name: Upload Hyde Logs on Failure
@@ -136,7 +137,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./runtime/bin/gps_ekf.wasm.so
-          key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/wasmception_apps/TinyEKF/**', './runtime/compiletime/**') }}
+          key: ${{ runner.os }}-gocr2-${{ hashFiles('./applications/Makefile', './applications/wasm_apps/TinyEKF/**', './libsledge/Makefile' , './libsledge/src/**', './libsledge/include/**') }}
         if: success() || failure()
       - name: EKF one iteration
         run: |

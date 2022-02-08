@@ -2,8 +2,6 @@
 
 #define INDIRECT_TABLE_SIZE (1 << 10)
 #define INLINE              __attribute__((always_inline))
-#define likely(X)           __builtin_expect(!!(X), 1)
-#define unlikely(X)         __builtin_expect(!!(X), 0)
 
 /* This is private and NOT in the sledge_abi.h header because the runtime uses an overlay struct that extends this
  * symbol with private members */
@@ -17,9 +15,7 @@ wasm_table_get(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t
 
 	struct sledge_abi__wasm_table_entry f = wasm_table->buffer[idx];
 
-	/* Wasmception-based modules trigger function type mismatches for an unknown reason. 
-	 * This should be reenabled when WASI is added */
-	// assert(f.type_id != type_id);
+	assert(f.type_id == type_id);
 	assert(f.func_pointer != NULL);
 
 	return f.func_pointer;
@@ -46,5 +42,14 @@ add_function_to_table(uint32_t idx, uint32_t type_id, char *pointer)
 INLINE char *
 get_function_from_table(uint32_t idx, uint32_t type_id)
 {
-	return wasm_table_get(sledge_abi__current_wasm_module_instance.table, idx, type_id);
+	assert(sledge_abi__current_wasm_module_instance.table != NULL);
+
+	assert(idx < sledge_abi__current_wasm_module_instance.table->capacity);
+
+	struct sledge_abi__wasm_table_entry f = sledge_abi__current_wasm_module_instance.table->buffer[idx];
+
+	assert(f.type_id == type_id);
+	assert(f.func_pointer != NULL);
+
+	return f.func_pointer;
 }

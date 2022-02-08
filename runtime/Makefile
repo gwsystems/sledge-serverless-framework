@@ -11,7 +11,7 @@ CFLAGS=-std=c18 -pthread
 
 # We use several non-standard glibc / Linux features: 
 # sched_getcpu, MAP_ANONYMOUS, acceess to 'gregs' in 'mcontext_t', REG_RIP, REG_RSP
-CFLAGS+=-D_GNU_SOURCE 
+CFLAGS+=-D_GNU_SOURCE
 
 # Release Flags
 CFLAGS+=-O3 -flto
@@ -42,6 +42,13 @@ BINARY_NAME=sledgert
 
 # Debugging Flags
 
+# Enables logs of WASI syscalls
+# CFLAGS += -DLOG_WASI
+
+# Sandbox writes to stdout and stderr are both written to the client socket
+# However, when set, stderr is also written to the host stderr to assist with debugging
+# CFLAGS += -DLOG_SANDBOX_STDERR
+
 # Strips out calls to assert() and disables debuglog
 # CFLAGS += -DNDEBUG
 
@@ -56,6 +63,7 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_MODULE_LOADING
 # CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_SANDBOX_ALLOCATION
+# CFLAGS += -DLOG_UNSUPPORTED_WASI
 
 # Stores and logs extended signal information for each worker
 # CFLAGS += -DLOG_SOFTWARE_INTERRUPT_COUNTS
@@ -144,10 +152,3 @@ thirdparty:
 .PHONY: thirdparty.clean
 thirdparty.clean:
 	@make --no-print-directory -C thirdparty clean
-
-.PHONY: submodules
-submodules:
-	@git submodule update --init --recursive
-
-.PHONY: init
-init: submodules clean thirdparty runtime

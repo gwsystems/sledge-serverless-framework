@@ -12,6 +12,7 @@ thread_local struct wasm_module_instance sledge_abi__current_wasm_module_instanc
 	    .capacity = 0,
 	    .buffer   = NULL,
 	  },
-	.abi.table   = NULL,
-	.abi.wasmg_0 = 0xDEADBEEF,
+	.abi.table    = NULL,
+	.abi.wasmg_0  = 0xDEADBEEF,
+	.wasi_context = NULL,
 };

@@ -17,8 +17,7 @@ extern void     populate_globals(void);
 extern void     populate_memory(void);
 extern void     populate_table(void);
 extern void     populate_table(void);
-extern void     wasmf___init_libc(int32_t, int32_t);
-extern int32_t  wasmf_main(int32_t, int32_t);
+extern int32_t  wasmf__start(void);
 extern uint32_t starting_pages;
 extern uint32_t max_pages;
 
@@ -42,17 +41,10 @@ sledge_abi__init_tbl(void)
 	populate_table();
 }
 
-// Wasmception Initialization. Unsure what a and b is here
-EXPORT void
-sledge_abi__init_libc(int32_t envp, int32_t pn)
-{
-	wasmf___init_libc(envp, pn);
-}
-
 EXPORT int32_t
-sledge_abi__entrypoint(int32_t argc, int32_t argv)
+sledge_abi__entrypoint(void)
 {
-	return wasmf_main(argc, argv);
+	return wasmf__start();
 }
 
 EXPORT uint32_t

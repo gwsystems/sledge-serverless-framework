@@ -13,6 +13,7 @@
 #include "pool.h"
 #include "sledge_abi_symbols.h"
 #include "types.h"
+#include "sledge_abi_symbols.h"
 #include "wasm_stack.h"
 #include "wasm_memory.h"
 #include "wasm_table.h"
@@ -131,7 +132,6 @@ module_initialize_table(struct module *module)
 static inline int
 module_alloc_table(struct module *module)
 {
-	/* WebAssembly Indirect Table */
 	/* TODO: Should this be part of the module or per-sandbox? */
 	/* TODO: How should this table be sized? */
 	module->indirect_table = wasm_table_alloc(INDIRECT_TABLE_SIZE);
@@ -148,18 +148,6 @@ module_initialize_pools(struct module *module)
 		wasm_memory_pool_init(&module->pools[i].memory, false);
 		wasm_stack_pool_init(&module->pools[i].stack, false);
 	}
-}
-
-/**
- * Invoke a module's initialize_libc
- * @param module - module whose libc we are initializing
- * @param env - address?
- * @param arguments - address?
- */
-static inline void
-module_initialize_libc(struct module *module, int32_t env, int32_t arguments)
-{
-	module->abi.initialize_libc(env, arguments);
 }
 
 /**
@@ -180,9 +168,9 @@ module_initialize_memory(struct module *module)
  * @return return code of module's main function
  */
 static inline int32_t
-module_entrypoint(struct module *module, int32_t argc, int32_t argv)
+module_entrypoint(struct module *module)
 {
-	return module->abi.entrypoint(argc, argv);
+	return module->abi.entrypoint();
 }
 
 /**

@@ -81,7 +81,6 @@
 		"sandbox_set_as_complete.h": "c",
 		"deque.h": "c",
 		"sandbox_send_response.h": "c",
-		"sandbox_setup_arguments.h": "c",
 		"worker_thread.h": "c",
 		"sandbox_set_as_error.h": "c",
 		"likely.h": "c",
@@ -90,6 +89,9 @@
 		"sandbox_set_as_running.h": "c",
 		"sandbox_summarize_page_allocations.h": "c",
 		"wasm_types.h": "c",
+		"wasi_impl.h": "c",
+		"wasi_backing.h": "c",
+		"wasi_serdes.h": "c",
 		"atomic": "c",
 		"sandbox_set_as_running_kernel.h": "c",
 		"stdbool.h": "c",
@@ -104,7 +106,10 @@
 		"wasm_module_instance.h": "c",
 		"wasm_stack.h": "c",
 		"wasm_table.h": "c",
-		"sledge_abi.h": "c"
+		"wasi_spec.h": "c",
+		"current_wasm_module_instance.h": "c",
+		"wasm_memory.h": "c",
+		"sledge_abi.h": "c",
 	},
 	"files.exclude": {
 		"**/.git": true,
@@ -127,9 +132,11 @@
 	],
 	"shellformat.path": "/usr/local/bin/shfmt",
 	"shellformat.flag": "-ln=bash -i 0 -bn -ci -sr -kp",
-	"terminal.integrated.shell.linux": "bash",
 	"[jsonc]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"[yaml]": {
+		"editor.formatOnSave": false,
 	},
 	"[json]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
@@ -156,5 +163,12 @@
 		"*.o": true,
 		"*.bc": true,
 		"*.wasm": true,
-	}
+	},
+	"C_Cpp.formatting": "clangFormat",
+	"cSpell.words": [
+		"gregs",
+		"mctx",
+		"TKILL",
+		"WASI"
+	]
 }

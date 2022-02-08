@@ -1,57 +1,56 @@
 SHELL:=/bin/bash
-ARCH:=$(shell arch)
 
-COMPILER=awsm
-ROOT=${ROOT:-$(cd "$(dirname ${BASH_SOURCE:-$0})" && pwd)}
-WASMCEPTION_URL=https://github.com/gwsystems/wasmception/releases/download/v0.2.0/wasmception-linux-x86_64-0.2.0.tar.gz
-
-# TODO: Add ARM release build
-.PHONY: build
-build:
-ifeq ($(ARCH),x86_64)
-	cd ./awsm/wasmception && wget ${WASMCEPTION_URL} -O wasmception.tar.gz && tar xvfz wasmception.tar.gz && rm wasmception.tar.gz
-endif
-	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
-	@cd ${COMPILER} && RUSTUP_TOOLCHAIN=stable cargo build --release && cd ${ROOT}
-
-# Sanity check that the aWsm compiler built and is in our PATH
-.PHONY: build-validate
-build-validate:
-	which awsm
-	awsm --version
-
-.PHONY: build-dev
-build-dev:
-	test -f ./${COMPILER}/wasmception/dist/bin/clang || make -C ${COMPILER}/wasmception
-	@echo "Building aWsm compiler (default==debug)"
-	@cd ${COMPILER} && cargo build && cd ${ROOT}
+.PHONY: all
+all: awsm libsledge runtime
 
 .PHONY: clean
-clean:
-	@echo "Cleaning aWsm compiler"
-	@cd ${COMPILER} && cargo clean && cd ${ROOT}
+clean: awsm.clean libsledge.clean runtime.clean
 
-# wasmception is too slow to recompile, 
-# so lets not make that part of the "aWsm" cleanup
-.PHONY: wclean
-wclean:
-	@echo "Cleaning wasmception toolchain"
-	@cd ${COMPILER} && make -C wasmception clean && cd ${ROOT}
-
-.PHONY: rtinit
-rtinit:
-	@echo "Building runtime for the first time!"
-	make -C runtime init
-
-.PHONY: runtime
-runtime:
-	@echo "Building runtime!"
-	make -C runtime
+.PHONY: submodules
+submodules:
+	git submodule update --init --recursive
 
 .PHONY: install
-install: build rtinit
-	@./install.sh wasmception
+install: submodules all
 
+# aWsm: the WebAssembly to LLVM bitcode compiler
+.PHONY: awsm
+awsm: 
+	cd awsm && cargo build --release
+
+.PHONY: awsm.clean
+awsm.clean:
+	cd awsm && cargo clean
+
+# libsledge: the support library linked with LLVM bitcode emitted by aWsm when building *.so modules
 .PHONY: libsledge
 libsledge:
-	make -C libsledge clean all
+	make -C libsledge dist/libsledge.a
+
+.PHONY: libsledge.clean
+libsledge.clean:
+	make -C libsledge clean
+
+# sledgert: the runtime that executes *.so modules
+.PHONY: runtime
+runtime:
+	make -C runtime
+
+
+.PHONY: runtime.clean
+runtime.clean:
+	make -C runtime clean
+
+# SLEdge Applications
+.PHONY: applications
+applications:
+	make -C applications all
+
+.PHONY: applications.clean
+applications.clean:
+	make -C applications clean
+
+# Tests
+.PHONY: test
+test:
+	make -f test.mk all

@@ -43,10 +43,13 @@ current_sandbox_set(struct sandbox *sandbox)
 			    .table   = NULL,
 			    .wasmg_0 = 0,
 			  },
+			/* Private */
+			.wasi_context = NULL,
 		};
 		worker_thread_current_sandbox                      = NULL;
 		runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	} else {
+		sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
 		memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, &sandbox->memory->abi,
 		       sizeof(struct sledge_abi__wasm_memory));
 		sledge_abi__current_wasm_module_instance.abi.table = sandbox->module->indirect_table;

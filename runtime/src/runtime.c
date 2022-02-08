@@ -29,7 +29,7 @@
  **************************/
 
 pthread_t *runtime_worker_threads;
-int *      runtime_worker_threads_argument;
+int       *runtime_worker_threads_argument;
 /* The active deadline of the sandbox running on each worker thread */
 uint64_t *runtime_worker_threads_deadline;
 
@@ -63,7 +63,7 @@ runtime_set_resource_limits_to_max()
 	char          max[uint64_t_max_digits + 1];
 
 	uint64_t resources[]      = { RLIMIT_DATA, RLIMIT_NOFILE };
-	char *   resource_names[] = { "RLIMIT_DATA", "RLIMIT_NOFILE" };
+	char    *resource_names[] = { "RLIMIT_DATA", "RLIMIT_NOFILE" };
 
 	for (int i = 0; i < sizeof(resources) / sizeof(resources[0]); i++) {
 		int resource = resources[i];

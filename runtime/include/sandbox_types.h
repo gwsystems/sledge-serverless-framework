@@ -18,10 +18,7 @@
 #include "wasm_types.h"
 #include "wasm_stack.h"
 #include "wasm_globals.h"
-
-#ifdef LOG_SANDBOX_MEMORY_PROFILE
-#define SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT 1024
-#endif
+#include "wasi.h"
 
 #define u8 uint8_t
 VEC(u8)
@@ -62,8 +59,8 @@ struct sandbox {
 
 	/* WebAssembly Instance State  */
 	struct arch_context      ctxt;
-	struct wasm_stack *      stack;
-	struct wasm_memory *     memory;
+	struct wasm_stack       *stack;
+	struct wasm_memory      *memory;
 	struct vec_wasm_global_t globals;
 
 	/* Scheduling and Temporal State */
@@ -76,7 +73,7 @@ struct sandbox {
 	uint64_t total_time;          /* Total time from Request to Response */
 
 	/* System Interface State */
-	int32_t arguments_offset; /* actual placement of arguments in the sandbox. */
-	int32_t return_value;
+	int32_t         return_value;
+	wasi_context_t *wasi_context;
 
 } PAGE_ALIGNED;

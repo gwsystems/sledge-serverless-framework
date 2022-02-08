@@ -133,6 +133,6 @@ declare -Ar port=(
 )
 
 # Sort the images by the number of labeled plates
-declare -a cifar10_images=(./images/bmp/*)
+declare -a cifar10_images=(../../../applications/wasm_apps/CMSIS_5_NN/images/bmp/*)
 
 framework_init "$@"

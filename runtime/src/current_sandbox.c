@@ -10,11 +10,15 @@
 #include "sandbox_set_as_complete.h"
 #include "sandbox_set_as_running_user.h"
 #include "sandbox_set_as_running_sys.h"
-#include "sandbox_setup_arguments.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
+#include "wasi.h"
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
+
+// TODO: Propagate arguments from *.json spec file
+const int   dummy_argc   = 1;
+const char *dummy_argv[] = { "Test" };
 
 /**
  * @brief Switches from an executing sandbox to the worker thread base context
@@ -80,12 +84,14 @@ current_sandbox_init()
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 
-	int rc = 0;
+	int   rc            = 0;
+	char *error_message = NULL;
 
 	sandbox_open_http(sandbox);
 
 	rc = sandbox_receive_request(sandbox);
 	if (rc == -2) {
+		error_message = "Request size exceeded Buffer\n";
 		/* Request size exceeded Buffer, send 413 Payload Too Large */
 		client_socket_send(sandbox->client_socket_descriptor, http_header_build(413), http_header_len(413),
 		                   current_sandbox_sleep);
@@ -100,12 +106,22 @@ current_sandbox_init()
 	struct module *current_module = sandbox_get_module(sandbox);
 	module_initialize_globals(current_module);
 	module_initialize_memory(current_module);
-	sandbox_setup_arguments(sandbox);
+
+	/* Initialize WASI */
+	wasi_options_t options;
+	wasi_options_init(&options);
+	options.argc                                          = dummy_argc;
+	options.argv                                          = dummy_argv;
+	sandbox->wasi_context                                 = wasi_context_init(&options);
+	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
+	assert(sandbox->wasi_context != NULL);
+
 	sandbox_return(sandbox);
 
 	return sandbox;
 
 err:
+	debuglog("%s", error_message);
 	sandbox_close_http(sandbox);
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
@@ -161,8 +177,7 @@ void
 current_sandbox_start(void)
 {
 	struct sandbox *sandbox        = current_sandbox_init();
-	struct module * current_module = sandbox_get_module(sandbox);
-	int32_t         argument_count = 0;
-	sandbox->return_value          = module_entrypoint(current_module, argument_count, sandbox->arguments_offset);
+	struct module  *current_module = sandbox_get_module(sandbox);
+	sandbox->return_value          = module_entrypoint(current_module);
 	current_sandbox_fini();
 }

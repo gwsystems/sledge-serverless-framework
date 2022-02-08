@@ -1,7 +1,7 @@
 RUNTIME_DIR=../../../../runtime/
 SLEDGE_BINARY_DIR=${RUNTIME_DIR}/bin
 HOSTNAME=localhost
-IMAGE=./images/Cars0.png
+IMAGE=../../../../applications/wasm_apps/sod/samples/plates/Cars0.png
 
 .PHONY: all
 all: run

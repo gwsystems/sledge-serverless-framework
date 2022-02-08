@@ -334,6 +334,16 @@ log_compiletime_config()
 #endif
 }
 
+void
+check_versions()
+{
+	// Additional functions have become async signal safe over time. Validate latest
+	static_assert(_POSIX_VERSION >= 200809L, "Requires POSIX 2008 or higher\n");
+	// We use C18 features
+	static_assert(__STDC_VERSION__ >= 201710, "Requires C18 or higher\n");
+	static_assert(__linux__ == 1, "Requires epoll, a Linux-only feature");
+}
+
 int
 main(int argc, char **argv)
 {
@@ -343,6 +353,7 @@ main(int argc, char **argv)
 	}
 
 	printf("Starting the Sledge runtime\n");
+
 
 	log_compiletime_config();
 	runtime_process_debug_log_behavior();

@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "types.h"
+#include "sledge_abi.h"
+#include "wasm_types.h"
 
 /* memory also provides the table access functions */
 #define INDIRECT_TABLE_SIZE (1 << 10)
@@ -78,8 +79,7 @@ wasm_table_get(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t
 	assert(idx < wasm_table->capacity);
 
 	struct sledge_abi__wasm_table_entry f = wasm_table->buffer[idx];
-	// FIXME: Commented out function type check because of gocr
-	// assert(f.type_id == type_id);
+	assert(f.type_id == type_id);
 
 	assert(f.func_pointer != NULL);
 

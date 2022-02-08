@@ -148,6 +148,6 @@ while IFS= read -r image_data; do
 		4) lpd4_images+=("$image_file") ;;
 		*) panic "Unexpected number of plates" ;;
 	esac
-done < <(ls ./images/*.csv)
+done < <(ls ../../../../applications/wasm_apps/sod/samples/plates/*.csv)
 
 framework_init "$@"

@@ -2,6 +2,7 @@
 path = awsm
 url = https://github.com/gwsystems/aWsm
 ignore = dirty
+branch = sledge-compat
 [submodule "http-parser"]
 path = runtime/thirdparty/http-parser
 url = https://github.com/gwsystems/http-parser.git
@@ -11,23 +12,7 @@ url = https://github.com/gwsystems/ck.git
 [submodule "jsmn"]
 path = runtime/thirdparty/jsmn
 url = https://github.com/gwsystems/jsmn.git
-[submodule "runtime/tests/gocr"]
-	path = applications/wasmception_apps/gocr
-url = https://github.com/gwsystems/gocr.git
-branch = sledge
-[submodule "runtime/tests/TinyEKF"]
-	path = applications/wasmception_apps/TinyEKF
-url = https://github.com/gwsystems/TinyEKF.git
-branch = sledge
-[submodule "runtime/tests/CMSIS_5_NN"]
-	path = applications/wasmception_apps/CMSIS_5_NN
-url = https://github.com/gwsystems/CMSIS_5_NN.git
-branch = sledge
-[submodule "runtime/tests/sod"]
-	path = applications/wasmception_apps/sod
-url = https://github.com/gwsystems/sod.git
-branch = sledge
-[submodule "runtime/tests/speechtotext"]
-	path = applications/wasmception_apps/speechtotext
-url = https://github.com/gwsystems/speechtotext.git
-branch = sledge
+[submodule "wasm_apps"]
+	path = applications/wasm_apps
+	url = https://github.com/gwsystems/wasm_apps.git
+	branch = master

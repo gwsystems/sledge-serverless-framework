@@ -9,11 +9,10 @@
 #include "sledge_abi.h"
 
 struct sledge_abi_symbols {
-	void *                        handle;
+	void                         *handle;
 	sledge_abi__init_globals_fn_t initialize_globals;
 	sledge_abi__init_mem_fn_t     initialize_memory;
 	sledge_abi__init_tbl_fn_t     initialize_tables;
-	sledge_abi__init_libc_fn_t    initialize_libc;
 	sledge_abi__entrypoint_fn_t   entrypoint;
 	uint32_t                      starting_pages;
 	uint32_t                      max_pages;
@@ -62,13 +61,6 @@ sledge_abi_symbols_init(struct sledge_abi_symbols *abi, char *path)
 		goto dl_error;
 	};
 
-	abi->initialize_libc = (sledge_abi__init_libc_fn_t)dlsym(abi->handle, SLEDGE_ABI__INITIALIZE_LIBC);
-	if (abi->initialize_libc == NULL) {
-		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", SLEDGE_ABI__INITIALIZE_LIBC, path,
-		        dlerror());
-		goto dl_error;
-	};
-
 	sledge_abi__wasm_memory_starting_pages_fn_t get_starting_pages = dlsym(abi->handle, SLEDGE_ABI__STARTING_PAGES);
 	if (get_starting_pages == NULL) {
 		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", SLEDGE_ABI__STARTING_PAGES, path,
@@ -102,7 +94,6 @@ sledge_abi_symbols_deinit(struct sledge_abi_symbols *abi)
 	abi->initialize_globals = NULL;
 	abi->initialize_memory  = NULL;
 	abi->initialize_tables  = NULL;
-	abi->initialize_libc    = NULL;
 
 	int rc = dlclose(abi->handle);
 	if (rc != 0) {

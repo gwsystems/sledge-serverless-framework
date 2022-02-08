@@ -56,7 +56,7 @@ validate_dependencies curl compare
 
 # Copy Flower Image if not here
 if [[ ! -f "./flower.jpg" ]]; then
-	cp "$__run_sh__project_base_absolute_path/applications/wasmception_apps/sod/samples/flower.jpg" ./flower.jpg
+	cp "$__run_sh__project_base_absolute_path/applications/wasm_apps/sod/samples/flower.jpg" ./flower.jpg
 fi
 
 framework_init "$@"
