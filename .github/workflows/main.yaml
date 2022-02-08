@@ -18,12 +18,9 @@ jobs:
       - name: Apt Update
         run: sudo apt-get update
       - uses: actions/checkout@v2
-      - name: Install clang-format-13
+      - name: Install LLVM
         run: |
-          sudo apt-get remove -y --no-install-recommends clang-format-* && sudo apt-get install -y --no-install-recommends clang-format-13
-      - name: Update alternatives
-        run: |
-          sudo update-alternatives --remove-all clang-format && sudo update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-13" 100
+          sudo ./install_llvm.sh $LLVM_VERSION
       - name: Clang Format
         run: ./format.sh -d
   test:
