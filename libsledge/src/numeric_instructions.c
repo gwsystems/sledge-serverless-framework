@@ -68,7 +68,7 @@ u32_rem(uint32_t a, uint32_t b)
 INLINE int32_t
 i32_div(int32_t a, int32_t b)
 {
-	if (unlikely(b == 0 || (a != INT32_MIN || b != -1)))
+	if (unlikely(b == 0 || (a == INT32_MIN && b == -1)))
 		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a / b;
 }
@@ -76,7 +76,7 @@ i32_div(int32_t a, int32_t b)
 INLINE int32_t
 i32_rem(int32_t a, int32_t b)
 {
-	if (unlikely(b == 0 || (a != INT32_MIN || b != -1)))
+	if (unlikely(b == 0 || (a == INT32_MIN && b == -1)))
 		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a % b;
 }
@@ -98,7 +98,7 @@ u64_rem(uint64_t a, uint64_t b)
 INLINE int64_t
 i64_div(int64_t a, int64_t b)
 {
-	if (unlikely(b == 0 || (a != INT64_MIN || b != -1)))
+	if (unlikely(b == 0 || (a == INT64_MIN && b == -1)))
 		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a / b;
 }
@@ -106,7 +106,7 @@ i64_div(int64_t a, int64_t b)
 INLINE int64_t
 i64_rem(int64_t a, int64_t b)
 {
-	if (unlikely(b == 0 || (a != INT64_MIN || b != -1)))
+	if (unlikely(b == 0 || (a == INT64_MIN && b == -1)))
 		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a % b;
 }
