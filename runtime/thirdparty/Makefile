@@ -5,7 +5,7 @@ DIST_PREFIX=${CURR_DIR}/dist/
 all: clean build
 
 .PHONY: build
-build: ck jsmn http-parser awsm-wasi
+build: ck jsmn http-parser
 
 # Concurrency Kit
 ck/Makefile: ck/Makefile.in ck/configure
@@ -40,30 +40,6 @@ ${DIST_PREFIX}/include/jsmn.h: jsmn/jsmn.h
 
 .PHONY: jsmn
 jsmn: ${DIST_PREFIX}/include/jsmn.h
-
-# aWsm WASI
-${DIST_PREFIX}/include/wasi_backing.h: ../../awsm/runtime/libc/wasi/include/wasi_backing.h
-	@mkdir -p ${DIST_PREFIX}
-	@mkdir -p ${DIST_PREFIX}/include/
-	@cp ../../awsm/runtime/libc/wasi/include/wasi_backing.h ${DIST_PREFIX}/include/wasi_backing.h
-
-${DIST_PREFIX}/include/wasi_impl.h: ../../awsm/runtime/libc/wasi/include/wasi_impl.h
-	@mkdir -p ${DIST_PREFIX}
-	@mkdir -p ${DIST_PREFIX}/include/
-	@cp ../../awsm/runtime/libc/wasi/include/wasi_impl.h ${DIST_PREFIX}/include/wasi_impl.h
-
-${DIST_PREFIX}/include/wasi_serdes.h: ../../awsm/runtime/libc/wasi/include/wasi_serdes.h
-	@mkdir -p ${DIST_PREFIX}
-	@mkdir -p ${DIST_PREFIX}/include/
-	@cp ../../awsm/runtime/libc/wasi/include/wasi_serdes.h ${DIST_PREFIX}/include/wasi_serdes.h
-
-${DIST_PREFIX}/include/wasi_spec.h: ../../awsm/runtime/libc/wasi/include/wasi_spec.h
-	@mkdir -p ${DIST_PREFIX}
-	@mkdir -p ${DIST_PREFIX}/include/
-	@cp ../../awsm/runtime/libc/wasi/include/wasi_spec.h ${DIST_PREFIX}/include/wasi_spec.h
-
-.PHONY: awsm-wasi
-awsm-wasi: ${DIST_PREFIX}/include/wasi_backing.h ${DIST_PREFIX}/include/wasi_impl.h ${DIST_PREFIX}/include/wasi_serdes.h ${DIST_PREFIX}/include/wasi_spec.h
 
 .PHONY: clean
 clean:

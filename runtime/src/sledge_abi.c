@@ -130,7 +130,6 @@ sledge_abi__wasm_globals_set_i32(uint32_t idx, int32_t value, bool is_mutable)
 }
 
 // 0 on success, -1 on out of bounds, -2 on mismatched type
-// TODO: Differentiate from value of -1 or -1
 EXPORT void
 sledge_abi__wasm_globals_set_i64(uint32_t idx, int64_t value, bool is_mutable)
 {
