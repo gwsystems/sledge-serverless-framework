@@ -115,6 +115,13 @@ empty__concurrency: ./runtime/bin/empty.wasm.so
 	# cd ./tests/empty/concurrency/ && ./install.sh
 	cd ./tests/empty/concurrency/ && ./run.sh
 
+./runtime/bin/trap_divzero.wasm.so:
+	make trap_divzero.install -C ./applications
+
+PHONY: trap_divzero
+trap_divzero: ./runtime/bin/trap_divzero.wasm.so
+	cd ./tests/traps/ && ./run.sh
+
 all: \
 	gocr__all \
 	ekf__all \

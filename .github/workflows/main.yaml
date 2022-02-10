@@ -177,3 +177,7 @@ jobs:
       #   run: |
       #     make -f test.mk TODO
       #   if: success() || failure()
+      - name: Wasm Trap Divide by Zero
+        run: |
+          make -f test.mk trap_divzero
+        if: success() || failure()
