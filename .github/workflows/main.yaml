@@ -72,6 +72,7 @@ jobs:
             fonts-cascadia-code \
             fonts-roboto \
             gnuplot \
+            httpie \
             imagemagick \
             netpbm \
             pango1.0-tools \
