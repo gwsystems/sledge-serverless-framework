@@ -1,7 +1,7 @@
 [
 	{
 		"name": "fibonacci_10",
-		"path": "fibonacci.wasm.so",
+		"path": "asc-fib.wasm.so",
 		"port": 10010,
 		"expected-execution-us": 6000,
 		"admissions-percentile": 70,
@@ -12,7 +12,7 @@
 	},
 	{
 		"name": "fibonacci_40",
-		"path": "fibonacci.wasm.so",
+		"path": "asc-fib.wasm.so",
 		"port": 10040,
 		"expected-execution-us": 10000000,
 		"admissions-percentile": 70,

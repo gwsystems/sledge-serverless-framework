@@ -65,6 +65,9 @@ exit.install: ../runtime/bin/exit.wasm.so
 .PHONY: fibonacci.install
 fibonacci.install: ../runtime/bin/fibonacci.wasm.so
 
+.PHONY: asc-fib.install
+asc-fib.install: ../runtime/bin/asc-fib.wasm.so
+
 .PHONY: gocr.install
 gocr.install: ../runtime/bin/gocr.wasm.so
 
