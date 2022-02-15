@@ -166,7 +166,6 @@ i64_trunc_f64(double f)
 	return (int64_t)f;
 }
 
-// Float => Float truncation functions
 INLINE float
 f32_trunc_f32(float f)
 {
@@ -209,7 +208,6 @@ f32_nearest(float a)
 	return nearbyintf(a);
 }
 
-// Float => Float truncation functions
 INLINE double
 f64_trunc_f64(double f)
 {
@@ -240,7 +238,6 @@ f64_ceil(double a)
 	return ceil(a);
 }
 
-// TODO: Is this missing in aWsm? f64.copysign
 INLINE double
 f64_copysign(double a, double b)
 {
