@@ -22,27 +22,36 @@ source percentiles_table.sh || exit 1
 validate_dependencies hey gnuplot jq
 
 # The global configs for the scripts
-declare -gi iterations=10000
-declare -gi duration_sec=1
+declare -r ITERATIONS=10000 # ignored when DURATION_SEC is used
+declare -r DURATION_SEC=5
+declare -r NWORKERS=18
+declare -r APP=fib30
+declare -r INIT_PORT=20000
+declare -r EXPECTED_EXEC_US=6500
+declare -r DEADLINE_US=10000
+declare -r REPL_PERIOD_US=10000
+declare -r RESERVATION_UTILS=(5 10 15 20 25 30 35 40 45 50 55 60 65 70 75 80 85 90 95 100)
+# declare -ar RESERVATION_UTILS=(5 100) # for quick testing
 
 generate_spec() {
 	printf "Generating 'spec.json'...(may take a couple sec)\n"
 
 	local -i max_budget_us
+	local -i port
 
-	for ru in "${res_utils[@]}"; do
-		name=$(printf "${app}_%03dp" ${ru})
-		workloads+=($name)
-		ports[$name]=$(($init_port+$ru))
-		deadlines_us[$name]=10000
-		reservation_util[$name]=$ru
-		max_budget_us=$((repl_period_us*NWORKERS*ru/100))
+	for ru in "${RESERVATION_UTILS[@]}"; do
+		workload=$(printf "${APP}_%03dp" ${ru})
+		port=$(($INIT_PORT+$ru))
+		max_budget_us=$((REPL_PERIOD_US*NWORKERS*ru/100))
 
-		# Generates unique module specs on different ports using the different 'ru's
+		# Generates unique module specs on different ports using the given 'ru's
 		jq ". + { \
-		\"name\": \"${name}\",\
-		\"port\": ${ports[$name]},\
-		\"max-budget-us\": $max_budget_us}" \
+		\"name\": \"${workload}\",\
+		\"port\": ${port},\
+		\"expected-execution-us\": ${EXPECTED_EXEC_US},\
+		\"relative-deadline-us\": ${DEADLINE_US},\
+		\"replenishment-period-us\": ${REPL_PERIOD_US}, \
+		\"max-budget-us\": ${max_budget_us}}" \
 			< "./template.json" \
 			> "./result_${ru}.json"
 	done
@@ -50,8 +59,10 @@ generate_spec() {
 	jq ". + { \
 		\"name\": \"fib30\",\
 		\"port\": 10030,\
-		\"max-budget-us\": 0, \
-		\"replenishment-period-us\": 0}" \
+		\"expected-execution-us\": ${EXPECTED_EXEC_US},\
+		\"relative-deadline-us\": ${DEADLINE_US},\
+		\"replenishment-period-us\": 0, \
+		\"max-budget-us\": 0}" \
 			< "./template.json" \
 			> "./result_000.json"
 
@@ -79,29 +90,27 @@ run_experiments() {
 	local hostname="$1"
 	local results_directory="$2"
 
-	# The duration in seconds that we want the client to send requests
-	# local -ir duration_sec=5
-
 	# The duration in seconds that the low priority task should run before the high priority task starts
-	local -ir offset=2
+	local -ir OFFSET=2
 
 	printf "Running Experiments\n"
 
 	# Run concurrently
-	# The lower priority has offsets to ensure it runs the entire time the high priority is trying to run
+	# The lower priority has OFFSETs to ensure it runs the entire time the high priority is trying to run
 	# This asynchronously trigger jobs and then wait on their pids
 	local fib30_nk_PID
 	local fib30_PID
 
-	for workload in "${workloads[@]}"; do
-		local -i port=${ports[${workload/}]}
+	for ru in "${RESERVATION_UTILS[@]}"; do
+		workload=$(printf "${APP}_%03dp" ${ru})
+		port=$(($INIT_PORT+$ru))
 
-		hey -disable-compression -disable-keepalive -disable-redirects -z "$(($duration_sec+$offset+1))"s -n "$iterations" -c 36 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:10030" > "$results_directory/fib30.csv" 2> /dev/null &
+		hey -disable-compression -disable-keepalive -disable-redirects -z "$(($DURATION_SEC+$OFFSET+1))"s -n "$ITERATIONS" -c 90 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:10030" > "$results_directory/fib30.csv" 2> /dev/null &
 		fib30_PID="$!"
 
-		sleep "$offset"s
+		sleep "$OFFSET"s
 		
-		hey -disable-compression -disable-keepalive -disable-redirects -z "$duration_sec"s -n "$iterations" -c 18 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:${port}" > "$results_directory/$workload.csv" 2> /dev/null &
+		hey -disable-compression -disable-keepalive -disable-redirects -z "$DURATION_SEC"s -n "$ITERATIONS" -c 18 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:${port}" > "$results_directory/$workload.csv" 2> /dev/null &
 		fib30_nk_PID="$!"
 
 		wait -f "$fib30_nk_PID" || {
@@ -151,15 +160,13 @@ process_client_results() {
 	printf "Workload,Throughput\n" >> "$results_directory/throughput.csv"
 	percentiles_table_header "$results_directory/latency.csv"
 
-	for workload in "${workloads[@]}"; do
-		# Strip the  suffix when getting the deadline
-		local -i deadline=${deadlines_us[${workload//}]}
-		local -i r_u=${reservation_util[${workload}]}
+	for ru in "${RESERVATION_UTILS[@]}"; do
+		workload=$(printf "${APP}_%03dp" ${ru})
 
-		# Calculate Success Rate for csv (percent of requests that return 200 within deadline)
+		# Calculate Success Rate for csv (percent of requests that return 200 within DEADLINE_US)
 		awk -F, '
-			$7 == 200 && ($1 * 1000000) <= '"$deadline"' {ok++}
-			END{printf "'"$r_u"',%3.5f\n", (ok / (NR - 1) * 100)}
+			$7 == 200 && ($1 * 1000000) <= '"$DEADLINE_US"' {ok++}
+			END{printf "'"$ru"',%3.1f\n", (ok / (NR - 1) * 100)}
 		' < "$results_directory/$workload.csv" >> "$results_directory/success.csv"
 
 		# Filter on 200s, convert from s to us, and sort
@@ -171,15 +178,15 @@ process_client_results() {
 		((oks == 0)) && continue # If all errors, skip line
 
 		# We determine duration by looking at the timestamp of the last complete request
-		# TODO: Should this instead just use the client-side synthetic duration_sec value?
+		# TODO: Should this instead just use the client-side synthetic DURATION_SEC value?
 		duration=$(tail -n1 "$results_directory/$workload.csv" | cut -d, -f8)
 
 		# Throughput is calculated as the mean number of successful requests per second
 		throughput=$(echo "$oks/$duration" | bc)
-		printf "%s,%d\n" "$r_u" "$throughput" >> "$results_directory/throughput.csv"
+		printf "%s,%d\n" "$ru" "$throughput" >> "$results_directory/throughput.csv"
 
 		# Generate Latency Data for csv
-		percentiles_table_row "$results_directory/$workload-response.csv" "$results_directory/latency.csv" "$r_u"
+		percentiles_table_row "$results_directory/$workload-response.csv" "$results_directory/latency.csv" "$ru"
 
 		# Delete scratch file used for sorting/counting
 		rm -rf "$results_directory/$workload-response.csv"
@@ -238,11 +245,9 @@ process_server_results() {
 	done
 	percentiles_table_header "$results_directory/memalloc.csv" "module"
 
-	for workload in "${workloads[@]}"; do
+	for ru in "${RESERVATION_UTILS[@]}"; do
+		workload=$(printf "${APP}_%03dp" ${ru})
 		mkdir "$results_directory/$workload"
-
-		local -i deadline=${deadlines_us[${workload/}]}
-		local -i r_u=${reservation_util[${workload}]}
 
 		# TODO: Only include Complete
 		for metric in "${metrics[@]}"; do
@@ -260,17 +265,17 @@ process_server_results() {
 		percentiles_table_row "$results_directory/$workload/memalloc_sorted.csv" "$results_directory/memalloc.csv" "$workload" "%1.0f"
 
 
-		# Calculate Success Rate for csv (percent of requests that complete), $1 and deadline are both in us, so not converting 
+		# Calculate Success Rate for csv (percent of requests that complete), $1 and DEADLINE_US are both in us, so not converting 
 		awk -F, '
-			$1 <= '"$deadline"' {ok++}
-			END{printf "'"$r_u"',%3.5f\n", (ok / NR * 100)}
+			$1 <= '"$DEADLINE_US"' {ok++}
+			END{printf "'"$ru"',%3.1f\n", (ok / NR * 100)}
 		' < "$results_directory/$workload/total_sorted.csv" >> "$results_directory/success.csv"
 
 		# Throughput is calculated on the client side, so ignore the below line
-		printf "%s,%d\n" "$r_u" "1" >> "$results_directory/throughput.csv"
+		printf "%s,%d\n" "$ru" "1" >> "$results_directory/throughput.csv"
 
 		# Generate Latency Data for csv
-		percentiles_table_row "$results_directory/$workload/total_sorted.csv" "$results_directory/latency.csv" "$r_u"
+		percentiles_table_row "$results_directory/$workload/total_sorted.csv" "$results_directory/latency.csv" "$ru"
 		
 
 		# Delete scratch file used for sorting/counting
