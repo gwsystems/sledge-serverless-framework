@@ -69,19 +69,20 @@ The ABI includes the
 | i64.trunc_f32_u | `u64_trunc_f32`                          | `UINT64_MAX`, `stderr`, `fprintf`             | `sledge_abi__wasm_trap_raise`, `WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION` |
 | i64.trunc_f64_s | `i64_trunc_f64`                          | `INT64_MIN`, `INT64_MAX`, `stderr`, `fprintf` | `sledge_abi__wasm_trap_raise`, `WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION` |
 | i64.trunc_f64_u | `u64_trunc_f64`                          | `UINT64_MAX`, `stderr`, `fprintf`             | `sledge_abi__wasm_trap_raise`, `WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION` |
-| f32.ceil        | `f32_ceil`                               | **NOT SUPPORTED**                             | **NOT SUPPORTED**                                                       |
-| f32.copysign    | `f32_copysign`                           | **NOT SUPPORTED**                             | **NOT SUPPORTED**                                                       |
-| f32.floor       | `f32_floor`                              | `floor`                                       | None                                                                    |
+| f32.ceil        | `f32_ceil`                               | `ceilf`                                       | `ceilf`                                                                 |
+| f32.copysign    | `f32_copysign`                           | `copysignf`                                   | `copysignf`                                                             |
+| f32.floor       | `f32_floor`                              | `floorf`                                      | `floorf`                                                                |
 | f32.max         | `f32_max`                                | None                                          | None                                                                    |
 | f32.min         | `f32_min`                                | None                                          | None                                                                    |
-| f32.nearest     | `f32_nearest`                            | **NOT SUPPORTED**                             | **NOT SUPPORTED**                                                       |
-| f32.trunc       | `f32_trunc_f32`                          | `trunc`                                       | None                                                                    |
-| f64.ceil        | `f64_ceil`                               | **NOT SUPPORTED**                             | **NOT SUPPORTED**                                                       |
-| f64.floor       | `f64_floor`                              | `floor`                                       | None                                                                    |
+| f32.nearest     | `f32_nearest`                            | `nearbyintf`                                  | `nearbyintf`                                                            |
+| f32.trunc       | `f32_trunc_f32`                          | `truncf`                                      | `truncf`                                                                |
+| f64.ceil        | `f64_ceil`                               | `ceil`                                        | `ceil`                                                                  |
+| f64.copysign    | `f64_copysign`                           | `copysign`                                    | `copysign`                                                              |
+| f64.floor       | `f64_floor`                              | `floor`                                       | `floor`                                                                 |
 | f64.max         | `f64_max`                                | None                                          | None                                                                    |
 | f64.min         | `f64_min`                                | None                                          | None                                                                    |
-| f64.nearest     | `f64_nearest`                            | **NOT SUPPORTED**                             | **NOT SUPPORTED**                                                       |
-| f64.trunc       | `f64_trunc_f64`                          | **NOT SUPPORTED**                             | **NOT SUPPORTED**                                                       |
+| f64.nearest     | `f64_nearest`                            | `nearbyint`                                   | `nearbyint`                                                             |
+| f64.trunc       | `f64_trunc_f64`                          | `trunc`                                       | `trunc`                                                                 |
 
 ### [Memory Instructions](https://webassembly.github.io/spec/core/syntax/instructions.html#memory-instructions)
 
