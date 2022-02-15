@@ -1,0 +1,24 @@
+reset
+
+set term jpeg size 1024,768
+set output "success_part2.jpg"
+
+set xlabel "Replenishment Period (ms)"
+set ylabel "Deadline success rate %"
+
+set xrange [0:]
+set yrange [0:110]
+
+set style histogram columnstacked
+set key horizontal
+
+plot 'success.dat' using 1:12 title 'RU=55%' linetype 1 linecolor 0 with linespoints, \
+     'success.dat' using 1:13 title 'RU=60%' lt 1 lc 1 w lp, \
+     'success.dat' using 1:14 title 'RU=65%' lt 1 lc 2 w lp, \
+     'success.dat' using 1:15 title 'RU=70%' lt 1 lc 3 w lp, \
+     'success.dat' using 1:16 title 'RU=75%' lt 1 lc 4 w lp, \
+	'success.dat' using 1:17 title 'RU=80%' lt 1 lc 5 w lp, \
+	'success.dat' using 1:18 title 'RU=85%' lt 1 lc 6 w lp, \
+	'success.dat' using 1:19 title 'RU=90%' lt 1 lc 7 w lp, \
+	'success.dat' using 1:20 title 'RU=95%' lt 1 lc 8 w lp, \
+     'success.dat' using 1:21 title 'RU=100%' lt 1 lc 9 w lp
