@@ -23,7 +23,7 @@ csv_to_dat() {
 	done
 
 	for file in "$@"; do
-		echo -n "#" > "${file/.csv/.dat}"
+		# echo -n "#" > "${file/.csv/.dat}"
 		tr ',' ' ' < "$file" | column -t >> "${file/.csv/.dat}"
 	done
 }

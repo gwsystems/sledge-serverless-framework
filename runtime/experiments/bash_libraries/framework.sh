@@ -239,10 +239,10 @@ __framework_sh__log_environment() {
 	cat "$(path_join "$__framework_sh__path" ../../Makefile)"
 	echo ""
 
-	echo "**********"
-	echo "* Run.sh *"
-	echo "**********"
-	cat "$(path_join "$__framework_sh__application_directory" ./run.sh)"
+	echo "**************"
+	echo "* " "$0" " *"
+	echo "**************"
+	cat "$(path_join "$__framework_sh__application_directory" "$0")"
 	echo ""
 
 	echo "************"
@@ -371,6 +371,11 @@ __framework_sh__run_debug() {
 }
 
 __framework_sh__run_client() {
+	local -r log_name=log.txt
+	local log="$RESULTS_DIRECTORY/${log_name}"
+	
+	__framework_sh__log_environment >> "$log"
+
 	experiment_client "$__framework_sh__target" "$RESULTS_DIRECTORY" || return 1
 
 	return 0
