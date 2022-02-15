@@ -96,3 +96,16 @@ current_sandbox_memory_writeback(void)
 	memcpy(&current_sandbox->memory->abi, &sledge_abi__current_wasm_module_instance.abi.memory,
 	       sizeof(struct sledge_abi__wasm_memory));
 }
+
+static inline void
+current_sandbox_trap(enum sledge_abi__wasm_trap trapno)
+{
+	assert(trapno != 0);
+	assert(trapno < WASM_TRAP_COUNT);
+
+	struct sandbox *sandbox = current_sandbox_get();
+	assert(sandbox != NULL);
+	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_RUNNING_SYS);
+
+	longjmp(sandbox->ctxt.start_buf, trapno);
+}

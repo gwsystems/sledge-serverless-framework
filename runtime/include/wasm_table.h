@@ -7,6 +7,10 @@
 #include "sledge_abi.h"
 #include "wasm_types.h"
 
+/* Redeclared due to circular header dependency */
+extern void sledge_abi__current_wasm_module_instance_trap(enum sledge_abi__wasm_trap trapno);
+
+
 /* memory also provides the table access functions */
 #define INDIRECT_TABLE_SIZE (1 << 10)
 
@@ -76,7 +80,11 @@ static INLINE void *
 wasm_table_get(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t type_id)
 {
 	assert(wasm_table != NULL);
-	assert(idx < wasm_table->capacity);
+
+	if (unlikely(idx >= wasm_table->capacity)) {
+		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
+		sledge_abi__current_wasm_module_instance_trap(WASM_TRAP_INVALID_INDEX);
+	}
 
 	struct sledge_abi__wasm_table_entry f = wasm_table->buffer[idx];
 	assert(f.type_id == type_id);
@@ -90,7 +98,12 @@ static INLINE void
 wasm_table_set(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t type_id, char *pointer)
 {
 	assert(wasm_table != NULL);
-	assert(idx < wasm_table->capacity);
+
+	if (unlikely(idx >= wasm_table->capacity)) {
+		fprintf(stderr, "idx: %u, Table size: %u\n", idx, INDIRECT_TABLE_SIZE);
+		sledge_abi__current_wasm_module_instance_trap(WASM_TRAP_INVALID_INDEX);
+	}
+
 	assert(pointer != NULL);
 
 	/* TODO: atomic for multiple concurrent invocations? Issue #97 */

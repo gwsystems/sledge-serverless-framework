@@ -34,9 +34,9 @@ Here is a list of WebAssembly instructions that depend on symbols from libsledge
 
 The ABI includes the
 
-| Instruction   | aWsm ABI                  | libc Dependencies   | SLEdge ABI                                                                                                                                       |
-| ------------- | ------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| call_indirect | `get_function_from_table` | `stderr`, `fprintf` | `sledge_abi__current_wasm_module_instance.table`, `sledge_abi__wasm_trap_raise`, `WASM_TRAP_INVALID_INDEX`, `WASM_TRAP_MISMATCHED_FUNCTION_TYPE` |
+| Instruction   | aWsm ABI                  | libc Dependencies   | SLEdge ABI                                                                                                                              |
+| ------------- | ------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| call_indirect | `get_function_from_table` | `stderr`, `fprintf` | `sledge_abi__current_wasm_module_instance.table`, `sledge_abi__wasm_trap_raise`, `WASM_TRAP_INVALID_INDEX`, `WASM_TRAP_MISMATCHED_TYPE` |
 
 ### [Variable Instructions](https://webassembly.github.io/spec/core/syntax/instructions.html#variable-instructions)
 

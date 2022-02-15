@@ -54,56 +54,60 @@ rotr_u64(uint64_t n, uint64_t c_u64)
 INLINE uint32_t
 u32_div(uint32_t a, uint32_t b)
 {
-	assert(b);
+	if (unlikely(b == 0)) sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a / b;
 }
 
 INLINE uint32_t
 u32_rem(uint32_t a, uint32_t b)
 {
-	assert(b);
+	if (unlikely(b == 0)) sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a % b;
 }
 
 INLINE int32_t
 i32_div(int32_t a, int32_t b)
 {
-	assert(b && (a != INT32_MIN || b != -1));
+	if (unlikely(b == 0 || (a == INT32_MIN && b == -1)))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a / b;
 }
 
 INLINE int32_t
 i32_rem(int32_t a, int32_t b)
 {
-	assert(b && (a != INT32_MIN || b != -1));
+	if (unlikely(b == 0 || (a == INT32_MIN && b == -1)))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a % b;
 }
 
 INLINE uint64_t
 u64_div(uint64_t a, uint64_t b)
 {
-	assert(b);
+	if (unlikely(b == 0)) sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a / b;
 }
 
 INLINE uint64_t
 u64_rem(uint64_t a, uint64_t b)
 {
-	assert(b);
+	if (unlikely(b == 0)) sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a % b;
 }
 
 INLINE int64_t
 i64_div(int64_t a, int64_t b)
 {
-	assert(b && (a != INT64_MIN || b != -1));
+	if (unlikely(b == 0 || (a == INT64_MIN && b == -1)))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a / b;
 }
 
 INLINE int64_t
 i64_rem(int64_t a, int64_t b)
 {
-	assert(b && (a != INT64_MIN || b != -1));
+	if (unlikely(b == 0 || (a == INT64_MIN && b == -1)))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return a % b;
 }
 
@@ -113,56 +117,64 @@ i64_rem(int64_t a, int64_t b)
 uint32_t
 u32_trunc_f32(float f)
 {
-	assert(0 <= f && f <= (float)UINT32_MAX);
+	if (unlikely(f < 0 || f > (float)UINT32_MAX))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return (uint32_t)f;
 }
 
 int32_t
 i32_trunc_f32(float f)
 {
-	assert(INT32_MIN <= f && f <= (float)INT32_MAX);
+	if (unlikely(f < INT32_MIN || f > (float)INT32_MAX))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return (int32_t)f;
 }
 
 uint32_t
 u32_trunc_f64(double f)
 {
-	assert(0 <= f && f <= (double)UINT32_MAX);
+	if (unlikely(f < 0 || f > (double)UINT32_MAX))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return (uint32_t)f;
 }
 
 int32_t
 i32_trunc_f64(double f)
 {
-	assert(INT32_MIN <= f && f <= (double)INT32_MAX);
+	if (unlikely(f < (double)INT32_MIN || f > (double)INT32_MAX))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return (int32_t)f;
 }
 
 uint64_t
 u64_trunc_f32(float f)
 {
-	assert(0 <= f && f <= (float)UINT64_MAX);
+	if (unlikely(f < 0 || f > (float)UINT64_MAX))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return (uint64_t)f;
 }
 
 int64_t
 i64_trunc_f32(float f)
 {
-	assert(INT64_MIN <= f && f <= (float)INT64_MAX);
+	if (unlikely(f < (float)INT64_MIN || f > (float)INT64_MAX))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return (int64_t)f;
 }
 
 uint64_t
 u64_trunc_f64(double f)
 {
-	assert(0 <= f && f <= (double)UINT64_MAX);
+	if (unlikely(f < 0 || f > (float)UINT64_MAX))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return (uint64_t)f;
 }
 
 int64_t
 i64_trunc_f64(double f)
 {
-	assert(INT64_MIN <= f && f <= (double)INT64_MAX);
+	if (unlikely(f < (double)INT64_MIN || f > (double)INT64_MAX))
+		sledge_abi__wasm_trap_raise(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 	return (int64_t)f;
 }
 

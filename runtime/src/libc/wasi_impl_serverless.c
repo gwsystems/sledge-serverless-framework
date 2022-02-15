@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <math.h>
 #include <printf.h>
+#include <setjmp.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -933,9 +934,6 @@ wasi_snapshot_preview1_backing_path_link(wasi_context_t *context, __wasi_fd_t ol
  * @param path_baseptr path of the file or directory to open relative to the fd directory.
  * @param path_len
  * @param oflags The method by which to open the file.
- *
-
- *
  * @param fs_rights_base
  * @param fs_rights_inheriting
  * @param fdflags
@@ -945,7 +943,6 @@ wasi_snapshot_preview1_backing_path_link(wasi_context_t *context, __wasi_fd_t ol
 __wasi_errno_t
 wasi_snapshot_preview1_backing_path_open(wasi_context_t *context, __wasi_fd_t dirfd, __wasi_lookupflags_t dirflags,
                                          const char *path, __wasi_size_t path_len, __wasi_oflags_t oflags,
-
                                          __wasi_rights_t fs_rights_base, __wasi_rights_t fs_rights_inheriting,
                                          __wasi_fdflags_t fdflags, __wasi_fd_t *fd)
 {
@@ -1067,7 +1064,9 @@ wasi_snapshot_preview1_backing_poll_oneoff(wasi_context_t *context, const __wasi
 noreturn void
 wasi_snapshot_preview1_backing_proc_exit(wasi_context_t *context, __wasi_exitcode_t exitcode)
 {
-	assert(0);
+	struct sandbox *s = current_sandbox_get();
+	s->return_value   = exitcode;
+	longjmp(s->ctxt.start_buf, WASM_TRAP_EXIT);
 }
 
 /**

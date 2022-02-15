@@ -11,12 +11,14 @@ static INLINE void *
 wasm_table_get(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t type_id)
 {
 	assert(wasm_table != NULL);
-	assert(idx < wasm_table->capacity);
+
+	if (unlikely(idx >= wasm_table->capacity)) { sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX); }
 
 	struct sledge_abi__wasm_table_entry f = wasm_table->buffer[idx];
 
-	assert(f.type_id == type_id);
-	assert(f.func_pointer != NULL);
+	if (unlikely(f.type_id != type_id)) { sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE); }
+
+	if (unlikely(f.func_pointer == NULL)) { sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE); }
 
 	return f.func_pointer;
 }
@@ -44,12 +46,15 @@ get_function_from_table(uint32_t idx, uint32_t type_id)
 {
 	assert(sledge_abi__current_wasm_module_instance.table != NULL);
 
-	assert(idx < sledge_abi__current_wasm_module_instance.table->capacity);
+	if (unlikely(idx >= sledge_abi__current_wasm_module_instance.table->capacity)) {
+		sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	}
 
 	struct sledge_abi__wasm_table_entry f = sledge_abi__current_wasm_module_instance.table->buffer[idx];
 
-	assert(f.type_id == type_id);
-	assert(f.func_pointer != NULL);
+	if (unlikely(f.type_id != type_id)) { sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE); }
+
+	if (unlikely(f.func_pointer == NULL)) { sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE); }
 
 	return f.func_pointer;
 }

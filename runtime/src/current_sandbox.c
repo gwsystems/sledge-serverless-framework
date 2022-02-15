@@ -1,4 +1,6 @@
 #include <threads.h>
+#include <setjmp.h>
+#include <threads.h>
 
 #include "current_sandbox.h"
 #include "current_sandbox_send_response.h"
@@ -77,6 +79,51 @@ current_sandbox_exit()
 	assert(0);
 }
 
+void
+current_sandbox_wasm_trap_handler(int trapno)
+{
+	char           *error_message = NULL;
+	struct sandbox *sandbox       = current_sandbox_get();
+	sandbox_syscall(sandbox);
+
+	switch (trapno) {
+	case WASM_TRAP_EXIT:
+		break;
+	case WASM_TRAP_INVALID_INDEX:
+		error_message = "WebAssembly Trap: Invalid Index\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_MISMATCHED_TYPE:
+		error_message = "WebAssembly Trap: Mismatched Type\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW:
+		error_message = "WebAssembly Trap: Protected Call Stack Overflow\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY:
+		error_message = "WebAssembly Trap: Out of Bounds Linear Memory Access\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION:
+		error_message = "WebAssembly Trap: Illegal Arithmetic Operation\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	}
+
+	debuglog("%s", error_message);
+	sandbox_close_http(sandbox);
+	generic_thread_dump_lock_overhead();
+	current_sandbox_exit();
+	assert(0);
+}
+
+
 static inline struct sandbox *
 current_sandbox_init()
 {
@@ -127,8 +174,6 @@ err:
 	sandbox_close_http(sandbox);
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
-	assert(0);
-
 	return NULL;
 }
 
@@ -178,8 +223,15 @@ err:
 void
 current_sandbox_start(void)
 {
-	struct sandbox *sandbox        = current_sandbox_init();
-	struct module  *current_module = sandbox_get_module(sandbox);
-	sandbox->return_value          = module_entrypoint(current_module);
+	struct sandbox *sandbox = current_sandbox_init();
+
+	int rc = setjmp(sandbox->ctxt.start_buf);
+	if (rc == 0) {
+		struct module *current_module = sandbox_get_module(sandbox);
+		sandbox->return_value         = module_entrypoint(current_module);
+	} else {
+		current_sandbox_wasm_trap_handler(rc);
+	}
+
 	current_sandbox_fini();
 }

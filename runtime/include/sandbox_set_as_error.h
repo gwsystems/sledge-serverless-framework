@@ -19,8 +19,6 @@
  * Unmaps linear memory, removes from the runqueue (if on it), and adds to the completion queue
  * Because the stack is still in use, freeing the stack is deferred until later
  *
- * TODO: Is the sandbox adding itself to the completion queue here? Is this a problem? Issue #94
- *
  * @param sandbox the sandbox erroring out
  * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
  * enable the compiler to perform constant propagation optimizations.

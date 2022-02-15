@@ -6,6 +6,12 @@
 #include "wasi.h"
 #include "wasi_serdes.h"
 
+EXPORT void
+sledge_abi__wasm_trap_raise(enum sledge_abi__wasm_trap trapno)
+{
+	return current_sandbox_trap(trapno);
+}
+
 /**
  * @brief Get the memory ptr for runtime object
  *
@@ -84,10 +90,14 @@ sledge_abi__wasm_globals_get_i32(uint32_t idx)
 	struct sandbox *sandbox = current_sandbox_get();
 
 	sandbox_syscall(sandbox);
-	int32_t value = wasm_globals_get_i32(&sandbox->globals, idx);
+	int32_t result;
+	int     rc = wasm_globals_get_i32(&sandbox->globals, idx, &result);
 	sandbox_return(sandbox);
 
-	return value;
+	if (rc == -1) sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	if (rc == -2) sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE);
+
+	return result;
 }
 
 EXPORT int64_t
@@ -96,13 +106,17 @@ sledge_abi__wasm_globals_get_i64(uint32_t idx)
 	struct sandbox *sandbox = current_sandbox_get();
 
 	sandbox_syscall(sandbox);
-	int64_t value = wasm_globals_get_i64(&sandbox->globals, idx);
+	int64_t result;
+	int     rc = wasm_globals_get_i64(&sandbox->globals, idx, &result);
 	sandbox_return(sandbox);
 
-	return value;
+	if (rc == -1) sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	if (rc == -2) sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE);
+
+	return result;
 }
 
-EXPORT int32_t
+EXPORT void
 sledge_abi__wasm_globals_set_i32(uint32_t idx, int32_t value, bool is_mutable)
 {
 	struct sandbox *sandbox = current_sandbox_get();
@@ -111,10 +125,12 @@ sledge_abi__wasm_globals_set_i32(uint32_t idx, int32_t value, bool is_mutable)
 	int32_t rc = wasm_globals_set_i32(&sandbox->globals, idx, value, true);
 	sandbox_return(sandbox);
 
-	return rc;
+	if (rc == -1) sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	if (rc == -2) sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE);
 }
 
-EXPORT int32_t
+// 0 on success, -1 on out of bounds, -2 on mismatched type
+EXPORT void
 sledge_abi__wasm_globals_set_i64(uint32_t idx, int64_t value, bool is_mutable)
 {
 	struct sandbox *sandbox = current_sandbox_get();
@@ -123,7 +139,8 @@ sledge_abi__wasm_globals_set_i64(uint32_t idx, int64_t value, bool is_mutable)
 	int32_t rc = wasm_globals_set_i64(&sandbox->globals, idx, value, true);
 	sandbox_return(sandbox);
 
-	return rc;
+	if (rc == -1) sledge_abi__wasm_trap_raise(WASM_TRAP_INVALID_INDEX);
+	if (rc == -2) sledge_abi__wasm_trap_raise(WASM_TRAP_MISMATCHED_TYPE);
 }
 
 /**
