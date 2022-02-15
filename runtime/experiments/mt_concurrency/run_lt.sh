@@ -3,7 +3,7 @@
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success/failure rate
 # Success - The percentage of requests that complete out of the total expected
 # Throughput - The mean number of successful requests per second
-# Latency - the rount-trip resonse time (unit?) of successful requests at the p50, p90, p99, and p100 percentiles
+# Latency - the rount-trip resonse time (us) of successful requests at the p50, p90, p99, and p100 percentiles
 
 # Add bash_libraries directory to path
 __run_sh__base_path="$(dirname "$(realpath --logical "${BASH_SOURCE[0]}")")"
@@ -24,9 +24,8 @@ validate_dependencies loadtest gnuplot
 # The global configs for the scripts
 declare -gi iterations=10000
 declare -gi duration_sec=60
-declare -g using_rps=true # should mostly be true 
 declare -ga concurrency=(1 9 18 20 30 40 60 80 100)
-declare -gi deadline_ms=10 #10ms for fib30
+declare -gi deadline_us=10000 #10ms for fib30
 
 run_samples() {
 	if (($# != 1)); then
@@ -81,20 +80,20 @@ run_experiments() {
 
 
 	printf "Running Experiments:\n"
-	for conn in "${concurrency[@]}"; do
-		printf "\t%d Concurrency: " "$conn"
-		rps=0
-		if [ "$using_rps" = true ]; then 
-			rps=$(echo 1000/$deadline_ms*"$conn" | bc)
-		fi
-		loadtest -t "$duration_sec" -c "$conn" --rps "$rps" -P "30" "http://$hostname:10030" > "$results_directory/con$conn.txt" || { #-n "$iterations"
+
+	for con in "${concurrency[@]}"; do
+		printf "\t%d Concurrency: " "$con"
+		
+		rps=$((1000000/$deadline_us*$con))
+		
+		loadtest -t "$duration_sec" -d "$(($deadline_us/1000))" -c "$con" --rps "$rps" -P "30" "http://$hostname:10030" > "$results_directory/con$con.txt" || { #-n "$iterations"
 			printf "[ERR]\n"
 			panic "experiment failed"
 			return 1
 		}
-		get_result_count "$results_directory/con$conn.txt" || {
+		get_result_count "$results_directory/con$con.txt" || {
 			printf "[ERR]\n"
-			panic "con$conn.txt unexpectedly has zero requests"
+			panic "con$con unexpectedly has zero requests"
 			return 1
 		}
 		printf "[OK]\n"
@@ -122,37 +121,36 @@ process_client_results() {
 	printf "Concurrency,Throughput\n" >> "$results_directory/throughput.csv"
 	percentiles_table_header "$results_directory/latency.csv" "Con"
 
-	for conn in "${concurrency[@]}"; do
+	for con in "${concurrency[@]}"; do
 
-		if [[ ! -f "$results_directory/con$conn.txt" ]]; then
+		if [[ ! -f "$results_directory/con$con.txt" ]]; then
 			printf "[ERR]\n"
-			error_msg "Missing $results_directory/con$conn.txt"
+			error_msg "Missing $results_directory/con$con.txt"
 			return 1
 		fi
 
 		# Get Number of 200s and then calculate Success Rate (percent of requests that return 200)
-		# P.S. The following makes sense only when using loadtest -t AND --rps optios together
-		#  So, if using just loadtest -t without --rps, then success_rate result is meaningless
 		#  If using loadtest -n option (not -t), then use ok/iterations instead of ok/total.
-		ok=$(grep "Completed requests:" "$results_directory/con$conn.txt" | cut -d ' ' -f 14)
-		total=$(echo 1000/$deadline_ms*"$conn"*$duration_sec | bc) #total = rps*duration_sec
+		total=$(grep "Completed requests:" "$results_directory/con$con.txt" | tr -s ' ' | cut -d ' ' -f 14)
+		missed=$(grep "Total errors:" "$results_directory/con$con.txt" | tr -s ' ' | cut -d ' ' -f 13)
+		ok=$((total-missed))
 		((ok == 0)) && continue # If all errors, skip line
 		success_rate=$(echo "scale=2; $ok/$total*100"|bc)
-		printf "%d,%3.2f\n", "$conn" "$success_rate" >> "$results_directory/success.csv"
+		printf "%d,%3.1f\n" "$con" "$success_rate" >> "$results_directory/success.csv"
 
 		# Throughput is calculated as the mean number of successful requests per second
-		throughput=$(grep "Requests per second" "$results_directory/con$conn.txt" | cut -d ' ' -f 14 | tail -n 1)
-		printf "%d,%d\n" "$conn" "$throughput" >> "$results_directory/throughput.csv"
+		throughput=$(grep "Requests per second" "$results_directory/con$con.txt" | cut -d ' ' -f 14 | tail -n 1)
+		printf "%d,%d\n" "$con" "$throughput" >> "$results_directory/throughput.csv"
 
 		# Generate Latency Data
 		min=0
-		p50=$(echo 1000*"$(grep 50% "$results_directory/con$conn.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
-		p90=$(echo 1000*"$(grep 90% "$results_directory/con$conn.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
-		p99=$(echo 1000*"$(grep 99% "$results_directory/con$conn.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
-		p100=$(echo 1000*"$(grep 100% "$results_directory/con$conn.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
-		mean=$(echo 1000*"$(grep "Mean latency:" "$results_directory/con$conn.txt" | tr -s ' ' | cut -d ' ' -f 13)" | bc)
+		p50=$(echo 1000*"$(grep 50% "$results_directory/con$con.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
+		p90=$(echo 1000*"$(grep 90% "$results_directory/con$con.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
+		p99=$(echo 1000*"$(grep 99% "$results_directory/con$con.txt" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
+		p100=$(echo 1000*"$(grep 100% "$results_directory/con$con.txt" | tr -s ' ' | cut -d ' ' -f 12 | tail -n 1)" | bc)
+		mean=$(echo 1000*"$(grep "Mean latency:" "$results_directory/con$con.txt" | tr -s ' ' | cut -d ' ' -f 13)" | bc)
 
-		printf "%d,%d,%d,%.2f,%d,%d,%d,%d\n", "$conn" "$ok" "$min" "$mean" "$p50" "$p90" "$p99" "$p100" >> "$results_directory/latency.csv"
+		printf "%d,%d,%d,%.2f,%d,%d,%d,%d\n" "$con" "$ok" "$min" "$mean" "$p50" "$p90" "$p99" "$p100" >> "$results_directory/latency.csv"
 	done
 
 	# Transform csvs to dat files for gnuplot

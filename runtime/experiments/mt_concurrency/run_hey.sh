@@ -79,16 +79,16 @@ run_experiments() {
 
 
 	printf "Running Experiments:\n"
-	for conn in "${concurrency[@]}"; do
-		printf "\t%d Concurrency: " "$conn"
-		hey -disable-compression -disable-keepalive -disable-redirects -z "$duration_sec"s -n "$iterations" -c "$conn" -o csv -m GET -d "30\n" "http://$hostname:10030" > "$results_directory/con$conn.csv" 2> /dev/null || {
+	for con in "${concurrency[@]}"; do
+		printf "\t%d Concurrency: " "$con"
+		hey -disable-compression -disable-keepalive -disable-redirects -z "$duration_sec"s -n "$iterations" -c "$con" -o csv -m GET -d "30\n" "http://$hostname:10030" > "$results_directory/con$con.csv" 2> /dev/null || {
 			printf "[ERR]\n"
 			panic "experiment failed"
 			return 1
 		}
-		get_result_count "$results_directory/con$conn.csv" || {
+		get_result_count "$results_directory/con$con.csv" || {
 			printf "[ERR]\n"
-			panic "con$conn.csv unexpectedly has zero requests"
+			panic "con$con.csv unexpectedly has zero requests"
 			return 1
 		}
 		printf "[OK]\n"
@@ -116,11 +116,11 @@ process_client_results() {
 	printf "Concurrency,Throughput\n" >> "$results_directory/throughput.csv"
 	percentiles_table_header "$results_directory/latency.csv" "Con"
 
-	for conn in "${concurrency[@]}"; do
+	for con in "${concurrency[@]}"; do
 
-		if [[ ! -f "$results_directory/con$conn.csv" ]]; then
+		if [[ ! -f "$results_directory/con$con.csv" ]]; then
 			printf "[ERR]\n"
-			error_msg "Missing $results_directory/con$conn.csv"
+			error_msg "Missing $results_directory/con$con.csv"
 			return 1
 		fi
 
@@ -128,30 +128,30 @@ process_client_results() {
 		# P.S. When using hey -z option, this result is meaningless
 		awk -F, '
 		$7 == 200 {ok++}
-		END{printf "'"$conn"',%3.2f\n", (ok / '"$iterations"' * 100)}
-	' < "$results_directory/con$conn.csv" >> "$results_directory/success.csv"
+		END{printf "'"$con"',%3.2f\n", (ok / '"$iterations"' * 100)}
+	' < "$results_directory/con$con.csv" >> "$results_directory/success.csv"
 
 		# Filter on 200s, convert from s to us, and sort
-		awk -F, '$7 == 200 {print ($1 * 1000000)}' < "$results_directory/con$conn.csv" \
-			| sort -g > "$results_directory/con$conn-response.csv"
+		awk -F, '$7 == 200 {print ($1 * 1000000)}' < "$results_directory/con$con.csv" \
+			| sort -g > "$results_directory/con$con-response.csv"
 
 		# Get Number of 200s
-		oks=$(wc -l < "$results_directory/con$conn-response.csv")
+		oks=$(wc -l < "$results_directory/con$con-response.csv")
 		((oks == 0)) && continue # If all errors, skip line
 
 		# We determine duration by looking at the timestamp of the last complete request
 		# TODO: Should this instead just use the client-side synthetic duration_sec value?
-		duration=$(tail -n1 "$results_directory/con$conn.csv" | cut -d, -f8)
+		duration=$(tail -n1 "$results_directory/con$con.csv" | cut -d, -f8)
 
 		# Throughput is calculated as the mean number of successful requests per second
 		throughput=$(echo "$oks/$duration" | bc)
-		printf "%d,%d\n" "$conn" "$throughput" >> "$results_directory/throughput.csv"
+		printf "%d,%d\n" "$con" "$throughput" >> "$results_directory/throughput.csv"
 
 		# Generate Latency Data for csv
-		percentiles_table_row "$results_directory/con$conn-response.csv" "$results_directory/latency.csv" "$conn"
+		percentiles_table_row "$results_directory/con$con-response.csv" "$results_directory/latency.csv" "$con"
 
 		# Delete scratch file used for sorting/counting
-		rm -rf "$results_directory/con$conn-response.csv"
+		rm -rf "$results_directory/con$con-response.csv"
 	done
 
 	# Transform csvs to dat files for gnuplot
