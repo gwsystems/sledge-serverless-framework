@@ -59,7 +59,7 @@ sandbox_allocate_globals(struct sandbox *sandbox)
 	assert(sandbox);
 	assert(sandbox->module);
 
-	return wasm_globals_init(&sandbox->globals, 10);
+	return wasm_globals_init(&sandbox->globals, 50);
 }
 
 static inline void

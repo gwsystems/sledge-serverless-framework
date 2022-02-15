@@ -104,7 +104,6 @@ current_sandbox_init()
 
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
-	module_initialize_globals(current_module);
 	module_initialize_memory(current_module);
 
 	/* Initialize WASI */
@@ -117,6 +116,9 @@ current_sandbox_init()
 	assert(sandbox->wasi_context != NULL);
 
 	sandbox_return(sandbox);
+
+	/* Initialize sandbox globals. Needs to run in user state */
+	module_initialize_globals(current_module);
 
 	return sandbox;
 
