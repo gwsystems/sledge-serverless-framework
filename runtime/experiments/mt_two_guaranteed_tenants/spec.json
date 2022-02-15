@@ -1,0 +1,28 @@
+[
+	{
+		"name": "fib30_g1",
+		"path": "fibonacci_wasm.so",
+		"port": 10030,
+		"expected-execution-us": 6500,
+		"relative-deadline-us": 20000,
+		"admissions-percentile": 70,
+		"replenishment-period-us": 50000,
+		"max-budget-us": 270000,
+		"http-req-size": 1024,
+		"http-resp-size": 1024,
+		"http-resp-content-type": "text/plain"
+	},
+	{
+		"name": "fib30_g2",
+		"path": "fibonacci_wasm.so",
+		"port": 20030,
+		"expected-execution-us": 6500,
+		"relative-deadline-us": 20000,
+		"admissions-percentile": 70,
+		"replenishment-period-us": 50000,
+		"max-budget-us": 270000,
+		"http-req-size": 1024,
+		"http-resp-size": 1024,
+		"http-resp-content-type": "text/plain"
+	}
+]
