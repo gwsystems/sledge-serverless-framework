@@ -34,6 +34,6 @@ if [[ "$LLVM_VERSION" -ge 11 ]]; then
 	update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-$LLVM_VERSION" 100
 else
 	apt-get install -y --no-install-recommends \
-		"clang-format-11"
-	update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-11" 100
+		"clang-format-13"
+	update-alternatives --install /usr/bin/clang-format clang-format "/usr/bin/clang-format-13" 100
 fi
