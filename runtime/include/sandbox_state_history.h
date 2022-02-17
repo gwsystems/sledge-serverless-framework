@@ -18,8 +18,7 @@ static inline void
 sandbox_state_history_init(struct sandbox_state_history *sandbox_state_history)
 {
 #ifdef LOG_STATE_CHANGES
-	memset(sandbox_state_history, 0,
-	       sizeof(struct sandbox_state_history) + SANDBOX_STATE_HISTORY_CAPACITY * sizeof(sandbox_state_t));
+	memset(sandbox_state_history, 0, sizeof(struct sandbox_state_history));
 #endif
 }
 
