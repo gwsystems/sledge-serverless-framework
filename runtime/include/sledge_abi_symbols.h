@@ -16,6 +16,7 @@ struct sledge_abi_symbols {
 	sledge_abi__entrypoint_fn_t   entrypoint;
 	uint32_t                      starting_pages;
 	uint32_t                      max_pages;
+	uint32_t                      globals_len;
 };
 
 /* Initializes the ABI object using the *.so file at path */
@@ -77,6 +78,14 @@ sledge_abi_symbols_init(struct sledge_abi_symbols *abi, char *path)
 		goto dl_error;
 	}
 	abi->max_pages = get_max_pages();
+
+	sledge_abi__wasm_memory_globals_len_fn_t get_globals_len = dlsym(abi->handle, SLEDGE_ABI__GLOBALS_LEN);
+	if (get_max_pages == NULL) {
+		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", SLEDGE_ABI__GLOBALS_LEN, path,
+		        dlerror());
+		goto dl_error;
+	}
+	abi->globals_len = get_globals_len();
 
 done:
 	return rc;
