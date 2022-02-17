@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <string.h>
 
 #include "sandbox_types.h"
 #include "types.h"
