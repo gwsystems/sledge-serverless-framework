@@ -38,8 +38,8 @@ wasm_table_init(struct sledge_abi__wasm_table *wasm_table, size_t capacity)
 static INLINE struct sledge_abi__wasm_table *
 wasm_table_alloc(size_t capacity)
 {
-	struct sledge_abi__wasm_table *wasm_table = (struct sledge_abi__wasm_table *)malloc(
-	  sizeof(struct sledge_abi__wasm_table));
+	struct sledge_abi__wasm_table *wasm_table = (struct sledge_abi__wasm_table *)
+	  calloc(1, sizeof(struct sledge_abi__wasm_table));
 	if (wasm_table == NULL) return NULL;
 
 	int rc = wasm_table_init(wasm_table, capacity);
