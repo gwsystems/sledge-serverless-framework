@@ -31,7 +31,6 @@ listener_thread_initialize(void)
 
 	/* Setup epoll */
 	listener_thread_epoll_file_descriptor = epoll_create1(0);
-	printf("~~~~~~~~~~~~~~~Listener FD: %p \n", &listener_thread_epoll_file_descriptor);
 	assert(listener_thread_epoll_file_descriptor >= 0);
 
 	int ret = pthread_create(&listener_thread_id, NULL, listener_thread_main, NULL);
