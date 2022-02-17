@@ -168,7 +168,7 @@ sledge_abi__wasi_snapshot_preview1_args_get(__wasi_size_t argv_retoffset, __wasi
 
 	/* args_get backings return a vector of host pointers. We need a host buffer to store this
 	 * temporarily before unswizzling and writing to linear memory */
-	char **argv_temp = calloc(sizeof(char *), argc);
+	char **argv_temp = calloc(argc, sizeof(char *));
 	if (unlikely(argv_temp == NULL)) { goto done; }
 
 	/* Writes argv_buf to linear memory and argv vector to our temporary buffer */
@@ -284,7 +284,7 @@ sledge_abi__wasi_snapshot_preview1_environ_get(__wasi_size_t env_retoffset, __wa
 	 * these results to environ_temp temporarily before converting to offsets and writing to
 	 * linear memory. We could technically write this to linear memory and then do a "fix up,"
 	 * but this would leak host information and constitue a security issue */
-	char **env_temp = calloc(sizeof(char *), envc);
+	char **env_temp = calloc(envc, sizeof(char *));
 	if (unlikely(env_temp == NULL)) { goto done; }
 
 	__wasi_size_t *env_retptr     = (__wasi_size_t *)get_memory_ptr_for_runtime(env_retoffset,
