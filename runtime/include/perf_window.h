@@ -21,8 +21,8 @@ perf_window_initialize(struct perf_window *perf_window)
 
 	LOCK_INIT(&perf_window->lock);
 	perf_window->count = 0;
-	memset(&perf_window->by_duration, 0, sizeof(struct execution_node) * PERF_WINDOW_BUFFER_SIZE);
-	memset(&perf_window->by_termination, 0, sizeof(uint16_t) * PERF_WINDOW_BUFFER_SIZE);
+	memset(perf_window->by_duration, 0, sizeof(struct execution_node) * PERF_WINDOW_BUFFER_SIZE);
+	memset(perf_window->by_termination, 0, sizeof(uint16_t) * PERF_WINDOW_BUFFER_SIZE);
 }
 
 
