@@ -56,16 +56,18 @@ wasm_stack_init(struct wasm_stack *wasm_stack, uint64_t capacity)
 		goto err_stack_allocation_failed;
 	}
 
-	wasm_stack->low = (uint8_t *)mmap(wasm_stack->buffer + /* guard page */ PAGE_SIZE, capacity,
-	                                  PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-	if (unlikely(wasm_stack->low == MAP_FAILED)) {
+	wasm_stack->low      = wasm_stack->buffer + /* guard page */ PAGE_SIZE;
+	wasm_stack->capacity = capacity;
+	wasm_stack->high     = wasm_stack->low + capacity;
+
+	/* Set the initial bytes to read / write */
+	rc = mprotect(wasm_stack->low, capacity, PROT_READ | PROT_WRITE);
+	if (unlikely(rc != 0)) {
 		perror("sandbox set stack read/write");
 		goto err_stack_prot_failed;
 	}
 
 	ps_list_init_d(wasm_stack);
-	wasm_stack->capacity = capacity;
-	wasm_stack->high     = wasm_stack->low + capacity;
 
 	rc = 0;
 done:
