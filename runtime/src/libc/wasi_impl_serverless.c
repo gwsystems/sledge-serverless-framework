@@ -31,7 +31,7 @@ wasi_context_init(wasi_options_t *options)
 	/* TODO: Add default types */
 	assert(options != NULL);
 
-	wasi_context_t *wasi_context = (wasi_context_t *)malloc(sizeof(wasi_context_t));
+	wasi_context_t *wasi_context = (wasi_context_t *)calloc(1, sizeof(wasi_context_t));
 
 	if (options->argc > 0) {
 		assert(options->argv != NULL);

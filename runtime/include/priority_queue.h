@@ -273,9 +273,8 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
 	/* Add one to capacity because this data structure ignores the element at 0 */
 	size_t one_based_capacity = capacity + 1;
 
-	struct priority_queue *priority_queue = (struct priority_queue *)calloc(sizeof(struct priority_queue)
-	                                                                          + sizeof(void *) * one_based_capacity,
-	                                                                        1);
+	struct priority_queue *priority_queue = (struct priority_queue *)
+	  calloc(1, sizeof(struct priority_queue) + sizeof(void *) * one_based_capacity);
 
 
 	/* We're assuming a min-heap implementation, so set to larget possible value */

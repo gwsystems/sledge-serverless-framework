@@ -44,7 +44,7 @@
 	 */                                                                                                      \
 	static inline struct vec_##TYPE *vec_##TYPE##_alloc(size_t capacity)                                     \
 	{                                                                                                        \
-		struct vec_##TYPE *vec = (struct vec_##TYPE *)malloc(sizeof(struct vec_##TYPE));                 \
+		struct vec_##TYPE *vec = (struct vec_##TYPE *)calloc(1, sizeof(struct vec_##TYPE));              \
 		if (vec == NULL) return vec;                                                                     \
                                                                                                                  \
 		int rc = vec_##TYPE##_init(vec, capacity);                                                       \

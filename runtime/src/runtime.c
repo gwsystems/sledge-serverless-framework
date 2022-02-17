@@ -95,9 +95,12 @@ runtime_set_resource_limits_to_max()
 void
 runtime_initialize(void)
 {
-	runtime_worker_threads          = calloc(runtime_worker_threads_count, sizeof(pthread_t));
+	runtime_worker_threads = calloc(runtime_worker_threads_count, sizeof(pthread_t));
+	assert(runtime_worker_threads != NULL);
 	runtime_worker_threads_argument = calloc(runtime_worker_threads_count, sizeof(int));
+	assert(runtime_worker_threads_argument != NULL);
 	runtime_worker_threads_deadline = malloc(runtime_worker_threads_count * sizeof(uint64_t));
+	assert(runtime_worker_threads_deadline != NULL);
 	memset(runtime_worker_threads_deadline, UINT8_MAX, runtime_worker_threads_count * sizeof(uint64_t));
 
 	http_total_init();
