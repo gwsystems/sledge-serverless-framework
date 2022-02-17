@@ -112,8 +112,7 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
-	char    *error_message = "";
-	uint64_t now           = __getcycles();
+	char *error_message = "";
 
 	int rc;
 
