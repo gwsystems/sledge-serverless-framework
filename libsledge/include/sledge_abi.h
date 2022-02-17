@@ -92,6 +92,9 @@ typedef uint32_t (*sledge_abi__wasm_memory_starting_pages_fn_t)(void);
 typedef uint32_t (*sledge_abi__wasm_memory_max_pages_fn_t)(void);
 #define SLEDGE_ABI__MAX_PAGES "sledge_abi__wasm_memory_max_pages"
 
+typedef uint32_t (*sledge_abi__wasm_memory_globals_len_fn_t)(void);
+#define SLEDGE_ABI__GLOBALS_LEN "sledge_abi__wasm_globals_len"
+
 typedef uint32_t __wasi_clockid_t;
 typedef uint64_t __wasi_dircookie_t;
 typedef uint32_t __wasi_exitcode_t;

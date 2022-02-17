@@ -144,6 +144,7 @@ The path to the JSON file is passed to `module_alloc_from_json`, which uses the 
 `module.abi.entrypoint` -> `SLEDGE_ABI__ENTRYPOINT` -> `wasmf__start`
 `module.abi.starting_pages` -> `SLEDGE_ABI__STARTING_PAGES` -> `starting_pages`
 `module.abi.max_pages` -> `SLEDGE_ABI__MAX_PAGES` -> `max_pages`
+`module.abi.globals_len` -> `SLEDGE_ABI__GLOBALS_LEN` -> `globals_len`
 
 `module init` then calls `module.abi.initialize_table`, which populates the indirect function table with the actual functions. This is performed once during module initialization because this table does not actually vary between instances of a module.
 

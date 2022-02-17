@@ -20,6 +20,7 @@ extern void     populate_table(void);
 extern int32_t  wasmf__start(void);
 extern uint32_t starting_pages;
 extern uint32_t max_pages;
+extern uint32_t globals_len;
 
 WEAK void populate_globals(){};
 
@@ -57,4 +58,10 @@ EXPORT uint32_t
 sledge_abi__wasm_memory_max_pages(void)
 {
 	return max_pages;
+}
+
+EXPORT uint32_t
+sledge_abi__wasm_globals_len(void)
+{
+	return globals_len;
 }
