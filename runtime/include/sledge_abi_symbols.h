@@ -80,7 +80,7 @@ sledge_abi_symbols_init(struct sledge_abi_symbols *abi, char *path)
 	abi->max_pages = get_max_pages();
 
 	sledge_abi__wasm_memory_globals_len_fn_t get_globals_len = dlsym(abi->handle, SLEDGE_ABI__GLOBALS_LEN);
-	if (get_max_pages == NULL) {
+	if (get_globals_len == NULL) {
 		fprintf(stderr, "Failed to resolve symbol %s in %s with error: %s\n", SLEDGE_ABI__GLOBALS_LEN, path,
 		        dlerror());
 		goto dl_error;
