@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#shellcheck disable=SC1091
+
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success rate
 # Success - The percentage of requests that complete by their deadlines
 # Throughput - The mean number of successful requests per second
@@ -40,8 +42,8 @@ generate_spec() {
 	local -i port
 
 	for ru in "${RESERVATION_UTILS[@]}"; do
-		workload=$(printf "${APP}_%03dp" ${ru})
-		port=$(($INIT_PORT+$ru))
+		workload=$(printf "%s_%03dp" "$APP" "$ru")
+		port=$((INIT_PORT+ru))
 		max_budget_us=$((REPL_PERIOD_US*NWORKERS*ru/100))
 
 		# Generates unique module specs on different ports using the given 'ru's
@@ -57,7 +59,7 @@ generate_spec() {
 	done
 
 	jq ". + { \
-		\"name\": \"fib30\",\
+		\"name\": \"${APP}\",\
 		\"port\": 10030,\
 		\"expected-execution-us\": ${EXPECTED_EXEC_US},\
 		\"relative-deadline-us\": ${DEADLINE_US},\
@@ -98,44 +100,44 @@ run_experiments() {
 	# Run concurrently
 	# The lower priority has OFFSETs to ensure it runs the entire time the high priority is trying to run
 	# This asynchronously trigger jobs and then wait on their pids
-	local fib30_nk_PID
-	local fib30_PID
+	local app_g_PID
+	local app_PID
 
 	for ru in "${RESERVATION_UTILS[@]}"; do
-		workload=$(printf "${APP}_%03dp" ${ru})
-		port=$(($INIT_PORT+$ru))
+		workload=$(printf "%s_%03dp" "$APP" "$ru")
+		port=$((INIT_PORT+ru))
 
-		hey -disable-compression -disable-keepalive -disable-redirects -z "$(($DURATION_SEC+$OFFSET+1))"s -n "$ITERATIONS" -c 90 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:10030" > "$results_directory/fib30.csv" 2> /dev/null &
-		fib30_PID="$!"
+		hey -disable-compression -disable-keepalive -disable-redirects -z "$(($DURATION_SEC+$OFFSET+1))"s -n "$ITERATIONS" -c 90 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:10030" > "$results_directory/$APP.csv" 2> /dev/null &
+		app_PID="$!"
 
 		sleep "$OFFSET"s
 		
 		hey -disable-compression -disable-keepalive -disable-redirects -z "$DURATION_SEC"s -n "$ITERATIONS" -c 18 -t 0 -o csv -m GET -d "30\n" "http://${hostname}:${port}" > "$results_directory/$workload.csv" 2> /dev/null &
-		fib30_nk_PID="$!"
+		app_g_PID="$!"
 
-		wait -f "$fib30_nk_PID" || {
-			printf "\t$workload: [ERR]\n"
-			panic "failed to wait -f ${fib30_nk_PID}"
+		wait -f "$app_g_PID" || {
+			printf "\t%s: [ERR]\n" "$workload"
+			panic "failed to wait -f $app_g_PID"
 			return 1
 		}
 		get_result_count "$results_directory/$workload.csv" || {
-			printf "\t$workload: [ERR]\n"
+			printf "\t%s: [ERR]\n" "$workload"
 			panic "$workload has zero requests."
 			return 1
 		}
-		printf "\t$workload: [OK]\n"
+		printf "\t%s: [OK]\n" "$workload"
 
-		wait -f "$fib30_PID" || {
-			printf "\tfib30: [ERR]\n"
-			panic "failed to wait -f ${fib30_PID}"
+		wait -f "$app_PID" || {
+			printf "\t%s: [ERR]\n" "$APP"
+			panic "failed to wait -f $app_PID"
 			return 1
 		}
-		get_result_count "$results_directory/fib30.csv" || {
-			printf "\tfib30: [ERR]\n"
-			panic "fib30 has zero requests."
+		get_result_count "$results_directory/$APP.csv" || {
+			printf "\t%s: [ERR]\n" "$APP"
+			panic "$APP has zero requests."
 			return 1
 		}
-		# printf "\tfib30: [OK]\n"
+		# printf "\t%s: [OK]\n" "$APP"
 	done
 
 	return 0
