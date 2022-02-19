@@ -20,6 +20,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	initializing_times_dict = defaultdict(def_value)
 	execution_times_dict = defaultdict(def_value)
 
+	### init overhead
 	### queuelength
 	queuelength_dict = defaultdict(list)
 	###
@@ -102,8 +103,8 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		if "memory" in line or "total_time" in line or "min" in line or "miss" in line or "meet" in line or "time " in line or "scheduling count" in line or "thread id" in line:
                 	continue
 		t = line.split(",")
-		id = t[1]
-		func_idx = t[2][-9]
+		id = t[1] #request id
+		func_idx = t[2][-9] #function id
 		if t[2][-10] == "1":
 			#func_idx = t[2][-10:-9]
 			func_idx = t[2][-10] + t[2][-9]
@@ -129,37 +130,133 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	print("miss deadline percentage:", miss_deadline_percentage)
 	print("scheduling counter:", max_sc)
 
+#	func_name_dict = {
+#		"cifar10_1": "105k-2",
+#		"cifar10_2": "305k-2",
+#		"cifar10_3": "5k-2",
+#		"cifar10_4": "545k-2",
+#		"cifar10_5": "105k-4",
+#		"cifar10_6": "305k-4",
+#		"cifar10_7": "5k-4",
+#		"cifar10_8": "545k-4",
+#		"cifar10_9": "105k-8",
+#		"cifar10_10": "305k-8",
+#		"cifar10_11": "5k-8",
+#		"cifar10_12": "545k-8",
+#		"resize": "resize",
+#		"fibonacci": "fibonacci",
+#		"resize3": "resize3"
+#	}
+	func_name_with_id = {
+		"1": "105k-2",
+		"2": "305k-2",
+		"3": "5k-2",
+		"4": "40k-2",
+		"5": "105k-10",
+		"6": "305k-10",
+		"7": "5k-10",
+		"8": "40k-10",
+		"9": "105k-8",
+		"10": "305k-8",
+		"11": "5k-8",
+		"12": "40k-8",
+		"noop1" : "noop1",
+                "noop2" : "noop2",
+                "noop3" : "noop3",
+                "noop4" : "noop4",
+                "noop5" : "noop5"
+	}
+
 	func_name_dict = {
-		"cifar10_1": "105k",
-		"cifar10_2": "305k",
-		"cifar10_3": "5k",
-		"cifar10_4": "40k",
-		"cifar10_5": "105k-2",
-		"cifar10_6": "305k-2",
-		"cifar10_7": "5k-2",
-		"cifar10_8": "40k-2",
-		"cifar10_9": "105k-3",
-		"cifar10_10": "305k-3",
-		"cifar10_11": "5k-3",
-		"cifar10_12": "40k-3",
+		"cifar10_1": "105k-2",
+		"cifar10_2": "305k-2",
+		"cifar10_3": "5k-2",
+		"cifar10_4": "40k-2",
+		"cifar10_5": "105k-10",
+		"cifar10_6": "305k-10",
+		"cifar10_7": "5k-10",
+		"cifar10_8": "40k-10",
+		"cifar10_9": "105k-8",
+		"cifar10_10": "305k-8",
+		"cifar10_11": "5k-8",
+		"cifar10_12": "40k-8",
 		"resize": "resize",
 		"fibonacci": "fibonacci",
-		"resize3": "resize3"
+		"fibonacci5": "fibonacci5",
+		"resize3": "resize3",
+		"noop1" : "noop1",
+		"noop2" : "noop2",
+		"noop3" : "noop3",
+		"noop4" : "noop4",
+		"noop5" : "noop5"
 	}
-	func_name_with_id = {
-		"1": "105k",
-                "2": "305k",
-                "3": "5k",
-                "4": "40k",
-		"5": "105k-2",
-		"6": "305k-2",
-		"7": "5k-2",
-		"8": "40k-2",
-		"9": "105k-3",
-		"10": "305k-3",
-		"11": "5k-3",
-		"12": "40k-3"
+#	func_name_dict = {
+#		"cifar10_1": "105k-2",
+#		"cifar10_2": "305k-2",
+#		"cifar10_3": "5k-2",
+#		"cifar10_4": "40k-2",
+#		"cifar10_5": "105k-8",
+#		"cifar10_6": "305k-8",
+#		"cifar10_7": "5k-8",
+#		"cifar10_8": "40k-4",
+#		"cifar10_9": "105k-8",
+#		"cifar10_10": "305k-8",
+#		"cifar10_11": "5k-8",
+#		"cifar10_12": "40k-8",
+#		"resize": "resize",
+#		"fibonacci": "fibonacci",
+#		"resize3": "resize3"
+#	}
+	fun_execution_time = {
+		"cifar10_1": 39786,
+                "cifar10_2": 98794,
+                "cifar10_3": 8985,
+                "cifar10_4": 23826,
+		"cifar10_5": 39786,
+		"cifar10_6": 98794,
+		"cifar10_7": 8985,
+		"cifar10_8": 23826,
+		"cifar10_9": 39786,
+                "cifar10_10": 98794,
+                "cifar10_11": 8985,
+                "cifar10_12": 23826,
+		"fibonacci5": 0,
+		"fibonacci4": 0,
+		"noop1" : 0,
+                "noop2" : 0,
+                "noop3" : 0,
+                "noop4" : 0,
+                "noop5" : 0
+
 	}
+#	func_name_with_id = {
+#		"1": "105k-2",
+#		"2": "305k-2",
+#		"3": "5k-2",
+#		"4": "40k-2",
+#		"5": "305k-4",
+#		"6": "5k-4",
+#		"7": "105k-8",
+#		"8": "305k-8",
+#		"9": "5k-8",
+#		"10": "305k-8",
+#		"11": "5k-8",
+#		"12": "40k-8"
+#	}
+#	func_name_with_id = {
+#		"1": "105k-2",
+#		"2": "305k-2",
+#		"3": "5k-2",
+#		"4": "40k-2",
+#		"5": "105k-8",
+#		"6": "305k-8",
+#		"7": "5k-8",
+#		"8": "305k-8",
+#		"9": "5k-8",
+#		"10": "305k-8",
+#		"11": "5k-8",
+#		"12": "40k-8"
+#	}
 	### get execution time
 	for key,value in running_time_dict.items():
 		func_idx = key.split("_")[1]
@@ -186,17 +283,21 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		a = np.array(value)
 		p = np.percentile(a, int(percentage))
 		print(func_name_dict[key] + " " + percentage + " percentage is:" + str(p) + " mean is:" + str(np.mean(value)) + " max latency is:" + str(max_latency_dist[key]))
+	total_cpu_times = 0
 	for key,value in meet_deadline_dist.items():
+		total_cpu_times += value * fun_execution_time[key]
 		miss_value = miss_deadline_dist[key]
 		total_request = miss_value + value
 		miss_rate = (miss_value * 100) / total_request
 		
 		print(func_name_dict[key] + " miss deadline rate:" + str(miss_rate) + " miss count is:" + str(miss_value) + " total request:" + str(total_request))
+	print("effective total cpu times:", total_cpu_times)
 	for key,value in real_time_workload_times_dist.items():
 		real_time_workload_times_dist[key] = [x - min_time for x in value]
 
 	for key,value in running_times.items():
-		print("function times:", func_name_with_id[key], np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.median(initializing_times[key]))
+		#print("function times:", func_name_with_id[key], np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.median(initializing_times[key]))
+		print("function times:", func_name_with_id[key], np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.mean(initializing_times[key]))
 	for key, value in delays_dict.items():  
 		new_value = [i/1000 for i in value]
 		p99 = np.percentile(new_value, 99)

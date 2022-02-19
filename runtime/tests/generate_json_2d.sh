@@ -21,15 +21,18 @@ func1_base_name="resize"
 func2_base_name="png2bmp"
 func3_base_name="cifar10_"
 
+deadline_times=(2 10)
 loop_count=$1
 
-for ((i=1; i <=$loop_count; i++))
+for ((i=0; i <$loop_count; i++))
 do
 	for ((j=1; j <=4; j++)) 
 	do
 		#new_deadline=$((${base_exec_time[$j-1]} * ($i+1)))
-		new_deadline=$((${base_exec_time[$j-1]} * (2**$i)))
+		#new_deadline=$((${base_exec_time[$j-1]} * (2**$i)))
+		#new_deadline=$((${base_exec_time[$j-1]} * (2**($i*2 + 1))))
 		#new_deadline=$((${base_exec_time[$j-1]} * 4))
+		new_deadline=$((${base_exec_time[$j-1]} * ${deadline_times[$i]}))
 		func1_new_name=$func1_base_name$base_m_index
 		func1_new_port=$base_port
 		base_port=$(($base_port + 1))

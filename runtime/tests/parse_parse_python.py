@@ -20,6 +20,7 @@ def file_name(file_dir, key_str):
                 print("percentage is ______________", percentage)
                 file_table[key].append(file_i)
     for key,value in file_table.items():
+        print(value)
         s_value = sorted(value, key = lambda x: int(x.split('_')[-1].split(".")[0]))
         file_table[key] = s_value
         #print("key is:", key, " value is:", value)
@@ -28,12 +29,17 @@ def file_name(file_dir, key_str):
     
     return file_table
 
-def get_values(key, value, miss_deadline_rate, total_latency, preemption_count, total_miss_deadline_rate):
+def get_values(key, value, miss_deadline_rate, total_latency, running_times, preemption_count, total_miss_deadline_rate):
 	for i in range(len(value)):
 		file_name = value[i]
 		print("file name++++++++++++++++++++++++++", file_name)
+		before_dot = file_name.split(".")[0]
+		joint_f_name = before_dot + "_total_time.txt"
+
 		cmd='python3 ~/sledge-serverless-framework/runtime/tests/meet_deadline_percentage.py %s 50' % file_name
 		rt=os.popen(cmd).read().strip()
+		cmd2='mv total_time.txt %s' % joint_f_name
+		os.popen(cmd2)
 		#print(rt)
 		rule=r'(.*?) miss deadline rate:(.*?) miss count is'
 		finds=re.findall(rule, rt)
@@ -51,9 +57,11 @@ def get_values(key, value, miss_deadline_rate, total_latency, preemption_count, 
 		for j in range(len(finds)):
 			func_name=finds[j].split(" ")[0]
 			latency=finds[j].split(" ")[1]
+			running_time=finds[j].split(" ")[2]
 			key1=key+"_"+func_name
 			print("total latency:", func_name, latency)
 			total_latency[key1][percentage]=latency
+			running_times[key1][percentage]=running_time
 
 		rule3=r'scheduling counter: (.*)'
 		finds=re.findall(rule3, rt)
@@ -71,6 +79,7 @@ if __name__ == "__main__":
     import json
     miss_deadline_rate = defaultdict(defaultdict)
     total_latency = defaultdict(defaultdict)
+    running_times = defaultdict(defaultdict)
     preemption_count = defaultdict(defaultdict)
     total_miss_deadline_rate = defaultdict(defaultdict)
 
@@ -85,7 +94,7 @@ if __name__ == "__main__":
     i = 0
 
     for key, value in files_tables.items():
-        get_values(key, value, miss_deadline_rate, total_latency, preemption_count, total_miss_deadline_rate) 
+        get_values(key, value, miss_deadline_rate, total_latency, running_times, preemption_count, total_miss_deadline_rate) 
 
     for key, value in miss_deadline_rate.items():
         print("miss deadline rate:", key, value)
@@ -117,4 +126,9 @@ if __name__ == "__main__":
     f4= open("total_miss_deadline_rate.txt", 'w')
     f4.write(js4)
     f4.close()
+
+    js5 = json.dumps(running_times)
+    f5 = open("execution_time.txt", "w")
+    f5.write(js5)
+    f5.close()
 

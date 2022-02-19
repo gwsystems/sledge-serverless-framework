@@ -34,7 +34,9 @@ enum SCHEDULER
 extern enum SCHEDULER scheduler;
 extern _Atomic uint32_t scheduling_counter;
 extern uint64_t system_start_timestamp;
-
+extern __thread uint32_t local_workload_count;
+extern __thread uint32_t local_runqueue_count;
+extern uint32_t runtime_processor_speed_MHz;
 static inline struct sandbox *
 scheduler_edf_get_next()
 {
@@ -47,7 +49,8 @@ scheduler_edf_get_next()
 
 	/* Try to pull and allocate from the global queue if earlier
 	 * This will be placed at the head of the local runqueue */
-	if (global_deadline < local_deadline) {
+	//if (global_deadline < local_deadline) {
+	if (global_deadline < local_deadline && (local_workload_count <=2 || local_runqueue_count == 0)) {
 		if (global_request_scheduler_remove_if_earlier(&request, local_deadline) == 0) {
 			assert(request != NULL);
 			assert(request->absolute_deadline < local_deadline);
@@ -81,7 +84,8 @@ scheduler_srsf_get_next()
 
 	/* Try to pull and allocate from the global queue if earlier
 	 * This will be placed at the head of the local runqueue */
-	if (global_remaining_slack < local_remaining_slack) {
+	if (global_remaining_slack < local_remaining_slack && (local_workload_count <=2 || local_runqueue_count == 0)) {
+	//if (global_remaining_slack < local_remaining_slack) {
 		if (global_request_scheduler_remove_if_earlier(&request, local_remaining_slack) == 0) {
 
 			//uint64_t pop_time = __getcycles() - system_start_timestamp;
@@ -208,6 +212,9 @@ scheduler_preempt(ucontext_t *user_context)
 	assert(current != NULL);
 	assert(current->state == SANDBOX_RUNNING);
 
+	if (current-> remaining_slack <= 5000 * runtime_processor_speed_MHz) {
+		return;	
+	}
 	/* This is for better state-change bookkeeping */
     	uint64_t now                    = __getcycles();
     	uint64_t duration_of_last_state = now - current->last_state_change_timestamp;

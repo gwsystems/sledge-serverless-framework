@@ -11,8 +11,8 @@ extern uint32_t runtime_processor_speed_MHz;
 extern uint64_t system_start_timestamp;
 static struct local_runqueue_config local_runqueue;
 
-#ifdef LOG_LOCAL_RUNQUEUE
 __thread uint32_t local_runqueue_count = 0;
+#ifdef LOG_LOCAL_RUNQUEUE
 #endif
 
 __thread uint32_t local_workload_count = 0;
@@ -35,8 +35,8 @@ void
 local_runqueue_add(struct sandbox *sandbox)
 {
 	assert(local_runqueue.add_fn != NULL);
-#ifdef LOG_LOCAL_RUNQUEUE
 	local_runqueue_count++;
+#ifdef LOG_LOCAL_RUNQUEUE
 #endif
 	return local_runqueue.add_fn(sandbox);
 }
@@ -49,8 +49,8 @@ void
 local_runqueue_delete(struct sandbox *sandbox)
 {
 	assert(local_runqueue.delete_fn != NULL);
-#ifdef LOG_LOCAL_RUNQUEUE
 	local_runqueue_count--;
+#ifdef LOG_LOCAL_RUNQUEUE
 #endif
 	local_runqueue.delete_fn(sandbox);
 }
