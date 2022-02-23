@@ -95,7 +95,7 @@ wasm_read(int32_t filedes, int32_t buf_offset, int32_t nbyte)
 
 	/* Non-blocking copy on stdin */
 	if (filedes == 0) {
-		char *               buffer          = current_sandbox_get_ptr_void(buf_offset, nbyte);
+		char                *buffer          = current_sandbox_get_ptr_void(buf_offset, nbyte);
 		struct http_request *current_request = &current_sandbox->http_request;
 		if (current_request->body_length <= 0) return 0;
 		int bytes_to_read = nbyte > current_request->body_length ? current_request->body_length : nbyte;
@@ -136,8 +136,8 @@ int32_t
 wasm_write(int32_t fd, int32_t buf_offset, int32_t buf_size)
 {
 	struct sandbox *s        = current_sandbox_get();
-	char *          buffer   = current_sandbox_get_ptr_void(buf_offset, buf_size);
-	struct vec_u8 * response = &s->response;
+	char           *buffer   = current_sandbox_get_ptr_void(buf_offset, buf_size);
+	struct vec_u8  *response = &s->response;
 
 	if (fd == STDERR_FILENO) { write(STDERR_FILENO, buffer, buf_size); }
 
@@ -291,7 +291,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 		int sum = 0;
 		for (int i = 0; i < iovcnt; i++) {
 			int32_t len = iov[i].len;
-			void *  ptr = current_sandbox_get_ptr_void(iov[i].base_offset, len);
+			void   *ptr = current_sandbox_get_ptr_void(iov[i].base_offset, len);
 
 			printf("%.*s", len, (char *)ptr);
 			sum += len;
@@ -303,7 +303,7 @@ wasm_writev(int32_t fd, int32_t iov_offset, int32_t iovcnt)
 	struct iovec vecs[iovcnt];
 	for (int i = 0; i < iovcnt; i++) {
 		int32_t len = iov[i].len;
-		void *  ptr = current_sandbox_get_ptr_void(iov[i].base_offset, len);
+		void   *ptr = current_sandbox_get_ptr_void(iov[i].base_offset, len);
 		vecs[i]     = (struct iovec){ ptr, len };
 	}
 

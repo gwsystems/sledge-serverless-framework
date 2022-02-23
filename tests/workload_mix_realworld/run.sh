@@ -44,6 +44,7 @@ initialize_globals() {
 		# Read into buffer array, splitting on commas
 		readarray -t -d, buffer < <(echo -n "$line")
 		workload="${buffer[1]}"
+		echo "$workload"
 		# Update workload mix structures
 		workloads+=("$workload")
 		port+=(["$workload"]=$(get_port "$workload"))
@@ -53,9 +54,9 @@ initialize_globals() {
 get_port() {
 	local name="$1"
 	{
-		echo "["
+		# echo "["
 		cat ./spec.json
-		echo "]"
+		# echo "]"
 	} | jq ".[] | select(.name == \"$name\") | .port"
 }
 

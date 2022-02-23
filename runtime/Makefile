@@ -6,7 +6,7 @@ endif
 endif
 
 # Compiler Settings
-CC=clang
+CC=clang-8
 CFLAGS=-std=c18 -pthread 
 
 # We use several non-standard glibc / Linux features: 
@@ -14,10 +14,10 @@ CFLAGS=-std=c18 -pthread
 CFLAGS+=-D_GNU_SOURCE 
 
 # Release Flags
-CFLAGS+=-O3 -flto
+# CFLAGS+=-O3 -flto
 
 # Debugging Flags
-# CFLAGS+=-O0 -g
+CFLAGS+=-O0 -g
 
 # CFI Sanitizer
 # CFLAGS+=-fvisibility=default -fsanitize=cfi

@@ -104,7 +104,9 @@
 		"wasm_module_instance.h": "c",
 		"wasm_stack.h": "c",
 		"wasm_table.h": "c",
-		"sledge_abi.h": "c"
+		"sledge_abi.h": "c",
+		"__bit_reference": "cpp",
+		"filesystem": "cpp"
 	},
 	"files.exclude": {
 		"**/.git": true,
