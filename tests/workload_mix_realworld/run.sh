@@ -52,11 +52,7 @@ initialize_globals() {
 
 get_port() {
 	local name="$1"
-	{
-		echo "["
-		cat ./spec.json
-		echo "]"
-	} | jq ".[] | select(.name == \"$name\") | .port"
+	cat ./spec.json | jq ".[] | select(.name == \"$name\") | .port"
 }
 
 run_experiments() {
@@ -122,7 +118,7 @@ run_experiments() {
 		((batch_id++))
 		for workload in "${workloads[@]}"; do
 			shortname="${workload%%_+([[:digit:]]).+([[:digit:]])}"
-			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
+			if ((roll >= floor[$workload] && roll < (floor[$workload] + length[$workload]))); then
 				# We require word splitting on the value returned by the body associative array
 				#shellcheck disable=SC2086
 				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$shortname]} "http://${hostname}:${port[$workload]}" > /dev/null 2> /dev/null &

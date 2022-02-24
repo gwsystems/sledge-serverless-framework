@@ -5,8 +5,8 @@
 		"port": 10000,
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
-		"http-req-size": 1024000,
-		"http-resp-size": 1024000,
+		"http-req-size": 10000,
+		"http-resp-size": 10000,
 		"http-resp-content-type": "application/octet-stream"
 	},
 	{
@@ -16,7 +16,7 @@
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
 		"http-req-size": 1024000,
-		"http-resp-size": 1024000,
+		"http-resp-size": 512000,
 		"http-resp-content-type": "image/png"
 	},
 	{
@@ -26,7 +26,7 @@
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 50000,
 		"http-req-size": 1002400,
-		"http-resp-size": 1048576,
+		"http-resp-size": 10000,
 		"http-resp-content-type": "text/plain"
 	},
 	{
@@ -36,7 +36,7 @@
 		"expected-execution-us": 5000,
 		"relative-deadline-us": 360000,
 		"http-req-size": 5335057,
-		"http-resp-size": 5335057,
+		"http-resp-size": 10000,
 		"http-resp-content-type": "text/plain"
 	},
 	{
