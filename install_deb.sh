@@ -15,6 +15,7 @@ apt-get update && apt-get install -y --no-install-recommends \
 	imagemagick \
 	jq \
 	libz3-4 \
+	make \
 	netpbm \
 	pango1.0-tools \
 	wamerican
@@ -28,6 +29,8 @@ wget $SHELLCHECK_URL -O shellcheck && chmod +x shellcheck && sudo mv shellcheck 
 ./install_llvm.sh $LLVM_VERSION
 
 curl -sS -L -O $WASI_SDK_URL && dpkg -i wasi-sdk_12.0_amd64.deb && rm -f wasi-sdk_12.0_amd64.deb
+
+ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
 
 echo "Add WASI_SDK_PATH to your bashrc and resource!"
 echo "Example: export WASI_SDK_PATH=/opt/wasi-sdk"
