@@ -8,7 +8,7 @@ if [[ $ARCH = "x86_64" ]]; then
 	SHFMT_URL=https://github.com/mvdan/sh/releases/download/v3.4.3/shfmt_v3.4.3_linux_amd64
 	WASI_SDK_URL=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-14/wasi-sdk_14.0_amd64.deb
 elif [[ $ARCH = "aarch64" ]]; then
-	SHFMT_URL=hhttps://github.com/patrickvane/shfmt/releases/download/master/shfmt_linux_arm
+	SHFMT_URL=https://github.com/patrickvane/shfmt/releases/download/master/shfmt_linux_arm
 	echo "ARM64 support is still a work in progress!"
 	exit 1
 else
@@ -64,7 +64,7 @@ wget $SHFMT_URL -O shfmt && chmod +x shfmt && sudo mv shfmt /usr/local/bin/shfmt
 
 sudo ./install_llvm.sh $LLVM_VERSION
 
-curl -sS -L -O $WASI_SDK_URL && sudo dpkg -i wasi-sdk_12.0_amd64.deb && rm -f wasi-sdk_12.0_amd64.deb
+curl -sS -L -O $WASI_SDK_URL && sudo dpkg -i wasi-sdk_14.0_amd64.deb && rm -f wasi-sdk_14.0_amd64.deb
 
 if [ -z "${WASI_SDK_PATH}" ]; then
 	export WASI_SDK_PATH=/opt/wasi-sdk
