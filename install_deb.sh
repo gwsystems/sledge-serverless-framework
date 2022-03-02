@@ -6,12 +6,12 @@ SHELLCHECK_URL=https://github.com/koalaman/shellcheck/releases/download/v0.7.1/s
 SHFMT_URL=https://github.com/mvdan/sh/releases/download/v3.2.4/shfmt_v3.2.4_linux_amd64
 WASI_SDK_URL=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk_12.0_amd64.deb
 
-sudo apt-get update && apt-get install -y --no-install-recommends \
+sudo apt-get update && sudo apt-get install -y --no-install-recommends \
 	apt-utils \
 	man-db \
 	&& yes | unminimize
 
-sudo apt-get update && apt-get install -y --no-install-recommends \
+sudo apt-get update && sudo apt-get install -y --no-install-recommends \
 	automake \
 	bc \
 	bsdmainutils \
@@ -58,7 +58,10 @@ sudo ./install_llvm.sh $LLVM_VERSION
 
 curl -sS -L -O $WASI_SDK_URL && sudo dpkg -i wasi-sdk_12.0_amd64.deb && rm -f wasi-sdk_12.0_amd64.deb
 
-echo "export WASI_SDK_PATH=/opt/wasi-sdk" >> ~/.bashrc
+if [ -z "${WASI_SDK_PATH}" ]; then
+	export WASI_SDK_PATH=/opt/wasi-sdk
+	echo "export WASI_SDK_PATH=/opt/wasi-sdk" >> ~/.bashrc
+fi
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
 
