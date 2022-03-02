@@ -1,10 +1,20 @@
 #!/bin/bash
 
-HEY_URL=https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64
-LLVM_VERSION=12
-SHELLCHECK_URL=https://github.com/koalaman/shellcheck/releases/download/v0.7.1/shellcheck-v0.7.1.linux.x86_64.tar.xz
-SHFMT_URL=https://github.com/mvdan/sh/releases/download/v3.2.4/shfmt_v3.2.4_linux_amd64
-WASI_SDK_URL=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk_12.0_amd64.deb
+LLVM_VERSION=13
+
+ARCH=$(uname -p)
+
+if [[ $ARCH = "x86_64" ]]; then
+	SHFMT_URL=https://github.com/mvdan/sh/releases/download/v3.4.3/shfmt_v3.4.3_linux_amd64
+	WASI_SDK_URL=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-14/wasi-sdk_14.0_amd64.deb
+elif [[ $ARCH = "aarch64" ]]; then
+	SHFMT_URL=hhttps://github.com/patrickvane/shfmt/releases/download/master/shfmt_linux_arm
+	echo "ARM64 support is still a work in progress!"
+	exit 1
+else
+	echo "This script only supports x86_64 and aarch64"
+	exit 1
+fi
 
 sudo apt-get update && sudo apt-get install -y --no-install-recommends \
 	apt-utils \
@@ -27,6 +37,7 @@ sudo apt-get update && sudo apt-get install -y --no-install-recommends \
 	git \
 	gpg-agent \
 	gnuplot \
+	hey \
 	httpie \
 	imagemagick \
 	jq \
@@ -41,6 +52,7 @@ sudo apt-get update && sudo apt-get install -y --no-install-recommends \
 	openssh-client \
 	pango1.0-tools \
 	pkg-config \
+	shellcheck \
 	software-properties-common \
 	strace \
 	valgrind \
@@ -48,11 +60,7 @@ sudo apt-get update && sudo apt-get install -y --no-install-recommends \
 	wamerican \
 	wget
 
-wget $HEY_URL -O hey && chmod +x hey && sudo mv hey /usr/bin/hey
-
 wget $SHFMT_URL -O shfmt && chmod +x shfmt && sudo mv shfmt /usr/local/bin/shfmt
-
-wget $SHELLCHECK_URL -O shellcheck && chmod +x shellcheck && sudo mv shellcheck /usr/local/bin/shellcheck
 
 sudo ./install_llvm.sh $LLVM_VERSION
 
