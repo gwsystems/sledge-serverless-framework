@@ -32,3 +32,4 @@ update-alternatives --install /usr/bin/clang++ clang++ "/usr/bin/clang++-$LLVM_V
 update-alternatives --install /usr/bin/llvm-config llvm-config "/usr/bin/llvm-config-$LLVM_VERSION" 100
 update-alternatives --install /usr/bin/llvm-objdump llvm-objdump "/usr/bin/llvm-objdump-$LLVM_VERSION" 100
 update-alternatives --install /usr/bin/clang-tidy clang-tidy "/usr/bin/clang-tidy-$LLVM_VERSION" 100
+update-alternatives --install /usr/bin/wasm-ld wasm-ld "/usr/bin/wasm-ld-$LLVM_VERSION" 100
