@@ -1,10 +1,10 @@
 SHELL:=/bin/bash
 
 .PHONY: all
-all: awsm libsledge runtime
+all: awsm libsledge runtime applications
 
 .PHONY: clean
-clean: awsm.clean libsledge.clean runtime.clean
+clean: awsm.clean libsledge.clean runtime.clean applications.clean
 
 .PHONY: submodules
 submodules:
