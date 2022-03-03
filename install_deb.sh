@@ -16,50 +16,58 @@ else
 	exit 1
 fi
 
-sudo apt-get update && sudo apt-get install -y --no-install-recommends \
-	apt-utils \
-	man-db \
-	&& yes | unminimize
-
-sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+# General GCC C/C++ Build toolchain
+# pkg-config, libtool - used by PocketSphinx
+# cmake - used by cmsis
+sudo apt-get update && apt-get install -y --no-install-recommends \
 	automake \
-	bc \
-	bsdmainutils \
 	build-essential \
 	binutils-dev \
-	ca-certificates \
 	cmake \
+	git \
+	libtinfo5 \
+	libtool \
+	make \
+	pkg-config
+
+# Network Tools
+sudo apt-get update && apt-get install -y --no-install-recommends \
+	ca-certificates \
 	curl \
+	gpg-agent \
+	hey \
+	httpie \
+	libssl-dev \
+	lsb-release \
+	openssh-client \
+	software-properties-common \
+	wget
+
+sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+	bc \
+	bsdmainutils \
 	fonts-dejavu \
 	fonts-cascadia-code \
 	fonts-roboto \
-	gdb \
-	git \
-	gpg-agent \
 	gnuplot \
-	hey \
-	httpie \
 	imagemagick \
 	jq \
-	less \
-	libssl-dev \
-	libtinfo5 \
-	libtool \
 	libz3-4 \
-	lsb-release \
-	make \
 	netpbm \
-	openssh-client \
 	pango1.0-tools \
-	pkg-config \
 	shellcheck \
-	software-properties-common \
+	wamerican
+
+# Interactive Tools
+sudo apt-get update && sudo apt-get install -y --no-install-recommends \
+	gdb \
+	less \
 	strace \
 	valgrind \
-	wabt \
-	wamerican \
-	wget
+	vim \
+	wabt
 
+# shfmt is a formatter for shell scripts
 wget $SHFMT_URL -O shfmt && chmod +x shfmt && sudo mv shfmt /usr/local/bin/shfmt
 
 sudo ./install_llvm.sh $LLVM_VERSION

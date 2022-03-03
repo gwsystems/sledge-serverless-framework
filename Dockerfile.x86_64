@@ -2,10 +2,8 @@
 FROM ubuntu:focal
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG HEY_URL=https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64
-ARG WASI_SDK_URL=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk_12.0_amd64.deb
 ARG SHFMT_URL=https://github.com/mvdan/sh/releases/download/v3.2.4/shfmt_v3.2.4_linux_amd64
-ARG SHELLCHECK_URL=https://github.com/koalaman/shellcheck/releases/download/v0.7.1/shellcheck-v0.7.1.linux.x86_64.tar.xz
+ARG WASI_SDK_URL=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk_12.0_amd64.deb
 
 # Use bash, not sh
 SHELL ["/bin/bash", "-c"]
@@ -25,54 +23,52 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	binutils-dev \
 	cmake \
 	git \
+	gdb \
 	libtinfo5 \
 	libtool \
+	make \
 	pkg-config
 
 # Needed to install from http endpoints via curl or wget
 RUN apt-get update && apt-get install -y --no-install-recommends \
-	curl \
 	ca-certificates \
+	curl \
+	gpg-agent \
+	hey \
+	httpie \
 	libssl-dev \
 	lsb-release \
-	gpg-agent \
+	openssh-client \
 	software-properties-common \
 	wget
 
 # Test Script Stuff
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	bc \
+	bsdmainutils \
 	fonts-dejavu \
 	fonts-cascadia-code \
 	fonts-roboto \
 	gnuplot \
-	httpie \
 	imagemagick \
 	jq \
 	libz3-4 \
 	netpbm \
 	pango1.0-tools \
+	shellcheck \
 	wamerican
-
-# Hey is a load generator we have to recklessly download from the 'net, as it is only published to brew
-# Binaries are only provided for AMD64 though, so ARM will have to build from source
-# See https://github.com/rakyll/hey
-RUN wget $HEY_URL -O hey && chmod +x hey && mv hey /usr/bin/hey
-
-# shfmt is a formatter for shell scripts
-RUN wget $SHFMT_URL -O shfmt && chmod +x shfmt && mv shfmt /usr/local/bin/shfmt
-RUN wget $SHELLCHECK_URL -O shellcheck && chmod +x shellcheck && mv shellcheck /usr/local/bin/shellcheck
 
 # Interactive Tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
-	bsdmainutils \
 	gdb \
 	less \
-	openssh-client \
 	strace \
 	valgrind \
 	vim \
 	wabt
+
+# shfmt is a formatter for shell scripts
+RUN wget $SHFMT_URL -O shfmt && chmod +x shfmt && mv shfmt /usr/local/bin/shfmt
 
 ENV LLVM_VERSION=12
 ADD install_llvm.sh /sledge/install_llvm.sh
@@ -114,8 +110,3 @@ RUN cargo install --debug cargo-audit cargo-watch rsign2
 ENV LANG C.UTF-8
 ENV LANGUAGE C.UTF-8
 ENV LC_ALL C.UTF-8
-
-# Update PATH and LD_LIBRARY_PATH
-ENV PATH=/sledge/runtime/bin:$PATH
-ENV PATH=/sledge/awsm/target/release:$PATH
-ENV LD_LIBRARY_PATH=/sledge/runtime/bin:$LD_LIBRARY_PATH
