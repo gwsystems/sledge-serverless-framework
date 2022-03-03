@@ -9,11 +9,9 @@
 ```sh
 git clone https://github.com/gwsystems/sledge-serverless-framework.git
 cd sledge-serverless-framework
-git checkout validate-setup
 ./install_deb.sh
 source ~/.bashrc
 make install
-make applications
 make test
 ```
 
