@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Apt Update
-        run: sudo apt-get clean && sudo apt-get update
+        run: sudo rm /var/lib/apt/lists/* -vf && sudo apt-get clean && sudo apt-get update
       - uses: actions/checkout@v2
       - name: Install LLVM
         run: |
