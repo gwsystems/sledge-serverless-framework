@@ -1066,7 +1066,7 @@ wasi_snapshot_preview1_backing_proc_exit(wasi_context_t *context, __wasi_exitcod
 {
 	struct sandbox *s = current_sandbox_get();
 	s->return_value   = exitcode;
-	longjmp(s->ctxt.start_buf, WASM_TRAP_EXIT);
+	siglongjmp(s->ctxt.start_buf, WASM_TRAP_EXIT);
 }
 
 /**

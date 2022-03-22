@@ -63,6 +63,7 @@ worker_thread_main(void *argument)
 	if (runtime_preemption_enabled) {
 		software_interrupt_unmask_signal(SIGALRM);
 		software_interrupt_unmask_signal(SIGUSR1);
+		software_interrupt_unmask_signal(SIGFPE);
 	}
 
 	scheduler_idle_loop();

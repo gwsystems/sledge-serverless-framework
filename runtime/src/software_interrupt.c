@@ -149,6 +149,19 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		break;
 	}
+	case SIGFPE: {
+		software_interrupt_counts_sigfpe_increment();
+
+		if (likely(current_sandbox && current_sandbox->state == SANDBOX_RUNNING_USER)) {
+			atomic_fetch_sub(&handler_depth, 1);
+			current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		} else {
+			// Runtime FPE
+			panic("Runtime SIGFPE\n");
+		}
+
+		break;
+	}
 	default: {
 		const char *signal_name = strsignal(signal_type);
 		switch (signal_info->si_code) {
@@ -231,9 +244,10 @@ software_interrupt_initialize(void)
 	sigemptyset(&signal_action.sa_mask);
 	sigaddset(&signal_action.sa_mask, SIGALRM);
 	sigaddset(&signal_action.sa_mask, SIGUSR1);
+	sigaddset(&signal_action.sa_mask, SIGFPE);
 
-	const int    supported_signals[]   = { SIGALRM, SIGUSR1 };
-	const size_t supported_signals_len = 2;
+	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGFPE };
+	const size_t supported_signals_len = 3;
 
 	for (int i = 0; i < supported_signals_len; i++) {
 		int signal = supported_signals[i];

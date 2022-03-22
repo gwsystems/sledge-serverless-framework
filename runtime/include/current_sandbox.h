@@ -107,5 +107,5 @@ current_sandbox_trap(enum sledge_abi__wasm_trap trapno)
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_RUNNING_SYS);
 
-	longjmp(sandbox->ctxt.start_buf, trapno);
+	siglongjmp(sandbox->ctxt.start_buf, trapno);
 }
