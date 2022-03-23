@@ -103,9 +103,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	/* Only workers should receive signals */
 	assert(!listener_thread_is_running());
 
-	/* Signals should be masked if runtime has disabled them */
-	assert(runtime_preemption_enabled);
-
 	/* Signals should not nest */
 	assert(handler_depth == 0);
 	atomic_fetch_add(&handler_depth, 1);
@@ -115,6 +112,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
+		assert(runtime_preemption_enabled);
+
 		if (worker_thread_is_running_cooperative_scheduler()) {
 			/* There is no benefit to deferring SIGALRMs that occur when we are already in the cooperative
 			 * scheduler, so just propagate and return */
@@ -135,6 +134,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		break;
 	}
 	case SIGUSR1: {
+		assert(runtime_preemption_enabled);
 		assert(current_sandbox);
 		assert(current_sandbox->state == SANDBOX_PREEMPTED);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
