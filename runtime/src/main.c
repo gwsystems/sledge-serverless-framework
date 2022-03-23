@@ -102,6 +102,7 @@ runtime_get_processor_speed_MHz(void)
 {
 	uint32_t return_value;
 
+	/* TODO: Find another way to get the cpu speed for ARM machines, this only works for Intel machines */
 	FILE *cmd = popen("grep '^cpu MHz' /proc/cpuinfo | head -n 1 | awk '{print $4}'", "r");
 	if (unlikely(cmd == NULL)) goto err;
 
