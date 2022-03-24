@@ -11,6 +11,7 @@ extern _Atomic volatile sig_atomic_t *software_interrupt_counts_deferred_sigalrm
 extern _Atomic volatile sig_atomic_t *software_interrupt_counts_sigalrm_kernel;
 extern _Atomic volatile sig_atomic_t *software_interrupt_counts_sigalrm_thread;
 extern _Atomic volatile sig_atomic_t *software_interrupt_counts_sigfpe;
+extern _Atomic volatile sig_atomic_t *software_interrupt_counts_sigsegv;
 extern _Atomic volatile sig_atomic_t *software_interrupt_counts_sigusr;
 
 static inline void
@@ -22,6 +23,7 @@ software_interrupt_counts_alloc()
 	software_interrupt_counts_sigalrm_kernel          = calloc(runtime_worker_threads_count, sizeof(sig_atomic_t));
 	software_interrupt_counts_sigalrm_thread          = calloc(runtime_worker_threads_count, sizeof(sig_atomic_t));
 	software_interrupt_counts_sigfpe                  = calloc(runtime_worker_threads_count, sizeof(sig_atomic_t));
+	software_interrupt_counts_sigsegv                 = calloc(runtime_worker_threads_count, sizeof(sig_atomic_t));
 	software_interrupt_counts_sigusr                  = calloc(runtime_worker_threads_count, sizeof(sig_atomic_t));
 #endif
 }
@@ -35,6 +37,7 @@ software_interrupt_counts_free()
 	free((void *)software_interrupt_counts_sigalrm_kernel);
 	free((void *)software_interrupt_counts_sigalrm_thread);
 	free((void *)software_interrupt_counts_sigfpe);
+	free((void *)software_interrupt_counts_sigsegv);
 	free((void *)software_interrupt_counts_sigusr);
 #endif
 }
@@ -78,6 +81,14 @@ software_interrupt_counts_sigfpe_increment()
 {
 #ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
 	atomic_fetch_add(&software_interrupt_counts_sigfpe[worker_thread_idx], 1);
+#endif
+}
+
+static inline void
+software_interrupt_counts_sigsegv_increment()
+{
+#ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
+	atomic_fetch_add(&software_interrupt_counts_sigsegv[worker_thread_idx], 1);
 #endif
 }
 

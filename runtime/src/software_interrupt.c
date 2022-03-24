@@ -156,8 +156,19 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			atomic_fetch_sub(&handler_depth, 1);
 			current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
 		} else {
-			// Runtime FPE
 			panic("Runtime SIGFPE\n");
+		}
+
+		break;
+	}
+	case SIGSEGV: {
+		software_interrupt_counts_sigsegv_increment();
+
+		if (likely(current_sandbox && current_sandbox->state == SANDBOX_RUNNING_USER)) {
+			atomic_fetch_sub(&handler_depth, 1);
+			current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		} else {
+			panic("Runtime SIGSEGV\n");
 		}
 
 		break;
@@ -245,9 +256,10 @@ software_interrupt_initialize(void)
 	sigaddset(&signal_action.sa_mask, SIGALRM);
 	sigaddset(&signal_action.sa_mask, SIGUSR1);
 	sigaddset(&signal_action.sa_mask, SIGFPE);
+	sigaddset(&signal_action.sa_mask, SIGSEGV);
 
-	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGFPE };
-	const size_t supported_signals_len = 3;
+	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGFPE, SIGSEGV };
+	const size_t supported_signals_len = 4;
 
 	for (int i = 0; i < supported_signals_len; i++) {
 		int signal = supported_signals[i];

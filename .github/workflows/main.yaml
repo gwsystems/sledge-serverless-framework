@@ -182,3 +182,7 @@ jobs:
         run: |
           make -f test.mk trap_divzero
         if: success() || failure()
+      - name: Wasm Trap Stack Overflow
+        run: |
+          make -f test.mk stack_overflow
+        if: success() || failure()

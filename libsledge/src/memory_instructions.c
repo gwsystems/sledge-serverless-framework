@@ -19,11 +19,6 @@ get_f32(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(float)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
-
 	return *(float *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
@@ -31,11 +26,6 @@ INLINE double
 get_f64(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(double)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
 
 	return *(double *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
@@ -45,11 +35,6 @@ get_i8(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int8_t)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
-
 	return *(int8_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
@@ -57,11 +42,6 @@ INLINE int16_t
 get_i16(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int16_t)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
 
 	return *(int16_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
@@ -71,11 +51,6 @@ get_i32(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int32_t)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
-
 	return *(int32_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
 
@@ -83,11 +58,6 @@ INLINE int64_t
 get_i64(uint32_t offset)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int64_t)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
 
 	return *(int64_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset];
 }
@@ -98,11 +68,6 @@ set_f32(uint32_t offset, float value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(float)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
-
 	*(float *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 
@@ -110,11 +75,6 @@ INLINE void
 set_f64(uint32_t offset, double value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(double)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
 
 	*(double *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
@@ -124,11 +84,6 @@ set_i8(uint32_t offset, int8_t value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int8_t)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
-
 	*(int8_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 
@@ -136,11 +91,6 @@ INLINE void
 set_i16(uint32_t offset, int16_t value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int16_t)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
 
 	*(int16_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
@@ -150,11 +100,6 @@ set_i32(uint32_t offset, int32_t value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
 
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int32_t)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
-
 	*(int32_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }
 
@@ -162,11 +107,6 @@ INLINE void
 set_i64(uint32_t offset, int64_t value)
 {
 	assert(sledge_abi__current_wasm_module_instance.memory.buffer != NULL);
-
-	if (unlikely((uint64_t)offset + (uint64_t)sizeof(int64_t)
-	             > sledge_abi__current_wasm_module_instance.memory.size)) {
-		sledge_abi__wasm_trap_raise(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
-	}
 
 	*(int64_t *)&sledge_abi__current_wasm_module_instance.memory.buffer[offset] = value;
 }

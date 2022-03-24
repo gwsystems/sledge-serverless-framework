@@ -60,6 +60,7 @@ worker_thread_main(void *argument)
 	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
 
 	software_interrupt_unmask_signal(SIGFPE);
+	software_interrupt_unmask_signal(SIGSEGV);
 
 	/* Unmask signals, unless the runtime has disabled preemption */
 	if (runtime_preemption_enabled) {

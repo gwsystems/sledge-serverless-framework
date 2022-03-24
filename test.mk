@@ -122,6 +122,13 @@ PHONY: trap_divzero
 trap_divzero: ./runtime/bin/trap_divzero.wasm.so
 	cd ./tests/traps/ && ./run.sh
 
+./runtime/bin/stack_overflow.wasm.so:
+	make stack_overflow.install -C ./applications
+
+PHONY: stack_overflow
+stack_overflow: ./runtime/bin/stack_overflow.wasm.so
+	cd ./tests/stack_overflow/ && ./run.sh
+
 all: \
 	gocr__all \
 	ekf__all \
