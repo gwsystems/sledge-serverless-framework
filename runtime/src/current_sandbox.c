@@ -225,7 +225,7 @@ current_sandbox_start(void)
 {
 	struct sandbox *sandbox = current_sandbox_init();
 
-	int rc = setjmp(sandbox->ctxt.start_buf);
+	int rc = sigsetjmp(sandbox->ctxt.start_buf, 1);
 	if (rc == 0) {
 		struct module *current_module = sandbox_get_module(sandbox);
 		sandbox->return_value         = module_entrypoint(current_module);

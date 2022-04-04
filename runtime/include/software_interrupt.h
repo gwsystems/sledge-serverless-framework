@@ -31,7 +31,7 @@ software_interrupt_mask_signal(int signal)
 	sigset_t set;
 	int      return_code;
 
-	assert(signal == SIGALRM || signal == SIGUSR1);
+	assert(signal == SIGALRM || signal == SIGUSR1 || signal == SIGFPE || signal == SIGSEGV);
 	/* all threads created by the calling thread will have signal blocked */
 	sigemptyset(&set);
 	sigaddset(&set, signal);
@@ -55,7 +55,7 @@ software_interrupt_unmask_signal(int signal)
 	sigset_t set;
 	int      return_code;
 
-	assert(signal == SIGALRM || signal == SIGUSR1);
+	assert(signal == SIGALRM || signal == SIGUSR1 || signal == SIGFPE || signal == SIGSEGV);
 	/* all threads created by the calling thread will have signal unblocked */
 	sigemptyset(&set);
 	sigaddset(&set, signal);

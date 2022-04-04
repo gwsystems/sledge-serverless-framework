@@ -103,9 +103,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	/* Only workers should receive signals */
 	assert(!listener_thread_is_running());
 
-	/* Signals should be masked if runtime has disabled them */
-	assert(runtime_preemption_enabled);
-
 	/* Signals should not nest */
 	assert(handler_depth == 0);
 	atomic_fetch_add(&handler_depth, 1);
@@ -115,6 +112,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
+		assert(runtime_preemption_enabled);
+
 		if (worker_thread_is_running_cooperative_scheduler()) {
 			/* There is no benefit to deferring SIGALRMs that occur when we are already in the cooperative
 			 * scheduler, so just propagate and return */
@@ -135,6 +134,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		break;
 	}
 	case SIGUSR1: {
+		assert(runtime_preemption_enabled);
 		assert(current_sandbox);
 		assert(current_sandbox->state == SANDBOX_PREEMPTED);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
@@ -146,6 +146,30 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 #endif
 		/* It is the responsibility of the caller to invoke current_sandbox_set before triggering the SIGUSR1 */
 		scheduler_preemptive_switch_to(interrupted_context, current_sandbox);
+
+		break;
+	}
+	case SIGFPE: {
+		software_interrupt_counts_sigfpe_increment();
+
+		if (likely(current_sandbox && current_sandbox->state == SANDBOX_RUNNING_USER)) {
+			atomic_fetch_sub(&handler_depth, 1);
+			current_sandbox_trap(WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION);
+		} else {
+			panic("Runtime SIGFPE\n");
+		}
+
+		break;
+	}
+	case SIGSEGV: {
+		software_interrupt_counts_sigsegv_increment();
+
+		if (likely(current_sandbox && current_sandbox->state == SANDBOX_RUNNING_USER)) {
+			atomic_fetch_sub(&handler_depth, 1);
+			current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		} else {
+			panic("Runtime SIGSEGV\n");
+		}
 
 		break;
 	}
@@ -231,9 +255,11 @@ software_interrupt_initialize(void)
 	sigemptyset(&signal_action.sa_mask);
 	sigaddset(&signal_action.sa_mask, SIGALRM);
 	sigaddset(&signal_action.sa_mask, SIGUSR1);
+	sigaddset(&signal_action.sa_mask, SIGFPE);
+	sigaddset(&signal_action.sa_mask, SIGSEGV);
 
-	const int    supported_signals[]   = { SIGALRM, SIGUSR1 };
-	const size_t supported_signals_len = 2;
+	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGFPE, SIGSEGV };
+	const size_t supported_signals_len = 4;
 
 	for (int i = 0; i < supported_signals_len; i++) {
 		int signal = supported_signals[i];

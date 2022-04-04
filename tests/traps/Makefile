@@ -18,7 +18,7 @@ ${SLEDGE_BINARY_DIR}/sledgert:
 sledgert: ${SLEDGE_BINARY_DIR}/sledgert
 
 ${SLEDGE_BINARY_DIR}/trap_divzero.wasm.so:
-	make -C ../../../applications trap_divzero.install
+	make -C ../../applications trap_divzero.install
 
 .PHONY: trap_divzero
 trap_divzero: ${SLEDGE_BINARY_DIR}/trap_divzero.wasm.so
@@ -39,6 +39,9 @@ client-ok:
 
 client-trap:
 	echo "0" | http :10000
+
+client-trap2:
+	echo "-1" | http :10000
 
 test:
 	echo "4" | http :10000

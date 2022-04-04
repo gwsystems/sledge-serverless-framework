@@ -82,3 +82,6 @@ license_plate_detection.install: ../runtime/bin/license_plate_detection.wasm.so
 
 .PHONY: trap_divzero.install
 trap_divzero.install: ../runtime/bin/trap_divzero.wasm.so
+
+.PHONY: stack_overflow.install
+stack_overflow.install: ../runtime/bin/stack_overflow.wasm.so
