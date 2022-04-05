@@ -187,7 +187,7 @@ err:
 	return NULL;
 }
 
-static inline void
+extern noreturn void
 current_sandbox_fini()
 {
 	struct sandbox *sandbox = current_sandbox_get();

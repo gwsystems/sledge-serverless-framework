@@ -109,3 +109,5 @@ current_sandbox_trap(enum sledge_abi__wasm_trap trapno)
 
 	siglongjmp(sandbox->ctxt.start_buf, trapno);
 }
+
+extern noreturn void current_sandbox_fini();

@@ -28,7 +28,6 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 
 #ifdef LOG_HTTP_PARSER
 	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
-	assert(strncmp(sandbox->module->name, (at + 1), length - 1) == 0);
 #endif
 
 	return 0;

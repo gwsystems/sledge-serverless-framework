@@ -921,7 +921,8 @@ sledge_abi__wasi_snapshot_preview1_poll_oneoff(__wasi_size_t in_baseoffset, __wa
 EXPORT void
 sledge_abi__wasi_snapshot_preview1_proc_exit(__wasi_exitcode_t exitcode)
 {
-	wasi_unsupported_syscall(__func__);
+	struct sandbox *sandbox = current_sandbox_get();
+	wasi_snapshot_preview1_backing_proc_exit(sandbox->wasi_context, exitcode);
 }
 
 /**

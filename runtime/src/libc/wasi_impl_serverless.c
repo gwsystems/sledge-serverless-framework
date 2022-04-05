@@ -1064,9 +1064,8 @@ wasi_snapshot_preview1_backing_poll_oneoff(wasi_context_t *context, const __wasi
 noreturn void
 wasi_snapshot_preview1_backing_proc_exit(wasi_context_t *context, __wasi_exitcode_t exitcode)
 {
-	struct sandbox *s = current_sandbox_get();
-	s->return_value   = exitcode;
-	siglongjmp(s->ctxt.start_buf, WASM_TRAP_EXIT);
+	current_sandbox_fini();
+	assert(0);
 }
 
 /**

@@ -268,7 +268,7 @@ wasi_snapshot_preview1_poll_oneoff(__wasi_size_t in_baseoffset, __wasi_size_t ou
 void
 wasi_snapshot_preview1_proc_exit(__wasi_exitcode_t exitcode)
 {
-	sledge_abi__wasi_snapshot_preview1_proc_raise(exitcode);
+	sledge_abi__wasi_snapshot_preview1_proc_exit(exitcode);
 }
 
 uint32_t
