@@ -26,7 +26,7 @@ dist:
 dist/%.o: src/%.c dist
 	clang ${CFLAGS} -c ${INCLUDES} -o $@ $<
 
-dist/libsledge.a: dist/memory_instructions.o dist/numeric_instructions.o dist/table_instructions.o dist/variable_instructions.o dist/instantiation.o dist/wasi_snapshot_preview1.o
+dist/libsledge.a: dist/control_instructions.o dist/memory_instructions.o dist/numeric_instructions.o dist/table_instructions.o dist/variable_instructions.o dist/instantiation.o dist/wasi_snapshot_preview1.o
 	ar rcs dist/libsledge.a $^
 
 clean: 

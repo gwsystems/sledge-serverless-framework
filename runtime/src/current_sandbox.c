@@ -114,6 +114,16 @@ current_sandbox_wasm_trap_handler(int trapno)
 		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
+	case WASM_TRAP_UNREACHABLE:
+		error_message = "WebAssembly Trap: Unreachable Instruction\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	default:
+		error_message = "WebAssembly Trap: Unknown Trapno\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
 	}
 
 	debuglog("%s", error_message);
