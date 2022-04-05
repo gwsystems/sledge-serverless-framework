@@ -18,9 +18,6 @@
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
-const int   dummy_argc   = 3;
-const char *dummy_argv[] = { "foo", "bar", "baz" };
-
 /**
  * @brief Switches from an executing sandbox to the worker thread base context
  *
@@ -140,7 +137,6 @@ current_sandbox_init()
 
 	int   rc            = 0;
 	char *error_message = NULL;
-	char *args[dummy_argc + 1];
 
 	sandbox_open_http(sandbox);
 
@@ -165,6 +161,8 @@ current_sandbox_init()
 	wasi_options_t options;
 	wasi_options_init(&options);
 
+	/* Initialize Arguments. First arg is the module name. Subsequent args are query parameters */
+	char *args[HTTP_MAX_QUERY_PARAM_COUNT + 1];
 	args[0] = sandbox->module->name;
 	for (int i = 0; i < sandbox->http_request.query_params_count; i++)
 		args[i + 1] = (char *)sandbox->http_request.query_params[i].value;
