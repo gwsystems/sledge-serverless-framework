@@ -36,27 +36,12 @@ wasi_context_init(wasi_options_t *options)
 	if (options->argc > 0) {
 		assert(options->argv != NULL);
 
-		/* Strip path from first arg, calculating offset and length */
-		size_t first_arg_offset = 0;
-		size_t first_arg_len    = 0;
-		for (first_arg_offset = strlen(options->argv[0]); first_arg_offset > 0; first_arg_offset--) {
-			if (options->argv[0][first_arg_offset] == '/') {
-				first_arg_offset++;
-				break;
-			}
-		}
-		first_arg_len = strlen(options->argv[0]) - first_arg_offset;
-
 		/* Calculate argument buffer size */
 		__wasi_size_t argv_buf_size = 0;
 		__wasi_size_t argv_buffer_offsets[options->argc + 1];
 		for (int i = 0; i < options->argc; i++) {
 			argv_buffer_offsets[i] = argv_buf_size;
-			if (i == 0) {
-				argv_buf_size += first_arg_len + 1;
-			} else {
-				argv_buf_size += strlen(options->argv[i]) + 1;
-			}
+			argv_buf_size += strlen(options->argv[i]) + 1;
 		}
 		argv_buffer_offsets[options->argc] = argv_buf_size;
 
@@ -76,10 +61,7 @@ wasi_context_init(wasi_options_t *options)
 		}
 
 		/* Copy the binary name minux the path as the first arg */
-		strncpy(wasi_context->argv_buf, &options->argv[0][first_arg_offset], first_arg_len);
-
-		/* Copy the binary name minux the path as the first arg */
-		for (int i = 1; i < options->argc; i++) {
+		for (int i = 0; i < options->argc; i++) {
 			strncpy(&wasi_context->argv_buf[argv_buffer_offsets[i]], options->argv[i],
 			        argv_buffer_offsets[i + 1] - argv_buffer_offsets[i]);
 		}

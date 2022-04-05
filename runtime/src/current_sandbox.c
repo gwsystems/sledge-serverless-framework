@@ -18,9 +18,8 @@
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
-// TODO: Propagate arguments from *.json spec file
-const int   dummy_argc   = 4;
-const char *dummy_argv[] = { "/test/test/test", "foo", "bar", "baz" };
+const int   dummy_argc   = 3;
+const char *dummy_argv[] = { "foo", "bar", "baz" };
 
 /**
  * @brief Switches from an executing sandbox to the worker thread base context
@@ -141,6 +140,7 @@ current_sandbox_init()
 
 	int   rc            = 0;
 	char *error_message = NULL;
+	char *args[dummy_argc + 1];
 
 	sandbox_open_http(sandbox);
 
@@ -164,8 +164,12 @@ current_sandbox_init()
 	/* Initialize WASI */
 	wasi_options_t options;
 	wasi_options_init(&options);
-	options.argc                                          = dummy_argc;
-	options.argv                                          = dummy_argv;
+
+	args[0] = sandbox->module->name;
+	for (int i = 0; i < dummy_argc; i++) args[i + 1] = (char *)dummy_argv[i];
+
+	options.argc                                          = dummy_argc + 1;
+	options.argv                                          = &args;
 	sandbox->wasi_context                                 = wasi_context_init(&options);
 	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
 	assert(sandbox->wasi_context != NULL);
