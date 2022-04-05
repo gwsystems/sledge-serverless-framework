@@ -9,6 +9,9 @@
 #define HTTP_MAX_HEADER_LENGTH       32
 #define HTTP_MAX_HEADER_VALUE_LENGTH 256
 
+#define HTTP_MAX_QUERY_PARAM_COUNT  16
+#define HTTP_MAX_QUERY_PARAM_LENGTH 32
+
 #define HTTP_RESPONSE_200_TEMPLATE \
 	"HTTP/1.1 200 OK\r\n"      \
 	"Server: SLEdge\r\n"       \

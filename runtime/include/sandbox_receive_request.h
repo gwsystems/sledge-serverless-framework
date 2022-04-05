@@ -96,6 +96,14 @@ sandbox_receive_request(struct sandbox *sandbox)
 		request->length += bytes_parsed;
 	}
 
+#ifdef LOG_HTTP_PARSER
+	for (int i = 0; i < sandbox->http_request.query_params_count; i++) {
+		debuglog("Argument %d, Len: %d, %.*s\n", i, sandbox->http_request.query_params[i].value_length,
+		         sandbox->http_request.query_params[i].value_length,
+		         sandbox->http_request.query_params[i].value);
+	}
+#endif
+
 	rc = 0;
 done:
 	return rc;

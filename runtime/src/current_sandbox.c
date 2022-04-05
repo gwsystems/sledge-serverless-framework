@@ -166,10 +166,11 @@ current_sandbox_init()
 	wasi_options_init(&options);
 
 	args[0] = sandbox->module->name;
-	for (int i = 0; i < dummy_argc; i++) args[i + 1] = (char *)dummy_argv[i];
+	for (int i = 0; i < sandbox->http_request.query_params_count; i++)
+		args[i + 1] = (char *)sandbox->http_request.query_params[i].value;
 
-	options.argc                                          = dummy_argc + 1;
-	options.argv                                          = &args;
+	options.argc                                          = sandbox->http_request.query_params_count + 1;
+	options.argv                                          = (const char **)&args;
 	sandbox->wasi_context                                 = wasi_context_init(&options);
 	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
 	assert(sandbox->wasi_context != NULL);
