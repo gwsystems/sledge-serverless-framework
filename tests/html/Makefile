@@ -2,7 +2,6 @@ RUNTIME_DIR=../../runtime/
 SLEDGE_BINARY_DIR=${RUNTIME_DIR}/bin
 SLEDGE_TESTS_DIR=${RUNTIME_DIR}/tests
 HOSTNAME=localhost
-DURATION_SEC=15
 
 all: run
 
@@ -34,14 +33,20 @@ debug: sledgert html
 		--eval-command="set pagination off" \
 		--eval-command="run spec.json"
 
-client-fib10-once:
-	echo "10" | http :1337
+client:
+	http :1337
 
-client-fib40-once:
-	echo "40" | http :1337
+browser-args:
+	xdg-open "http://localhost:1337"
 
-client-preempt:
-	(echo "40" | http :10040 &); echo "10" | http :1337
+client-stdin:
+	echo "Example STDIN" | http :1337
 
-client-fib10-multi:
-	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${HOSTNAME}:1337"
+client-args:
+	http ":1337?firstArg&secondArg&thirdArg"
+
+browser-args:
+	xdg-open "http://localhost:1337?firstArg&secondArg&thirdArg"
+
+client-stdin-args:
+	echo "Example STDIN" | http ":1337?firstArg&secondArg&thirdArg"
