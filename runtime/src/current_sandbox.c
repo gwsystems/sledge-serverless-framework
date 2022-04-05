@@ -19,8 +19,8 @@
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
 // TODO: Propagate arguments from *.json spec file
-const int   dummy_argc   = 1;
-const char *dummy_argv[] = { "Test" };
+const int   dummy_argc   = 4;
+const char *dummy_argv[] = { "/test/test/test", "foo", "bar", "baz" };
 
 /**
  * @brief Switches from an executing sandbox to the worker thread base context

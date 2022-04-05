@@ -6,7 +6,7 @@
 uint32_t
 wasi_snapshot_preview1_args_get(__wasi_size_t argv_retoffset, __wasi_size_t argv_buf_retoffset)
 {
-	return sledge_abi__wasi_snapshot_preview1_args_get(argv_buf_retoffset, argv_buf_retoffset);
+	return sledge_abi__wasi_snapshot_preview1_args_get(argv_retoffset, argv_buf_retoffset);
 }
 
 uint32_t

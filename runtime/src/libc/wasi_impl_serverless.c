@@ -326,8 +326,8 @@ wasi_fromerrno(int errno_)
  * Callers of this syscall only provide the base address of the two buffers because the WASI specification
  * assumes that the caller first called args_sizes_get and sized the buffers appropriately.
  *
- * @param argv_retptr
- * @param argv_buf_retptr
+ * @param argv - temp argv to store host pointers into sandbox linear memory
+ * @param argv_buf_retptr - host pointer to the start of the argv buffer in linear memory
  * @return __WASI_ERRNO_SUCCESS or WASI_EINVAL
  */
 __wasi_errno_t
@@ -338,8 +338,8 @@ wasi_snapshot_preview1_backing_args_get(wasi_context_t *context, char **argv, ch
 	if (context->argc > 0) memcpy(argv_buf, context->argv_buf, context->argv_buf_size);
 
 	for (__wasi_size_t i = 0; i < context->argc; i++) {
-		__wasi_size_t offset = context->argv[i] - context->argv_buf;
-		argv[i]              = &argv_buf[context->argv[i] - context->argv_buf];
+		size_t offset = context->argv[i] - context->argv_buf;
+		argv[i]       = &argv_buf[offset];
 	}
 
 
@@ -359,10 +359,6 @@ wasi_snapshot_preview1_backing_args_sizes_get(wasi_context_t *context, __wasi_si
                                               __wasi_size_t *argv_buf_len_retptr)
 {
 	if (context == NULL || argc_retptr == NULL || argv_buf_len_retptr == NULL) return __WASI_ERRNO_INVAL;
-
-	// TODO: Delete after refactoring args logic
-	// fprintf(stderr, "argc: %d\n", wasi_context->argc);
-	// fprintf(stderr, "argv_buf_size: %d\n", wasi_context->argv_buf_size);
 
 	*argc_retptr         = context->argc;
 	*argv_buf_len_retptr = context->argv_buf_size;
