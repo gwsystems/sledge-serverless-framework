@@ -45,13 +45,12 @@ struct sledge_abi__wasm_module_instance {
 /* Based on example traps listed at https://webassembly.org/docs/security/ */
 enum sledge_abi__wasm_trap
 {
-	WASM_TRAP_EXIT                          = 1,
-	WASM_TRAP_INVALID_INDEX                 = 2,
-	WASM_TRAP_MISMATCHED_TYPE               = 3,
-	WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW = 4,
-	WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY   = 5,
-	WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION  = 6,
-	WASM_TRAP_UNREACHABLE                   = 7,
+	WASM_TRAP_INVALID_INDEX                 = 1,
+	WASM_TRAP_MISMATCHED_TYPE               = 2,
+	WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW = 3,
+	WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY   = 4,
+	WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION  = 5,
+	WASM_TRAP_UNREACHABLE                   = 6,
 	WASM_TRAP_COUNT
 };
 

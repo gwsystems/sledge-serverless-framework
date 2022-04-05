@@ -87,8 +87,6 @@ current_sandbox_wasm_trap_handler(int trapno)
 	sandbox_syscall(sandbox);
 
 	switch (trapno) {
-	case WASM_TRAP_EXIT:
-		break;
 	case WASM_TRAP_INVALID_INDEX:
 		error_message = "WebAssembly Trap: Invalid Index\n";
 		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
