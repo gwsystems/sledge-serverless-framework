@@ -36,27 +36,12 @@ wasi_context_init(wasi_options_t *options)
 	if (options->argc > 0) {
 		assert(options->argv != NULL);
 
-		/* Strip path from first arg, calculating offset and length */
-		size_t first_arg_offset = 0;
-		size_t first_arg_len    = 0;
-		for (first_arg_offset = strlen(options->argv[0]); first_arg_offset > 0; first_arg_offset--) {
-			if (options->argv[0][first_arg_offset] == '/') {
-				first_arg_offset++;
-				break;
-			}
-		}
-		first_arg_len = strlen(options->argv[0]) - first_arg_offset;
-
 		/* Calculate argument buffer size */
 		__wasi_size_t argv_buf_size = 0;
 		__wasi_size_t argv_buffer_offsets[options->argc + 1];
 		for (int i = 0; i < options->argc; i++) {
 			argv_buffer_offsets[i] = argv_buf_size;
-			if (i == 0) {
-				argv_buf_size += first_arg_len + 1;
-			} else {
-				argv_buf_size += strlen(options->argv[i]) + 1;
-			}
+			argv_buf_size += strlen(options->argv[i]) + 1;
 		}
 		argv_buffer_offsets[options->argc] = argv_buf_size;
 
@@ -76,10 +61,7 @@ wasi_context_init(wasi_options_t *options)
 		}
 
 		/* Copy the binary name minux the path as the first arg */
-		strncpy(wasi_context->argv_buf, &options->argv[0][first_arg_offset], first_arg_len);
-
-		/* Copy the binary name minux the path as the first arg */
-		for (int i = 1; i < options->argc; i++) {
+		for (int i = 0; i < options->argc; i++) {
 			strncpy(&wasi_context->argv_buf[argv_buffer_offsets[i]], options->argv[i],
 			        argv_buffer_offsets[i + 1] - argv_buffer_offsets[i]);
 		}
@@ -326,8 +308,8 @@ wasi_fromerrno(int errno_)
  * Callers of this syscall only provide the base address of the two buffers because the WASI specification
  * assumes that the caller first called args_sizes_get and sized the buffers appropriately.
  *
- * @param argv_retptr
- * @param argv_buf_retptr
+ * @param argv - temp argv to store host pointers into sandbox linear memory
+ * @param argv_buf_retptr - host pointer to the start of the argv buffer in linear memory
  * @return __WASI_ERRNO_SUCCESS or WASI_EINVAL
  */
 __wasi_errno_t
@@ -338,8 +320,8 @@ wasi_snapshot_preview1_backing_args_get(wasi_context_t *context, char **argv, ch
 	if (context->argc > 0) memcpy(argv_buf, context->argv_buf, context->argv_buf_size);
 
 	for (__wasi_size_t i = 0; i < context->argc; i++) {
-		__wasi_size_t offset = context->argv[i] - context->argv_buf;
-		argv[i]              = &argv_buf[context->argv[i] - context->argv_buf];
+		size_t offset = context->argv[i] - context->argv_buf;
+		argv[i]       = &argv_buf[offset];
 	}
 
 
@@ -359,10 +341,6 @@ wasi_snapshot_preview1_backing_args_sizes_get(wasi_context_t *context, __wasi_si
                                               __wasi_size_t *argv_buf_len_retptr)
 {
 	if (context == NULL || argc_retptr == NULL || argv_buf_len_retptr == NULL) return __WASI_ERRNO_INVAL;
-
-	// TODO: Delete after refactoring args logic
-	// fprintf(stderr, "argc: %d\n", wasi_context->argc);
-	// fprintf(stderr, "argv_buf_size: %d\n", wasi_context->argv_buf_size);
 
 	*argc_retptr         = context->argc;
 	*argv_buf_len_retptr = context->argv_buf_size;
@@ -1064,9 +1042,8 @@ wasi_snapshot_preview1_backing_poll_oneoff(wasi_context_t *context, const __wasi
 noreturn void
 wasi_snapshot_preview1_backing_proc_exit(wasi_context_t *context, __wasi_exitcode_t exitcode)
 {
-	struct sandbox *s = current_sandbox_get();
-	s->return_value   = exitcode;
-	siglongjmp(s->ctxt.start_buf, WASM_TRAP_EXIT);
+	current_sandbox_fini();
+	assert(0);
 }
 
 /**

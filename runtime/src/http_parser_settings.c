@@ -28,8 +28,41 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 
 #ifdef LOG_HTTP_PARSER
 	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
-	assert(strncmp(sandbox->module->name, (at + 1), length - 1) == 0);
 #endif
+
+	char *query_params = memchr(at, '?', length);
+
+	if (query_params != NULL) {
+		char *prev = query_params + 1;
+		char *cur  = NULL;
+		while ((cur = strchr(prev, '&')) != NULL
+		       && sandbox->http_request.query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
+			cur++;
+			size_t len = cur - prev - 1;
+			sandbox->http_request.query_params[sandbox->http_request.query_params_count].value_length =
+			  len < HTTP_MAX_QUERY_PARAM_LENGTH - 1 ? len : HTTP_MAX_QUERY_PARAM_LENGTH - 1;
+
+			strncpy(sandbox->http_request.query_params[sandbox->http_request.query_params_count].value,
+			        prev,
+			        sandbox->http_request.query_params[sandbox->http_request.query_params_count]
+			          .value_length);
+
+			sandbox->http_request.query_params_count++;
+			prev = cur;
+		}
+		if (prev != NULL && sandbox->http_request.query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
+			size_t len = &at[length] - prev;
+			sandbox->http_request.query_params[sandbox->http_request.query_params_count].value_length =
+			  len < HTTP_MAX_QUERY_PARAM_LENGTH - 1 ? len : HTTP_MAX_QUERY_PARAM_LENGTH - 1;
+
+			strncpy(sandbox->http_request.query_params[sandbox->http_request.query_params_count].value,
+			        prev,
+			        sandbox->http_request.query_params[sandbox->http_request.query_params_count]
+			          .value_length);
+
+			sandbox->http_request.query_params_count++;
+		}
+	}
 
 	return 0;
 }

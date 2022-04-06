@@ -18,10 +18,6 @@
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
-// TODO: Propagate arguments from *.json spec file
-const int   dummy_argc   = 1;
-const char *dummy_argv[] = { "Test" };
-
 /**
  * @brief Switches from an executing sandbox to the worker thread base context
  *
@@ -87,8 +83,6 @@ current_sandbox_wasm_trap_handler(int trapno)
 	sandbox_syscall(sandbox);
 
 	switch (trapno) {
-	case WASM_TRAP_EXIT:
-		break;
 	case WASM_TRAP_INVALID_INDEX:
 		error_message = "WebAssembly Trap: Invalid Index\n";
 		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
@@ -111,6 +105,16 @@ current_sandbox_wasm_trap_handler(int trapno)
 		break;
 	case WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION:
 		error_message = "WebAssembly Trap: Illegal Arithmetic Operation\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_UNREACHABLE:
+		error_message = "WebAssembly Trap: Unreachable Instruction\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	default:
+		error_message = "WebAssembly Trap: Unknown Trapno\n";
 		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
@@ -156,8 +160,15 @@ current_sandbox_init()
 	/* Initialize WASI */
 	wasi_options_t options;
 	wasi_options_init(&options);
-	options.argc                                          = dummy_argc;
-	options.argv                                          = dummy_argv;
+
+	/* Initialize Arguments. First arg is the module name. Subsequent args are query parameters */
+	char *args[HTTP_MAX_QUERY_PARAM_COUNT + 1];
+	args[0] = sandbox->module->name;
+	for (int i = 0; i < sandbox->http_request.query_params_count; i++)
+		args[i + 1] = (char *)sandbox->http_request.query_params[i].value;
+
+	options.argc                                          = sandbox->http_request.query_params_count + 1;
+	options.argv                                          = (const char **)&args;
 	sandbox->wasi_context                                 = wasi_context_init(&options);
 	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
 	assert(sandbox->wasi_context != NULL);
@@ -177,7 +188,7 @@ err:
 	return NULL;
 }
 
-static inline void
+extern noreturn void
 current_sandbox_fini()
 {
 	struct sandbox *sandbox = current_sandbox_get();

@@ -78,7 +78,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 #ifdef LOG_HTTP_PARSER
 		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings,
-		         &sandbox->request.base[sandbox->request.length], bytes_received);
+		         &sandbox->request.buffer[sandbox->request.length], bytes_received);
 #endif
 		size_t bytes_parsed = http_parser_execute(parser, settings,
 		                                          (const char *)&request->buffer[request_length],
@@ -95,6 +95,14 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 		request->length += bytes_parsed;
 	}
+
+#ifdef LOG_HTTP_PARSER
+	for (int i = 0; i < sandbox->http_request.query_params_count; i++) {
+		debuglog("Argument %d, Len: %d, %.*s\n", i, sandbox->http_request.query_params[i].value_length,
+		         sandbox->http_request.query_params[i].value_length,
+		         sandbox->http_request.query_params[i].value);
+	}
+#endif
 
 	rc = 0;
 done:

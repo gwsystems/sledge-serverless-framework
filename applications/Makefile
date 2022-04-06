@@ -85,3 +85,6 @@ trap_divzero.install: ../runtime/bin/trap_divzero.wasm.so
 
 .PHONY: stack_overflow.install
 stack_overflow.install: ../runtime/bin/stack_overflow.wasm.so
+
+.PHONY: html.install
+html.install: ../runtime/bin/html.wasm.so
