@@ -288,11 +288,14 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
 
 /**
  * Double capacity of priority queue
+ * Note: currently there is no equivalent call for PQs that are not thread-local and need to be locked because it is
+ * unclear if the fact that the lock is a member in the struct that might be moved by realloc breaks the guarantees of
+ * the lock.
  * @param priority_queue to resize
  * @returns pointer to PR. This may have been moved by realloc!
  */
 static inline struct priority_queue *
-priority_queue_grow(struct priority_queue *priority_queue)
+priority_queue_grow_nolock(struct priority_queue *priority_queue)
 {
 	assert(priority_queue != NULL);
 
