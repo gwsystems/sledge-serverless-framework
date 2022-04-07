@@ -287,6 +287,29 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
 }
 
 /**
+ * Double capacity of priority queue
+ * @param priority_queue to resize
+ * @returns pointer to PR. This may have been moved by realloc!
+ */
+static inline struct priority_queue *
+priority_queue_grow(struct priority_queue *priority_queue)
+{
+	assert(priority_queue != NULL);
+
+	if (unlikely(priority_queue->capacity == 0)) {
+		priority_queue->capacity++;
+		debuglog("Growing to 1\n");
+	} else {
+		priority_queue->capacity *= 2;
+		debuglog("Growing to %zu\n", priority_queue->capacity);
+	}
+
+	/* capacity is padded by 1 because idx 0 is unused */
+	return (struct priority_queue *)realloc(priority_queue, sizeof(struct priority_queue)
+	                                                          + sizeof(void *) * (priority_queue->capacity + 1));
+}
+
+/**
  * Free the Priority Queue Data structure
  * @param priority_queue the priority_queue to initialize
  */
