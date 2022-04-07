@@ -26,6 +26,28 @@ local_runqueue_minheap_is_empty()
 }
 
 /**
+ * Doubles capacity of local runqueue
+ */
+void
+local_runqueue_minheap_grow(void)
+{
+	assert(local_runqueue_minheap != NULL);
+
+	/* capacity is padded by 1 because idx 0 is padding */
+	if (unlikely(local_runqueue_minheap->capacity == 1)) {
+		debuglog("Growing to 2\n");
+		local_runqueue_minheap->capacity++;
+	} else {
+		local_runqueue_minheap->capacity = (local_runqueue_minheap->capacity - 1) * 2 + 1;
+		debuglog("Growing to %zu\n", local_runqueue_minheap->capacity);
+	}
+
+	local_runqueue_minheap = (struct priority_queue *)
+	  realloc(local_runqueue_minheap,
+	          sizeof(struct priority_queue) + sizeof(void *) * (local_runqueue_minheap->capacity));
+}
+
+/**
  * Adds a sandbox to the run queue
  * @param sandbox
  * @returns pointer to sandbox added
@@ -34,8 +56,11 @@ void
 local_runqueue_minheap_add(struct sandbox *sandbox)
 {
 	int return_code = priority_queue_enqueue_nolock(local_runqueue_minheap, sandbox);
-	/* TODO: propagate RC to caller. Issue #92 */
-	if (return_code == -ENOSPC) panic("Thread Runqueue is full!\n");
+	if (unlikely(return_code == -ENOSPC)) {
+		local_runqueue_minheap_grow();
+		return_code = priority_queue_enqueue_nolock(local_runqueue_minheap, sandbox);
+		if (unlikely(return_code == -ENOSPC)) panic("Thread Runqueue is full!\n");
+	}
 }
 
 /**
