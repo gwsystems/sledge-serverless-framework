@@ -5,7 +5,7 @@
 
 /* Default uninitialized implementations of the polymorphic interface */
 noreturn static struct sandbox *
-uninitialized_add(void *arg)
+uninitialized_add(struct sandbox *arg)
 {
 	panic("Global Request Scheduler Add was called before initialization\n");
 }
