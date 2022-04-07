@@ -12,7 +12,7 @@ static struct priority_queue *global_request_scheduler_minheap;
 /**
  * Pushes a sandbox to the global deque
  * @param sandbox
- * @returns pointer to request if added. Panics runtime otherwise
+ * @returns pointer to sandbox if added. NULL otherwise
  */
 static struct sandbox *
 global_request_scheduler_minheap_add(struct sandbox *sandbox)
@@ -22,8 +22,8 @@ global_request_scheduler_minheap_add(struct sandbox *sandbox)
 	if (unlikely(!listener_thread_is_running())) panic("%s is only callable by the listener thread\n", __func__);
 
 	int return_code = priority_queue_enqueue(global_request_scheduler_minheap, sandbox);
-	/* TODO: Propagate -1 to caller. Issue #91 */
-	if (return_code == -ENOSPC) panic("Request Queue is full\n");
+
+	if (return_code != 0) return NULL;
 	return sandbox;
 }
 

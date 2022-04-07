@@ -43,6 +43,7 @@ global_request_scheduler_initialize(struct global_request_scheduler_config *conf
 /**
  * Adds a sandbox to the request scheduler
  * @param sandbox
+ * @returns pointer to sandbox if added. NULL otherwise
  */
 struct sandbox *
 global_request_scheduler_add(struct sandbox *sandbox)

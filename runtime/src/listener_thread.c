@@ -189,8 +189,14 @@ listener_thread_main(void *dummy)
 					                    &sandbox->client_address);
 				}
 
-				/* Add to the Global Sandbox Request Scheduler */
-				global_request_scheduler_add(sandbox);
+				/* If the global request scheduler is full, return a 429 to the client */
+				sandbox = global_request_scheduler_add(sandbox);
+				if (unlikely(sandbox == NULL)) {
+					client_socket_send_oneshot(sandbox->client_socket_descriptor,
+					                           http_header_build(429), http_header_len(429));
+					client_socket_close(sandbox->client_socket_descriptor,
+					                    &sandbox->client_address);
+				}
 
 			} /* while true */
 		}         /* for loop */
