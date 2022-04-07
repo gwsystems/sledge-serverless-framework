@@ -13,6 +13,8 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
+#define INITIAL_LOCAL_RUNQUEUE_MINHEAP_CAPACITY 256
+
 thread_local static struct priority_queue *local_runqueue_minheap;
 
 /**
@@ -33,18 +35,19 @@ local_runqueue_minheap_grow(void)
 {
 	assert(local_runqueue_minheap != NULL);
 
-	/* capacity is padded by 1 because idx 0 is padding */
-	if (unlikely(local_runqueue_minheap->capacity == 1)) {
-		debuglog("Growing to 2\n");
+	if (unlikely(local_runqueue_minheap->capacity == 0)) {
 		local_runqueue_minheap->capacity++;
+		debuglog("Growing to 1\n");
 	} else {
-		local_runqueue_minheap->capacity = (local_runqueue_minheap->capacity - 1) * 2 + 1;
+		local_runqueue_minheap->capacity *= 2;
 		debuglog("Growing to %zu\n", local_runqueue_minheap->capacity);
 	}
 
-	local_runqueue_minheap = (struct priority_queue *)
-	  realloc(local_runqueue_minheap,
-	          sizeof(struct priority_queue) + sizeof(void *) * (local_runqueue_minheap->capacity));
+	/* capacity is padded by 1 because idx 0 is unused */
+	local_runqueue_minheap = (struct priority_queue *)realloc(local_runqueue_minheap,
+	                                                          sizeof(struct priority_queue)
+	                                                            + sizeof(void *) * local_runqueue_minheap->capacity
+	                                                            + 1);
 }
 
 /**
@@ -103,7 +106,8 @@ void
 local_runqueue_minheap_initialize()
 {
 	/* Initialize local state */
-	local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_priority);
+	local_runqueue_minheap = priority_queue_initialize(INITIAL_LOCAL_RUNQUEUE_MINHEAP_CAPACITY, false,
+	                                                   sandbox_get_priority);
 
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,
