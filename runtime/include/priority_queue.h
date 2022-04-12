@@ -292,7 +292,7 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
  * unclear if the fact that the lock is a member in the struct that might be moved by realloc breaks the guarantees of
  * the lock.
  * @param priority_queue to resize
- * @returns pointer to PR. This may have been moved by realloc!
+ * @returns pointer to PR or NULL if realloc fails. This may have been moved by realloc!
  */
 static inline struct priority_queue *
 priority_queue_grow_nolock(struct priority_queue *priority_queue)

@@ -37,7 +37,9 @@ local_runqueue_minheap_add(struct sandbox *sandbox)
 {
 	int return_code = priority_queue_enqueue_nolock(local_runqueue_minheap, sandbox);
 	if (unlikely(return_code == -ENOSPC)) {
-		local_runqueue_minheap = priority_queue_grow_nolock(local_runqueue_minheap);
+		struct priority_queue *temp = priority_queue_grow_nolock(local_runqueue_minheap);
+		if (unlikely(temp == NULL)) panic("Failed to grow local runqueue\n");
+		local_runqueue_minheap = temp;
 		return_code            = priority_queue_enqueue_nolock(local_runqueue_minheap, sandbox);
 		if (unlikely(return_code == -ENOSPC)) panic("Thread Runqueue is full!\n");
 	}
