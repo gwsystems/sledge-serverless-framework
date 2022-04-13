@@ -2181,6 +2181,14 @@ __wasi_errno_t wasi_snapshot_preview1_backing_sock_send(wasi_context_t *context,
                                                          */
                                                         __wasi_siflags_t si_flags, __wasi_size_t *retptr0)
   __attribute__((__warn_unused_result__));
+
+/**
+ * Accept a new incoming connection.
+ * Note: This is similar to `accept` in POSIX.
+ */
+__wasi_errno_t wasi_snapshot_preview1_backing_sock_accept(void *wasi_context, __wasi_fd_t fd, __wasi_fdflags_t how)
+  __attribute__((__warn_unused_result__));
+
 /**
  * Shut down socket send and receive channels.
  * Note: This is similar to `shutdown` in POSIX.
