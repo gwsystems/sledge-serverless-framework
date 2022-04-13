@@ -41,8 +41,6 @@ scheduler_execute_epoll_loop(void)
 
 				if (sandbox->state == SANDBOX_ASLEEP) { sandbox_wakeup(sandbox); }
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
-				/* Mystery: This seems to never fire. Why? Issue #130 */
-
 				/* Close socket and set as error on socket error or unexpected client hangup */
 				struct sandbox *sandbox = (struct sandbox *)epoll_events[i].data.ptr;
 				int             error   = 0;
