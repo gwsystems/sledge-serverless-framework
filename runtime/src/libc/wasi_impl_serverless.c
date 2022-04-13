@@ -1126,6 +1126,8 @@ wasi_snapshot_preview1_backing_sched_yield(wasi_context_t *context)
  * Note: This is similar to `recv` in POSIX, though it also supports reading
  * the data into multiple buffers in the manner of `readv`.
  *
+ * Unimplemented because receiving sockets is unsuitable for short-lived serverless functions
+ *
  * @param fd
  * @param ri_data_baseretptr List of scatter/gather vectors to which to store data.
  * @param ri_data_len The length of the array pointed to by `ri_data`.
@@ -1147,6 +1149,8 @@ wasi_snapshot_preview1_backing_sock_recv(wasi_context_t *context, __wasi_fd_t fd
  * Note: This is similar to `send` in POSIX, though it also supports writing
  * the data from multiple buffers in the manner of `writev`.
  *
+ * Unimplemented because receiving sockets is unsuitable for short-lived serverless functions
+ *
  * @param fd
  * @param si_data_baseptr List of scatter/gather vectors to which to retrieve data
  * @param si_data_len The length of the array pointed to by `si_data`.
@@ -1162,7 +1166,26 @@ wasi_snapshot_preview1_backing_sock_send(wasi_context_t *context, __wasi_fd_t fd
 }
 
 /**
+ * Accept a new incoming connection.
+ * Note: This is similar to `accept` in POSIX.
+ *
+ * Unimplemented because receiving sockets is unsuitable for short-lived serverless functions
+ *
+ * @param fd The listening socket.
+ * @param flags The desired values of the file descriptor flags.
+ * @return New socket connection
+ */
+__wasi_errno_t
+wasi_snapshot_preview1_backing_sock_accept(wasi_context_t *context, __wasi_fd_t fd, __wasi_fdflags_t how)
+{
+	return wasi_unsupported_syscall(__func__);
+}
+
+/**
  * Shut down socket send and receive channels.
+ * Note: This is similar to `shutdown` in POSIX.
+ *
+ * Unimplemented because receiving sockets is unsuitable for short-lived serverless functions
  *
  * @param fd
  * @param how Which channels on the socket to shut down.
@@ -1171,6 +1194,5 @@ wasi_snapshot_preview1_backing_sock_send(wasi_context_t *context, __wasi_fd_t fd
 __wasi_errno_t
 wasi_snapshot_preview1_backing_sock_shutdown(wasi_context_t *context, __wasi_fd_t fd, __wasi_sdflags_t how)
 {
-	/* similar to `shutdown` in POSIX. */
 	return wasi_unsupported_syscall(__func__);
 }
