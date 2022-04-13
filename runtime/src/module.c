@@ -196,6 +196,28 @@ struct module *
 module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, int port, int request_size,
              int response_size, int admissions_percentile, uint32_t expected_execution_us)
 {
+	/* Validate presence of required fields */
+	if (strlen(name) == 0) panic("name field is required\n");
+	if (strlen(path) == 0) panic("path field is required\n");
+	if (port == 0) panic("port field is required\n");
+
+#ifdef ADMISSIONS_CONTROL
+	/* expected-execution-us and relative-deadline-us are required in case of admissions control */
+	if (expected_execution_us == 0) panic("expected-execution-us is required\n");
+	if (relative_deadline_us == 0) panic("relative_deadline_us is required\n");
+
+	/* If the ratio is too big, admissions control is too coarse */
+	uint32_t ratio = relative_deadline_us / expected_execution_us;
+	if (ratio > ADMISSIONS_CONTROL_GRANULARITY)
+		panic("Ratio of Deadline to Execution time cannot exceed admissions control "
+		      "granularity of "
+		      "%d\n",
+		      ADMISSIONS_CONTROL_GRANULARITY);
+#else
+	/* relative-deadline-us is required if scheduler is EDF */
+	if (scheduler == SCHEDULER_EDF && relative_deadline_us == 0) panic("relative_deadline_us is required\n");
+#endif
+
 	struct module *module = (struct module *)calloc(1, sizeof(struct module));
 	if (!module) {
 		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));
@@ -414,30 +436,6 @@ module_alloc_from_json(char *file_name)
 			j += ntks;
 		}
 		i += ntoks;
-
-
-		/* Validate presence of required fields */
-		if (strlen(module_name) == 0) panic("name field is required\n");
-		if (strlen(module_path) == 0) panic("path field is required\n");
-		if (port == 0) panic("port field is required\n");
-
-#ifdef ADMISSIONS_CONTROL
-		/* expected-execution-us and relative-deadline-us are required in case of admissions control */
-		if (expected_execution_us == 0) panic("expected-execution-us is required\n");
-		if (relative_deadline_us == 0) panic("relative_deadline_us is required\n");
-
-		/* If the ratio is too big, admissions control is too coarse */
-		uint32_t ratio = relative_deadline_us / expected_execution_us;
-		if (ratio > ADMISSIONS_CONTROL_GRANULARITY)
-			panic("Ratio of Deadline to Execution time cannot exceed admissions control "
-			      "granularity of "
-			      "%d\n",
-			      ADMISSIONS_CONTROL_GRANULARITY);
-#else
-		/* relative-deadline-us is required if scheduler is EDF */
-		if (scheduler == SCHEDULER_EDF && relative_deadline_us == 0)
-			panic("relative_deadline_us is required\n");
-#endif
 
 		/* Allocate a module based on the values from the JSON */
 		struct module *module = module_alloc(module_name, module_path, 0, relative_deadline_us, port,
