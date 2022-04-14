@@ -17,12 +17,11 @@ struct module_config {
 };
 
 static inline void
-module_config_free(struct module_config *config)
+module_config_deinit(struct module_config *config)
 {
 	free(config->name);
 	free(config->path);
 	free(config->http_resp_content_type);
-	free(config);
 }
 
 static inline void

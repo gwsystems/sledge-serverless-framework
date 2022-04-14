@@ -481,8 +481,9 @@ main(int argc, char **argv)
 	}
 
 	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
-		module_config_free(&module_config_vec[module_idx]);
+		module_config_deinit(&module_config_vec[module_idx]);
 	}
+	free(module_config_vec);
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);
