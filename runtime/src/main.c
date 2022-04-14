@@ -463,6 +463,7 @@ main(int argc, char **argv)
 
 	int module_config_vec_len = parse_json(json_buf, json_buf_len, &module_config_vec);
 	if (module_config_vec_len < 0) { exit(-1); }
+	free(json_buf);
 
 	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
 		/* Automatically calls listen */
