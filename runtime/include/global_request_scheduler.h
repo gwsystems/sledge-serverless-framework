@@ -5,7 +5,7 @@
 #include "sandbox_types.h"
 
 /* Returns pointer back if successful, null otherwise */
-typedef struct sandbox *(*global_request_scheduler_add_fn_t)(void *);
+typedef struct sandbox *(*global_request_scheduler_add_fn_t)(struct sandbox *);
 typedef int (*global_request_scheduler_remove_fn_t)(struct sandbox **);
 typedef int (*global_request_scheduler_remove_if_earlier_fn_t)(struct sandbox **, uint64_t);
 typedef uint64_t (*global_request_scheduler_peek_fn_t)(void);

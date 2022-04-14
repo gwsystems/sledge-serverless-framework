@@ -13,6 +13,8 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
+#define INITIAL_LOCAL_RUNQUEUE_MINHEAP_CAPACITY 256
+
 thread_local static struct priority_queue *local_runqueue_minheap;
 
 /**
@@ -34,8 +36,13 @@ void
 local_runqueue_minheap_add(struct sandbox *sandbox)
 {
 	int return_code = priority_queue_enqueue_nolock(local_runqueue_minheap, sandbox);
-	/* TODO: propagate RC to caller. Issue #92 */
-	if (return_code == -ENOSPC) panic("Thread Runqueue is full!\n");
+	if (unlikely(return_code == -ENOSPC)) {
+		struct priority_queue *temp = priority_queue_grow_nolock(local_runqueue_minheap);
+		if (unlikely(temp == NULL)) panic("Failed to grow local runqueue\n");
+		local_runqueue_minheap = temp;
+		return_code            = priority_queue_enqueue_nolock(local_runqueue_minheap, sandbox);
+		if (unlikely(return_code == -ENOSPC)) panic("Thread Runqueue is full!\n");
+	}
 }
 
 /**
@@ -78,7 +85,8 @@ void
 local_runqueue_minheap_initialize()
 {
 	/* Initialize local state */
-	local_runqueue_minheap = priority_queue_initialize(256, false, sandbox_get_priority);
+	local_runqueue_minheap = priority_queue_initialize(INITIAL_LOCAL_RUNQUEUE_MINHEAP_CAPACITY, false,
+	                                                   sandbox_get_priority);
 
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,
