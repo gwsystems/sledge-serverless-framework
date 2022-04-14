@@ -15,6 +15,7 @@
 #include <sys/fcntl.h>
 #endif
 
+#include "json.h"
 #include "pretty_print.h"
 #include "debuglog.h"
 #include "listener_thread.h"
@@ -456,8 +457,23 @@ main(int argc, char **argv)
 	char       *json_buf     = NULL;
 	ssize_t     json_buf_len = load_file_into_buffer(json_path, &json_buf);
 	if (unlikely(json_buf_len <= 0)) panic("failed to initialize module(s) defined in %s\n", json_path);
-	int rc = module_alloc_from_json(json_buf, json_buf_len);
-	if (unlikely(rc != 0)) panic("failed to initialize module(s) defined in %s\n", json_path);
+
+	struct module_config *module_config_vec;
+
+	int module_config_vec_len = parse_json(json_buf, json_buf_len, &module_config_vec);
+	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
+		/* Automatically calls listen */
+		struct module *module = module_alloc(module_config_vec[module_idx].name,
+		                                     module_config_vec[module_idx].path, 0,
+		                                     module_config_vec[module_idx].relative_deadline_us,
+		                                     module_config_vec[module_idx].port,
+		                                     module_config_vec[module_idx].http_req_size,
+		                                     module_config_vec[module_idx].http_resp_size,
+		                                     module_config_vec[module_idx].admissions_percentile,
+		                                     module_config_vec[module_idx].expected_execution_us,
+		                                     module_config_vec[module_idx].http_resp_content_type);
+		if (unlikely(module == NULL)) panic("failed to initialize module(s) defined in %s\n", json_path);
+	}
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);

@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <dlfcn.h>
-#include <jsmn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,9 +15,6 @@
 #include "runtime.h"
 #include "scheduler.h"
 #include "wasm_table.h"
-
-const int JSON_MAX_ELEMENT_COUNT = 16;
-const int JSON_MAX_ELEMENT_SIZE  = 1024;
 
 /*************************
  * Private Static Inline *
@@ -85,20 +81,6 @@ err:
 	goto done;
 }
 
-
-/**
- * Sets the HTTP Response Content type on a module
- * @param module
- * @param response_content_type
- */
-static inline void
-module_set_http_info(struct module *module, char response_content_type[])
-{
-	assert(module);
-	strcpy(module->response_content_type, response_content_type);
-}
-
-
 /***************************************
  * Public Methods
  ***************************************/
@@ -127,7 +109,8 @@ module_free(struct module *module)
 
 static inline int
 module_init(struct module *module, char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, int port,
-            int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us)
+            int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us,
+            char *response_content_type)
 {
 	assert(module != NULL);
 
@@ -141,6 +124,7 @@ module_init(struct module *module, char *name, char *path, uint32_t stack_size, 
 	/* Set fields in the module struct */
 	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
 	strncpy(module->path, path, MODULE_MAX_PATH_LENGTH);
+	strncpy(module->response_content_type, response_content_type, HTTP_MAX_HEADER_VALUE_LENGTH);
 
 	module->stack_size        = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
 	module->socket_descriptor = -1;
@@ -193,7 +177,7 @@ err:
 
 struct module *
 module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, int port, int request_size,
-             int response_size, int admissions_percentile, uint32_t expected_execution_us)
+             int response_size, int admissions_percentile, uint32_t expected_execution_us, char *response_content_type)
 {
 	/* Validate presence of required fields */
 	if (strlen(name) == 0) panic("name field is required\n");
@@ -224,7 +208,7 @@ module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_dead
 	};
 
 	int rc = module_init(module, name, path, stack_size, relative_deadline_us, port, request_size, response_size,
-	                     admissions_percentile, expected_execution_us);
+	                     admissions_percentile, expected_execution_us, response_content_type);
 	if (rc < 0) goto init_err;
 
 done:
@@ -234,154 +218,5 @@ init_err:
 	free(module);
 err:
 	module = NULL;
-	goto done;
-}
-
-/**
- * Parses a JSON file and allocates one or more new modules
- * @param file_name The path of the JSON file
- * @return RC 0 on Success. -1 on Error
- */
-int
-module_alloc_from_json(const char *json_buf, ssize_t json_buf_size)
-{
-	assert(json_buf != NULL);
-	assert(json_buf_size > 0);
-
-	int       return_code = -1;
-	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
-
-	/* Initialize the Jasmine Parser and an array to hold the tokens */
-	jsmn_parser module_parser;
-	jsmn_init(&module_parser);
-
-	/* Use Jasmine to parse the JSON */
-	int total_tokens = jsmn_parse(&module_parser, json_buf, json_buf_size, tokens,
-	                              sizeof(tokens) / sizeof(tokens[0]));
-	if (total_tokens < 0) {
-		if (total_tokens == JSMN_ERROR_INVAL) {
-			fprintf(stderr, "Error parsing %s: bad token, JSON string is corrupted\n", json_buf);
-		} else if (total_tokens == JSMN_ERROR_PART) {
-			fprintf(stderr, "Error parsing %s: JSON string is too short, expecting more JSON data\n",
-			        json_buf);
-		} else if (total_tokens == JSMN_ERROR_NOMEM) {
-			/*
-			 * According to the README at https://github.com/zserge/jsmn, this is a potentially recoverable
-			 * error. More tokens can be allocated and jsmn_parse can be re-invoked.
-			 */
-			fprintf(stderr, "Error parsing %s: Not enough tokens, JSON string is too large\n", json_buf);
-		}
-		goto json_parse_err;
-	}
-
-	int module_count = 0;
-	for (int i = 0; i < total_tokens; i++) {
-		/* If we have multiple objects, they should be wrapped in a JSON array */
-		if (tokens[i].type == JSMN_ARRAY) continue;
-		assert(tokens[i].type == JSMN_OBJECT);
-
-		char module_name[MODULE_MAX_NAME_LENGTH] = { 0 };
-		char module_path[MODULE_MAX_PATH_LENGTH] = { 0 };
-
-		int32_t  request_size                                        = 0;
-		int32_t  response_size                                       = 0;
-		uint32_t port                                                = 0;
-		uint32_t relative_deadline_us                                = 0;
-		uint32_t expected_execution_us                               = 0;
-		int      admissions_percentile                               = 50;
-		int      j                                                   = 1;
-		int      ntoks                                               = 2 * tokens[i].size;
-		char     response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH] = { 0 };
-
-		for (; j < ntoks;) {
-			int  ntks     = 1;
-			char key[32]  = { 0 };
-			char val[256] = { 0 };
-
-			sprintf(val, "%.*s", tokens[j + i + 1].end - tokens[j + i + 1].start,
-			        json_buf + tokens[j + i + 1].start);
-			sprintf(key, "%.*s", tokens[j + i].end - tokens[j + i].start, json_buf + tokens[j + i].start);
-
-			if (strlen(key) == 0) panic("Unexpected encountered empty key\n");
-			if (strlen(val) == 0) panic("%s field contained empty string\n", key);
-
-			if (strcmp(key, "name") == 0) {
-				// TODO: Currently, multiple modules can have identical names. Ports are the true unique
-				// identifiers. Consider enforcing unique names in future
-				strcpy(module_name, val);
-			} else if (strcmp(key, "path") == 0) {
-				// Invalid path will crash on dlopen
-				strcpy(module_path, val);
-			} else if (strcmp(key, "port") == 0) {
-				// Validate sane port
-				// If already taken, will error on bind call in module_listen
-				int buffer = atoi(val);
-				if (buffer < 0 || buffer > 65535)
-					panic("Expected port between 0 and 65535, saw %d\n", buffer);
-				port = buffer;
-			} else if (strcmp(key, "relative-deadline-us") == 0) {
-				int64_t buffer = strtoll(val, NULL, 10);
-				if (buffer < 0 || buffer > (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
-					panic("Relative-deadline-us must be between 0 and %ld, was %ld\n",
-					      (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, buffer);
-				relative_deadline_us = (uint32_t)buffer;
-			} else if (strcmp(key, "expected-execution-us") == 0) {
-				int64_t buffer = strtoll(val, NULL, 10);
-				if (buffer < 0 || buffer > (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX)
-					panic("Relative-deadline-us must be between 0 and %ld, was %ld\n",
-					      (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX, buffer);
-				expected_execution_us = (uint32_t)buffer;
-			} else if (strcmp(key, "admissions-percentile") == 0) {
-				int32_t buffer = strtol(val, NULL, 10);
-				if (buffer > 99 || buffer < 50)
-					panic("admissions-percentile must be > 50 and <= 99 but was %d\n", buffer);
-				admissions_percentile = (int)buffer;
-			} else if (strcmp(key, "http-req-size") == 0) {
-				int64_t buffer = strtoll(val, NULL, 10);
-				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
-					panic("http-req-size must be between 0 and %ld, was %ld\n",
-					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
-				request_size = (int32_t)buffer;
-			} else if (strcmp(key, "http-resp-size") == 0) {
-				int64_t buffer = strtoll(val, NULL, 10);
-				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
-					panic("http-resp-size must be between 0 and %ld, was %ld\n",
-					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
-				response_size = (int32_t)buffer;
-			} else if (strcmp(key, "http-resp-content-type") == 0) {
-				if (strlen(val) == 0) panic("http-resp-content-type was unexpectedly an empty string");
-				strcpy(response_content_type, val);
-			} else {
-#ifdef LOG_MODULE_LOADING
-				debuglog("Invalid (%s,%s)\n", key, val);
-#endif
-			}
-			j += ntks;
-		}
-		i += ntoks;
-
-		/* Allocate a module based on the values from the JSON */
-		struct module *module = module_alloc(module_name, module_path, 0, relative_deadline_us, port,
-		                                     request_size, response_size, admissions_percentile,
-		                                     expected_execution_us);
-		if (module == NULL) goto module_alloc_err;
-
-		assert(module);
-		module_set_http_info(module, response_content_type);
-		module_count++;
-	}
-
-	if (module_count == 0) panic("%s contained no active modules\n", json_buf);
-#ifdef LOG_MODULE_LOADING
-	debuglog("Loaded %d module%s!\n", module_count, module_count > 1 ? "s" : "");
-#endif
-	return_code = 0;
-
-done:
-	return return_code;
-module_alloc_err:
-json_parse_err:
-err:
-	return_code = -1;
 	goto done;
 }
