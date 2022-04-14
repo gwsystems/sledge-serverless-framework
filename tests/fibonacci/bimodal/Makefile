@@ -45,3 +45,6 @@ client-preempt:
 
 client-fib10-multi:
 	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${HOSTNAME}:10010"
+
+client-fib40-multi:
+	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "40\n" "http://${HOSTNAME}:10040"

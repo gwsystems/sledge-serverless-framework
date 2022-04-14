@@ -12,7 +12,7 @@ static pthread_mutex_t global_request_scheduler_deque_mutex = PTHREAD_MUTEX_INIT
 /**
  * Pushes a sandbox to the global deque
  * @param sandbox_raw
- * @returns pointer to request if added. NULL otherwise
+ * @returns pointer to sandbox if added. NULL otherwise
  */
 static struct sandbox *
 global_request_scheduler_deque_add(struct sandbox *sandbox)

@@ -64,8 +64,8 @@ priority_queue_append(struct priority_queue *priority_queue, void *new_item)
 
 	int rc;
 
-	if (unlikely(priority_queue->size + 1 > priority_queue->capacity)) panic("PQ overflow");
-	if (unlikely(priority_queue->size + 1 == priority_queue->capacity)) goto err_enospc;
+	if (unlikely(priority_queue->size > priority_queue->capacity)) panic("PQ overflow");
+	if (unlikely(priority_queue->size == priority_queue->capacity)) goto err_enospc;
 	priority_queue->items[++priority_queue->size] = new_item;
 
 	rc = 0;
@@ -271,22 +271,45 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
 	assert(get_priority_fn != NULL);
 
 	/* Add one to capacity because this data structure ignores the element at 0 */
-	size_t one_based_capacity = capacity + 1;
-
-	struct priority_queue *priority_queue = (struct priority_queue *)
-	  calloc(1, sizeof(struct priority_queue) + sizeof(void *) * one_based_capacity);
-
+	struct priority_queue *priority_queue = (struct priority_queue *)calloc(1, sizeof(struct priority_queue)
+	                                                                             + sizeof(void *) * (capacity + 1));
 
 	/* We're assuming a min-heap implementation, so set to larget possible value */
 	priority_queue_update_highest_priority(priority_queue, ULONG_MAX);
 	priority_queue->size            = 0;
-	priority_queue->capacity        = one_based_capacity; // Add one because we skip element 0
+	priority_queue->capacity        = capacity;
 	priority_queue->get_priority_fn = get_priority_fn;
 	priority_queue->use_lock        = use_lock;
 
 	if (use_lock) LOCK_INIT(&priority_queue->lock);
 
 	return priority_queue;
+}
+
+/**
+ * Double capacity of priority queue
+ * Note: currently there is no equivalent call for PQs that are not thread-local and need to be locked because it is
+ * unclear if the fact that the lock is a member in the struct that might be moved by realloc breaks the guarantees of
+ * the lock.
+ * @param priority_queue to resize
+ * @returns pointer to PR or NULL if realloc fails. This may have been moved by realloc!
+ */
+static inline struct priority_queue *
+priority_queue_grow_nolock(struct priority_queue *priority_queue)
+{
+	assert(priority_queue != NULL);
+
+	if (unlikely(priority_queue->capacity == 0)) {
+		priority_queue->capacity++;
+		debuglog("Growing to 1\n");
+	} else {
+		priority_queue->capacity *= 2;
+		debuglog("Growing to %zu\n", priority_queue->capacity);
+	}
+
+	/* capacity is padded by 1 because idx 0 is unused */
+	return (struct priority_queue *)realloc(priority_queue, sizeof(struct priority_queue)
+	                                                          + sizeof(void *) * (priority_queue->capacity + 1));
 }
 
 /**
