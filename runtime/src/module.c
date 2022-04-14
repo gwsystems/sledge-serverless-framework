@@ -108,11 +108,48 @@ module_free(struct module *module)
 }
 
 static inline int
-module_init(struct module *module, char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, int port,
-            int request_size, int response_size, int admissions_percentile, uint32_t expected_execution_us,
-            char *response_content_type)
+module_init(struct module *module, char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us,
+            uint16_t port, uint32_t request_size, uint32_t response_size, uint8_t admissions_percentile,
+            uint32_t expected_execution_us, char *response_content_type)
 {
 	assert(module != NULL);
+
+	/* Validate presence of required fields */
+	if (strlen(name) == 0) panic("name field is required\n");
+	if (strlen(path) == 0) panic("path field is required\n");
+	if (port == 0) panic("port field is required\n");
+
+	if (relative_deadline_us > (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
+		panic("Relative-deadline-us must be between 0 and %u, was %u\n",
+		      (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, relative_deadline_us);
+
+	if (request_size > RUNTIME_HTTP_REQUEST_SIZE_MAX)
+		panic("request_size must be between 0 and %u, was %u\n", (uint32_t)RUNTIME_HTTP_REQUEST_SIZE_MAX,
+		      request_size);
+
+	if (response_size > RUNTIME_HTTP_RESPONSE_SIZE_MAX)
+		panic("response-size must be between 0 and %u, was %u\n", (uint32_t)RUNTIME_HTTP_RESPONSE_SIZE_MAX,
+		      response_size);
+
+#ifdef ADMISSIONS_CONTROL
+	/* expected-execution-us and relative-deadline-us are required in case of admissions control */
+	if (expected_execution_us == 0) panic("expected-execution-us is required\n");
+	if (relative_deadline_us == 0) panic("relative_deadline_us is required\n");
+
+	if (admissions_percentile > 99 || admissions_percentile < 50)
+		panic("admissions-percentile must be > 50 and <= 99 but was %u\n", admissions_percentile);
+
+	/* If the ratio is too big, admissions control is too coarse */
+	uint32_t ratio = relative_deadline_us / expected_execution_us;
+	if (ratio > ADMISSIONS_CONTROL_GRANULARITY)
+		panic("Ratio of Deadline to Execution time cannot exceed admissions control "
+		      "granularity of "
+		      "%d\n",
+		      ADMISSIONS_CONTROL_GRANULARITY);
+#else
+	/* relative-deadline-us is required if scheduler is EDF */
+	if (scheduler == SCHEDULER_EDF && relative_deadline_us == 0) panic("relative_deadline_us is required\n");
+#endif
 
 	int rc = 0;
 
@@ -149,11 +186,6 @@ module_init(struct module *module, char *name, char *path, uint32_t stack_size, 
 
 	module_alloc_table(module);
 	module_initialize_pools(module);
-
-	/* Start listening for requests */
-	rc = module_listen(module);
-	if (rc < 0) goto err;
-
 done:
 	return rc;
 err:
@@ -163,8 +195,7 @@ err:
 
 /**
  * Module Contructor
- * Creates a new module, invokes initialize_tables to initialize the indirect table, adds it to the module DB, and
- *starts listening for HTTP Requests
+ * Creates a new module, invokes initialize_tables to initialize the indirect table, and adds it to the module DB
  *
  * @param name
  * @param path
@@ -176,31 +207,10 @@ err:
  */
 
 struct module *
-module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, int port, int request_size,
-             int response_size, int admissions_percentile, uint32_t expected_execution_us, char *response_content_type)
+module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, uint16_t port,
+             uint32_t request_size, uint32_t response_size, uint8_t admissions_percentile,
+             uint32_t expected_execution_us, char *response_content_type)
 {
-	/* Validate presence of required fields */
-	if (strlen(name) == 0) panic("name field is required\n");
-	if (strlen(path) == 0) panic("path field is required\n");
-	if (port == 0) panic("port field is required\n");
-
-#ifdef ADMISSIONS_CONTROL
-	/* expected-execution-us and relative-deadline-us are required in case of admissions control */
-	if (expected_execution_us == 0) panic("expected-execution-us is required\n");
-	if (relative_deadline_us == 0) panic("relative_deadline_us is required\n");
-
-	/* If the ratio is too big, admissions control is too coarse */
-	uint32_t ratio = relative_deadline_us / expected_execution_us;
-	if (ratio > ADMISSIONS_CONTROL_GRANULARITY)
-		panic("Ratio of Deadline to Execution time cannot exceed admissions control "
-		      "granularity of "
-		      "%d\n",
-		      ADMISSIONS_CONTROL_GRANULARITY);
-#else
-	/* relative-deadline-us is required if scheduler is EDF */
-	if (scheduler == SCHEDULER_EDF && relative_deadline_us == 0) panic("relative_deadline_us is required\n");
-#endif
-
 	struct module *module = (struct module *)calloc(1, sizeof(struct module));
 	if (!module) {
 		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));

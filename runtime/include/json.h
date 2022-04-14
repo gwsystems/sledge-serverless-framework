@@ -1,6 +1,7 @@
 #pragma once
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -18,12 +19,12 @@ static const int JSON_MAX_ELEMENT_SIZE  = 1024;
 struct module_config {
 	char    *name;
 	char    *path;
-	int      port;
+	uint16_t port;
+	uint8_t  admissions_percentile;
 	uint32_t expected_execution_us;
-	int      admissions_percentile;
 	uint32_t relative_deadline_us;
-	int32_t  http_req_size;
-	int32_t  http_resp_size;
+	uint32_t http_req_size;
+	uint32_t http_resp_size;
 	char    *http_resp_content_type;
 };
 
@@ -32,9 +33,9 @@ print_module_config(struct module_config *config)
 {
 	printf("Name: %s\n", config->name);
 	printf("Path: %s\n", config->path);
-	printf("Port: %d\n", config->port);
+	printf("Port: %u\n", config->port);
 	printf("expected_execution_us: %u\n", config->expected_execution_us);
-	printf("admissions_percentile: %d\n", config->admissions_percentile);
+	printf("admissions_percentile: %u\n", config->admissions_percentile);
 	printf("relative_deadline_us: %u\n", config->relative_deadline_us);
 	printf("http_req_size: %u\n", config->http_req_size);
 	printf("http_resp_size: %u\n", config->http_resp_size);
@@ -112,6 +113,51 @@ is_valid_key(jsmntok_t tok)
 	return true;
 }
 
+static inline int
+parse_uint8_t(jsmntok_t tok, const char *json_buf, const char *key, uint8_t *ret)
+{
+	char    *end  = NULL;
+	intmax_t temp = strtoimax(&json_buf[tok.start], &end, 10);
+
+	if (end != &json_buf[tok.end] || temp < 0 || temp > UINT8_MAX) {
+		fprintf(stderr, "Unable to parse uint8_t for key %s\n", key);
+		return -1;
+	}
+
+	*ret = (uint8_t)temp;
+	return 0;
+}
+
+static inline int
+parse_uint16_t(jsmntok_t tok, const char *json_buf, const char *key, uint16_t *ret)
+{
+	char    *end  = NULL;
+	intmax_t temp = strtoimax(&json_buf[tok.start], &end, 10);
+
+	if (end != &json_buf[tok.end] || temp < 0 || temp > UINT16_MAX) {
+		fprintf(stderr, "Unable to parse uint16_t for key %s\n", key);
+		return -1;
+	}
+
+	*ret = (uint16_t)temp;
+	return 0;
+}
+
+static inline int
+parse_uint32_t(jsmntok_t tok, const char *json_buf, const char *key, uint32_t *ret)
+{
+	char     *end  = NULL;
+	uintmax_t temp = strtoimax(&json_buf[tok.start], &end, 10);
+
+	if (end != &json_buf[tok.end] || temp < 0 || temp > UINT32_MAX) {
+		fprintf(stderr, "Unable to parse uint32_t for key %s\n", key);
+		return -1;
+	}
+
+	*ret = (uint32_t)temp;
+	return 0;
+}
+
 /**
  * Parses a JSON file into an array of module configs
  * @param file_name The path of the JSON file
@@ -167,8 +213,7 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 	int module_fields_remaining = 0;
 
 	for (int i = 1; i < total_tokens; i++) {
-		char key[32]  = { 0 };
-		char val[256] = { 0 };
+		char key[32] = { 0 };
 
 		/* Assumption: Objects are never used within a module_config. This likely will not be true in the
 		 * future due to routes or multiple entrypoints */
@@ -193,72 +238,54 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 			if (strcmp(key, "name") == 0) {
 				if (!is_nonempty_string(tokens[i], key)) goto json_parse_err;
 
-				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
-				(*module_config_vec)[module_idx].name = strndup(val, tokens[i].end - tokens[i].start);
+				(*module_config_vec)[module_idx].name = strndup(json_buf + tokens[i].start,
+				                                                tokens[i].end - tokens[i].start);
 			} else if (strcmp(key, "path") == 0) {
 				if (!is_nonempty_string(tokens[i], key)) goto json_parse_err;
 
-				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
-				(*module_config_vec)[module_idx].path = strndup(val, tokens[i].end - tokens[i].start);
+				(*module_config_vec)[module_idx].path = strndup(json_buf + tokens[i].start,
+				                                                tokens[i].end - tokens[i].start);
 			} else if (strcmp(key, "port") == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
-				int buffer = atoi(val);
-				if (buffer < 0 || buffer > 65535)
-					panic("Expected port between 0 and 65535, saw %d\n", buffer);
-				(*module_config_vec)[module_idx].port = buffer;
+				int rc = parse_uint16_t(tokens[i], json_buf, "port",
+				                        &(*module_config_vec)[module_idx].port);
+				if (rc < 0) goto json_parse_err;
 			} else if (strcmp(key, "expected-execution-us") == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
-				int64_t buffer = strtoll(val, NULL, 10);
-				if (buffer < 0 || buffer > (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX)
-					panic("Relative-deadline-us must be between 0 and %ld, was %ld\n",
-					      (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX, buffer);
-				(*module_config_vec)[module_idx].expected_execution_us = (uint32_t)buffer;
+				int rc = parse_uint32_t(tokens[i], json_buf, "expected-execution-us",
+				                        &(*module_config_vec)[module_idx].expected_execution_us);
+				if (rc < 0) goto json_parse_err;
 			} else if (strcmp(key, "admissions-percentile") == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
-				int32_t buffer = strtol(val, NULL, 10);
-				if (buffer > 99 || buffer < 50)
-					panic("admissions-percentile must be > 50 and <= 99 but was %d\n", buffer);
-				(*module_config_vec)[module_idx].admissions_percentile = buffer;
+				int rc = parse_uint8_t(tokens[i], json_buf, "admissions-percentile",
+				                       &(*module_config_vec)[module_idx].admissions_percentile);
+				if (rc < 0) goto json_parse_err;
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
-				int64_t buffer = strtoll(val, NULL, 10);
-				if (buffer < 0 || buffer > (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
-					panic("Relative-deadline-us must be between 0 and %ld, was %ld\n",
-					      (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, buffer);
-				(*module_config_vec)[module_idx].relative_deadline_us = (uint32_t)buffer;
+				int rc = parse_uint32_t(tokens[i], json_buf, "relative-deadline-us",
+				                        &(*module_config_vec)[module_idx].relative_deadline_us);
+				if (rc < 0) goto json_parse_err;
 			} else if (strcmp(key, "http-req-size") == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
-				int64_t buffer = strtoll(val, NULL, 10);
-				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
-					panic("http-req-size must be between 0 and %ld, was %ld\n",
-					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
-				(*module_config_vec)[module_idx].http_req_size = (int32_t)buffer;
+				int rc = parse_uint32_t(tokens[i], json_buf, "http-req-size",
+				                        &(*module_config_vec)[module_idx].http_req_size);
+				if (rc < 0) goto json_parse_err;
 			} else if (strcmp(key, "http-resp-size") == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
-				int64_t buffer = strtoll(val, NULL, 10);
-				if (buffer < 0 || buffer > RUNTIME_HTTP_REQUEST_SIZE_MAX)
-					panic("http-req-size must be between 0 and %ld, was %ld\n",
-					      (int64_t)RUNTIME_HTTP_RESPONSE_SIZE_MAX, buffer);
-				(*module_config_vec)[module_idx].http_resp_size = (int32_t)buffer;
+				int rc = parse_uint32_t(tokens[i], json_buf, "http-resp-size",
+				                        &(*module_config_vec)[module_idx].http_resp_size);
+				if (rc < 0) goto json_parse_err;
 			} else if (strcmp(key, "http-resp-content-type") == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_STRING)) goto json_parse_err;
 
-				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
-				(*module_config_vec)[module_idx].http_resp_content_type = strndup(val,
-				                                                                  tokens[i].end
-				                                                                    - tokens[i].start);
+				(*module_config_vec)[module_idx].http_resp_content_type =
+				  strndup(json_buf + tokens[i].start, tokens[i].end - tokens[i].start);
 			} else {
 				fprintf(stderr, "%s is not a valid key\n", key);
 				goto json_parse_err;

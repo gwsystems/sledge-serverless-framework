@@ -475,6 +475,9 @@ main(int argc, char **argv)
 		                                     module_config_vec[module_idx].expected_execution_us,
 		                                     module_config_vec[module_idx].http_resp_content_type);
 		if (unlikely(module == NULL)) panic("failed to initialize module(s) defined in %s\n", json_path);
+		/* Start listening for requests */
+		int rc = module_listen(module);
+		if (rc < 0) exit(-1);
 	}
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
