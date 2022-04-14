@@ -170,6 +170,8 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 		char key[32]  = { 0 };
 		char val[256] = { 0 };
 
+		/* Assumption: Objects are never used within a module_config. This likely will not be true in the
+		 * future due to routes or multiple entrypoints */
 		if (tokens[i].type == JSMN_OBJECT) {
 			assert(module_fields_remaining == 0);
 			module_fields_remaining = tokens[i].size;
@@ -185,20 +187,20 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 			/* Validate that key has a value */
 			if (!has_valid_size(tokens[i], key, 1)) goto json_parse_err;
 
+			/* Advance to Value */
+			i++;
+
 			if (strcmp(key, "name") == 0) {
-				i++;
 				if (!is_nonempty_string(tokens[i], key)) goto json_parse_err;
 
 				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
 				(*module_config_vec)[module_idx].name = strndup(val, tokens[i].end - tokens[i].start);
 			} else if (strcmp(key, "path") == 0) {
-				i++;
 				if (!is_nonempty_string(tokens[i], key)) goto json_parse_err;
 
 				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
 				(*module_config_vec)[module_idx].path = strndup(val, tokens[i].end - tokens[i].start);
 			} else if (strcmp(key, "port") == 0) {
-				i++;
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
 				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
@@ -207,7 +209,6 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 					panic("Expected port between 0 and 65535, saw %d\n", buffer);
 				(*module_config_vec)[module_idx].port = buffer;
 			} else if (strcmp(key, "expected-execution-us") == 0) {
-				i++;
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
 				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
@@ -217,7 +218,6 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 					      (int64_t)RUNTIME_EXPECTED_EXECUTION_US_MAX, buffer);
 				(*module_config_vec)[module_idx].expected_execution_us = (uint32_t)buffer;
 			} else if (strcmp(key, "admissions-percentile") == 0) {
-				i++;
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
 				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
@@ -226,7 +226,6 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 					panic("admissions-percentile must be > 50 and <= 99 but was %d\n", buffer);
 				(*module_config_vec)[module_idx].admissions_percentile = buffer;
 			} else if (strcmp(key, "relative-deadline-us") == 0) {
-				i++;
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
 				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
@@ -236,7 +235,6 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 					      (int64_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, buffer);
 				(*module_config_vec)[module_idx].relative_deadline_us = (uint32_t)buffer;
 			} else if (strcmp(key, "http-req-size") == 0) {
-				i++;
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
 				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
@@ -246,7 +244,6 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 					      (int64_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, buffer);
 				(*module_config_vec)[module_idx].http_req_size = (int32_t)buffer;
 			} else if (strcmp(key, "http-resp-size") == 0) {
-				i++;
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
 				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
@@ -256,7 +253,6 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 					      (int64_t)RUNTIME_HTTP_RESPONSE_SIZE_MAX, buffer);
 				(*module_config_vec)[module_idx].http_resp_size = (int32_t)buffer;
 			} else if (strcmp(key, "http-resp-content-type") == 0) {
-				i++;
 				if (!has_valid_type(tokens[i], key, JSMN_STRING)) goto json_parse_err;
 
 				sprintf(val, "%.*s", tokens[i].end - tokens[i].start, json_buf + tokens[i].start);
