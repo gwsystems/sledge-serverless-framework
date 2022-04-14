@@ -461,6 +461,8 @@ main(int argc, char **argv)
 	struct module_config *module_config_vec;
 
 	int module_config_vec_len = parse_json(json_buf, json_buf_len, &module_config_vec);
+	if (module_config_vec_len < 0) { exit(-1); }
+
 	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
 		/* Automatically calls listen */
 		struct module *module = module_alloc(module_config_vec[module_idx].name,
