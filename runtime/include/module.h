@@ -9,6 +9,7 @@
 #include "admissions_info.h"
 #include "current_wasm_module_instance.h"
 #include "http.h"
+#include "module_config.h"
 #include "panic.h"
 #include "pool.h"
 #include "sledge_abi_symbols.h"
@@ -242,7 +243,5 @@ module_free_linear_memory(struct module *module, struct wasm_memory *memory)
  *******************************/
 
 void           module_free(struct module *module);
-struct module *module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, uint16_t port,
-                            uint32_t request_size, uint32_t response_size, uint8_t admissions_percentile,
-                            uint32_t expected_execution_us, char *response_content_type);
+struct module *module_alloc(struct module_config *config);
 int            module_listen(struct module *module);

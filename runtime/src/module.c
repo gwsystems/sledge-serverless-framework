@@ -21,39 +21,50 @@
  ************************/
 
 static inline int
-module_init(struct module *module, char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us,
-            uint16_t port, uint32_t request_size, uint32_t response_size, uint8_t admissions_percentile,
-            uint32_t expected_execution_us, char *response_content_type)
+module_init(struct module *module, struct module_config *config)
 {
 	assert(module != NULL);
+	assert(config != NULL);
+	assert(config->name != NULL);
+	assert(config->path != NULL);
+	assert(config->http_resp_content_type != NULL);
+
+	uint32_t stack_size = 0;
 
 	/* Validate presence of required fields */
-	if (strlen(name) == 0) panic("name field is required\n");
-	if (strlen(path) == 0) panic("path field is required\n");
-	if (port == 0) panic("port field is required\n");
+	if (strlen(config->name) == 0) panic("name field is required\n");
+	if (strlen(config->path) == 0) panic("path field is required\n");
+	if (config->port == 0) panic("port field is required\n");
 
-	if (relative_deadline_us > (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
-		panic("Relative-deadline-us must be between 0 and %u, was %u\n",
-		      (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, relative_deadline_us);
-
-	if (request_size > RUNTIME_HTTP_REQUEST_SIZE_MAX)
+	if (config->http_req_size > RUNTIME_HTTP_REQUEST_SIZE_MAX)
 		panic("request_size must be between 0 and %u, was %u\n", (uint32_t)RUNTIME_HTTP_REQUEST_SIZE_MAX,
-		      request_size);
+		      config->http_req_size);
 
-	if (response_size > RUNTIME_HTTP_RESPONSE_SIZE_MAX)
+	if (config->http_resp_size > RUNTIME_HTTP_RESPONSE_SIZE_MAX)
 		panic("response-size must be between 0 and %u, was %u\n", (uint32_t)RUNTIME_HTTP_RESPONSE_SIZE_MAX,
-		      response_size);
+		      config->http_resp_size);
+
+	struct module *existing_module = module_database_find_by_name(config->name);
+	if (existing_module != NULL) panic("Module %s is already initialized\n", existing_module->name);
+
+	existing_module = module_database_find_by_port(config->port);
+	if (existing_module != NULL)
+		panic("Module %s is already configured with port %u\n", existing_module->name, config->port);
+
+	if (config->relative_deadline_us > (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
+		panic("Relative-deadline-us must be between 0 and %u, was %u\n",
+		      (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, config->relative_deadline_us);
 
 #ifdef ADMISSIONS_CONTROL
 	/* expected-execution-us and relative-deadline-us are required in case of admissions control */
-	if (expected_execution_us == 0) panic("expected-execution-us is required\n");
-	if (relative_deadline_us == 0) panic("relative_deadline_us is required\n");
+	if (config->expected_execution_us == 0) panic("expected-execution-us is required\n");
+	if (config->relative_deadline_us == 0) panic("relative_deadline_us is required\n");
 
-	if (admissions_percentile > 99 || admissions_percentile < 50)
-		panic("admissions-percentile must be > 50 and <= 99 but was %u\n", admissions_percentile);
+	if (config->admissions_percentile > 99 || config->admissions_percentile < 50)
+		panic("admissions-percentile must be > 50 and <= 99 but was %u\n", config->admissions_percentile);
 
 	/* If the ratio is too big, admissions control is too coarse */
-	uint32_t ratio = relative_deadline_us / expected_execution_us;
+	uint32_t ratio = config->relative_deadline_us / config->expected_execution_us;
 	if (ratio > ADMISSIONS_CONTROL_GRANULARITY)
 		panic("Ratio of Deadline to Execution time cannot exceed admissions control "
 		      "granularity of "
@@ -61,41 +72,42 @@ module_init(struct module *module, char *name, char *path, uint32_t stack_size, 
 		      ADMISSIONS_CONTROL_GRANULARITY);
 #else
 	/* relative-deadline-us is required if scheduler is EDF */
-	if (scheduler == SCHEDULER_EDF && relative_deadline_us == 0) panic("relative_deadline_us is required\n");
+	if (scheduler == SCHEDULER_EDF && config->relative_deadline_us == 0)
+		panic("relative_deadline_us is required\n");
 #endif
 
 	int rc = 0;
 
 	atomic_init(&module->reference_count, 0);
 
-	rc = sledge_abi_symbols_init(&module->abi, path);
+	rc = sledge_abi_symbols_init(&module->abi, config->path);
 	if (rc != 0) goto err;
 
 	/* Set fields in the module struct */
-	strncpy(module->name, name, MODULE_MAX_NAME_LENGTH);
-	strncpy(module->path, path, MODULE_MAX_PATH_LENGTH);
-	strncpy(module->response_content_type, response_content_type, HTTP_MAX_HEADER_VALUE_LENGTH);
+	strncpy(module->name, config->name, MODULE_MAX_NAME_LENGTH);
+	strncpy(module->path, config->path, MODULE_MAX_PATH_LENGTH);
+	strncpy(module->response_content_type, config->http_resp_content_type, HTTP_MAX_HEADER_VALUE_LENGTH);
 
 	module->stack_size        = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
 	module->socket_descriptor = -1;
-	module->port              = port;
+	module->port              = config->port;
 
 	/* Deadlines */
-	module->relative_deadline_us = relative_deadline_us;
+	module->relative_deadline_us = config->relative_deadline_us;
 
 	/* This can overflow a uint32_t, so be sure to cast appropriately */
-	module->relative_deadline = (uint64_t)relative_deadline_us * runtime_processor_speed_MHz;
+	module->relative_deadline = (uint64_t)config->relative_deadline_us * runtime_processor_speed_MHz;
 
 	/* Admissions Control */
-	uint64_t expected_execution = (uint64_t)expected_execution_us * runtime_processor_speed_MHz;
-	admissions_info_initialize(&module->admissions_info, admissions_percentile, expected_execution,
+	uint64_t expected_execution = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz;
+	admissions_info_initialize(&module->admissions_info, config->admissions_percentile, expected_execution,
 	                           module->relative_deadline);
 
 	/* Request Response Buffer */
-	if (request_size == 0) request_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
-	if (response_size == 0) response_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
-	module->max_request_size  = round_up_to_page(request_size);
-	module->max_response_size = round_up_to_page(response_size);
+	if (config->http_req_size == 0) config->http_req_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
+	if (config->http_resp_size == 0) config->http_resp_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
+	module->max_request_size  = round_up_to_page(config->http_req_size);
+	module->max_response_size = round_up_to_page(config->http_resp_size);
 
 	module_alloc_table(module);
 	module_initialize_pools(module);
@@ -207,9 +219,7 @@ module_free(struct module *module)
  */
 
 struct module *
-module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, uint16_t port,
-             uint32_t request_size, uint32_t response_size, uint8_t admissions_percentile,
-             uint32_t expected_execution_us, char *response_content_type)
+module_alloc(struct module_config *config)
 {
 	struct module *module = (struct module *)calloc(1, sizeof(struct module));
 	if (!module) {
@@ -217,8 +227,7 @@ module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_dead
 		goto err;
 	};
 
-	int rc = module_init(module, name, path, stack_size, relative_deadline_us, port, request_size, response_size,
-	                     admissions_percentile, expected_execution_us, response_content_type);
+	int rc = module_init(module, config);
 	if (rc < 0) goto init_err;
 
 done:

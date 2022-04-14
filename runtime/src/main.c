@@ -20,6 +20,7 @@
 #include "debuglog.h"
 #include "listener_thread.h"
 #include "module.h"
+#include "module_database.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox_types.h"
@@ -465,19 +466,22 @@ main(int argc, char **argv)
 
 	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
 		/* Automatically calls listen */
-		struct module *module = module_alloc(module_config_vec[module_idx].name,
-		                                     module_config_vec[module_idx].path, 0,
-		                                     module_config_vec[module_idx].relative_deadline_us,
-		                                     module_config_vec[module_idx].port,
-		                                     module_config_vec[module_idx].http_req_size,
-		                                     module_config_vec[module_idx].http_resp_size,
-		                                     module_config_vec[module_idx].admissions_percentile,
-		                                     module_config_vec[module_idx].expected_execution_us,
-		                                     module_config_vec[module_idx].http_resp_content_type);
+		struct module *module = module_alloc(&module_config_vec[module_idx]);
 		if (unlikely(module == NULL)) panic("failed to initialize module(s) defined in %s\n", json_path);
+
+		int rc = module_database_add(module);
+		if (rc < 0) {
+			panic("Module database full!\n");
+			exit(-1);
+		}
+
 		/* Start listening for requests */
-		int rc = module_listen(module);
+		rc = module_listen(module);
 		if (rc < 0) exit(-1);
+	}
+
+	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
+		module_config_free(&module_config_vec[module_idx]);
 	}
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
