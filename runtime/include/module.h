@@ -245,3 +245,4 @@ void           module_free(struct module *module);
 struct module *module_alloc(char *name, char *path, uint32_t stack_size, uint32_t relative_deadline_us, uint16_t port,
                             uint32_t request_size, uint32_t response_size, uint8_t admissions_percentile,
                             uint32_t expected_execution_us, char *response_content_type);
+int            module_listen(struct module *module);
