@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include "debuglog.h"
@@ -239,113 +238,38 @@ err:
 }
 
 /**
- * Allocates a buffer in memory containing the entire contents of the file provided
- * @param file_name file to load into memory
- * @param ret_ptr Pointer to set with address of buffer this function allocates. The caller must free this!
- * @return size of the allocated buffer or -1 in case of error;
- */
-static inline size_t
-load_file_into_buffer(char *file_name, char **file_buffer)
-{
-	/* Use stat to get file attributes and make sure file is present and not empty */
-	struct stat stat_buffer;
-	if (stat(file_name, &stat_buffer) < 0) {
-		fprintf(stderr, "Attempt to stat %s failed: %s\n", file_name, strerror(errno));
-		goto err;
-	}
-	if (stat_buffer.st_size == 0) {
-		fprintf(stderr, "File %s is unexpectedly empty\n", file_name);
-		goto err;
-	}
-	if (!S_ISREG(stat_buffer.st_mode)) {
-		fprintf(stderr, "File %s is not a regular file\n", file_name);
-		goto err;
-	}
-
-	/* Open the file */
-	FILE *module_file = fopen(file_name, "r");
-	if (!module_file) {
-		fprintf(stderr, "Attempt to open %s failed: %s\n", file_name, strerror(errno));
-		goto err;
-	}
-
-	/* Initialize a Buffer */
-	*file_buffer = calloc(1, stat_buffer.st_size);
-	if (*file_buffer == NULL) {
-		fprintf(stderr, "Attempt to allocate file buffer failed: %s\n", strerror(errno));
-		goto stat_buffer_alloc_err;
-	}
-
-	/* Read the file into the buffer and check that the buffer size equals the file size */
-	ssize_t total_chars_read = fread(*file_buffer, sizeof(char), stat_buffer.st_size, module_file);
-#ifdef LOG_MODULE_LOADING
-	debuglog("size read: %d content: %s\n", total_chars_read, *file_buffer);
-#endif
-	if (total_chars_read != stat_buffer.st_size) {
-		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
-		goto fread_err;
-	}
-	assert(total_chars_read > 0);
-
-	/* Close the file */
-	if (fclose(module_file) == EOF) {
-		fprintf(stderr, "Attempt to close buffer containing %s failed: %s\n", file_name, strerror(errno));
-		goto fclose_err;
-	};
-	module_file = NULL;
-
-	return total_chars_read;
-
-fclose_err:
-	/* We will retry fclose when we fall through into stat_buffer_alloc_err */
-fread_err:
-	free(*file_buffer);
-stat_buffer_alloc_err:
-	// Check to ensure we haven't already close this
-	if (module_file != NULL) {
-		if (fclose(module_file) == EOF) panic("Failed to close file\n");
-	}
-err:
-	return (ssize_t)-1;
-}
-
-/**
  * Parses a JSON file and allocates one or more new modules
  * @param file_name The path of the JSON file
  * @return RC 0 on Success. -1 on Error
  */
 int
-module_alloc_from_json(char *file_name)
+module_alloc_from_json(const char *json_buf, ssize_t json_buf_size)
 {
-	assert(file_name != NULL);
+	assert(json_buf != NULL);
+	assert(json_buf_size > 0);
 
 	int       return_code = -1;
 	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
-
-	/* Load file_name into memory */
-	char   *file_buffer      = NULL;
-	ssize_t total_chars_read = load_file_into_buffer(file_name, &file_buffer);
-	if (total_chars_read <= 0) goto module_alloc_err;
 
 	/* Initialize the Jasmine Parser and an array to hold the tokens */
 	jsmn_parser module_parser;
 	jsmn_init(&module_parser);
 
 	/* Use Jasmine to parse the JSON */
-	int total_tokens = jsmn_parse(&module_parser, file_buffer, total_chars_read, tokens,
+	int total_tokens = jsmn_parse(&module_parser, json_buf, json_buf_size, tokens,
 	                              sizeof(tokens) / sizeof(tokens[0]));
 	if (total_tokens < 0) {
 		if (total_tokens == JSMN_ERROR_INVAL) {
-			fprintf(stderr, "Error parsing %s: bad token, JSON string is corrupted\n", file_name);
+			fprintf(stderr, "Error parsing %s: bad token, JSON string is corrupted\n", json_buf);
 		} else if (total_tokens == JSMN_ERROR_PART) {
 			fprintf(stderr, "Error parsing %s: JSON string is too short, expecting more JSON data\n",
-			        file_name);
+			        json_buf);
 		} else if (total_tokens == JSMN_ERROR_NOMEM) {
 			/*
 			 * According to the README at https://github.com/zserge/jsmn, this is a potentially recoverable
 			 * error. More tokens can be allocated and jsmn_parse can be re-invoked.
 			 */
-			fprintf(stderr, "Error parsing %s: Not enough tokens, JSON string is too large\n", file_name);
+			fprintf(stderr, "Error parsing %s: Not enough tokens, JSON string is too large\n", json_buf);
 		}
 		goto json_parse_err;
 	}
@@ -375,9 +299,8 @@ module_alloc_from_json(char *file_name)
 			char val[256] = { 0 };
 
 			sprintf(val, "%.*s", tokens[j + i + 1].end - tokens[j + i + 1].start,
-			        file_buffer + tokens[j + i + 1].start);
-			sprintf(key, "%.*s", tokens[j + i].end - tokens[j + i].start,
-			        file_buffer + tokens[j + i].start);
+			        json_buf + tokens[j + i + 1].start);
+			sprintf(key, "%.*s", tokens[j + i].end - tokens[j + i].start, json_buf + tokens[j + i].start);
 
 			if (strlen(key) == 0) panic("Unexpected encountered empty key\n");
 			if (strlen(val) == 0) panic("%s field contained empty string\n", key);
@@ -448,20 +371,16 @@ module_alloc_from_json(char *file_name)
 		module_count++;
 	}
 
-	if (module_count == 0) panic("%s contained no active modules\n", file_name);
+	if (module_count == 0) panic("%s contained no active modules\n", json_buf);
 #ifdef LOG_MODULE_LOADING
 	debuglog("Loaded %d module%s!\n", module_count, module_count > 1 ? "s" : "");
 #endif
-	free(file_buffer);
-
 	return_code = 0;
 
 done:
 	return return_code;
 module_alloc_err:
 json_parse_err:
-file_load_err:
-	free(file_buffer);
 err:
 	return_code = -1;
 	goto done;

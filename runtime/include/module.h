@@ -244,4 +244,4 @@ module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 void           module_free(struct module *module);
 struct module *module_alloc(char *mod_name, char *mod_path, uint32_t stack_sz, uint32_t relative_deadline_us, int port,
                             int req_sz, int resp_sz, int admissions_percentile, uint32_t expected_execution_us);
-int            module_alloc_from_json(char *filename);
+int            module_alloc_from_json(const char *json_buf, ssize_t json_buf_size);

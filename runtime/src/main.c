@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sched.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -344,6 +345,77 @@ check_versions()
 	static_assert(__linux__ == 1, "Requires epoll, a Linux-only feature");
 }
 
+/**
+ * Allocates a buffer in memory containing the entire contents of the file provided
+ * @param file_name file to load into memory
+ * @param ret_ptr Pointer to set with address of buffer this function allocates. The caller must free this!
+ * @return size of the allocated buffer or -1 in case of error;
+ */
+static inline size_t
+load_file_into_buffer(const char *file_name, char **file_buffer)
+{
+	/* Use stat to get file attributes and make sure file is present and not empty */
+	struct stat stat_buffer;
+	if (stat(file_name, &stat_buffer) < 0) {
+		fprintf(stderr, "Attempt to stat %s failed: %s\n", file_name, strerror(errno));
+		goto err;
+	}
+	if (stat_buffer.st_size == 0) {
+		fprintf(stderr, "File %s is unexpectedly empty\n", file_name);
+		goto err;
+	}
+	if (!S_ISREG(stat_buffer.st_mode)) {
+		fprintf(stderr, "File %s is not a regular file\n", file_name);
+		goto err;
+	}
+
+	/* Open the file */
+	FILE *module_file = fopen(file_name, "r");
+	if (!module_file) {
+		fprintf(stderr, "Attempt to open %s failed: %s\n", file_name, strerror(errno));
+		goto err;
+	}
+
+	/* Initialize a Buffer */
+	*file_buffer = calloc(1, stat_buffer.st_size);
+	if (*file_buffer == NULL) {
+		fprintf(stderr, "Attempt to allocate file buffer failed: %s\n", strerror(errno));
+		goto stat_buffer_alloc_err;
+	}
+
+	/* Read the file into the buffer and check that the buffer size equals the file size */
+	ssize_t total_chars_read = fread(*file_buffer, sizeof(char), stat_buffer.st_size, module_file);
+#ifdef LOG_MODULE_LOADING
+	debuglog("size read: %d content: %s\n", total_chars_read, *file_buffer);
+#endif
+	if (total_chars_read != stat_buffer.st_size) {
+		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
+		goto fread_err;
+	}
+	assert(total_chars_read > 0);
+
+	/* Close the file */
+	if (fclose(module_file) == EOF) {
+		fprintf(stderr, "Attempt to close buffer containing %s failed: %s\n", file_name, strerror(errno));
+		goto fclose_err;
+	};
+	module_file = NULL;
+
+	return total_chars_read;
+
+fclose_err:
+	/* We will retry fclose when we fall through into stat_buffer_alloc_err */
+fread_err:
+	free(*file_buffer);
+stat_buffer_alloc_err:
+	// Check to ensure we haven't already close this
+	if (module_file != NULL) {
+		if (fclose(module_file) == EOF) panic("Failed to close file\n");
+	}
+err:
+	return (ssize_t)-1;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -380,8 +452,12 @@ main(int argc, char **argv)
 #ifdef LOG_MODULE_LOADING
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 #endif
-	if (module_alloc_from_json(argv[1])) panic("failed to initialize module(s) defined in %s\n", argv[1]);
-
+	const char *json_path    = argv[1];
+	char       *json_buf     = NULL;
+	ssize_t     json_buf_len = load_file_into_buffer(json_path, &json_buf);
+	if (unlikely(json_buf_len <= 0)) panic("failed to initialize module(s) defined in %s\n", json_path);
+	int rc = module_alloc_from_json(json_buf, json_buf_len);
+	if (unlikely(rc != 0)) panic("failed to initialize module(s) defined in %s\n", json_path);
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);
