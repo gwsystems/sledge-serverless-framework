@@ -107,7 +107,7 @@ CFILES += thirdparty/dist/lib/http_parser.o
 JSMNCFLAGS += -DJSMN_STATIC
 JSMNCFLAGS += -DJSMN_STRICT
 
-all: runtime
+all: thirdparty runtime
 
 runtime:
 	@echo "Compiling runtime"
