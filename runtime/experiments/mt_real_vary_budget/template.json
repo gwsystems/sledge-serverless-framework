@@ -1,0 +1,13 @@
+{
+	"name": "",
+	"path": "resize_wasm.so",
+	"port": 0,
+	"expected-execution-us": 0,
+	"relative-deadline-us": 0,
+	"admissions-percentile": 70,
+	"replenishment-period-us": 0,
+	"max-budget-us": 0,
+	"http-req-size": 10240000,
+	"http-resp-size": 10240000,
+	"http-resp-content-type": "image/jpeg"
+}
