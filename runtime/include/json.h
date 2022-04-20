@@ -39,8 +39,8 @@ jsmn_type(jsmntype_t type)
 static inline bool
 has_valid_size(jsmntok_t tok, char *key, int expected_size)
 {
-	if (tok.size != 1) {
-		fprintf(stderr, "%s does not have a value\n", key);
+	if (tok.size != expected_size) {
+		fprintf(stderr, "%s has size %d, expected %d\n", key, tok.size, expected_size);
 		return false;
 	}
 
