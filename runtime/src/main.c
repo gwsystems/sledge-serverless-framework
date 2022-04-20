@@ -394,7 +394,6 @@ load_file_into_buffer(const char *file_name, char **file_buffer)
 		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
 		goto fread_err;
 	}
-	assert(total_chars_read > 0);
 
 	/* Close the file */
 	if (fclose(module_file) == EOF) {
