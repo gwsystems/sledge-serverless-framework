@@ -132,8 +132,8 @@ err_http_allocation_failed:
 }
 
 void
-sandbox_init(struct sandbox *sandbox, struct module *module, int socket_descriptor,
-             const struct sockaddr *socket_address, uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
+sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session *session,
+             uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
 {
 	/* Sets the ID to the value before the increment */
 	sandbox->id     = sandbox_total_postfix_increment();
@@ -144,9 +144,8 @@ sandbox_init(struct sandbox *sandbox, struct module *module, int socket_descript
 	ps_list_init_d(sandbox);
 
 	/* Allocate HTTP session structure */
-	sandbox->http = http_session_alloc(sandbox->module->max_request_size, sandbox->module->max_response_size,
-	                                   socket_descriptor, socket_address);
-	assert(sandbox->http);
+	assert(session);
+	sandbox->http = session;
 
 	sandbox->timestamp_of.request_arrival = request_arrival_timestamp;
 	sandbox->absolute_deadline            = request_arrival_timestamp + module->relative_deadline;
@@ -172,8 +171,8 @@ sandbox_init(struct sandbox *sandbox, struct module *module, int socket_descript
  * @return the new sandbox request
  */
 struct sandbox *
-sandbox_alloc(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
-              uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
+sandbox_alloc(struct module *module, struct http_session *session, uint64_t request_arrival_timestamp,
+              uint64_t admissions_estimate)
 {
 	struct sandbox *sandbox                   = NULL;
 	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
@@ -182,8 +181,7 @@ sandbox_alloc(struct module *module, int socket_descriptor, const struct sockadd
 	if (unlikely(sandbox == NULL)) return NULL;
 
 	sandbox_set_as_allocated(sandbox);
-	sandbox_init(sandbox, module, socket_descriptor, socket_address, request_arrival_timestamp,
-	             admissions_estimate);
+	sandbox_init(sandbox, module, session, request_arrival_timestamp, admissions_estimate);
 
 
 	return sandbox;

@@ -163,6 +163,13 @@ listener_thread_main(void *dummy)
 
 				http_total_increment_request();
 
+				/* Allocate HTTP Session */
+				struct http_session *session =
+				  http_session_alloc(module->max_request_size, module->max_response_size, client_socket,
+				                     (const struct sockaddr *)&client_address);
+
+				/* TODO: Read HTTP request */
+
 				/*
 				 * Perform admissions control.
 				 * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
@@ -179,9 +186,8 @@ listener_thread_main(void *dummy)
 				}
 
 				/* Allocate a Sandbox */
-				struct sandbox *sandbox = sandbox_alloc(module, client_socket,
-				                                        (const struct sockaddr *)&client_address,
-				                                        request_arrival_timestamp, work_admitted);
+				struct sandbox *sandbox = sandbox_alloc(module, session, request_arrival_timestamp,
+				                                        work_admitted);
 				if (unlikely(sandbox == NULL)) {
 					http_session_send_err_oneshot(sandbox->http, 503);
 					http_session_close(sandbox->http);
