@@ -110,7 +110,9 @@
 		"current_wasm_module_instance.h": "c",
 		"wasm_memory.h": "c",
 		"sledge_abi.h": "c",
-		"vec.h": "c"
+		"vec.h": "c",
+		"module_database.h": "c",
+		"perf_window_t.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

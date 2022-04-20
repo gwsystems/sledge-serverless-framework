@@ -145,16 +145,16 @@ done:
  * @returns execution time
  */
 static inline uint64_t
-perf_window_get_percentile(struct perf_window *perf_window, int percentile, int precomputed_index)
+perf_window_get_percentile(struct perf_window *perf_window, uint8_t percentile, int precomputed_index)
 {
 	assert(perf_window != NULL);
 	assert(percentile >= 50 && percentile <= 99);
-	int size = perf_window->count;
-	assert(size > 0);
+	assert(perf_window->count > 0);
 
-	if (likely(size >= PERF_WINDOW_BUFFER_SIZE)) return perf_window->by_duration[precomputed_index].execution_time;
+	if (likely(perf_window->count >= PERF_WINDOW_BUFFER_SIZE))
+		return perf_window->by_duration[precomputed_index].execution_time;
 
-	return perf_window->by_duration[size * percentile / 100].execution_time;
+	return perf_window->by_duration[perf_window->count * percentile / 100].execution_time;
 }
 
 /**
