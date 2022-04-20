@@ -33,7 +33,8 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 		sandbox->total_time            = now - sandbox->timestamp_of.request_arrival;
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
-		sandbox_deinit_http_buffers(sandbox);
+		http_session_free(sandbox->http);
+		sandbox->http = NULL;
 		break;
 	}
 	default: {

@@ -4,7 +4,6 @@
 #include <errno.h>
 #include <stdint.h>
 
-#include "client_socket.h"
 #include "current_sandbox.h"
 #include "global_request_scheduler.h"
 #include "global_request_scheduler_deque.h"

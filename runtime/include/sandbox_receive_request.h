@@ -46,7 +46,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 			goto err_nobufs;
 		}
 
-		ssize_t bytes_received = recv(sandbox->http->client_socket_descriptor, &request->buffer[request_length],
+		ssize_t bytes_received = recv(sandbox->http->socket, &request->buffer[request_length],
 		                              request_capacity - request_length, 0);
 
 		if (bytes_received < 0) {
@@ -54,8 +54,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 				current_sandbox_sleep();
 				continue;
 			} else {
-				debuglog("Error reading socket %d - %s\n", sandbox->http->client_socket_descriptor,
-				         strerror(errno));
+				debuglog("Error reading socket %d - %s\n", sandbox->http->socket, strerror(errno));
 				goto err;
 			}
 		}
@@ -70,8 +69,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 			}
 
 			debuglog("Sandbox %lu: recv returned 0 before a complete request was received\n", sandbox->id);
-			debuglog("Socket: %d. Address: %s\n", sandbox->http->client_socket_descriptor,
-			         client_address_text);
+			debuglog("Socket: %d. Address: %s\n", sandbox->http->socket, client_address_text);
 			http_request_print(&sandbox->http->http_request);
 			goto err;
 		}
@@ -91,7 +89,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 			         http_errno_name((enum http_errno)sandbox->http->http_parser.http_errno),
 			         http_errno_description((enum http_errno)sandbox->http->http_parser.http_errno));
 			debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, (size_t)bytes_received);
-			debuglog("Error parsing socket %d\n", sandbox->http->client_socket_descriptor);
+			debuglog("Error parsing socket %d\n", sandbox->http->socket);
 			goto err;
 		}
 

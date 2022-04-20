@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <errno.h>
 
-#include "client_socket.h"
+#include "http_session.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox_functions.h"
@@ -61,9 +61,8 @@ scheduler_execute_epoll_loop(void)
 				case SANDBOX_ERROR:
 					panic("Expected to have closed socket");
 				default:
-					client_socket_send_oneshot(sandbox->http->client_socket_descriptor,
-					                           http_header_build(503), http_header_len(503));
-					sandbox_close_http(sandbox);
+					http_session_send_err_oneshot(sandbox->http, 503);
+					http_session_close(sandbox->http);
 					sandbox_set_as_error(sandbox, sandbox->state);
 				}
 			} else {

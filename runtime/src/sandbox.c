@@ -81,28 +81,6 @@ sandbox_free_stack(struct sandbox *sandbox)
 }
 
 /**
- * Allocate http request and response buffers for a sandbox
- * @param sandbox sandbox that we want to allocate HTTP buffers for
- * @returns 0 on success, -1 on error
- */
-static inline int
-sandbox_allocate_http_buffers(struct sandbox *sandbox)
-{
-	int rc;
-	rc = vec_u8_init(&sandbox->http->request, sandbox->module->max_request_size);
-	if (rc < 0) return -1;
-
-	rc = vec_u8_init(&sandbox->http->response, sandbox->module->max_response_size);
-	if (rc < 0) {
-		vec_u8_deinit(&sandbox->http->request);
-		return -1;
-	}
-
-	return 0;
-}
-
-
-/**
  * Allocates HTTP buffers and performs our approximation of "WebAssembly instantiation"
  * @param sandbox
  * @returns 0 on success, -1 on error
@@ -115,11 +93,6 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 	char *error_message = "";
 
 	int rc;
-
-	if (sandbox_allocate_http_buffers(sandbox)) {
-		error_message = "failed to allocate http buffers";
-		goto err_http_allocation_failed;
-	}
 
 	rc = sandbox_allocate_globals(sandbox);
 	if (rc < 0) {
@@ -150,9 +123,8 @@ err_stack_allocation_failed:
 err_memory_allocation_failed:
 err_globals_allocation_failed:
 err_http_allocation_failed:
-	client_socket_send_oneshot(sandbox->http->client_socket_descriptor, http_header_build(503),
-	                           http_header_len(503));
-	client_socket_close(sandbox->http->client_socket_descriptor, &sandbox->http->client_address);
+	http_session_send_err_oneshot(sandbox->http, 503);
+	http_session_close(sandbox->http);
 	sandbox_set_as_error(sandbox, SANDBOX_ALLOCATED);
 	perror(error_message);
 	rc = -1;
@@ -172,11 +144,10 @@ sandbox_init(struct sandbox *sandbox, struct module *module, int socket_descript
 	ps_list_init_d(sandbox);
 
 	/* Allocate HTTP session structure */
-	sandbox->http = calloc(sizeof(struct http_session), 1);
+	sandbox->http = http_session_alloc(sandbox->module->max_request_size, sandbox->module->max_response_size,
+	                                   socket_descriptor, socket_address);
 	assert(sandbox->http);
 
-	sandbox->http->client_socket_descriptor = socket_descriptor;
-	memcpy(&sandbox->http->client_address, socket_address, sizeof(struct sockaddr));
 	sandbox->timestamp_of.request_arrival = request_arrival_timestamp;
 	sandbox->absolute_deadline            = request_arrival_timestamp + module->relative_deadline;
 
@@ -227,9 +198,7 @@ sandbox_deinit(struct sandbox *sandbox)
 
 	module_release(sandbox->module);
 
-	/* TODO: Validate lifetime and cleanup of pointer members in this struct */
-	free(sandbox->http);
-
+	/* HTTP Session was already deinited, freed, and set to NULL */
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
 	assert(sandbox->memory == NULL);
 

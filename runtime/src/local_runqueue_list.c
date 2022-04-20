@@ -1,6 +1,5 @@
 #include <threads.h>
 
-#include "client_socket.h"
 #include "current_sandbox.h"
 #include "global_request_scheduler.h"
 #include "local_runqueue_list.h"
