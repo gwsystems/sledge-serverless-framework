@@ -14,7 +14,7 @@
 #include "module.h"
 #include "module_config.h"
 
-#define JSON_TOKENS_CAPACITY 1024
+#define JSON_TOKENS_CAPACITY 16384
 
 static inline char *
 jsmn_type(jsmntype_t type)
