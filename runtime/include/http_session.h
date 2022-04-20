@@ -19,3 +19,14 @@ struct http_session {
 	struct vec_u8       request;
 	struct vec_u8       response;
 };
+
+static inline void
+http_session_init_parser(struct http_session *session)
+{
+	assert(session != NULL);
+
+	http_parser_init(&session->http_parser, HTTP_REQUEST);
+
+	/* Set the session as the data the http-parser has access to */
+	session->http_parser.data = &session->http_request;
+}

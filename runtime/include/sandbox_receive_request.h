@@ -80,7 +80,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 #ifdef LOG_HTTP_PARSER
 		debuglog("Sandbox: %lu http_parser_execute(%p, %p, %p, %zu\n)", sandbox->id, parser, settings,
-		         &sandbox->request.buffer[sandbox->request.length], bytes_received);
+		         &sandbox->http->request.buffer[sandbox->http->request.length], bytes_received);
 #endif
 		size_t bytes_parsed = http_parser_execute(parser, settings,
 		                                          (const char *)&request->buffer[request_length],
