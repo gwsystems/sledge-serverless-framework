@@ -351,7 +351,7 @@ check_versions()
  * Allocates a buffer in memory containing the entire contents of the file provided
  * @param file_name file to load into memory
  * @param ret_ptr Pointer to set with address of buffer this function allocates. The caller must free this!
- * @return size of the allocated buffer or -1 in case of error;
+ * @return size of the allocated buffer or 0 in case of error;
  */
 static inline size_t
 load_file_into_buffer(const char *file_name, char **file_buffer)
@@ -386,7 +386,7 @@ load_file_into_buffer(const char *file_name, char **file_buffer)
 	}
 
 	/* Read the file into the buffer and check that the buffer size equals the file size */
-	ssize_t total_chars_read = fread(*file_buffer, sizeof(char), stat_buffer.st_size, module_file);
+	size_t total_chars_read = fread(*file_buffer, sizeof(char), stat_buffer.st_size, module_file);
 #ifdef LOG_MODULE_LOADING
 	debuglog("size read: %d content: %s\n", total_chars_read, *file_buffer);
 #endif
@@ -414,7 +414,7 @@ stat_buffer_alloc_err:
 		if (fclose(module_file) == EOF) panic("Failed to close file\n");
 	}
 err:
-	return (ssize_t)-1;
+	return 0;
 }
 
 int
@@ -455,8 +455,8 @@ main(int argc, char **argv)
 #endif
 	const char *json_path    = argv[1];
 	char       *json_buf     = NULL;
-	ssize_t     json_buf_len = load_file_into_buffer(json_path, &json_buf);
-	if (unlikely(json_buf_len <= 0)) panic("failed to initialize module(s) defined in %s\n", json_path);
+	size_t      json_buf_len = load_file_into_buffer(json_path, &json_buf);
+	if (unlikely(json_buf_len == 0)) panic("failed to initialize module(s) defined in %s\n", json_path);
 
 	struct module_config *module_config_vec;
 
