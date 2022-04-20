@@ -16,6 +16,30 @@
 
 #define JSON_TOKENS_CAPACITY 16384
 
+enum
+{
+	module_name,
+	module_path,
+	module_port,
+	module_expected_execution_us,
+	module_admissions_percentile,
+	module_relative_deadline_us,
+	module_http_req_size,
+	module_http_resp_size,
+	module_http_resp_content_type,
+	module_keys_len
+};
+
+static const char *module_keys[module_keys_len] = { "name",
+	                                            "path",
+	                                            "port",
+	                                            "expected-execution-us",
+	                                            "admissions-percentile",
+	                                            "relative-deadline-us",
+	                                            "http-req-size",
+	                                            "http-resp-size",
+	                                            "http-resp-content-type" };
+
 static inline char *
 jsmn_type(jsmntype_t type)
 {
@@ -208,53 +232,53 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 			/* Advance to Value */
 			i++;
 
-			if (strcmp(key, "name") == 0) {
+			if (strcmp(key, module_keys[module_name]) == 0) {
 				if (!is_nonempty_string(tokens[i], key)) goto json_parse_err;
 
 				(*module_config_vec)[module_idx].name = strndup(json_buf + tokens[i].start,
 				                                                tokens[i].end - tokens[i].start);
-			} else if (strcmp(key, "path") == 0) {
+			} else if (strcmp(key, module_keys[module_path]) == 0) {
 				if (!is_nonempty_string(tokens[i], key)) goto json_parse_err;
 
 				(*module_config_vec)[module_idx].path = strndup(json_buf + tokens[i].start,
 				                                                tokens[i].end - tokens[i].start);
-			} else if (strcmp(key, "port") == 0) {
+			} else if (strcmp(key, module_keys[module_port]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				int rc = parse_uint16_t(tokens[i], json_buf, "port",
+				int rc = parse_uint16_t(tokens[i], json_buf, module_keys[module_port],
 				                        &(*module_config_vec)[module_idx].port);
 				if (rc < 0) goto json_parse_err;
-			} else if (strcmp(key, "expected-execution-us") == 0) {
+			} else if (strcmp(key, module_keys[module_expected_execution_us]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				int rc = parse_uint32_t(tokens[i], json_buf, "expected-execution-us",
+				int rc = parse_uint32_t(tokens[i], json_buf, module_keys[module_expected_execution_us],
 				                        &(*module_config_vec)[module_idx].expected_execution_us);
 				if (rc < 0) goto json_parse_err;
-			} else if (strcmp(key, "admissions-percentile") == 0) {
+			} else if (strcmp(key, module_keys[module_admissions_percentile]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				int rc = parse_uint8_t(tokens[i], json_buf, "admissions-percentile",
+				int rc = parse_uint8_t(tokens[i], json_buf, module_keys[module_admissions_percentile],
 				                       &(*module_config_vec)[module_idx].admissions_percentile);
 				if (rc < 0) goto json_parse_err;
-			} else if (strcmp(key, "relative-deadline-us") == 0) {
+			} else if (strcmp(key, module_keys[module_relative_deadline_us]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				int rc = parse_uint32_t(tokens[i], json_buf, "relative-deadline-us",
+				int rc = parse_uint32_t(tokens[i], json_buf, module_keys[module_relative_deadline_us],
 				                        &(*module_config_vec)[module_idx].relative_deadline_us);
 				if (rc < 0) goto json_parse_err;
-			} else if (strcmp(key, "http-req-size") == 0) {
+			} else if (strcmp(key, module_keys[module_http_req_size]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				int rc = parse_uint32_t(tokens[i], json_buf, "http-req-size",
+				int rc = parse_uint32_t(tokens[i], json_buf, module_keys[module_http_req_size],
 				                        &(*module_config_vec)[module_idx].http_req_size);
 				if (rc < 0) goto json_parse_err;
-			} else if (strcmp(key, "http-resp-size") == 0) {
+			} else if (strcmp(key, module_keys[module_http_resp_size]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				int rc = parse_uint32_t(tokens[i], json_buf, "http-resp-size",
+				int rc = parse_uint32_t(tokens[i], json_buf, module_keys[module_http_resp_size],
 				                        &(*module_config_vec)[module_idx].http_resp_size);
 				if (rc < 0) goto json_parse_err;
-			} else if (strcmp(key, "http-resp-content-type") == 0) {
+			} else if (strcmp(key, module_keys[module_http_resp_content_type]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_STRING)) goto json_parse_err;
 
 				(*module_config_vec)[module_idx].http_resp_content_type =
