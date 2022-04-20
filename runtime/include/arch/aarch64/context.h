@@ -4,7 +4,6 @@
 #include <assert.h>
 
 #include "arch/common.h"
-#include "current_sandbox.h"
 
 #define ARCH_SIG_JMP_OFF 0x100 /* Based on code generated! */
 
@@ -46,25 +45,22 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	/*
 	 * Assumption: In the case of a slow context switch, the caller
 	 * set current_sandbox to the sandbox containing the target context
+	 * Temporally comment because it will cause compilation error
 	 */
-	if (b->variant == ARCH_CONTEXT_VARIANT_SLOW) {
+	/*if (b->variant == ARCH_CONTEXT_VARIANT_SLOW) {
 		struct sandbox *current = current_sandbox_get();
 		assert(current != NULL && b == &current->ctxt);
-	}
+	}*/
 #endif
 
 	/* if both a and b are NULL, there is no state change */
-	assert(a != NULL || b != NULL);
+	assert(a != NULL && b != NULL);
 
 	/* Assumption: The caller does not switch to itself */
 	assert(a != b);
 
-	/* Set any NULLs to worker_thread_base_context to resume execution of main */
-	if (a == NULL) a = &worker_thread_base_context;
-	if (b == NULL) b = &worker_thread_base_context;
-
 	/* A Transition {Unused, Running} -> Fast */
-	assert(a->variant == ARCH_CONTEXT_VARIANT_UNUSED || a->variant == ARCH_CONTEXT_VARIANT_RUNNING);
+	assert(a->variant == ARCH_CONTEXT_VARIANT_RUNNING);
 
 	/* B Transition {Fast, Slow} -> Running */
 	assert(b->variant == ARCH_CONTEXT_VARIANT_FAST || b->variant == ARCH_CONTEXT_VARIANT_SLOW);
@@ -87,6 +83,8 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	                 "ldr x1, [%[bv]]\n\t"
 	                 "sub x1, x1, #2\n\t"
 	                 "cbz x1, slow%=\n\t"
+                         "mov x3, #3\n\t" 
+                         "str x3, [%[bv]]\n\t" /* b->variant = ARCH_CONTEXT_VARIANT_RUNNING; */
 	                 "ldr x0, [%[b]]\n\t"
 	                 "ldr x1, [%[b], 8]\n\t"
 	                 "mov sp, x0\n\t"
@@ -95,8 +93,6 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	                 "br %[slowpath]\n\t"
 	                 ".align 8\n\t"
 	                 "reset%=:\n\t"
-	                 "mov x1, #3\n\t"
-	                 "str x1, [%[bv]]\n\t"
 	                 ".align 8\n\t"
 	                 "exit%=:\n\t"
 	                 :
@@ -107,6 +103,35 @@ arch_context_switch(struct arch_context *a, struct arch_context *b)
 	                   "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15");
 
 	return 0;
+}
+
+
+/**
+ * Load a new sandbox that preempted an existing sandbox, restoring only the
+ * instruction pointer and stack pointer registers.
+ * @param active_context - the context of the current worker thread
+ * @param sandbox_context - the context that we want to restore
+ */
+static inline void
+arch_context_restore_fast(mcontext_t *active_context, struct arch_context *sandbox_context)
+{
+        assert(active_context != NULL);
+        assert(sandbox_context != NULL);
+
+        /* Assumption: Base Context is only ever used by arch_context_switch */
+        assert(sandbox_context != &worker_thread_base_context);
+
+        assert(sandbox_context->regs[UREG_SP]);
+        assert(sandbox_context->regs[UREG_IP]);
+
+        /* Transitioning from Fast -> Running */
+        assert(sandbox_context->variant == ARCH_CONTEXT_VARIANT_FAST);
+        sandbox_context->variant = ARCH_CONTEXT_VARIANT_RUNNING;
+
+        //active_context->gregs[REG_RSP] = sandbox_context->regs[UREG_SP];
+        //active_context->gregs[REG_RIP] = sandbox_context->regs[UREG_IP];
+        active_context->sp = sandbox_context->regs[UREG_SP];
+        active_context->pc = sandbox_context->regs[UREG_IP];
 }
 
 #else
