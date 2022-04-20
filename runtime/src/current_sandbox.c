@@ -82,40 +82,42 @@ current_sandbox_wasm_trap_handler(int trapno)
 	struct sandbox *sandbox       = current_sandbox_get();
 	sandbox_syscall(sandbox);
 
+	int client_socket_descriptor = sandbox->http->client_socket_descriptor;
+
 	switch (trapno) {
 	case WASM_TRAP_INVALID_INDEX:
 		error_message = "WebAssembly Trap: Invalid Index\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		client_socket_send(client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
 	case WASM_TRAP_MISMATCHED_TYPE:
 		error_message = "WebAssembly Trap: Mismatched Type\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		client_socket_send(client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
 	case WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW:
 		error_message = "WebAssembly Trap: Protected Call Stack Overflow\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		client_socket_send(client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
 	case WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY:
 		error_message = "WebAssembly Trap: Out of Bounds Linear Memory Access\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		client_socket_send(client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
 	case WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION:
 		error_message = "WebAssembly Trap: Illegal Arithmetic Operation\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		client_socket_send(client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
 	case WASM_TRAP_UNREACHABLE:
 		error_message = "WebAssembly Trap: Unreachable Instruction\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		client_socket_send(client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
 	default:
 		error_message = "WebAssembly Trap: Unknown Trapno\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		client_socket_send(client_socket_descriptor, http_header_build(500), http_header_len(500),
 		                   current_sandbox_sleep);
 		break;
 	}
@@ -144,12 +146,12 @@ current_sandbox_init()
 	if (rc == -2) {
 		error_message = "Request size exceeded Buffer\n";
 		/* Request size exceeded Buffer, send 413 Payload Too Large */
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(413), http_header_len(413),
-		                   current_sandbox_sleep);
+		client_socket_send(sandbox->http->client_socket_descriptor, http_header_build(413),
+		                   http_header_len(413), current_sandbox_sleep);
 		goto err;
 	} else if (rc == -1) {
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(400), http_header_len(400),
-		                   current_sandbox_sleep);
+		client_socket_send(sandbox->http->client_socket_descriptor, http_header_build(400),
+		                   http_header_len(400), current_sandbox_sleep);
 		goto err;
 	}
 
@@ -164,10 +166,10 @@ current_sandbox_init()
 	/* Initialize Arguments. First arg is the module name. Subsequent args are query parameters */
 	char *args[HTTP_MAX_QUERY_PARAM_COUNT + 1];
 	args[0] = sandbox->module->name;
-	for (int i = 0; i < sandbox->http_request.query_params_count; i++)
-		args[i + 1] = (char *)sandbox->http_request.query_params[i].value;
+	for (int i = 0; i < sandbox->http->http_request.query_params_count; i++)
+		args[i + 1] = (char *)sandbox->http->http_request.query_params[i].value;
 
-	options.argc                                          = sandbox->http_request.query_params_count + 1;
+	options.argc                                          = sandbox->http->http_request.query_params_count + 1;
 	options.argv                                          = (const char **)&args;
 	sandbox->wasi_context                                 = wasi_context_init(&options);
 	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;

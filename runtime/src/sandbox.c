@@ -89,12 +89,12 @@ static inline int
 sandbox_allocate_http_buffers(struct sandbox *sandbox)
 {
 	int rc;
-	rc = vec_u8_init(&sandbox->request, sandbox->module->max_request_size);
+	rc = vec_u8_init(&sandbox->http->request, sandbox->module->max_request_size);
 	if (rc < 0) return -1;
 
-	rc = vec_u8_init(&sandbox->response, sandbox->module->max_response_size);
+	rc = vec_u8_init(&sandbox->http->response, sandbox->module->max_response_size);
 	if (rc < 0) {
-		vec_u8_deinit(&sandbox->request);
+		vec_u8_deinit(&sandbox->http->request);
 		return -1;
 	}
 
@@ -150,8 +150,9 @@ err_stack_allocation_failed:
 err_memory_allocation_failed:
 err_globals_allocation_failed:
 err_http_allocation_failed:
-	client_socket_send_oneshot(sandbox->client_socket_descriptor, http_header_build(503), http_header_len(503));
-	client_socket_close(sandbox->client_socket_descriptor, &sandbox->client_address);
+	client_socket_send_oneshot(sandbox->http->client_socket_descriptor, http_header_build(503),
+	                           http_header_len(503));
+	client_socket_close(sandbox->http->client_socket_descriptor, &sandbox->http->client_address);
 	sandbox_set_as_error(sandbox, SANDBOX_ALLOCATED);
 	perror(error_message);
 	rc = -1;
@@ -170,8 +171,12 @@ sandbox_init(struct sandbox *sandbox, struct module *module, int socket_descript
 	/* Initialize Parsec control structures */
 	ps_list_init_d(sandbox);
 
-	sandbox->client_socket_descriptor = socket_descriptor;
-	memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
+	/* Allocate HTTP session structure */
+	sandbox->http = calloc(sizeof(struct http_session), 1);
+	assert(sandbox->http);
+
+	sandbox->http->client_socket_descriptor = socket_descriptor;
+	memcpy(&sandbox->http->client_address, socket_address, sizeof(struct sockaddr));
 	sandbox->timestamp_of.request_arrival = request_arrival_timestamp;
 	sandbox->absolute_deadline            = request_arrival_timestamp + module->relative_deadline;
 
@@ -221,6 +226,9 @@ sandbox_deinit(struct sandbox *sandbox)
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
 
 	module_release(sandbox->module);
+
+	/* TODO: Validate lifetime and cleanup of pointer members in this struct */
+	free(sandbox->http);
 
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
 	assert(sandbox->memory == NULL);

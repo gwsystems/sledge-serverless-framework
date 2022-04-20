@@ -2,26 +2,20 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/socket.h>
 #include <ucontext.h>
 #include <unistd.h>
 
 #include "arch/context.h"
-#include "http_parser.h"
-#include "http_request.h"
+#include "http_session.h"
 #include "module.h"
 #include "ps_list.h"
 #include "sandbox_state.h"
 #include "sandbox_state_history.h"
-#include "vec.h"
 #include "wasm_memory.h"
 #include "wasm_types.h"
 #include "wasm_stack.h"
 #include "wasm_globals.h"
 #include "wasi.h"
-
-#define u8 uint8_t
-VEC(u8)
 
 /*********************
  * Structs and Types *
@@ -47,12 +41,7 @@ struct sandbox {
 	struct ps_list list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
 
 	/* HTTP State */
-	struct sockaddr     client_address; /* client requesting connection! */
-	int                 client_socket_descriptor;
-	http_parser         http_parser;
-	struct http_request http_request;
-	struct vec_u8       request;
-	struct vec_u8       response;
+	struct http_session *http;
 
 	/* WebAssembly Module State */
 	struct module *module; /* the module this is an instance of */

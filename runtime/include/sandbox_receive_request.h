@@ -27,15 +27,15 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 	int rc = 0;
 
-	struct vec_u8 *request = &sandbox->request;
+	struct vec_u8 *request = &sandbox->http->request;
 	assert(request->length == 0);
 	assert(request->capacity > 0);
 
-	while (!sandbox->http_request.message_end) {
+	while (!sandbox->http->http_request.message_end) {
 		/* Read from the Socket */
 
 		/* Structured to closely follow usage example at https://github.com/nodejs/http-parser */
-		http_parser                *parser   = &sandbox->http_parser;
+		http_parser                *parser   = &sandbox->http->http_parser;
 		const http_parser_settings *settings = http_parser_settings_get();
 
 		size_t request_length   = request->length;
@@ -46,7 +46,7 @@ sandbox_receive_request(struct sandbox *sandbox)
 			goto err_nobufs;
 		}
 
-		ssize_t bytes_received = recv(sandbox->client_socket_descriptor, &request->buffer[request_length],
+		ssize_t bytes_received = recv(sandbox->http->client_socket_descriptor, &request->buffer[request_length],
 		                              request_capacity - request_length, 0);
 
 		if (bytes_received < 0) {
@@ -54,23 +54,25 @@ sandbox_receive_request(struct sandbox *sandbox)
 				current_sandbox_sleep();
 				continue;
 			} else {
-				debuglog("Error reading socket %d - %s\n", sandbox->client_socket_descriptor,
+				debuglog("Error reading socket %d - %s\n", sandbox->http->client_socket_descriptor,
 				         strerror(errno));
 				goto err;
 			}
 		}
 
 		/* If we received an EOF before we were able to parse a complete HTTP header, request is malformed */
-		if (bytes_received == 0 && !sandbox->http_request.message_end) {
+		if (bytes_received == 0 && !sandbox->http->http_request.message_end) {
 			char client_address_text[INET6_ADDRSTRLEN] = {};
-			if (unlikely(inet_ntop(AF_INET, &sandbox->client_address, client_address_text, INET6_ADDRSTRLEN)
-			             == NULL)) {
+			if (unlikely(
+			      inet_ntop(AF_INET, &sandbox->http->client_address, client_address_text, INET6_ADDRSTRLEN)
+			      == NULL)) {
 				debuglog("Failed to log client_address: %s", strerror(errno));
 			}
 
 			debuglog("Sandbox %lu: recv returned 0 before a complete request was received\n", sandbox->id);
-			debuglog("Socket: %d. Address: %s\n", sandbox->client_socket_descriptor, client_address_text);
-			http_request_print(&sandbox->http_request);
+			debuglog("Socket: %d. Address: %s\n", sandbox->http->client_socket_descriptor,
+			         client_address_text);
+			http_request_print(&sandbox->http->http_request);
 			goto err;
 		}
 
@@ -86,10 +88,10 @@ sandbox_receive_request(struct sandbox *sandbox)
 
 		if (bytes_parsed != (size_t)bytes_received) {
 			debuglog("Error: %s, Description: %s\n",
-			         http_errno_name((enum http_errno)sandbox->http_parser.http_errno),
-			         http_errno_description((enum http_errno)sandbox->http_parser.http_errno));
+			         http_errno_name((enum http_errno)sandbox->http->http_parser.http_errno),
+			         http_errno_description((enum http_errno)sandbox->http->http_parser.http_errno));
 			debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, (size_t)bytes_received);
-			debuglog("Error parsing socket %d\n", sandbox->client_socket_descriptor);
+			debuglog("Error parsing socket %d\n", sandbox->http->client_socket_descriptor);
 			goto err;
 		}
 
@@ -97,10 +99,10 @@ sandbox_receive_request(struct sandbox *sandbox)
 	}
 
 #ifdef LOG_HTTP_PARSER
-	for (int i = 0; i < sandbox->http_request.query_params_count; i++) {
-		debuglog("Argument %d, Len: %d, %.*s\n", i, sandbox->http_request.query_params[i].value_length,
-		         sandbox->http_request.query_params[i].value_length,
-		         sandbox->http_request.query_params[i].value);
+	for (int i = 0; i < sandbox->http->http_request.query_params_count; i++) {
+		debuglog("Argument %d, Len: %d, %.*s\n", i, sandbox->http->http_request.query_params[i].value_length,
+		         sandbox->http->http_request.query_params[i].value_length,
+		         sandbox->http->http_request.query_params[i].value);
 	}
 #endif
 

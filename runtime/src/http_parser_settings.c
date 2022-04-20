@@ -21,10 +21,11 @@ http_parser_settings runtime_http_parser_settings;
 int
 http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *sandbox = (struct sandbox *)parser->data;
+	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
+	struct http_request *http_request = &sandbox->http->http_request;
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 #ifdef LOG_HTTP_PARSER
 	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
@@ -36,31 +37,27 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 		char *prev = query_params + 1;
 		char *cur  = NULL;
 		while ((cur = strchr(prev, '&')) != NULL
-		       && sandbox->http_request.query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
+		       && http_request->query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
 			cur++;
 			size_t len = cur - prev - 1;
-			sandbox->http_request.query_params[sandbox->http_request.query_params_count].value_length =
+			http_request->query_params[http_request->query_params_count].value_length =
 			  len < HTTP_MAX_QUERY_PARAM_LENGTH - 1 ? len : HTTP_MAX_QUERY_PARAM_LENGTH - 1;
 
-			strncpy(sandbox->http_request.query_params[sandbox->http_request.query_params_count].value,
-			        prev,
-			        sandbox->http_request.query_params[sandbox->http_request.query_params_count]
-			          .value_length);
+			strncpy(http_request->query_params[http_request->query_params_count].value, prev,
+			        http_request->query_params[http_request->query_params_count].value_length);
 
-			sandbox->http_request.query_params_count++;
+			http_request->query_params_count++;
 			prev = cur;
 		}
-		if (prev != NULL && sandbox->http_request.query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
+		if (prev != NULL && http_request->query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
 			size_t len = &at[length] - prev;
-			sandbox->http_request.query_params[sandbox->http_request.query_params_count].value_length =
+			http_request->query_params[http_request->query_params_count].value_length =
 			  len < HTTP_MAX_QUERY_PARAM_LENGTH - 1 ? len : HTTP_MAX_QUERY_PARAM_LENGTH - 1;
 
-			strncpy(sandbox->http_request.query_params[sandbox->http_request.query_params_count].value,
-			        prev,
-			        sandbox->http_request.query_params[sandbox->http_request.query_params_count]
-			          .value_length);
+			strncpy(http_request->query_params[http_request->query_params_count].value, prev,
+			        http_request->query_params[http_request->query_params_count].value_length);
 
-			sandbox->http_request.query_params_count++;
+			http_request->query_params_count++;
 		}
 	}
 
@@ -76,10 +73,10 @@ int
 http_parser_settings_on_message_begin(http_parser *parser)
 {
 	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = &sandbox->http->http_request;
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 #ifdef LOG_HTTP_PARSER
 	debuglog("sandbox: %lu\n", sandbox->id);
@@ -104,14 +101,14 @@ int
 http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t length)
 {
 	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = &sandbox->http->http_request;
 
 #ifdef LOG_HTTP_PARSER
 	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
 #endif
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 	if (http_request->last_was_value == false) {
 		/* Previous key continues */
@@ -147,15 +144,15 @@ int
 http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t length)
 {
 	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = &sandbox->http->http_request;
 
 
 #ifdef LOG_HTTP_PARSER
 	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
 #endif
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 	if (!http_request->last_was_value) {
 		if (unlikely(length >= HTTP_MAX_HEADER_VALUE_LENGTH)) return -1;
@@ -179,10 +176,10 @@ int
 http_parser_settings_on_header_end(http_parser *parser)
 {
 	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = &sandbox->http->http_request;
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 #ifdef LOG_HTTP_PARSER
 	debuglog("sandbox: %lu\n", sandbox->id);
@@ -208,10 +205,10 @@ int
 http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 {
 	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = &sandbox->http->http_request;
 
-	assert(sandbox->http_request.header_end);
-	assert(!sandbox->http_request.message_end);
+	assert(http_request->header_end);
+	assert(!http_request->message_end);
 
 
 	/* Assumption: We should never exceed the buffer we're reusing */
@@ -250,10 +247,10 @@ int
 http_parser_settings_on_msg_end(http_parser *parser)
 {
 	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = &sandbox->http->http_request;
 
-	assert(sandbox->http_request.header_end);
-	assert(!sandbox->http_request.message_end);
+	assert(http_request->header_end);
+	assert(!http_request->message_end);
 
 #ifdef LOG_HTTP_PARSER
 	debuglog("sandbox: %lu\n", sandbox->id);

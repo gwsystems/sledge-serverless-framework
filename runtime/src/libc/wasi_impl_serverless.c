@@ -659,7 +659,7 @@ wasi_snapshot_preview1_backing_fd_read(wasi_context_t *context, __wasi_fd_t fd, 
 	/* Non-blocking copy on stdin */
 	if (fd == STDIN_FILENO) {
 		struct sandbox      *current_sandbox = current_sandbox_get();
-		struct http_request *current_request = &current_sandbox->http_request;
+		struct http_request *current_request = &current_sandbox->http->http_request;
 		int                  old_read        = current_request->body_read_length;
 		int                  bytes_to_read   = current_request->body_length - old_read;
 
@@ -786,26 +786,26 @@ wasi_snapshot_preview1_backing_fd_write(wasi_context_t *context, __wasi_fd_t fd,
 	if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
 		struct sandbox *s                = current_sandbox_get();
 		size_t          buffer_remaining = 0;
-		size_t          old_response_len = s->response.length;
+		size_t          old_response_len = s->http->response.length;
 		__wasi_size_t   sum              = 0;
 
 		for (size_t i = 0; i < iovs_len; i++) {
-			buffer_remaining = s->module->max_response_size - s->response.length;
+			buffer_remaining = s->module->max_response_size - s->http->response.length;
 			if (buffer_remaining == 0) {
-				*nwritten_retptr = s->response.length - old_response_len;
+				*nwritten_retptr = s->http->response.length - old_response_len;
 				return __WASI_ERRNO_FBIG;
 			}
 			ssize_t to_write = buffer_remaining > iovs[i].buf_len ? iovs[i].buf_len : buffer_remaining;
-			memcpy(&s->response.buffer[s->response.length], iovs[i].buf, to_write);
+			memcpy(&s->http->response.buffer[s->http->response.length], iovs[i].buf, to_write);
 #ifdef LOG_SANDBOX_STDERR
 			if (fd == STDERR_FILENO) {
 				debuglog("STDERR from Sandbox:");
 				write(2, iovs[i].buf, iovs[i].buf_len);
 			}
 #endif
-			s->response.length += to_write;
+			s->http->response.length += to_write;
 		}
-		*nwritten_retptr = s->response.length - old_response_len;
+		*nwritten_retptr = s->http->response.length - old_response_len;
 		return __WASI_ERRNO_SUCCESS;
 	}
 

@@ -25,7 +25,7 @@ current_sandbox_send_response()
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
-	struct vec_u8 *response = &sandbox->response;
+	struct vec_u8 *response = &sandbox->http->response;
 	assert(response != NULL);
 
 	int rc;
@@ -40,11 +40,11 @@ current_sandbox_send_response()
 	sandbox->total_time = end_time - sandbox->timestamp_of.request_arrival;
 
 	/* Send HTTP Response Header and Body */
-	rc = http_header_200_write(sandbox->client_socket_descriptor, content_type, response_body_size);
+	rc = http_header_200_write(sandbox->http->client_socket_descriptor, content_type, response_body_size);
 	if (rc < 0) goto err;
 
-	rc = client_socket_send(sandbox->client_socket_descriptor, (const char *)response->buffer, response_body_size,
-	                        current_sandbox_sleep);
+	rc = client_socket_send(sandbox->http->client_socket_descriptor, (const char *)response->buffer,
+	                        response_body_size, current_sandbox_sleep);
 	if (rc < 0) goto err;
 
 	http_total_increment_2xx();

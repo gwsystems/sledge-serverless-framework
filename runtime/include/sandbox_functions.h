@@ -23,10 +23,11 @@ sandbox_close_http(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
-	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, sandbox->client_socket_descriptor, NULL);
+	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_DEL, sandbox->http->client_socket_descriptor,
+	                   NULL);
 	if (unlikely(rc < 0)) panic_err();
 
-	client_socket_close(sandbox->client_socket_descriptor, &sandbox->client_address);
+	client_socket_close(sandbox->http->client_socket_descriptor, &sandbox->http->client_address);
 }
 
 /**
@@ -50,8 +51,8 @@ static inline void
 sandbox_deinit_http_buffers(struct sandbox *sandbox)
 {
 	assert(sandbox);
-	vec_u8_deinit(&sandbox->request);
-	vec_u8_deinit(&sandbox->response);
+	vec_u8_deinit(&sandbox->http->request);
+	vec_u8_deinit(&sandbox->http->response);
 }
 
 /**
@@ -78,16 +79,16 @@ sandbox_open_http(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
-	http_parser_init(&sandbox->http_parser, HTTP_REQUEST);
+	http_parser_init(&sandbox->http->http_parser, HTTP_REQUEST);
 
 	/* Set the sandbox as the data the http-parser has access to */
-	sandbox->http_parser.data = sandbox;
+	sandbox->http->http_parser.data = sandbox;
 
 	/* Freshly allocated sandbox going runnable for first time, so register client socket with epoll */
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)sandbox;
 	accept_evt.events   = EPOLLIN | EPOLLOUT | EPOLLET;
-	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_ADD, sandbox->client_socket_descriptor,
+	int rc = epoll_ctl(worker_thread_epoll_file_descriptor, EPOLL_CTL_ADD, sandbox->http->client_socket_descriptor,
 	                   &accept_evt);
 	if (unlikely(rc < 0)) panic_err();
 }
