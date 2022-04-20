@@ -14,8 +14,7 @@
 #include "module.h"
 #include "module_config.h"
 
-static const int JSON_MAX_ELEMENT_COUNT = 16;
-static const int JSON_MAX_ELEMENT_SIZE  = 1024;
+#define JSON_TOKENS_CAPACITY 1024
 
 static inline char *
 jsmn_type(jsmntype_t type)
@@ -145,7 +144,7 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 	assert(json_buf_size > 0);
 	assert(module_config_vec != NULL);
 
-	jsmntok_t tokens[JSON_MAX_ELEMENT_SIZE * JSON_MAX_ELEMENT_COUNT];
+	jsmntok_t tokens[JSON_TOKENS_CAPACITY];
 	int       module_config_vec_len = 0;
 
 
@@ -154,8 +153,7 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 	jsmn_init(&module_parser);
 
 	/* Use Jasmine to parse the JSON */
-	int total_tokens = jsmn_parse(&module_parser, json_buf, json_buf_size, tokens,
-	                              sizeof(tokens) / sizeof(tokens[0]));
+	int total_tokens = jsmn_parse(&module_parser, json_buf, json_buf_size, tokens, JSON_TOKENS_CAPACITY);
 	if (total_tokens < 0) {
 		if (total_tokens == JSMN_ERROR_INVAL) {
 			fprintf(stderr, "Error parsing %s: bad token, JSON string is corrupted\n", json_buf);
