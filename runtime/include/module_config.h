@@ -7,6 +7,7 @@
 struct module_config {
 	char    *name;
 	char    *path;
+	char    *route;
 	uint16_t port;
 	uint8_t  admissions_percentile;
 	uint32_t expected_execution_us;

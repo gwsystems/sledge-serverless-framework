@@ -21,8 +21,9 @@
 
 #define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 
-#define MODULE_MAX_NAME_LENGTH 32
-#define MODULE_MAX_PATH_LENGTH 256
+#define MODULE_MAX_NAME_LENGTH  32
+#define MODULE_MAX_PATH_LENGTH  256
+#define MODULE_MAX_ROUTE_LENGTH 256
 
 extern thread_local int worker_thread_idx;
 
@@ -56,6 +57,7 @@ struct module {
 	/* Metadata from JSON Config */
 	char                   name[MODULE_MAX_NAME_LENGTH];
 	char                   path[MODULE_MAX_PATH_LENGTH];
+	char                   route[MODULE_MAX_ROUTE_LENGTH];
 	uint32_t               stack_size; /* a specification? */
 	uint32_t               relative_deadline_us;
 	uint16_t               port;

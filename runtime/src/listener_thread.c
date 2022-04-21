@@ -184,6 +184,13 @@ listener_thread_main(void *dummy)
 					continue;
 				}
 
+				if (strncmp(session->http_request.full_url, module->route, strlen(module->route))
+				    != 0) {
+					http_session_send_err_oneshot(session, 404);
+					http_session_close(session);
+					continue;
+				}
+
 				http_request_print(&session->http_request);
 
 				/*

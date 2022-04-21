@@ -21,6 +21,7 @@ enum
 	module_name,
 	module_path,
 	module_port,
+	module_route,
 	module_expected_execution_us,
 	module_admissions_percentile,
 	module_relative_deadline_us,
@@ -33,6 +34,7 @@ enum
 static const char *module_keys[module_keys_len] = { "name",
 	                                            "path",
 	                                            "port",
+	                                            "route",
 	                                            "expected-execution-us",
 	                                            "admissions-percentile",
 	                                            "relative-deadline-us",
@@ -248,6 +250,11 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 				int rc = parse_uint16_t(tokens[i], json_buf, module_keys[module_port],
 				                        &(*module_config_vec)[module_idx].port);
 				if (rc < 0) goto json_parse_err;
+			} else if (strcmp(key, module_keys[module_route]) == 0) {
+				if (!is_nonempty_string(tokens[i], key)) goto json_parse_err;
+
+				(*module_config_vec)[module_idx].route = strndup(json_buf + tokens[i].start,
+				                                                 tokens[i].end - tokens[i].start);
 			} else if (strcmp(key, module_keys[module_expected_execution_us]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 

@@ -1,8 +1,9 @@
 [
 	{
-		"name": "fibonacci_10",
+		"name": "fibonacci",
 		"path": "fibonacci.wasm.so",
 		"port": 10010,
+		"route": "/fib",
 		"expected-execution-us": 6000,
 		"admissions-percentile": 70,
 		"relative-deadline-us": 20000,
@@ -14,6 +15,7 @@
 		"name": "fibonacci_40",
 		"path": "fibonacci.wasm.so",
 		"port": 10040,
+		"route": "/fib",
 		"expected-execution-us": 10000000,
 		"admissions-percentile": 70,
 		"relative-deadline-us": 20000000,

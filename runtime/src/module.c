@@ -44,6 +44,9 @@ module_init(struct module *module, struct module_config *config)
 		panic("response-size must be between 0 and %u, was %u\n", (uint32_t)RUNTIME_HTTP_RESPONSE_SIZE_MAX,
 		      config->http_resp_size);
 
+	/* If a route is not specified, default to root */
+	if (config->route == NULL) config->route = "/";
+
 	struct module *existing_module = module_database_find_by_name(config->name);
 	if (existing_module != NULL) panic("Module %s is already initialized\n", existing_module->name);
 
@@ -86,6 +89,7 @@ module_init(struct module *module, struct module_config *config)
 	/* Set fields in the module struct */
 	strncpy(module->name, config->name, MODULE_MAX_NAME_LENGTH);
 	strncpy(module->path, config->path, MODULE_MAX_PATH_LENGTH);
+	strncpy(module->route, config->route, MODULE_MAX_ROUTE_LENGTH);
 	strncpy(module->response_content_type, config->http_resp_content_type, HTTP_MAX_HEADER_VALUE_LENGTH);
 
 	module->stack_size        = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
