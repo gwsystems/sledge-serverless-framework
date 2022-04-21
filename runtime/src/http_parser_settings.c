@@ -32,6 +32,14 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 
 	char *query_params = memchr(at, '?', length);
 
+	/* Full URL excludes query params if present */
+	size_t full_url_length = query_params == NULL ? length : query_params - at;
+
+	size_t to_copy = full_url_length < HTTP_MAX_FULL_URL_LENGTH - 1 ? full_url_length
+	                                                                : HTTP_MAX_FULL_URL_LENGTH - 1;
+	strncpy(http_request->full_url, at, to_copy);
+	http_request->full_url[to_copy] = '\0';
+
 	if (query_params != NULL) {
 		char *prev = query_params + 1;
 		char *cur  = NULL;

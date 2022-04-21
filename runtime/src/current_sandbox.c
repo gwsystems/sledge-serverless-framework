@@ -136,18 +136,6 @@ current_sandbox_init()
 
 	worker_thread_epoll_add_sandbox(sandbox);
 
-	/* TODO: Move to listener code */
-	rc = sandbox_receive_request(sandbox);
-	if (rc == -2) {
-		error_message = "Request size exceeded Buffer\n";
-		/* Request size exceeded Buffer, send 413 Payload Too Large */
-		http_session_send_err(sandbox->http, 413, current_sandbox_sleep);
-		goto err;
-	} else if (rc == -1) {
-		http_session_send_err(sandbox->http, 400, current_sandbox_sleep);
-		goto err;
-	}
-
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
 	module_initialize_memory(current_module);

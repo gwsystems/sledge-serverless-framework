@@ -168,7 +168,23 @@ listener_thread_main(void *dummy)
 				  http_session_alloc(module->max_request_size, module->max_response_size, client_socket,
 				                     (const struct sockaddr *)&client_address);
 
-				/* TODO: Read HTTP request */
+				/* Read HTTP request */
+				int rc = 0;
+				while ((rc = http_session_receive(session, NULL)) == -3) debuglog("Loop\n");
+
+				if (rc == -2) {
+					debuglog("Request size exceeded Buffer\n");
+					/* Request size exceeded Buffer, send 413 Payload Too Large */
+					http_session_send_err_oneshot(session, 413);
+					http_session_close(session);
+					continue;
+				} else if (rc == -1) {
+					http_session_send_err_oneshot(session, 400);
+					http_session_close(session);
+					continue;
+				}
+
+				http_request_print(&session->http_request);
 
 				/*
 				 * Perform admissions control.
@@ -179,8 +195,7 @@ listener_thread_main(void *dummy)
 				if (work_admitted == 0) {
 					client_socket_send_oneshot(client_socket, http_header_build(429),
 					                           http_header_len(429));
-					if (unlikely(close(client_socket) < 0))
-						debuglog("Error closing client socket - %s", strerror(errno));
+					http_session_close(session);
 
 					continue;
 				}

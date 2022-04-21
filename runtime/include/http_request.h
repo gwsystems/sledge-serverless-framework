@@ -18,6 +18,7 @@ struct http_query_param {
 };
 
 struct http_request {
+	char                    full_url[HTTP_MAX_FULL_URL_LENGTH];
 	struct http_header      headers[HTTP_MAX_HEADER_COUNT];
 	int                     header_count;
 	struct http_query_param query_params[HTTP_MAX_QUERY_PARAM_COUNT];

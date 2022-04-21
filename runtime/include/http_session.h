@@ -1,11 +1,19 @@
 #pragma once
 
-#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <assert.h>
+#include <errno.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include "client_socket.h"
+#include "debuglog.h"
 #include "http_request.h"
 #include "http_parser.h"
+#include "http_parser_settings.h"
 #include "vec.h"
 
 #define u8 uint8_t
@@ -142,4 +150,110 @@ static inline void
 http_session_close(struct http_session *session)
 {
 	return client_socket_close(session->socket, &session->client_address);
+}
+
+
+/**
+ * Receive and Parse the Request for the current sandbox
+ * @return 0 if message parsing complete, -1 on error, -2 if buffers run out of space
+ */
+static inline int
+http_session_receive(struct http_session *session, void_cb on_eagain)
+{
+	assert(session != NULL);
+
+	int rc = 0;
+
+	struct vec_u8 *request = &session->request;
+	assert(request->capacity > 0);
+	assert(request->length < request->capacity);
+
+	while (!session->http_request.message_end) {
+		/* Read from the Socket */
+
+		/* Structured to closely follow usage example at https://github.com/nodejs/http-parser */
+		http_parser                *parser   = &session->http_parser;
+		const http_parser_settings *settings = http_parser_settings_get();
+
+		size_t request_length   = request->length;
+		size_t request_capacity = request->capacity;
+
+		if (request_length >= request_capacity) {
+			debuglog("Ran out of Request Buffer before message end\n");
+			goto err_nobufs;
+		}
+
+		ssize_t bytes_received = recv(session->socket, &request->buffer[request_length],
+		                              request_capacity - request_length, 0);
+
+		if (bytes_received < 0) {
+			if (errno == EAGAIN) {
+				if (on_eagain == NULL) {
+					goto err_eagain;
+				} else {
+					on_eagain();
+					continue;
+				}
+			} else {
+				debuglog("Error reading socket %d - %s\n", session->socket, strerror(errno));
+				goto err;
+			}
+		}
+
+		/* If we received an EOF before we were able to parse a complete HTTP header, request is malformed */
+		if (bytes_received == 0 && !session->http_request.message_end) {
+			char client_address_text[INET6_ADDRSTRLEN] = {};
+			if (unlikely(inet_ntop(AF_INET, &session->client_address, client_address_text, INET6_ADDRSTRLEN)
+			             == NULL)) {
+				debuglog("Failed to log client_address: %s", strerror(errno));
+			}
+
+			debuglog("recv returned 0 before a complete request was received: socket: %d. Address: %s\n",
+			         session->socket, client_address_text);
+			http_request_print(&session->http_request);
+			goto err;
+		}
+
+		assert(bytes_received > 0);
+
+#ifdef LOG_HTTP_PARSER
+		debuglog("http_parser_execute(%p, %p, %p, %zu\n)", parser, settings,
+		         &session->request.buffer[session->request.length], bytes_received);
+#endif
+		size_t bytes_parsed = http_parser_execute(parser, settings,
+		                                          (const char *)&request->buffer[request_length],
+		                                          (size_t)bytes_received);
+
+		if (bytes_parsed != (size_t)bytes_received) {
+			debuglog("Error: %s, Description: %s\n",
+			         http_errno_name((enum http_errno)session->http_parser.http_errno),
+			         http_errno_description((enum http_errno)session->http_parser.http_errno));
+			debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, (size_t)bytes_received);
+			debuglog("Error parsing socket %d\n", session->socket);
+			goto err;
+		}
+
+		request->length += bytes_parsed;
+	}
+
+#ifdef LOG_HTTP_PARSER
+	for (int i = 0; i < session->http_request.query_params_count; i++) {
+		debuglog("Argument %d, Len: %d, %.*s\n", i, session->http_request.query_params[i].value_length,
+		         session->http_request.query_params[i].value_length,
+		         session->http_request.query_params[i].value);
+	}
+#endif
+
+	rc = 0;
+done:
+	return rc;
+err_eagain:
+	rc = -3;
+	goto done;
+err_nobufs:
+	rc = -2;
+	goto done;
+err:
+	rc = -1;
+	goto done;
 }
