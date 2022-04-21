@@ -6,7 +6,7 @@
  * @param admissions_info
  */
 void
-admissions_info_initialize(struct admissions_info *admissions_info, int percentile, uint64_t expected_execution,
+admissions_info_initialize(struct admissions_info *admissions_info, uint8_t percentile, uint64_t expected_execution,
                            uint64_t relative_deadline)
 {
 #ifdef ADMISSIONS_CONTROL
@@ -24,7 +24,7 @@ admissions_info_initialize(struct admissions_info *admissions_info, int percenti
 
 	admissions_info->control_index = PERF_WINDOW_BUFFER_SIZE * percentile / 100;
 #ifdef LOG_ADMISSIONS_CONTROL
-	debuglog("Percentile: %d\n", admissions_info->percentile);
+	debuglog("Percentile: %u\n", admissions_info->percentile);
 	debuglog("Control Index: %d\n", admissions_info->control_index);
 #endif
 #endif
