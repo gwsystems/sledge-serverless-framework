@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "client_socket.h"
+#include "tcp_session.h"
 #include "debuglog.h"
 #include "http_request.h"
 #include "http_parser.h"
@@ -106,15 +106,14 @@ http_session_free(struct http_session *session)
 static inline int
 http_session_send_err(struct http_session *session, int status_code, void_cb on_eagain)
 {
-	return client_socket_send(session->socket, http_header_build(status_code), http_header_len(status_code),
-	                          on_eagain);
+	return tcp_session_send(session->socket, http_header_build(status_code), http_header_len(status_code),
+	                        on_eagain);
 }
 
 static inline int
 http_session_send_err_oneshot(struct http_session *session, int status_code)
 {
-	return client_socket_send_oneshot(session->socket, http_header_build(status_code),
-	                                  http_header_len(status_code));
+	return tcp_session_send_oneshot(session->socket, http_header_build(status_code), http_header_len(status_code));
 }
 
 static inline int
@@ -132,7 +131,7 @@ http_session_send_response(struct http_session *session, const char *response_co
 	rc = http_header_200_write(session->socket, content_type, response->length);
 	if (rc < 0) goto err;
 
-	rc = client_socket_send(session->socket, (const char *)response->buffer, response->length, on_eagain);
+	rc = tcp_session_send(session->socket, (const char *)response->buffer, response->length, on_eagain);
 	if (rc < 0) goto err;
 
 	http_total_increment_2xx();
@@ -149,7 +148,7 @@ err:
 static inline void
 http_session_close(struct http_session *session)
 {
-	return client_socket_close(session->socket, &session->client_address);
+	return tcp_session_close(session->socket, &session->client_address);
 }
 
 

@@ -13,6 +13,7 @@
 #include "panic.h"
 #include "pool.h"
 #include "sledge_abi_symbols.h"
+#include "tcp_server.h"
 #include "types.h"
 #include "sledge_abi_symbols.h"
 #include "wasm_stack.h"
@@ -30,21 +31,6 @@ extern thread_local int worker_thread_idx;
 INIT_POOL(wasm_memory, wasm_memory_free)
 INIT_POOL(wasm_stack, wasm_stack_free)
 
-/*
- * Defines the listen backlog, the queue length for completely established socketeds waiting to be accepted
- * If this value is greater than the value in /proc/sys/net/core/somaxconn (typically 128), then it is silently
- * truncated to this value. See man listen(2) for info
- *
- * When configuring the number of sockets to handle, the queue length of incomplete sockets defined in
- * /proc/sys/net/ipv4/tcp_max_syn_backlog should also be considered. Optionally, enabling syncookies removes this
- * maximum logical length. See tcp(7) for more info.
- */
-#define MODULE_MAX_PENDING_CLIENT_REQUESTS 128
-#if MODULE_MAX_PENDING_CLIENT_REQUESTS > 128
-#warning \
-  "MODULE_MAX_PENDING_CLIENT_REQUESTS likely exceeds the value in /proc/sys/net/core/somaxconn and thus may be silently truncated";
-#endif
-
 /* TODO: Dynamically size based on number of threads */
 #define MAX_WORKER_THREADS 64
 
@@ -60,16 +46,17 @@ struct module {
 	char                   route[MODULE_MAX_ROUTE_LENGTH];
 	uint32_t               stack_size; /* a specification? */
 	uint32_t               relative_deadline_us;
-	uint16_t               port;
 	struct admissions_info admissions_info;
 	uint64_t               relative_deadline; /* cycles */
 
+	/* TCP State */
+	struct tcp_server tcp_server;
+
 	/* HTTP State */
-	size_t             max_request_size;
-	size_t             max_response_size;
-	char               response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
-	struct sockaddr_in socket_address;
-	int                socket_descriptor;
+	size_t max_request_size;
+	size_t max_response_size;
+	char   response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
+
 
 	/* Handle and ABI Symbols for *.so file */
 	struct sledge_abi_symbols abi;

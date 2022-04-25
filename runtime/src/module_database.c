@@ -60,7 +60,7 @@ module_database_find_by_socket_descriptor(int socket_descriptor)
 {
 	for (size_t i = 0; i < module_database_count; i++) {
 		assert(module_database[i]);
-		if (module_database[i]->socket_descriptor == socket_descriptor) return module_database[i];
+		if (module_database[i]->tcp_server.socket_descriptor == socket_descriptor) return module_database[i];
 	}
 	return NULL;
 }
@@ -75,7 +75,7 @@ module_database_find_by_port(uint16_t port)
 {
 	for (size_t i = 0; i < module_database_count; i++) {
 		assert(module_database[i]);
-		if (module_database[i]->port == port) return module_database[i];
+		if (module_database[i]->tcp_server.port == port) return module_database[i];
 	}
 	return NULL;
 }

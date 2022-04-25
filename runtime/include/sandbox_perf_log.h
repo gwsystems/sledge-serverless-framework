@@ -37,15 +37,15 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 	 * seperately from current linear memory size.
 	 */
 	fprintf(sandbox_perf_log, "%lu,%s,%d,%s,%lu,%lu,%lu,,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u\n",
-	        sandbox->id, sandbox->module->name, sandbox->module->port, sandbox_state_stringify(sandbox->state),
-	        sandbox->module->relative_deadline, sandbox->total_time, queued_duration,
-	        sandbox->duration_of_state[SANDBOX_UNINITIALIZED], sandbox->duration_of_state[SANDBOX_ALLOCATED],
-	        sandbox->duration_of_state[SANDBOX_INITIALIZED], sandbox->duration_of_state[SANDBOX_RUNNABLE],
-	        sandbox->duration_of_state[SANDBOX_INTERRUPTED], sandbox->duration_of_state[SANDBOX_PREEMPTED],
-	        sandbox->duration_of_state[SANDBOX_RUNNING_SYS], sandbox->duration_of_state[SANDBOX_RUNNING_USER],
-	        sandbox->duration_of_state[SANDBOX_ASLEEP], sandbox->duration_of_state[SANDBOX_RETURNED],
-	        sandbox->duration_of_state[SANDBOX_COMPLETE], sandbox->duration_of_state[SANDBOX_ERROR],
-	        runtime_processor_speed_MHz);
+	        sandbox->id, sandbox->module->name, sandbox->module->tcp_server.port,
+	        sandbox_state_stringify(sandbox->state), sandbox->module->relative_deadline, sandbox->total_time,
+	        queued_duration, sandbox->duration_of_state[SANDBOX_UNINITIALIZED],
+	        sandbox->duration_of_state[SANDBOX_ALLOCATED], sandbox->duration_of_state[SANDBOX_INITIALIZED],
+	        sandbox->duration_of_state[SANDBOX_RUNNABLE], sandbox->duration_of_state[SANDBOX_INTERRUPTED],
+	        sandbox->duration_of_state[SANDBOX_PREEMPTED], sandbox->duration_of_state[SANDBOX_RUNNING_SYS],
+	        sandbox->duration_of_state[SANDBOX_RUNNING_USER], sandbox->duration_of_state[SANDBOX_ASLEEP],
+	        sandbox->duration_of_state[SANDBOX_RETURNED], sandbox->duration_of_state[SANDBOX_COMPLETE],
+	        sandbox->duration_of_state[SANDBOX_ERROR], runtime_processor_speed_MHz);
 }
 
 static inline void

@@ -14,6 +14,7 @@
 #include "panic.h"
 #include "runtime.h"
 #include "scheduler.h"
+#include "tcp_server.h"
 #include "wasm_table.h"
 
 /*************************
@@ -92,9 +93,9 @@ module_init(struct module *module, struct module_config *config)
 	strncpy(module->route, config->route, MODULE_MAX_ROUTE_LENGTH);
 	strncpy(module->response_content_type, config->http_resp_content_type, HTTP_MAX_HEADER_VALUE_LENGTH);
 
-	module->stack_size        = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
-	module->socket_descriptor = -1;
-	module->port              = config->port;
+	module->stack_size = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
+
+	tcp_server_init(&module->tcp_server, config->port);
 
 	/* Deadlines */
 	module->relative_deadline_us = config->relative_deadline_us;
@@ -134,37 +135,8 @@ err:
 int
 module_listen(struct module *module)
 {
-	int rc;
-
-	/* Allocate a new TCP/IP socket, setting it to be non-blocking */
-	int socket_descriptor = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
-	if (unlikely(socket_descriptor < 0)) goto err_create_socket;
-
-	/* Socket should never have returned on fd 0, 1, or 2 */
-	assert(socket_descriptor != STDIN_FILENO);
-	assert(socket_descriptor != STDOUT_FILENO);
-	assert(socket_descriptor != STDERR_FILENO);
-
-	/* Configure the socket to allow multiple sockets to bind to the same host and port */
-	int optval = 1;
-	rc         = setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
-	if (unlikely(rc < 0)) goto err_set_socket_option;
-	optval = 1;
-	rc     = setsockopt(socket_descriptor, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-	if (unlikely(rc < 0)) goto err_set_socket_option;
-
-	/* Bind name [all addresses]:[module->port] to socket */
-	module->socket_descriptor              = socket_descriptor;
-	module->socket_address.sin_family      = AF_INET;
-	module->socket_address.sin_addr.s_addr = htonl(INADDR_ANY);
-	module->socket_address.sin_port        = htons((unsigned short)module->port);
-	rc = bind(socket_descriptor, (struct sockaddr *)&module->socket_address, sizeof(module->socket_address));
-	if (unlikely(rc < 0)) goto err_bind_socket;
-
-	/* Listen to the interface */
-	rc = listen(socket_descriptor, MODULE_MAX_PENDING_CLIENT_REQUESTS);
-	if (unlikely(rc < 0)) goto err_listen;
-
+	int rc = tcp_server_listen(&module->tcp_server);
+	if (rc < 0) goto err;
 
 	/* Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP
 	requests */
@@ -175,14 +147,8 @@ module_listen(struct module *module)
 done:
 	return rc;
 err_add_to_epoll:
-err_listen:
-err_bind_socket:
-	module->socket_descriptor = -1;
-err_set_socket_option:
-	close(socket_descriptor);
-err_create_socket:
+	tcp_server_close(&module->tcp_server);
 err:
-	debuglog("Socket Error: %s", strerror(errno));
 	rc = -1;
 	goto done;
 }
@@ -204,7 +170,7 @@ module_free(struct module *module)
 	/* Do not free if we still have oustanding references */
 	if (module->reference_count) return;
 
-	close(module->socket_descriptor);
+	tcp_server_close(&module->tcp_server);
 	sledge_abi_symbols_deinit(&module->abi);
 	free(module);
 }

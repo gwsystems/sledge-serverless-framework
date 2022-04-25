@@ -2,12 +2,13 @@
 #include <unistd.h>
 
 #include "arch/getcycles.h"
-#include "client_socket.h"
 #include "global_request_scheduler.h"
 #include "generic_thread.h"
 #include "listener_thread.h"
+#include "module.h"
 #include "runtime.h"
 #include "sandbox_functions.h"
+#include "tcp_session.h"
 
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
@@ -58,7 +59,8 @@ listener_thread_register_module(struct module *mod)
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)mod;
 	accept_evt.events   = EPOLLIN;
-	rc = epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_ADD, mod->socket_descriptor, &accept_evt);
+	rc = epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_ADD, mod->tcp_server.socket_descriptor,
+	               &accept_evt);
 
 	return rc;
 }
@@ -137,7 +139,7 @@ listener_thread_main(void *dummy)
 			 * reason
 			 */
 			while (true) {
-				int client_socket = accept4(module->socket_descriptor,
+				int client_socket = accept4(module->tcp_server.socket_descriptor,
 				                            (struct sockaddr *)&client_address, &address_length,
 				                            SOCK_NONBLOCK);
 				if (unlikely(client_socket < 0)) {
@@ -200,8 +202,8 @@ listener_thread_main(void *dummy)
 				 */
 				uint64_t work_admitted = admissions_control_decide(module->admissions_info.estimate);
 				if (work_admitted == 0) {
-					client_socket_send_oneshot(client_socket, http_header_build(429),
-					                           http_header_len(429));
+					tcp_session_send_oneshot(client_socket, http_header_build(429),
+					                         http_header_len(429));
 					http_session_close(session);
 
 					continue;
