@@ -28,11 +28,11 @@ run_functional_tests() {
 	# Functional Testing on each image
 	for image in "${cifar10_images[@]}"; do
 		echo "${image}" >> "${results_directory}/cifar10_rand.txt"
-		curl --data-binary "@${image}" -s "${hostname}:10000" >> "${results_directory}/cifar10_rand.txt"
+		curl --data-binary "@${image}" -s "${hostname}:10000/rand" >> "${results_directory}/cifar10_rand.txt"
 	done
 
 	echo "$same_image" >> "${results_directory}/cifar10_same.txt"
-	curl --data-binary "@$same_image" -s "${hostname}:10001" >> "${results_directory}/cifar10_same.txt"
+	curl --data-binary "@$same_image" -s "${hostname}:10000/same" >> "${results_directory}/cifar10_same.txt"
 
 	printf "[OK]\n"
 }
@@ -63,7 +63,7 @@ run_perf_tests() {
 			else
 				image=$same_image
 			fi
-			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "${image}" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "${image}" "http://${hostname}:10000${route[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 		done
 		pids=$(pgrep hey | tr '\n' ' ')
 		[[ -n $pids ]] && wait -f $pids
@@ -127,9 +127,9 @@ experiment_client() {
 validate_dependencies curl
 
 declare -ar workloads=(cifar10_rand cifar10_same)
-declare -Ar port=(
-	[cifar10_rand]=10000
-	[cifar10_same]=10001
+declare -Ar route=(
+	[cifar10_rand]=/rand
+	[cifar10_same]=/same
 )
 
 # Sort the images by the number of labeled plates
