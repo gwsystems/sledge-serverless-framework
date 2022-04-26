@@ -57,7 +57,6 @@ err:
  ***************************************/
 
 
-
 /**
  * Module Mega Teardown Function
  * Closes the socket and dynamic library, and then frees the module

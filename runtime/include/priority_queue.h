@@ -27,7 +27,7 @@ struct priority_queue {
 	uint64_t                         highest_priority;
 	size_t                           size;
 	size_t                           capacity;
-	void                            *items[];
+	void	                    *items[];
 };
 
 /**
