@@ -37,7 +37,7 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 	 * seperately from current linear memory size.
 	 */
 	fprintf(sandbox_perf_log, "%lu,%s,%s,%s,%lu,%lu,%lu,,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u\n",
-	        sandbox->id, sandbox->tenant->name, sandbox->module->path, sandbox_state_stringify(sandbox->state),
+	        sandbox->id, sandbox->tenant->name, sandbox->route->route, sandbox_state_stringify(sandbox->state),
 	        sandbox->route->relative_deadline, sandbox->total_time, queued_duration,
 	        sandbox->duration_of_state[SANDBOX_UNINITIALIZED], sandbox->duration_of_state[SANDBOX_ALLOCATED],
 	        sandbox->duration_of_state[SANDBOX_INITIALIZED], sandbox->duration_of_state[SANDBOX_RUNNABLE],
