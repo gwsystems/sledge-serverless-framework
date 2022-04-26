@@ -34,10 +34,10 @@ experiment_client() {
 	# Perform Experiments
 	printf "Running Experiments\n"
 	local -ra fonts=("DejaVu Sans Mono" "Roboto" "Cascadia Code")
-	local -Ar font_to_port=(
-		["DejaVu Sans Mono"]=10000
-		["Roboto"]=10001
-		["Cascadia Code"]=10002
+	local -Ar font_to_path=(
+		["DejaVu Sans Mono"]=/gocr_mono
+		["Roboto"]=/gocr_roboto
+		["Cascadia Code"]=/gocr_cascadia
 	)
 	local words
 	for ((i = 1; i <= iteration_count; i++)); do
@@ -49,7 +49,7 @@ experiment_client() {
 			pango-view --font="$font" -qo "${font_file}_words.png" -t "$words" || exit 1
 			pngtopnm "${font_file}_words.png" > "${font_file}_words.pnm"
 
-			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"${font_file}_words.pnm" "$hostname:${font_to_port[$font]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${font_file}_time.txt")
+			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"${font_file}_words.pnm" "$hostname:10000${font_to_path[$font]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${font_file}_time.txt")
 
 			rm "${font_file}"_words.png "${font_file}"_words.pnm
 
