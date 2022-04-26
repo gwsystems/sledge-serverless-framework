@@ -24,7 +24,7 @@ struct http_request {
 	struct http_query_param query_params[HTTP_MAX_QUERY_PARAM_COUNT];
 	int                     query_params_count;
 	int                     header_length;
-	char	           *body;
+	char                   *body;
 	int                     body_length;
 	int                     body_length_read; /* Amount read into buffer from socket */
 

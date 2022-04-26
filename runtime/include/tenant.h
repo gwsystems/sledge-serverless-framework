@@ -7,7 +7,7 @@
 #define TENANT_DATABASE_CAPACITY 128
 
 struct tenant {
-	char	          *name;
+	char                  *name;
 	struct tcp_server      tcp_server;
 	struct http_router     router;
 	struct module_database module_db;

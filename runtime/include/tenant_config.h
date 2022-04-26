@@ -7,7 +7,7 @@
 #include "route_config.h"
 
 struct tenant_config {
-	char	        *name;
+	char                *name;
 	uint16_t             port;
 	struct route_config *routes;
 	size_t               routes_len;
