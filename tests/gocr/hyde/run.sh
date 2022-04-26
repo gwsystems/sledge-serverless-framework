@@ -21,7 +21,7 @@ experiment_client() {
 	local -ir total_count=10
 
 	for ((i = 0; i < total_count; i++)); do
-		result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@hyde.pnm" "$hostname:10000" 2> /dev/null)
+		result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@hyde.pnm" "$hostname:10000/gocr" 2> /dev/null)
 		if [[ "$result" == "$expected_result" ]]; then
 			((success_count++))
 		else
