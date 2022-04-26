@@ -66,9 +66,8 @@ http_session_init_response_buffer(struct http_session *session, size_t capacity)
 {
 	assert(session != NULL);
 	assert(session->response.buffer == NULL);
-	assert(capacity > 0);
 
-	int rc = vec_u8_init(&session->response, HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE);
+	int rc = vec_u8_init(&session->response, capacity);
 	if (rc < 0) {
 		vec_u8_deinit(&session->request);
 		return -1;
