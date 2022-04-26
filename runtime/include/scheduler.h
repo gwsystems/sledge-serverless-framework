@@ -20,6 +20,7 @@
 #include "sandbox_set_as_interrupted.h"
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_execute_epoll_loop.h"
+#include "scheduler_options.h"
 
 
 /**
@@ -60,13 +61,6 @@
  * initialize a sandbox.
  */
 
-enum SCHEDULER
-{
-	SCHEDULER_FIFO = 0,
-	SCHEDULER_EDF  = 1
-};
-
-extern enum SCHEDULER scheduler;
 
 static inline struct sandbox *
 scheduler_edf_get_next()

@@ -35,16 +35,16 @@ debug: sledgert fibonacci
 		--eval-command="run spec.json"
 
 client-fib10-once:
-	echo "10" | http :10010
+	http :10020/fib?10
 
 client-fib40-once:
-	echo "40" | http :10040
+	http :10010/fib2?40
 
 client-preempt:
-	(echo "40" | http :10040 &); echo "10" | http :10010
+	(http :10010/fib2?40 &); http :10010/fib?10
 
 client-fib10-multi:
-	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${HOSTNAME}:10010"
+	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${HOSTNAME}:10020/fib"
 
 client-fib40-multi:
-	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "40\n" "http://${HOSTNAME}:10040"
+	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "40\n" "http://${HOSTNAME}:10010/fib2"

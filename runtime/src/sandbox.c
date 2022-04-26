@@ -132,8 +132,8 @@ err_http_allocation_failed:
 }
 
 void
-sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session *session,
-             uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
+sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session *session, struct route *route,
+             struct tenant *tenant, uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
 {
 	/* Sets the ID to the value before the increment */
 	sandbox->id     = sandbox_total_postfix_increment();
@@ -145,10 +145,12 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 
 	/* Allocate HTTP session structure */
 	assert(session);
-	sandbox->http = session;
+	sandbox->http   = session;
+	sandbox->tenant = tenant;
+	sandbox->route  = route;
 
 	sandbox->timestamp_of.request_arrival = request_arrival_timestamp;
-	sandbox->absolute_deadline            = request_arrival_timestamp + module->relative_deadline;
+	sandbox->absolute_deadline            = request_arrival_timestamp + sandbox->route->relative_deadline;
 
 	/*
 	 * Admissions Control State
@@ -171,8 +173,8 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
  * @return the new sandbox request
  */
 struct sandbox *
-sandbox_alloc(struct module *module, struct http_session *session, uint64_t request_arrival_timestamp,
-              uint64_t admissions_estimate)
+sandbox_alloc(struct module *module, struct http_session *session, struct route *route, struct tenant *tenant,
+              uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
 {
 	struct sandbox *sandbox                   = NULL;
 	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
@@ -181,7 +183,7 @@ sandbox_alloc(struct module *module, struct http_session *session, uint64_t requ
 	if (unlikely(sandbox == NULL)) return NULL;
 
 	sandbox_set_as_allocated(sandbox);
-	sandbox_init(sandbox, module, session, request_arrival_timestamp, admissions_estimate);
+	sandbox_init(sandbox, module, session, route, tenant, request_arrival_timestamp, admissions_estimate);
 
 
 	return sandbox;

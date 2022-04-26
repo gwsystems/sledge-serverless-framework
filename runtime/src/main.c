@@ -15,17 +15,16 @@
 #include <sys/fcntl.h>
 #endif
 
-#include "json.h"
+#include "json_parse.h"
 #include "pretty_print.h"
 #include "debuglog.h"
 #include "listener_thread.h"
-#include "module.h"
-#include "module_database.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox_types.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
+#include "tenant_functions.h"
 #include "worker_thread.h"
 
 /* Conditionally used by debuglog when NDEBUG is not set */
@@ -49,7 +48,7 @@ uint32_t runtime_quantum_us         = 5000; /* 5ms */
 static void
 runtime_usage(char *cmd)
 {
-	printf("%s <modules_file>\n", cmd);
+	printf("%s <spec.json>\n", cmd);
 }
 
 /**
@@ -288,12 +287,6 @@ log_compiletime_config()
 	pretty_print_key_disabled("Log Lock Overhead");
 #endif
 
-#ifdef LOG_MODULE_LOADING
-	pretty_print_key_enabled("Log Module Loading");
-#else
-	pretty_print_key_disabled("Log Module Loading");
-#endif
-
 #ifdef LOG_PREEMPTION
 	pretty_print_key_enabled("Log Preemption");
 #else
@@ -372,8 +365,8 @@ load_file_into_buffer(const char *file_name, char **file_buffer)
 	}
 
 	/* Open the file */
-	FILE *module_file = fopen(file_name, "r");
-	if (!module_file) {
+	FILE *file = fopen(file_name, "r");
+	if (!file) {
 		fprintf(stderr, "Attempt to open %s failed: %s\n", file_name, strerror(errno));
 		goto err;
 	}
@@ -386,21 +379,18 @@ load_file_into_buffer(const char *file_name, char **file_buffer)
 	}
 
 	/* Read the file into the buffer and check that the buffer size equals the file size */
-	size_t total_chars_read = fread(*file_buffer, sizeof(char), stat_buffer.st_size, module_file);
-#ifdef LOG_MODULE_LOADING
-	debuglog("size read: %d content: %s\n", total_chars_read, *file_buffer);
-#endif
+	size_t total_chars_read = fread(*file_buffer, sizeof(char), stat_buffer.st_size, file);
 	if (total_chars_read != stat_buffer.st_size) {
 		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
 		goto fread_err;
 	}
 
 	/* Close the file */
-	if (fclose(module_file) == EOF) {
+	if (fclose(file) == EOF) {
 		fprintf(stderr, "Attempt to close buffer containing %s failed: %s\n", file_name, strerror(errno));
 		goto fclose_err;
 	};
-	module_file = NULL;
+	file = NULL;
 
 	return total_chars_read;
 
@@ -410,8 +400,8 @@ fread_err:
 	free(*file_buffer);
 stat_buffer_alloc_err:
 	// Check to ensure we haven't already close this
-	if (module_file != NULL) {
-		if (fclose(module_file) == EOF) panic("Failed to close file\n");
+	if (file != NULL) {
+		if (fclose(file) == EOF) panic("Failed to close file\n");
 	}
 err:
 	return 0;
@@ -450,47 +440,43 @@ main(int argc, char **argv)
 	runtime_start_runtime_worker_threads();
 	software_interrupt_arm_timer();
 
-#ifdef LOG_MODULE_LOADING
-	debuglog("Parsing modules file [%s]\n", argv[1]);
-#endif
 	const char *json_path    = argv[1];
 	char       *json_buf     = NULL;
 	size_t      json_buf_len = load_file_into_buffer(json_path, &json_buf);
-	if (unlikely(json_buf_len == 0)) panic("failed to initialize module(s) defined in %s\n", json_path);
+	if (unlikely(json_buf_len == 0)) panic("failed to load data from %s\n", json_path);
 
-	struct module_config *module_config_vec;
+	struct tenant_config *tenant_config_vec;
 
-	int module_config_vec_len = parse_json(json_buf, json_buf_len, &module_config_vec);
-	if (module_config_vec_len < 0) { exit(-1); }
+	int tenant_config_vec_len = parse_json(json_buf, json_buf_len, &tenant_config_vec);
+	if (tenant_config_vec_len < 0) { exit(-1); }
 	free(json_buf);
 
-	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
-		/* Automatically calls listen */
-		struct module *module = module_alloc(&module_config_vec[module_idx]);
-		if (unlikely(module == NULL)) panic("failed to initialize module(s) defined in %s\n", json_path);
+	// for (int i = 0; i < tenant_config_vec_len; i++) { tenant_config_print(&tenant_config_vec[i]); }
 
-		int rc = module_database_add(module);
+	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
+		struct tenant *tenant = tenant_alloc(&tenant_config_vec[tenant_idx]);
+		int            rc     = tenant_database_add(tenant);
 		if (rc < 0) {
-			panic("Module database full!\n");
+			panic("Tenant database full!\n");
 			exit(-1);
 		}
 
 		/* Start listening for requests */
-		rc = module_listen(module);
+		rc = tenant_listen(tenant);
 		if (rc < 0) exit(-1);
-	}
 
-	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
-		module_config_deinit(&module_config_vec[module_idx]);
-	}
-	free(module_config_vec);
+		for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
+			tenant_config_deinit(&tenant_config_vec[tenant_idx]);
+		}
+		free(tenant_config_vec);
 
-	for (int i = 0; i < runtime_worker_threads_count; i++) {
-		int ret = pthread_join(runtime_worker_threads[i], NULL);
-		if (ret) {
-			errno = ret;
-			perror("pthread_join");
-			exit(-1);
+		for (int i = 0; i < runtime_worker_threads_count; i++) {
+			int ret = pthread_join(runtime_worker_threads[i], NULL);
+			if (ret) {
+				errno = ret;
+				perror("pthread_join");
+				exit(-1);
+			}
 		}
 	}
 

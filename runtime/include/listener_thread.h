@@ -12,7 +12,6 @@ extern pthread_t listener_thread_id;
 
 void           listener_thread_initialize(void);
 noreturn void *listener_thread_main(void *dummy);
-int            listener_thread_register_module(struct module *mod);
 
 /**
  * Used to determine if running in the context of a listener thread

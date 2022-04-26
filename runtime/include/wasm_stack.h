@@ -5,7 +5,6 @@
 #include <sys/mman.h>
 #include <string.h>
 
-#include "sandbox_types.h"
 #include "types.h"
 
 /**

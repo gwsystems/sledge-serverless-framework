@@ -7,8 +7,11 @@
  * Module Database *
  ******************/
 
-struct module *module_database[MODULE_DATABASE_CAPACITY] = { NULL };
-size_t         module_database_count                     = 0;
+void
+module_database_init(struct module_database *db)
+{
+	db->count = 0;
+}
 
 /**
  * Adds a module to the in-memory module DB
@@ -16,14 +19,14 @@ size_t         module_database_count                     = 0;
  * @return 0 on success. -ENOSPC when full
  */
 int
-module_database_add(struct module *module)
+module_database_add(struct module_database *db, struct module *module)
 {
-	assert(module_database_count <= MODULE_DATABASE_CAPACITY);
+	assert(db->count <= MODULE_DATABASE_CAPACITY);
 
 	int rc;
 
-	if (module_database_count == MODULE_DATABASE_CAPACITY) goto err_no_space;
-	module_database[module_database_count++] = module;
+	if (db->count == MODULE_DATABASE_CAPACITY) goto err_no_space;
+	db->modules[db->count++] = module;
 
 	rc = 0;
 done:
@@ -36,46 +39,23 @@ err_no_space:
 
 
 /**
- * Given a name, find the associated module
+ * Given a path, find the associated module
  * @param name
  * @return module or NULL if no match found
  */
 struct module *
-module_database_find_by_name(char *name)
+module_database_find_by_path(struct module_database *db, char *path)
 {
-	for (size_t i = 0; i < module_database_count; i++) {
-		assert(module_database[i]);
-		if (strcmp(module_database[i]->name, name) == 0) return module_database[i];
+	for (size_t i = 0; i < db->count; i++) {
+		assert(db->modules[i]);
+		if (strcmp(db->modules[i]->path, path) == 0) return db->modules[i];
 	}
-	return NULL;
-}
 
-/**
- * Given a socket_descriptor, find the associated module
- * @param socket_descriptor
- * @return module or NULL if no match found
- */
-struct module *
-module_database_find_by_socket_descriptor(int socket_descriptor)
-{
-	for (size_t i = 0; i < module_database_count; i++) {
-		assert(module_database[i]);
-		if (module_database[i]->tcp_server.socket_descriptor == socket_descriptor) return module_database[i];
+	struct module *module = module_alloc(path);
+	if (module != NULL) {
+		module_database_add(db, module);
+		return module;
 	}
-	return NULL;
-}
 
-/**
- * Given a port, find the associated module
- * @param port
- * @return module or NULL if no match found
- */
-struct module *
-module_database_find_by_port(uint16_t port)
-{
-	for (size_t i = 0; i < module_database_count; i++) {
-		assert(module_database[i]);
-		if (module_database[i]->tcp_server.port == port) return module_database[i];
-	}
 	return NULL;
 }

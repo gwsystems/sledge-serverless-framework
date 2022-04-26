@@ -45,21 +45,21 @@ listener_thread_initialize(void)
 }
 
 /**
- * @brief Registers a serverless module on the listener thread's epoll descriptor
+ * @brief Registers a serverless tenant on the listener thread's epoll descriptor
  **/
 int
-listener_thread_register_module(struct module *mod)
+listener_thread_register_tenant(struct tenant *tenant)
 {
-	assert(mod != NULL);
+	assert(tenant != NULL);
 	if (unlikely(listener_thread_epoll_file_descriptor == 0)) {
-		panic("Attempting to register a module before listener thread initialization");
+		panic("Attempting to register a tenant before listener thread initialization");
 	}
 
 	int                rc = 0;
 	struct epoll_event accept_evt;
-	accept_evt.data.ptr = (void *)mod;
+	accept_evt.data.ptr = (void *)tenant;
 	accept_evt.events   = EPOLLIN;
-	rc = epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_ADD, mod->tcp_server.socket_descriptor,
+	rc = epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_ADD, tenant->tcp_server.socket_descriptor,
 	               &accept_evt);
 
 	return rc;
@@ -119,9 +119,9 @@ listener_thread_main(void *dummy)
 			 */
 			assert((epoll_events[i].events & EPOLLIN) == EPOLLIN);
 
-			/* Unpack module from epoll event */
-			struct module *module = (struct module *)epoll_events[i].data.ptr;
-			assert(module);
+			/* Unpack tenant from epoll event */
+			struct tenant *tenant = (struct tenant *)epoll_events[i].data.ptr;
+			assert(tenant);
 
 			/*
 			 * I don't think we're responsible to cleanup epoll events, but clearing to trigger
@@ -139,7 +139,7 @@ listener_thread_main(void *dummy)
 			 * reason
 			 */
 			while (true) {
-				int client_socket = accept4(module->tcp_server.socket_descriptor,
+				int client_socket = accept4(tenant->tcp_server.socket_descriptor,
 				                            (struct sockaddr *)&client_address, &address_length,
 				                            SOCK_NONBLOCK);
 				if (unlikely(client_socket < 0)) {
@@ -160,15 +160,14 @@ listener_thread_main(void *dummy)
 				 */
 				if (address_length > sizeof(client_address)) {
 					debuglog("Client address %s truncated because buffer was too small\n",
-					         module->name);
+					         tenant->name);
 				}
 
 				http_total_increment_request();
 
 				/* Allocate HTTP Session */
 				struct http_session *session =
-				  http_session_alloc(module->max_request_size, module->max_response_size, client_socket,
-				                     (const struct sockaddr *)&client_address);
+				  http_session_alloc(client_socket, (const struct sockaddr *)&client_address);
 
 				/* Read HTTP request */
 				int rc = 0;
@@ -186,8 +185,9 @@ listener_thread_main(void *dummy)
 					continue;
 				}
 
-				if (strncmp(session->http_request.full_url, module->route, strlen(module->route))
-				    != 0) {
+				struct route *route = http_router_match_route(&tenant->router,
+				                                              session->http_request.full_url);
+				if (route == NULL) {
 					http_session_send_err_oneshot(session, 404);
 					http_session_close(session);
 					continue;
@@ -197,10 +197,11 @@ listener_thread_main(void *dummy)
 
 				/*
 				 * Perform admissions control.
-				 * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+				 * If 0, workload was rejected, so close with 429 "Too Many Requests"
+	and continue
 				 * TODO: Consider providing a Retry-After header
 				 */
-				uint64_t work_admitted = admissions_control_decide(module->admissions_info.estimate);
+				uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
 				if (work_admitted == 0) {
 					tcp_session_send_oneshot(client_socket, http_header_build(429),
 					                         http_header_len(429));
@@ -210,14 +211,15 @@ listener_thread_main(void *dummy)
 				}
 
 				/* Allocate a Sandbox */
-				struct sandbox *sandbox = sandbox_alloc(module, session, request_arrival_timestamp,
-				                                        work_admitted);
+				struct sandbox *sandbox = sandbox_alloc(route->module, session, route, tenant,
+				                                        request_arrival_timestamp, work_admitted);
 				if (unlikely(sandbox == NULL)) {
 					http_session_send_err_oneshot(sandbox->http, 503);
 					http_session_close(sandbox->http);
 				}
 
-				/* If the global request scheduler is full, return a 429 to the client */
+				/* If the global request scheduler is full, return a 429 to the client
+				 */
 				sandbox = global_request_scheduler_add(sandbox);
 				if (unlikely(sandbox == NULL)) {
 					http_session_send_err_oneshot(sandbox->http, 429);

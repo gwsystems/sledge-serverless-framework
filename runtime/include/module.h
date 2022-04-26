@@ -8,8 +8,6 @@
 #include "admissions_control.h"
 #include "admissions_info.h"
 #include "current_wasm_module_instance.h"
-#include "http.h"
-#include "module_config.h"
 #include "panic.h"
 #include "pool.h"
 #include "sledge_abi_symbols.h"
@@ -20,11 +18,10 @@
 #include "wasm_memory.h"
 #include "wasm_table.h"
 
-#define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
-
-#define MODULE_MAX_NAME_LENGTH  32
 #define MODULE_MAX_PATH_LENGTH  256
 #define MODULE_MAX_ROUTE_LENGTH 256
+
+#define MODULE_DATABASE_CAPACITY 128
 
 extern thread_local int worker_thread_idx;
 
@@ -40,23 +37,8 @@ struct module_pools {
 } __attribute__((aligned(CACHE_PAD)));
 
 struct module {
-	/* Metadata from JSON Config */
-	char                   name[MODULE_MAX_NAME_LENGTH];
-	char                   path[MODULE_MAX_PATH_LENGTH];
-	char                   route[MODULE_MAX_ROUTE_LENGTH];
-	uint32_t               stack_size; /* a specification? */
-	uint32_t               relative_deadline_us;
-	struct admissions_info admissions_info;
-	uint64_t               relative_deadline; /* cycles */
-
-	/* TCP State */
-	struct tcp_server tcp_server;
-
-	/* HTTP State */
-	size_t max_request_size;
-	size_t max_response_size;
-	char   response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
-
+	char    *path;
+	uint32_t stack_size; /* a specification? */
 
 	/* Handle and ABI Symbols for *.so file */
 	struct sledge_abi_symbols abi;
@@ -66,6 +48,13 @@ struct module {
 
 	struct module_pools pools[MAX_WORKER_THREADS];
 };
+
+/********************************
+ * Public Methods from module.c *
+ *******************************/
+
+void           module_free(struct module *module);
+struct module *module_alloc(char *path);
 
 /*************************
  * Public Static Inlines *
@@ -227,10 +216,12 @@ module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 	wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
 }
 
-/********************************
- * Public Methods from module.c *
- *******************************/
 
-void           module_free(struct module *module);
-struct module *module_alloc(struct module_config *config);
-int            module_listen(struct module *module);
+struct module_database {
+	struct module *modules[MODULE_DATABASE_CAPACITY];
+	size_t         count;
+};
+
+int            module_database_add(struct module_database *db, struct module *module);
+struct module *module_database_find_by_path(struct module_database *db, char *path);
+void           module_database_init(struct module_database *db);

@@ -16,6 +16,8 @@
 #include "http_parser_settings.h"
 #include "vec.h"
 
+#define HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
+
 #define u8 uint8_t
 VEC(u8)
 
@@ -34,8 +36,7 @@ struct http_session {
  * @returns 0 on success, -1 on error
  */
 static inline int
-http_session_init(struct http_session *session, size_t max_request_size, size_t max_response_size,
-                  int socket_descriptor, const struct sockaddr *socket_address)
+http_session_init(struct http_session *session, int socket_descriptor, const struct sockaddr *socket_address)
 {
 	assert(session != NULL);
 	assert(socket_address != NULL);
@@ -49,10 +50,10 @@ http_session_init(struct http_session *session, size_t max_request_size, size_t 
 	session->http_parser.data = &session->http_request;
 
 	int rc;
-	rc = vec_u8_init(&session->request, max_request_size);
+	rc = vec_u8_init(&session->request, HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE);
 	if (rc < 0) return -1;
 
-	rc = vec_u8_init(&session->response, max_response_size);
+	rc = vec_u8_init(&session->response, HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE);
 	if (rc < 0) {
 		vec_u8_deinit(&session->request);
 		return -1;
@@ -62,13 +63,12 @@ http_session_init(struct http_session *session, size_t max_request_size, size_t 
 }
 
 static inline struct http_session *
-http_session_alloc(size_t max_request_size, size_t max_response_size, int socket_descriptor,
-                   const struct sockaddr *socket_address)
+http_session_alloc(int socket_descriptor, const struct sockaddr *socket_address)
 {
 	struct http_session *session = calloc(sizeof(struct http_session), 1);
 	if (session == NULL) return NULL;
 
-	int rc = http_session_init(session, max_request_size, max_response_size, socket_descriptor, socket_address);
+	int rc = http_session_init(session, socket_descriptor, socket_address);
 	if (rc != 0) {
 		free(session);
 		return NULL;
@@ -174,16 +174,15 @@ http_session_receive(struct http_session *session, void_cb on_eagain)
 		http_parser                *parser   = &session->http_parser;
 		const http_parser_settings *settings = http_parser_settings_get();
 
-		size_t request_length   = request->length;
-		size_t request_capacity = request->capacity;
-
-		if (request_length >= request_capacity) {
-			debuglog("Ran out of Request Buffer before message end\n");
-			goto err_nobufs;
+		if (request->length == request->capacity) {
+			if (vec_u8_grow(request) != 0) {
+				debuglog("Ran out of Request Buffer before message end\n");
+				goto err_nobufs;
+			}
 		}
 
-		ssize_t bytes_received = recv(session->socket, &request->buffer[request_length],
-		                              request_capacity - request_length, 0);
+		ssize_t bytes_received = recv(session->socket, &request->buffer[request->length],
+		                              request->capacity - request->length, 0);
 
 		if (bytes_received < 0) {
 			if (errno == EAGAIN) {
@@ -220,7 +219,7 @@ http_session_receive(struct http_session *session, void_cb on_eagain)
 		         &session->request.buffer[session->request.length], bytes_received);
 #endif
 		size_t bytes_parsed = http_parser_execute(parser, settings,
-		                                          (const char *)&request->buffer[request_length],
+		                                          (const char *)&request->buffer[request->length],
 		                                          (size_t)bytes_received);
 
 		if (bytes_parsed != (size_t)bytes_received) {

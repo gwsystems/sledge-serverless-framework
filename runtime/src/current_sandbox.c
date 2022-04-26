@@ -146,7 +146,7 @@ current_sandbox_init()
 
 	/* Initialize Arguments. First arg is the module name. Subsequent args are query parameters */
 	char *args[HTTP_MAX_QUERY_PARAM_COUNT + 1];
-	args[0] = sandbox->module->name;
+	args[0] = sandbox->module->path;
 	for (int i = 0; i < sandbox->http->http_request.query_params_count; i++)
 		args[i + 1] = (char *)sandbox->http->http_request.query_params[i].value;
 
@@ -185,7 +185,7 @@ current_sandbox_fini()
 	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.request_arrival;
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
-	if (http_session_send_response(sandbox->http, sandbox->module->response_content_type, current_sandbox_sleep)
+	if (http_session_send_response(sandbox->http, sandbox->route->response_content_type, current_sandbox_sleep)
 	    < 0) {
 		error_message = "Unable to build and send client response\n";
 		goto err;

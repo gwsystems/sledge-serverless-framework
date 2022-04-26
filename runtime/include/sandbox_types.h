@@ -1,9 +1,6 @@
 #pragma once
 
-#include <stdbool.h>
 #include <stdint.h>
-#include <ucontext.h>
-#include <unistd.h>
 
 #include "arch/context.h"
 #include "http_session.h"
@@ -11,6 +8,7 @@
 #include "ps_list.h"
 #include "sandbox_state.h"
 #include "sandbox_state_history.h"
+#include "tenant.h"
 #include "wasm_memory.h"
 #include "wasm_types.h"
 #include "wasm_stack.h"
@@ -39,6 +37,10 @@ struct sandbox {
 	struct sandbox_state_history state_history;
 
 	struct ps_list list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
+
+	/* Accounting Info */
+	struct route  *route;
+	struct tenant *tenant;
 
 	/* HTTP State */
 	struct http_session *http;

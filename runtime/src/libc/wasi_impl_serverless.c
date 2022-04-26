@@ -790,7 +790,7 @@ wasi_snapshot_preview1_backing_fd_write(wasi_context_t *context, __wasi_fd_t fd,
 		__wasi_size_t   sum              = 0;
 
 		for (size_t i = 0; i < iovs_len; i++) {
-			buffer_remaining = s->module->max_response_size - s->http->response.length;
+			buffer_remaining = s->http->response.capacity - s->http->response.length;
 			if (buffer_remaining == 0) {
 				*nwritten_retptr = s->http->response.length - old_response_len;
 				return __WASI_ERRNO_FBIG;
