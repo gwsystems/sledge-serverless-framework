@@ -112,7 +112,14 @@
 		"sledge_abi.h": "c",
 		"vec.h": "c",
 		"module_database.h": "c",
-		"perf_window_t.h": "c"
+		"perf_window_t.h": "c",
+		"typeinfo": "c",
+		"module_config.h": "c",
+		"tenant.h": "c",
+		"route_config.h": "c",
+		"http_router.h": "c",
+		"admissions_info.h": "c",
+		"tcp_server.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,
@@ -173,5 +180,6 @@
 		"mctx",
 		"TKILL",
 		"WASI"
-	]
+	],
+	"C_Cpp.errorSquiggles": "Enabled"
 }

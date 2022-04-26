@@ -193,8 +193,6 @@ listener_thread_main(void *dummy)
 					continue;
 				}
 
-				http_request_print(&session->http_request);
-
 				/*
 				 * Perform admissions control.
 				 * If 0, workload was rejected, so close with 429 "Too Many Requests"

@@ -451,8 +451,6 @@ main(int argc, char **argv)
 	if (tenant_config_vec_len < 0) { exit(-1); }
 	free(json_buf);
 
-	// for (int i = 0; i < tenant_config_vec_len; i++) { tenant_config_print(&tenant_config_vec[i]); }
-
 	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
 		struct tenant *tenant = tenant_alloc(&tenant_config_vec[tenant_idx]);
 		int            rc     = tenant_database_add(tenant);
@@ -464,19 +462,19 @@ main(int argc, char **argv)
 		/* Start listening for requests */
 		rc = tenant_listen(tenant);
 		if (rc < 0) exit(-1);
+	}
 
-		for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
-			tenant_config_deinit(&tenant_config_vec[tenant_idx]);
-		}
-		free(tenant_config_vec);
+	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
+		tenant_config_deinit(&tenant_config_vec[tenant_idx]);
+	}
+	free(tenant_config_vec);
 
-		for (int i = 0; i < runtime_worker_threads_count; i++) {
-			int ret = pthread_join(runtime_worker_threads[i], NULL);
-			if (ret) {
-				errno = ret;
-				perror("pthread_join");
-				exit(-1);
-			}
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
+		int ret = pthread_join(runtime_worker_threads[i], NULL);
+		if (ret) {
+			errno = ret;
+			perror("pthread_join");
+			exit(-1);
 		}
 	}
 
