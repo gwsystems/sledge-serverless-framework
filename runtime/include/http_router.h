@@ -18,8 +18,7 @@ struct route {
 	/* HTTP State */
 	uint32_t               relative_deadline_us;
 	uint64_t               relative_deadline; /* cycles */
-	size_t                 max_request_size;
-	size_t                 max_response_size;
+	size_t                 response_size;
 	char                  *response_content_type;
 	struct admissions_info admissions_info;
 };
@@ -51,8 +50,7 @@ http_router_add_route(struct http_router *router, struct route_config *config, s
 			.module                = module,
 			.relative_deadline_us  = config->relative_deadline_us,
 			.relative_deadline     = (uint64_t)config->relative_deadline_us * runtime_processor_speed_MHz,
-			.max_request_size      = config->http_req_size,
-			.max_response_size     = config->http_resp_size,
+			.response_size         = config->http_resp_size,
 			.response_content_type = config->http_resp_content_type
 		};
 

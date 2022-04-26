@@ -36,15 +36,6 @@ tenant_alloc(struct tenant_config *config)
 		if (route_config->path == 0) panic("path field is required\n");
 		if (route_config->route == 0) panic("route field is required\n");
 
-
-		if (route_config->http_req_size > RUNTIME_HTTP_REQUEST_SIZE_MAX)
-			panic("request_size must be between 0 and %u, was %u\n",
-			      (uint32_t)RUNTIME_HTTP_REQUEST_SIZE_MAX, route_config->http_req_size);
-
-		if (route_config->http_resp_size > RUNTIME_HTTP_RESPONSE_SIZE_MAX)
-			panic("response-size must be between 0 and %u, was %u\n",
-			      (uint32_t)RUNTIME_HTTP_RESPONSE_SIZE_MAX, route_config->http_resp_size);
-
 		if (route_config->relative_deadline_us > (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
 			panic("Relative-deadline-us must be between 0 and %u, was %u\n",
 			      (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, route_config->relative_deadline_us);

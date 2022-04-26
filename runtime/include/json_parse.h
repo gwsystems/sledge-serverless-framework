@@ -48,8 +48,7 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct tenant_config **t
 	}
 
 	i = tenant_config_vec_parse(tenant_config_vec, &tenant_config_vec_len, json_buf, tokens, i, total_tokens);
-
-	assert(i == total_tokens - 1);
+	if (i != total_tokens - 1) goto json_parse_err;
 
 done:
 	return tenant_config_vec_len;

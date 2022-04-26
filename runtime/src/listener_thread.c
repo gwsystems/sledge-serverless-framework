@@ -170,8 +170,10 @@ listener_thread_main(void *dummy)
 				  http_session_alloc(client_socket, (const struct sockaddr *)&client_address);
 
 				/* Read HTTP request */
+				/* TODO: Use epoll on block instead of busy looping */
 				int rc = 0;
-				while ((rc = http_session_receive(session, NULL)) == -3) debuglog("Loop\n");
+				while ((rc = http_session_receive(session, NULL)) == -3)
+					;
 
 				if (rc == -2) {
 					debuglog("Request size exceeded Buffer\n");

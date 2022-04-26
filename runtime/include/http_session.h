@@ -49,16 +49,30 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
 	/* Set the session as the data the http-parser has access to */
 	session->http_parser.data = &session->http_request;
 
+	memset(&session->http_request, 0, sizeof(struct http_parser));
+
 	int rc;
 	rc = vec_u8_init(&session->request, HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE);
 	if (rc < 0) return -1;
 
-	rc = vec_u8_init(&session->response, HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE);
+	/* Defer allocating response until we've matched a route */
+	session->response.buffer = NULL;
+
+	return 0;
+}
+
+static inline int
+http_session_init_response_buffer(struct http_session *session, size_t capacity)
+{
+	assert(session != NULL);
+	assert(session->response.buffer == NULL);
+	assert(capacity > 0);
+
+	int rc = vec_u8_init(&session->response, HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE);
 	if (rc < 0) {
 		vec_u8_deinit(&session->request);
 		return -1;
 	}
-
 	return 0;
 }
 
@@ -174,10 +188,49 @@ http_session_receive(struct http_session *session, void_cb on_eagain)
 		http_parser                *parser   = &session->http_parser;
 		const http_parser_settings *settings = http_parser_settings_get();
 
-		if (request->length == request->capacity) {
+		/* If header parsing is complete, resize using content-length */
+		if (session->http_request.header_end && session->http_request.body != NULL) {
+			int header_size = (uint8_t *)session->http_request.body - session->request.buffer;
+			assert(header_size > 0);
+			debuglog("Header Size: %d\n", header_size);
+			debuglog("Body Length (Content-Length): %d\n", session->http_request.body_length);
+			int required_size = header_size + session->http_request.body_length;
+
+			assert(required_size > 0);
+
+			if (required_size > request->capacity) {
+				debuglog("vec_u8_resize\n");
+
+				uint8_t *old_buffer = request->buffer;
+				if (vec_u8_resize(request, required_size) != 0) {
+					debuglog("Failed to resize request vector to %d bytes\n", required_size);
+					goto err_nobufs;
+				}
+
+				if (old_buffer != request->buffer) {
+					/* buffer moved, so invalidate to reparse */
+					memset(&session->http_request, 0, sizeof(struct http_request));
+					http_parser_init(&session->http_parser, HTTP_REQUEST);
+					/* Set the session as the data the http-parser has access to */
+					session->http_parser.data = &session->http_request;
+				}
+			}
+		} else if (request->length == request->capacity) {
+			/* Otherwise, we have a huge header and should just grow */
+			debuglog("vec_u8_grow\n");
+			uint8_t *old_buffer = request->buffer;
+
 			if (vec_u8_grow(request) != 0) {
-				debuglog("Ran out of Request Buffer before message end\n");
+				debuglog("Failed to grow request buffer\n");
 				goto err_nobufs;
+			}
+
+			if (old_buffer != request->buffer) {
+				/* buffer moved, so invalidate to reparse */
+				memset(&session->http_request, 0, sizeof(struct http_request));
+				http_parser_init(&session->http_parser, HTTP_REQUEST);
+				/* Set the session as the data the http-parser has access to */
+				session->http_parser.data = &session->http_request;
 			}
 		}
 
@@ -213,16 +266,18 @@ http_session_receive(struct http_session *session, void_cb on_eagain)
 		}
 
 		assert(bytes_received > 0);
+		request->length += bytes_received;
 
 #ifdef LOG_HTTP_PARSER
 		debuglog("http_parser_execute(%p, %p, %p, %zu\n)", parser, settings,
 		         &session->request.buffer[session->request.length], bytes_received);
 #endif
-		size_t bytes_parsed = http_parser_execute(parser, settings,
-		                                          (const char *)&request->buffer[request->length],
-		                                          (size_t)bytes_received);
+		size_t bytes_parsed =
+		  http_parser_execute(parser, settings,
+		                      (const char *)&request->buffer[session->http_request.length_parsed],
+		                      (size_t)request->length - session->http_request.length_parsed);
 
-		if (bytes_parsed != (size_t)bytes_received) {
+		if (bytes_parsed < (size_t)bytes_received) {
 			debuglog("Error: %s, Description: %s\n",
 			         http_errno_name((enum http_errno)session->http_parser.http_errno),
 			         http_errno_description((enum http_errno)session->http_parser.http_errno));
@@ -231,7 +286,7 @@ http_session_receive(struct http_session *session, void_cb on_eagain)
 			goto err;
 		}
 
-		request->length += bytes_parsed;
+		session->http_request.length_parsed += bytes_parsed;
 	}
 
 #ifdef LOG_HTTP_PARSER

@@ -1,3 +1,6 @@
+#include <inttypes.h>
+#include <limits.h>
+
 #include "debuglog.h"
 #include "http.h"
 #include "http_request.h"
@@ -189,6 +192,23 @@ http_parser_settings_on_header_end(http_parser *parser)
 #endif
 
 	http_request->header_end = true;
+
+	/* Search header for content length */
+	for (int i = 0; i < http_request->header_count; i++) {
+		if (strncasecmp(http_request->headers[i].key, "content-length", strlen("content-length")) == 0) {
+			intmax_t temp = strtoimax(http_request->headers[i].value, NULL, 10);
+
+			if (temp < 0 || temp > INT_MAX) {
+				/* TODO: Improve error handling to not crash runtime */
+				fprintf(stderr, "Unable to parse int for key %.*s\n",
+				        http_request->headers[i].key_length, http_request->headers[i].key);
+				assert(0);
+			} else {
+				http_request->body_length = (int)temp;
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -212,18 +232,20 @@ http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 	assert(http_request->header_end);
 	assert(!http_request->message_end);
 
-	if (!http_request->body) {
+	if (http_request->body == NULL) {
 #ifdef LOG_HTTP_PARSER
 		debuglog("Setting start of body!\n");
 #endif
 		/* If this is the first invocation of the callback, just set */
-		http_request->body        = (char *)at;
-		http_request->body_length = length;
+		http_request->body             = (char *)at;
+		http_request->cursor           = 0;
+		http_request->body_length_read = length;
 	} else {
 #ifdef LOG_HTTP_PARSER
 		debuglog("Appending to existing body!\n");
 #endif
-		http_request->body_length += length;
+		assert(http_request->body_length > 0);
+		http_request->body_length_read += length;
 	}
 
 #ifdef LOG_HTTP_PARSER

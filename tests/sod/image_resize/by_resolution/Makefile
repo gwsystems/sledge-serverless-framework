@@ -15,3 +15,14 @@ debug:
 		--eval-command="handle SIGPIPE noprint nostop" \
 		--eval-command="set pagination off" \
 		--eval-command="run spec.json"
+
+client-small:
+	cat shrinking_man_small.jpg | http --output res/small.jpg --download :10000/resize_small
+
+client-medium:
+	cat shrinking_man_medium.jpg | http --output res/medium.jpg --download :10000/resize_medium
+
+client-large:
+	cat shrinking_man_large.jpg | http --output res/large.jpg --download :10000/resize_large
+
+client: client-small client-medium client-large

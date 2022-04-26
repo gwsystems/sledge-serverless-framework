@@ -13,16 +13,18 @@ enum
 	route_config_json_key_admissions_percentile,
 	route_config_json_key_expected_execution_us,
 	route_config_json_key_relative_deadline_us,
-	route_config_json_key_http_req_size,
 	route_config_json_key_http_resp_size,
 	route_config_json_key_http_resp_content_type,
 	route_config_json_key_len
 };
 
-static const char *route_config_json_keys[route_config_json_key_len] = {
-	"route",         "path",           "admissions-percentile", "expected-execution-us", "relative-deadline-us",
-	"http-req-size", "http-resp-size", "http-resp-content-type"
-};
+static const char *route_config_json_keys[route_config_json_key_len] = { "route",
+	                                                                 "path",
+	                                                                 "admissions-percentile",
+	                                                                 "expected-execution-us",
+	                                                                 "relative-deadline-us",
+	                                                                 "http-resp-size",
+	                                                                 "http-resp-content-type" };
 
 static inline int
 route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t *tokens, size_t tokens_base,
@@ -76,13 +78,6 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			int rc = parse_uint32_t(tokens[i], json_buf,
 			                        route_config_json_keys[route_config_json_key_relative_deadline_us],
 			                        &config->relative_deadline_us);
-			if (rc < 0) return -1;
-		} else if (strcmp(key, route_config_json_keys[route_config_json_key_http_req_size]) == 0) {
-			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
-
-			int rc = parse_uint32_t(tokens[i], json_buf,
-			                        route_config_json_keys[route_config_json_key_http_req_size],
-			                        &config->http_req_size);
 			if (rc < 0) return -1;
 		} else if (strcmp(key, route_config_json_keys[route_config_json_key_http_resp_size]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;

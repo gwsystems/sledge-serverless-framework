@@ -660,20 +660,20 @@ wasi_snapshot_preview1_backing_fd_read(wasi_context_t *context, __wasi_fd_t fd, 
 	if (fd == STDIN_FILENO) {
 		struct sandbox      *current_sandbox = current_sandbox_get();
 		struct http_request *current_request = &current_sandbox->http->http_request;
-		int                  old_read        = current_request->body_read_length;
+		int                  old_read        = current_request->cursor;
 		int                  bytes_to_read   = current_request->body_length - old_read;
 
 		for (int i = 0; i < iovs_len; i++) {
 			if (bytes_to_read == 0) goto done;
 
 			int amount_to_copy = iovs[i].buf_len > bytes_to_read ? bytes_to_read : iovs[i].buf_len;
-			memcpy(iovs[i].buf, current_request->body + current_request->body_read_length, amount_to_copy);
-			current_request->body_read_length += amount_to_copy;
-			bytes_to_read = current_request->body_length - current_request->body_read_length;
+			memcpy(iovs[i].buf, current_request->body + current_request->cursor, amount_to_copy);
+			current_request->cursor += amount_to_copy;
+			bytes_to_read = current_request->body_length - current_request->cursor;
 		}
 
 	done:
-		*nwritten_retptr = current_request->body_read_length - old_read;
+		*nwritten_retptr = current_request->cursor - old_read;
 		return __WASI_ERRNO_SUCCESS;
 	}
 
@@ -791,6 +791,12 @@ wasi_snapshot_preview1_backing_fd_write(wasi_context_t *context, __wasi_fd_t fd,
 
 		for (size_t i = 0; i < iovs_len; i++) {
 			buffer_remaining = s->http->response.capacity - s->http->response.length;
+
+			if (buffer_remaining < iovs[i].buf_len) {
+				vec_u8_grow(&s->http->response);
+				buffer_remaining = s->http->response.capacity - s->http->response.length;
+			}
+
 			if (buffer_remaining == 0) {
 				*nwritten_retptr = s->http->response.length - old_response_len;
 				return __WASI_ERRNO_FBIG;
