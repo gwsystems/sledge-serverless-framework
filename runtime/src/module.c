@@ -56,7 +56,6 @@ err:
  * Public Methods
  ***************************************/
 
-
 /**
  * Module Mega Teardown Function
  * Closes the socket and dynamic library, and then frees the module
@@ -71,10 +70,12 @@ module_free(struct module *module)
 {
 	if (module == NULL) return;
 
+	panic("Unimplemented!\n");
+
+	/* TODO: Should allocating routes increment reference */
 	/* Do not free if we still have oustanding references */
 	if (module->reference_count) return;
 
-	// tcp_server_close(&module->tcp_server);
 	sledge_abi_symbols_deinit(&module->abi);
 	free(module);
 }

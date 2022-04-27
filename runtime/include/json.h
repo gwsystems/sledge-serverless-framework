@@ -45,8 +45,7 @@ has_valid_type(jsmntok_t tok, char *key, jsmntype_t expected_type, const char *j
 	if (tok.type != expected_type) {
 		fprintf(stderr, "The value of the key %s should be a %s, was a %s\n", key, jsmn_type(expected_type),
 		        jsmn_type(tok.type));
-		if (json_buf != NULL)
-			fprintf(stderr, "String of value %.*s\n", tok.end - tok.start, &json_buf[tok.start]);
+		if (json_buf != NULL) fprintf(stderr, "Token: %.*s\n", tok.end - tok.start, &json_buf[tok.start]);
 
 		return false;
 	}
