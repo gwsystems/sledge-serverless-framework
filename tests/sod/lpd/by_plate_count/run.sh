@@ -69,15 +69,15 @@ run_functional_tests() {
 	# Functional Testing on each image
 	for image in "${lpd1_images[@]}"; do
 		echo "@${image}" >> "${results_directory}/lpd1.txt"
-		curl --data-binary "@${image}" --output - "${hostname}:10000" >> "${results_directory}/lpd1.txt"
+		curl --data-binary "@${image}" --output - "${hostname}:10000/lpd1" >> "${results_directory}/lpd1.txt"
 	done
 	for image in "${lpd2_images[@]}"; do
 		echo "@${image}" >> "${results_directory}/lpd2.txt"
-		curl --data-binary "@${image}" --output - "${hostname}:10001" >> "${results_directory}/lpd2.txt"
+		curl --data-binary "@${image}" --output - "${hostname}:10000/lpd2" >> "${results_directory}/lpd2.txt"
 	done
 	for image in "${lpd4_images[@]}"; do
 		echo "@${image}" >> "${results_directory}/lpd4.txt"
-		curl --data-binary "@${image}" --output - "${hostname}:10002" >> "${results_directory}/lpd4.txt"
+		curl --data-binary "@${image}" --output - "${hostname}:10000/lpd4" >> "${results_directory}/lpd4.txt"
 	done
 }
 
@@ -103,7 +103,7 @@ run_perf_tests() {
 			((batch_id++))
 
 			get_random_image "$workload" random_image
-			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "${random_image}" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "${random_image}" "http://${hostname}:10000${path[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 		done
 		pids=$(pgrep hey | tr '\n' ' ')
 		[[ -n $pids ]] && wait -f $pids
@@ -129,10 +129,10 @@ validate_dependencies curl
 
 declare -a workloads=(lpd1 lpd2 lpd4)
 
-declare -Ar port=(
-	[lpd1]=10000
-	[lpd2]=10001
-	[lpd4]=10002
+declare -Ar path=(
+	[lpd1]=/lpd1
+	[lpd2]=/lpd2
+	[lpd4]=/lpd4
 )
 
 # Sort the images by the number of labeled plates

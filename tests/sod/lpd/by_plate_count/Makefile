@@ -24,4 +24,4 @@ debug:
 
 .PHONY: client
 client:
-	curl -H 'Expect:' -H "Content-Type: image/png" --data-binary "@${IMAGE}" "${HOSTNAME}:10000"
+	curl -H 'Expect:' -H "Content-Type: image/png" --data-binary "@${IMAGE}" "${HOSTNAME}:10000/lpd1"
