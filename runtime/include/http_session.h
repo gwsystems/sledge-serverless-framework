@@ -191,15 +191,11 @@ http_session_receive(struct http_session *session, void_cb on_eagain)
 		if (session->http_request.header_end && session->http_request.body != NULL) {
 			int header_size = (uint8_t *)session->http_request.body - session->request.buffer;
 			assert(header_size > 0);
-			debuglog("Header Size: %d\n", header_size);
-			debuglog("Body Length (Content-Length): %d\n", session->http_request.body_length);
 			int required_size = header_size + session->http_request.body_length;
 
 			assert(required_size > 0);
 
 			if (required_size > request->capacity) {
-				debuglog("vec_u8_resize\n");
-
 				uint8_t *old_buffer = request->buffer;
 				if (vec_u8_resize(request, required_size) != 0) {
 					debuglog("Failed to resize request vector to %d bytes\n", required_size);
@@ -216,7 +212,6 @@ http_session_receive(struct http_session *session, void_cb on_eagain)
 			}
 		} else if (request->length == request->capacity) {
 			/* Otherwise, we have a huge header and should just grow */
-			debuglog("vec_u8_grow\n");
 			uint8_t *old_buffer = request->buffer;
 
 			if (vec_u8_grow(request) != 0) {

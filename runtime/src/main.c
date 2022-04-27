@@ -172,7 +172,6 @@ runtime_start_runtime_worker_threads()
 		ret = pthread_setaffinity_np(runtime_worker_threads[i], sizeof(cs), &cs);
 		assert(ret == 0);
 	}
-	debuglog("Sandboxing environment ready!\n");
 }
 
 void

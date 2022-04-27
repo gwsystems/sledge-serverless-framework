@@ -80,8 +80,6 @@ tcp_server_listen(struct tcp_server *server)
 	rc = listen(socket_descriptor, TCP_SERVER_MAX_PENDING_CLIENT_REQUESTS);
 	if (unlikely(rc < 0)) goto err_listen;
 
-	printf("Listening on port %d\n", server->port);
-
 	rc = 0;
 done:
 	return rc;
