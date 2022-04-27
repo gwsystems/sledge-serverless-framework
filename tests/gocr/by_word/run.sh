@@ -34,10 +34,10 @@ experiment_client() {
 
 	# Write Headers to CSV files
 
-	local -Ar word_count_to_port=(
-		["1_words"]=10000
-		["10_words"]=10001
-		["100_words"]=10002
+	local -Ar word_count_to_path=(
+		["1_words"]=/gocr_1_word
+		["10_words"]=/gocr_10_words
+		["100_words"]=/gocr_100_words
 	)
 
 	local words
@@ -50,7 +50,7 @@ experiment_client() {
 			pango-view --font=mono -qo "$word_count_file.png" -t "$words" || exit 1
 			pngtopnm "$word_count_file.png" > "$word_count_file.pnm" || exit 1
 
-			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"$word_count_file.pnm" "$hostname:${word_count_to_port[$word_count_file]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${word_count_file}_time.txt")
+			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"$word_count_file.pnm" "$hostname:10000${word_count_to_path[$word_count_file]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${word_count_file}_time.txt")
 
 			# If the OCR does not produce a guess, fail
 			[[ -z "$result" ]] && exit 1
