@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sched.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -14,9 +15,12 @@
 #include <sys/fcntl.h>
 #endif
 
+#include "json.h"
+#include "pretty_print.h"
 #include "debuglog.h"
 #include "listener_thread.h"
 #include "module.h"
+#include "module_database.h"
 #include "panic.h"
 #include "runtime.h"
 #include "sandbox_types.h"
@@ -60,7 +64,8 @@ runtime_allocate_available_cores()
 
 	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
-	printf("\tCore Count (Online): %u\n", runtime_total_online_processors);
+
+	pretty_print_key_value("Core Count (Online)", "%u\n", runtime_total_online_processors);
 
 	/* If more than two cores are available, leave core 0 free to run OS tasks */
 	if (runtime_total_online_processors > 2) {
@@ -86,9 +91,9 @@ runtime_allocate_available_cores()
 		runtime_worker_threads_count = max_possible_workers;
 	}
 
-	printf("\tListener core ID: %u\n", LISTENER_THREAD_CORE_ID);
-	printf("\tFirst Worker core ID: %u\n", runtime_first_worker_processor);
-	printf("\tWorker core count: %u\n", runtime_worker_threads_count);
+	pretty_print_key_value("Listener core ID", "%u\n", LISTENER_THREAD_CORE_ID);
+	pretty_print_key_value("First Worker core ID", "%u\n", runtime_first_worker_processor);
+	pretty_print_key_value("Worker core count", "%u\n", runtime_worker_threads_count);
 }
 
 /**
@@ -188,7 +193,7 @@ runtime_configure()
 	} else {
 		panic("Invalid scheduler policy: %s. Must be {MTS|EDF|FIFO}\n", scheduler_policy);
 	}
-	printf("\tScheduler Policy: %s\n", scheduler_print(scheduler));
+	pretty_print_key_value("Scheduler Policy", "%s\n", scheduler_print(scheduler));
 
 	/* Sigalrm Handler Technique */
 	char *sigalrm_policy = getenv("SLEDGE_SIGALRM_HANDLER");
@@ -201,12 +206,13 @@ runtime_configure()
 	} else {
 		panic("Invalid sigalrm policy: %s. Must be {BROADCAST|TRIAGED}\n", sigalrm_policy);
 	}
-	printf("\tSigalrm Policy: %s\n", runtime_print_sigalrm_handler(runtime_sigalrm_handler));
+	pretty_print_key_value("Sigalrm Policy", "%s\n", runtime_print_sigalrm_handler(runtime_sigalrm_handler));
 
 	/* Runtime Preemption Toggle */
 	char *preempt_disable = getenv("SLEDGE_DISABLE_PREEMPTION");
 	if (preempt_disable != NULL && strcmp(preempt_disable, "false") != 0) runtime_preemption_enabled = false;
-	printf("\tPreemption: %s\n", runtime_preemption_enabled ? "Enabled" : "Disabled");
+	pretty_print_key_value("Preemption", "%s\n",
+	                       runtime_preemption_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
 
 	/* Runtime Quantum */
 	char *quantum_raw = getenv("SLEDGE_QUANTUM_US");
@@ -217,7 +223,7 @@ runtime_configure()
 			panic("SLEDGE_QUANTUM_US must be less than 999999 ms, saw %ld\n", quantum);
 		runtime_quantum_us = (uint32_t)quantum;
 	}
-	printf("\tQuantum: %u us\n", runtime_quantum_us);
+	pretty_print_key_value("Quantum", "%u us\n", runtime_quantum_us);
 
 	sandbox_perf_log_init();
 }
@@ -225,98 +231,194 @@ runtime_configure()
 void
 log_compiletime_config()
 {
-	printf("Static Compiler Flags:\n");
-#ifdef ADMISSIONS_CONTROL
-	printf("\tAdmissions Control: Enabled\n");
-#else
-	printf("\tAdmissions Control: Disabled\n");
-#endif
+	/* System Stuff */
+	printf("System Flags:\n");
 
-#ifdef NDEBUG
-	printf("\tAssertions and Debug Logs: Disabled\n");
-#else
-	printf("\tAssertions and Debug Logs: Enabled\n");
-#endif
-
-#ifdef LOG_TO_FILE
-	printf("\tLogging to: %s\n", RUNTIME_LOG_FILE);
-#else
-	printf("\tLogging to: STDOUT and STDERR\n");
-#endif
-
+	pretty_print_key("Architecture");
 #if defined(aarch64)
-	printf("\tArchitecture: %s\n", "aarch64");
+	printf("aarch64\n");
 #elif defined(x86_64)
-	printf("\tArchitecture: %s\n", "x86_64");
+	printf("x86_64\n");
 #endif
 
-	printf("\tPage Size: %lu\n", PAGE_SIZE);
+	pretty_print_key_value("Page Size", "%lu\n", PAGE_SIZE);
 
-#ifdef LOG_HTTP_PARSER
-	printf("\tLog HTTP Parser: Enabled\n");
+	/* Feature Toggles */
+	printf("Static Compiler Flags (Features):\n");
+
+#ifdef ADMISSIONS_CONTROL
+	pretty_print_key_enabled("Admissions Control");
 #else
-	printf("\tLog HTTP Parser: Disabled\n");
+	pretty_print_key_disabled("Admissions Control");
 #endif
 
-#ifdef LOG_STATE_CHANGES
-	printf("\tLog State Changes: Enabled\n");
+	/* Debugging Flags */
+	printf("Static Compiler Flags (Debugging):\n");
+
+#ifndef NDEBUG
+	pretty_print_key_enabled("Assertions and Debug Logs");
 #else
-	printf("\tLog State Changes: Disabled\n");
+	pretty_print_key_disabled("Assertions and Debug Logs");
 #endif
 
-#ifdef LOG_LOCK_OVERHEAD
-	printf("\tLog Lock Overhead: Enabled\n");
+	pretty_print_key("Logging to");
+#ifdef LOG_TO_FILE
+	printf("%s\n", RUNTIME_LOG_FILE);
 #else
-	printf("\tLog Lock Overhead: Disabled\n");
-#endif
-
-#ifdef LOG_CONTEXT_SWITCHES
-	printf("\tLog Context Switches: Enabled\n");
-#else
-	printf("\tLog Context Switches: Disabled\n");
+	printf("STDOUT and STDERR\n");
 #endif
 
 #ifdef LOG_ADMISSIONS_CONTROL
-	printf("\tLog Admissions Control: Enabled\n");
+	pretty_print_key_enabled("Log Admissions Control");
 #else
-	printf("\tLog Admissions Control: Disabled\n");
+	pretty_print_key_disabled("Log Admissions Control");
 #endif
 
-#ifdef LOG_REQUEST_ALLOCATION
-	printf("\tLog Request Allocation: Enabled\n");
+#ifdef LOG_CONTEXT_SWITCHES
+	pretty_print_key_enabled("Log Context Switches");
 #else
-	printf("\tLog Request Allocation: Disabled\n");
+	pretty_print_key_disabled("Log Context Switches");
 #endif
 
-#ifdef LOG_PREEMPTION
-	printf("\tLog Preemption: Enabled\n");
+#ifdef LOG_HTTP_PARSER
+	pretty_print_key_enabled("Log HTTP Parser");
 #else
-	printf("\tLog Preemption: Disabled\n");
+	pretty_print_key_disabled("Log HTTP Parser");
+#endif
+
+#ifdef LOG_LOCK_OVERHEAD
+	pretty_print_key_enabled("Log Lock Overhead");
+#else
+	pretty_print_key_disabled("Log Lock Overhead");
 #endif
 
 #ifdef LOG_MODULE_LOADING
-	printf("\tLog Module Loading: Enabled\n");
+	pretty_print_key_enabled("Log Module Loading");
 #else
-	printf("\tLog Module Loading: Disabled\n");
+	pretty_print_key_disabled("Log Module Loading");
+#endif
+
+#ifdef LOG_PREEMPTION
+	pretty_print_key_enabled("Log Preemption");
+#else
+	pretty_print_key_disabled("Log Preemption");
+#endif
+
+#ifdef LOG_SANDBOX_ALLOCATION
+	pretty_print_key_enabled("Log Request Allocation");
+#else
+	pretty_print_key_disabled("Log Request Allocation");
+#endif
+
+#ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
+	pretty_print_key_enabled("Log Software Interrupt Counts");
+#else
+	pretty_print_key_disabled("Log Software Interrupt Counts");
+#endif
+
+#ifdef LOG_STATE_CHANGES
+	pretty_print_key_enabled("Log State Changes");
+#else
+	pretty_print_key_disabled("Log State Changes");
 #endif
 
 #ifdef LOG_TOTAL_REQS_RESPS
-	printf("\tLog Total Reqs/Resps: Enabled\n");
+	pretty_print_key_enabled("Log Total Reqs/Resps");
 #else
-	printf("\tLog Total Reqs/Resps: Disabled\n");
+	pretty_print_key_disabled("Log Total Reqs/Resps");
 #endif
 
-#ifdef LOG_SANDBOX_COUNT
-	printf("\tLog Sandbox Count: Enabled\n");
+#ifdef SANDBOX_STATE_TOTALS
+	pretty_print_key_enabled("Log Sandbox State Count");
 #else
-	printf("\tLog Sandbox Count: Disabled\n");
+	pretty_print_key_disabled("Log Sandbox State Count");
 #endif
 
 #ifdef LOG_LOCAL_RUNQUEUE
-	printf("\tLog Local Runqueue: Enabled\n");
+	pretty_print_key_enabled("Log Local Runqueue");
 #else
-	printf("\tLog Local Runqueue: Disabled\n");
+	pretty_print_key_disabled("Log Local Runqueue");
 #endif
+}
+
+void
+check_versions()
+{
+	// Additional functions have become async signal safe over time. Validate latest
+	static_assert(_POSIX_VERSION >= 200809L, "Requires POSIX 2008 or higher\n");
+	// We use C18 features
+	static_assert(__STDC_VERSION__ >= 201710, "Requires C18 or higher\n");
+	static_assert(__linux__ == 1, "Requires epoll, a Linux-only feature");
+}
+
+/**
+ * Allocates a buffer in memory containing the entire contents of the file provided
+ * @param file_name file to load into memory
+ * @param ret_ptr Pointer to set with address of buffer this function allocates. The caller must free this!
+ * @return size of the allocated buffer or 0 in case of error;
+ */
+static inline size_t
+load_file_into_buffer(const char *file_name, char **file_buffer)
+{
+	/* Use stat to get file attributes and make sure file is present and not empty */
+	struct stat stat_buffer;
+	if (stat(file_name, &stat_buffer) < 0) {
+		fprintf(stderr, "Attempt to stat %s failed: %s\n", file_name, strerror(errno));
+		goto err;
+	}
+	if (stat_buffer.st_size == 0) {
+		fprintf(stderr, "File %s is unexpectedly empty\n", file_name);
+		goto err;
+	}
+	if (!S_ISREG(stat_buffer.st_mode)) {
+		fprintf(stderr, "File %s is not a regular file\n", file_name);
+		goto err;
+	}
+
+	/* Open the file */
+	FILE *module_file = fopen(file_name, "r");
+	if (!module_file) {
+		fprintf(stderr, "Attempt to open %s failed: %s\n", file_name, strerror(errno));
+		goto err;
+	}
+
+	/* Initialize a Buffer */
+	*file_buffer = calloc(1, stat_buffer.st_size);
+	if (*file_buffer == NULL) {
+		fprintf(stderr, "Attempt to allocate file buffer failed: %s\n", strerror(errno));
+		goto stat_buffer_alloc_err;
+	}
+
+	/* Read the file into the buffer and check that the buffer size equals the file size */
+	size_t total_chars_read = fread(*file_buffer, sizeof(char), stat_buffer.st_size, module_file);
+#ifdef LOG_MODULE_LOADING
+	debuglog("size read: %d content: %s\n", total_chars_read, *file_buffer);
+#endif
+	if (total_chars_read != stat_buffer.st_size) {
+		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
+		goto fread_err;
+	}
+
+	/* Close the file */
+	if (fclose(module_file) == EOF) {
+		fprintf(stderr, "Attempt to close buffer containing %s failed: %s\n", file_name, strerror(errno));
+		goto fclose_err;
+	};
+	module_file = NULL;
+
+	return total_chars_read;
+
+fclose_err:
+	/* We will retry fclose when we fall through into stat_buffer_alloc_err */
+fread_err:
+	free(*file_buffer);
+stat_buffer_alloc_err:
+	// Check to ensure we haven't already close this
+	if (module_file != NULL) {
+		if (fclose(module_file) == EOF) panic("Failed to close file\n");
+	}
+err:
+	return 0;
 }
 
 int
@@ -330,6 +432,7 @@ main(int argc, char **argv)
 	printf("Starting the Sledge runtime\n");
 	runtime_boot_timestamp = __getcycles();
 
+
 	log_compiletime_config();
 	runtime_process_debug_log_behavior();
 
@@ -338,9 +441,9 @@ main(int argc, char **argv)
 	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
 
-	software_interrupt_set_interval_duration(runtime_quantum_us * runtime_processor_speed_MHz);
+	int heading_length = 30;
 
-	printf("\tProcessor Speed: %u MHz\n", runtime_processor_speed_MHz);
+	pretty_print_key_value("Processor Speed", "%u MHz\n", runtime_processor_speed_MHz);
 
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();
@@ -355,8 +458,37 @@ main(int argc, char **argv)
 #ifdef LOG_MODULE_LOADING
 	debuglog("Parsing modules file [%s]\n", argv[1]);
 #endif
-	if (module_new_from_json(argv[1])) panic("failed to initialize module(s) defined in %s\n", argv[1]);
+	const char *json_path    = argv[1];
+	char       *json_buf     = NULL;
+	size_t      json_buf_len = load_file_into_buffer(json_path, &json_buf);
+	if (unlikely(json_buf_len == 0)) panic("failed to initialize module(s) defined in %s\n", json_path);
 
+	struct module_config *module_config_vec;
+
+	int module_config_vec_len = parse_json(json_buf, json_buf_len, &module_config_vec);
+	if (module_config_vec_len < 0) { exit(-1); }
+	free(json_buf);
+
+	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
+		/* Automatically calls listen */
+		struct module *module = module_alloc(&module_config_vec[module_idx]);
+		if (unlikely(module == NULL)) panic("failed to initialize module(s) defined in %s\n", json_path);
+
+		int rc = module_database_add(module);
+		if (rc < 0) {
+			panic("Module database full!\n");
+			exit(-1);
+		}
+
+		/* Start listening for requests */
+		rc = module_listen(module);
+		if (rc < 0) exit(-1);
+	}
+
+	for (int module_idx = 0; module_idx < module_config_vec_len; module_idx++) {
+		module_config_deinit(&module_config_vec[module_idx]);
+	}
+	free(module_config_vec);
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);

@@ -4,7 +4,11 @@
 #include <stdio.h>
 #include <threads.h>
 
-#include "wasm_types.h"
+#define PAGE_SIZE  (unsigned long)(1 << 12)
+#define CACHE_LINE 64
+/* This might be Intel specific. ARM and x64 both have the same CACHE_LINE size, but x64 uses Intel uses a double
+ * cache-line as a coherency unit */
+#define CACHE_PAD (CACHE_LINE * 2)
 
 /* For this family of macros, do NOT pass zero as the pow2 */
 #define round_to_pow2(x, pow2)    (((unsigned long)(x)) & (~((pow2)-1)))
@@ -17,21 +21,13 @@
 #define IMPORT       __attribute__((visibility("default")))
 #define INLINE       __attribute__((always_inline))
 #define PAGE_ALIGNED __attribute__((aligned(PAGE_SIZE)))
-#define PAGE_SIZE    (unsigned long)(1 << 12)
 #define WEAK         __attribute__((weak))
 
-/* memory also provides the table access functions */
-#define INDIRECT_TABLE_SIZE (1 << 10)
 
-struct indirect_table_entry {
-	uint32_t type_id;
-	void *   func_pointer;
-};
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
 
-/* Cache of Frequently Accessed Members used to avoid pointer chasing */
-struct sandbox_context_cache {
-	struct wasm_memory           memory;
-	struct indirect_table_entry *module_indirect_table;
-};
-
-extern thread_local struct sandbox_context_cache local_sandbox_context_cache;
+#ifndef likely
+#define likely(x) __builtin_expect(!!(x), 1)
+#endif

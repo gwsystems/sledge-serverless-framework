@@ -39,11 +39,12 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 
 	/* State Change Bookkeeping */
+	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
 	sandbox->timestamp_of.last_state_change = now;
-	sandbox_state_history_append(sandbox, SANDBOX_COMPLETE);
-	runtime_sandbox_total_increment(SANDBOX_COMPLETE);
-	runtime_sandbox_total_decrement(last_state);
+	sandbox_state_history_append(&sandbox->state_history, SANDBOX_COMPLETE);
+	sandbox_state_totals_increment(SANDBOX_COMPLETE);
+	sandbox_state_totals_decrement(last_state);
 
 	/* Admissions Control Post Processing */
 	admissions_info_update(&sandbox->module->admissions_info, sandbox->duration_of_state[SANDBOX_RUNNING_USER]
@@ -54,8 +55,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 
-	/* Do not touch sandbox state after adding to completion queue to avoid use-after-free bugs */
-	local_completion_queue_add(sandbox);
+	/* Does not add to completion queue until in cooperative scheduler */
 }
 
 static inline void

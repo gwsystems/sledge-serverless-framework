@@ -19,8 +19,6 @@
  * Unmaps linear memory, removes from the runqueue (if on it), and adds to the completion queue
  * Because the stack is still in use, freeing the stack is deferred until later
  *
- * TODO: Is the sandbox adding itself to the completion queue here? Is this a problem? Issue #94
- *
  * @param sandbox the sandbox erroring out
  * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
  * enable the compiler to perform constant propagation optimizations.
@@ -33,12 +31,12 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_UNINITIALIZED:
-		/* Technically, this is a degenerate sandbox that we generate by hand */
+	case SANDBOX_ALLOCATED:
 		break;
 	case SANDBOX_RUNNING_SYS: {
 		local_runqueue_delete(sandbox);
 		sandbox_free_linear_memory(sandbox);
+		sandbox_deinit_http_buffers(sandbox);
 		break;
 	}
 	default: {
@@ -48,11 +46,12 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 
 	/* State Change Bookkeeping */
+	assert(now > sandbox->timestamp_of.last_state_change);
 	uint64_t duration_of_last_state = now - sandbox->timestamp_of.last_state_change;
 	sandbox->duration_of_state[last_state] += duration_of_last_state;
-	sandbox_state_history_append(sandbox, SANDBOX_ERROR);
-	runtime_sandbox_total_increment(SANDBOX_ERROR);
-	runtime_sandbox_total_decrement(last_state);
+	sandbox_state_history_append(&sandbox->state_history, SANDBOX_ERROR);
+	sandbox_state_totals_increment(SANDBOX_ERROR);
+	sandbox_state_totals_decrement(last_state);
 
 	/* Admissions Control Post Processing */
 	admissions_control_subtract(sandbox->admissions_estimate);
@@ -61,8 +60,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 
-	/* Do not touch sandbox after adding to completion queue to avoid use-after-free bugs */
-	local_completion_queue_add(sandbox);
+	/* Does not add to completion queue until in cooperative scheduler */
 }
 
 static inline void

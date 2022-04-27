@@ -3,29 +3,29 @@
 
 /**
  * Initializes perf window
- * @param self
+ * @param admissions_info
  */
 void
-admissions_info_initialize(struct admissions_info *self, int percentile, uint64_t expected_execution,
+admissions_info_initialize(struct admissions_info *admissions_info, uint8_t percentile, uint64_t expected_execution,
                            uint64_t relative_deadline)
 {
 #ifdef ADMISSIONS_CONTROL
 	assert(relative_deadline > 0);
 	assert(expected_execution > 0);
-	self->relative_deadline = relative_deadline;
-	self->estimate          = admissions_control_calculate_estimate(expected_execution, relative_deadline);
-	debuglog("Initial Estimate: %lu\n", self->estimate);
-	assert(self != NULL);
+	admissions_info->relative_deadline = relative_deadline;
+	admissions_info->estimate = admissions_control_calculate_estimate(expected_execution, relative_deadline);
+	debuglog("Initial Estimate: %lu\n", admissions_info->estimate);
+	assert(admissions_info != NULL);
 
-	perf_window_initialize(&self->perf_window);
+	perf_window_initialize(&admissions_info->perf_window);
 
 	if (unlikely(percentile < 50 || percentile > 99)) panic("Invalid admissions percentile");
-	self->percentile = percentile;
+	admissions_info->percentile = percentile;
 
-	self->control_index = PERF_WINDOW_BUFFER_SIZE * percentile / 100;
+	admissions_info->control_index = PERF_WINDOW_BUFFER_SIZE * percentile / 100;
 #ifdef LOG_ADMISSIONS_CONTROL
-	debuglog("Percentile: %d\n", self->percentile);
-	debuglog("Control Index: %d\n", self->control_index);
+	debuglog("Percentile: %u\n", admissions_info->percentile);
+	debuglog("Control Index: %d\n", admissions_info->control_index);
 #endif
 #endif
 }
@@ -33,19 +33,21 @@ admissions_info_initialize(struct admissions_info *self, int percentile, uint64_
 
 /*
  * Adds an execution value to the perf window and calculates and caches and updated estimate
- * @param self
+ * @param admissions_info
  * @param execution_duration
  */
 void
-admissions_info_update(struct admissions_info *self, uint64_t execution_duration)
+admissions_info_update(struct admissions_info *admissions_info, uint64_t execution_duration)
 {
 #ifdef ADMISSIONS_CONTROL
-	struct perf_window *perf_window = &self->perf_window;
+	struct perf_window *perf_window = &admissions_info->perf_window;
 
-	LOCK_LOCK(&self->perf_window.lock);
+	LOCK_LOCK(&admissions_info->perf_window.lock);
 	perf_window_add(perf_window, execution_duration);
-	uint64_t estimated_execution = perf_window_get_percentile(perf_window, self->percentile, self->control_index);
-	self->estimate = admissions_control_calculate_estimate(estimated_execution, self->relative_deadline);
-	LOCK_UNLOCK(&self->perf_window.lock);
+	uint64_t estimated_execution = perf_window_get_percentile(perf_window, admissions_info->percentile,
+	                                                          admissions_info->control_index);
+	admissions_info->estimate    = admissions_control_calculate_estimate(estimated_execution,
+	                                                                     admissions_info->relative_deadline);
+	LOCK_UNLOCK(&admissions_info->perf_window.lock);
 #endif
 }

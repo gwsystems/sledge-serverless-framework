@@ -24,6 +24,6 @@
 	],
 	"workspaceMount": "source=${localWorkspaceFolder},target=/sledge,type=bind,consistency=cached",
 	"workspaceFolder": "/sledge",
-	"postCreateCommand": "make -C /sledge install && make -B -C /sledge/runtime/tests clean all",
+	"postCreateCommand": "make -C /sledge install && make -B -C /sledge/applications clean all",
 	"containerUser": "dev",
 }

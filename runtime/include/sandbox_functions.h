@@ -6,17 +6,18 @@
 
 #include "client_socket.h"
 #include "panic.h"
-#include "sandbox_request.h"
+#include "sandbox_types.h"
 
 /***************************
  * Public API              *
  **************************/
 
-struct sandbox *sandbox_allocate(struct sandbox_request *sandbox_request);
+struct sandbox *sandbox_alloc(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
+                              uint64_t request_arrival_timestamp, uint64_t admissions_estimate);
+int             sandbox_prepare_execution_environment(struct sandbox *sandbox);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
 void            sandbox_switch_to(struct sandbox *next_sandbox);
-
 static inline void
 sandbox_close_http(struct sandbox *sandbox)
 {
@@ -35,9 +36,22 @@ sandbox_close_http(struct sandbox *sandbox)
 static inline void
 sandbox_free_linear_memory(struct sandbox *sandbox)
 {
-	int rc = munmap(sandbox->memory.start, sandbox->memory.max + PAGE_SIZE);
-	if (rc == -1) panic("sandbox_free_linear_memory - munmap failed\n");
-	sandbox->memory.start = NULL;
+	assert(sandbox != NULL);
+	assert(sandbox->memory != NULL);
+	module_free_linear_memory(sandbox->module, (struct wasm_memory *)sandbox->memory);
+	sandbox->memory = NULL;
+}
+
+/**
+ * Deinitialize Linear Memory, cleaning up the backing buffer
+ * @param sandbox
+ */
+static inline void
+sandbox_deinit_http_buffers(struct sandbox *sandbox)
+{
+	assert(sandbox);
+	vec_u8_deinit(&sandbox->request);
+	vec_u8_deinit(&sandbox->response);
 }
 
 /**
@@ -57,12 +71,6 @@ sandbox_get_priority(void *element)
 {
 	struct sandbox *sandbox = (struct sandbox *)element;
 	return sandbox->absolute_deadline;
-};
-
-static inline bool
-sandbox_is_preemptable(struct sandbox *sandbox)
-{
-	return sandbox && sandbox->state == SANDBOX_RUNNING_USER;
 };
 
 static inline void

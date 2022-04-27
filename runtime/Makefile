@@ -11,7 +11,7 @@ CFLAGS=-std=c18 -pthread
 
 # We use several non-standard glibc / Linux features: 
 # sched_getcpu, MAP_ANONYMOUS, acceess to 'gregs' in 'mcontext_t', REG_RIP, REG_RSP
-CFLAGS+=-D_GNU_SOURCE 
+CFLAGS+=-D_GNU_SOURCE
 
 # Release Flags
 CFLAGS+=-O3 -flto
@@ -20,19 +20,19 @@ CFLAGS+=-O3 -flto
 # CFLAGS+=-O0 -g
 
 # CFI Sanitizer
-# CFLAGS+=-O0 -g -flto -fvisibility=default -fsanitize=cfi
+# CFLAGS+=-fvisibility=default -fsanitize=cfi
 
-# Undefined Sanitizer
-# CFLAGS+=-O0 -g -fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds
+# Undefined Sanitizer - https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+# CFLAGS+=-fsanitize=undefined,float-divide-by-zero,unsigned-integer-overflow,implicit-conversion,local-bounds,nullability
 
 # Clang SafeStack - https://clang.llvm.org/docs/SafeStack.html
-# CFLAGS+=-O0 -g -fsanitize=safe-stack
+# CFLAGS+=-fsanitize=safe-stack
 
 # Memory Sanitizer - https://clang.llvm.org/docs/MemorySanitizer.html
-# CFLAGS+=-O0 -g -fsanitize=memory -fno-omit-frame-pointer
+# CFLAGS+=-fsanitize=memory -fno-omit-frame-pointer
 
-# Address Sanitizer - https://clang.llvm.org/docs/AddressSanitizer.html
-# CFLAGS+=-O0 -g -fsanitize=address -fno-omit-frame-pointer 
+# Address Sanitizer - "Fast Memory Error Detector" - https://clang.llvm.org/docs/AddressSanitizer.html
+# CFLAGS+=-fsanitize=address -fno-omit-frame-pointer
 
 BINARY_NAME=sledgert
 
@@ -42,6 +42,13 @@ BINARY_NAME=sledgert
 
 # Debugging Flags
 
+# Enables logs of WASI syscalls
+# CFLAGS += -DLOG_WASI
+
+# Sandbox writes to stdout and stderr are both written to the client socket
+# However, when set, stderr is also written to the host stderr to assist with debugging
+# CFLAGS += -DLOG_SANDBOX_STDERR
+
 # Strips out calls to assert() and disables debuglog
 # CFLAGS += -DNDEBUG
 
@@ -49,20 +56,21 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_TO_FILE
 
 # Various Informational Logs for Debugging
+# CFLAGS += -DLOG_ADMISSIONS_CONTROL
+# CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_HTTP_PARSER
 # CFLAGS += -DLOG_LOCK_OVERHEAD
-# CFLAGS += -DLOG_CONTEXT_SWITCHES
-# CFLAGS += -DLOG_ADMISSIONS_CONTROL
-# CFLAGS += -DLOG_REQUEST_ALLOCATION
-# CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_MODULE_LOADING
+# CFLAGS += -DLOG_PREEMPTION
+# CFLAGS += -DLOG_SANDBOX_ALLOCATION
+# CFLAGS += -DLOG_UNSUPPORTED_WASI
+
+# Stores and logs extended signal information for each worker
+# CFLAGS += -DLOG_SOFTWARE_INTERRUPT_COUNTS
 
 # This adds an array of sandbox states to all sandbox structs and appends states at each transition
 # The history trucates when the number of elements equal SANDBOX_STATE_HISTORY_CAPACITY 
 # CFLAGS += -DLOG_STATE_CHANGES
-
-# Stores the max number of deferred SIGALRMS for each worker
-# CFLAGS += -DLOG_DEFERRED_SIGALRM_MAX
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
 # page is allocated. This helps understand the relationship to memory allocation and execution time.
@@ -73,10 +81,9 @@ BINARY_NAME=sledgert
 # To log, run `call http_total_log()` while in GDB
 # CFLAGS += -DLOG_TOTAL_REQS_RESPS
 
-# This flag logs the total number of sandboxes in the various states
+# This flag tracks the total number of sandboxes in the various states
 # It is useful to debug if sandboxes are "getting caught" in a particular state
-# To log, run `call runtime_log_sandbox_states()` while in GDB
-# CFLAGS += -DLOG_SANDBOX_COUNT
+# CFLAGS += -DSANDBOX_STATE_TOTALS
 
 # This flag enables an per-worker atomic count of sandbox's local runqueue count in thread local storage
 # Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue
@@ -86,7 +93,6 @@ BINARY_NAME=sledgert
 
 # Sets a flag equal to the processor architecture
 CFLAGS += -D${ARCH}
-
 
 # Preprocessor
 
@@ -99,49 +105,50 @@ LDFLAGS += -Wl,--export-dynamic -ldl -lm
 
 # Our third-party dependencies build into a single dist directory to simplify configuration here.
 LDFLAGS += -Lthirdparty/dist/lib/
-INCLUDES += -Iinclude/ -Ithirdparty/dist/include/
+INCLUDES += -Iinclude/ -Ithirdparty/dist/include/ -I../libsledge/include/
 
 # CFILES
 CFILES += src/*.c
 CFILES += src/arch/${ARCH}/*.c
 CFILES += src/libc/*.c
-CFILES += src/memory/common.c
-CFILES += src/memory/64bit_nix.c
 CFILES += thirdparty/dist/lib/http_parser.o
 
 # Configuring Jasmine
 JSMNCFLAGS += -DJSMN_STATIC
 JSMNCFLAGS += -DJSMN_STRICT
 
-.PHONY: all
-all: runtime
+# Force sledgert to rebuild when header files change
+# This is a bit fragile, as it does not recurse subdirectories when detecting last changed times
+HEADER_DEPS = thirdparty/dist/include/*.h include/*.h include/arch/x86_64/*.h include/arch/aarch64/*.h
 
-bin/sledgert: ${CFILES}
+.PHONY: all
+all: thirdparty runtime
+
+.PHONY: clean
+clean: thirdparty.clean runtime.clean
+
+# sledgert Rules
+bin/sledgert: ${HEADER_DEPS} ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ $^ -o bin/sledgert
+	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ ${CFILES} -o bin/sledgert
 
 .PHONY: runtime
-runtime: thirdparty bin/sledgert
+runtime: bin/sledgert
+
+.PHONY: runtime.clean
+runtime.clean:
+	@rm -f bin/${BINARY_NAME}
+
+# Thirdparty Dependency Rules
+thirdparty/dist/lib/http_parser.o: thirdparty
+thirdparty/dist/include/*.h: thirdparty
 
 .PHONY: thirdparty
 thirdparty:
 	@echo "Compiling thirdparty"
 	@make --no-print-directory -C thirdparty build
 
-.PHONY: clean
-clean:
-	@rm -f core
-	@echo "Cleaning up runtime"
-	@rm -f bin/${BINARY_NAME}
-
-.PHONY: distclean
-distclean: clean
+.PHONY: thirdparty.clean
+thirdparty.clean:
 	@make --no-print-directory -C thirdparty clean
-
-.PHONY: submodules
-submodules:
-	@git submodule update --init --recursive
-
-.PHONY: init
-init: submodules clean thirdparty runtime

@@ -64,3 +64,18 @@ module_database_find_by_socket_descriptor(int socket_descriptor)
 	}
 	return NULL;
 }
+
+/**
+ * Given a port, find the associated module
+ * @param port
+ * @return module or NULL if no match found
+ */
+struct module *
+module_database_find_by_port(uint16_t port)
+{
+	for (size_t i = 0; i < module_database_count; i++) {
+		assert(module_database[i]);
+		if (module_database[i]->port == port) return module_database[i];
+	}
+	return NULL;
+}

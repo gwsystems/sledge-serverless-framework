@@ -1,9 +1,0 @@
-{
-	"name": "hello_ps",
-	"path": "hello_ps_wasm.so",
-	"port": 10000,
-	"relative-deadline-us": 50000,
-	"http-req-size": 102400,
-	"http-resp-size": 1048576,
-	"http-resp-content-type": "image/jpeg"
-}

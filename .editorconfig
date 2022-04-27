@@ -1,6 +1,12 @@
 # top-most EditorConfig file
 root = true
 
+[.clang-format]
+ignore = true
+
+[*.yaml]
+ignore = true
+
 # Unix-style newlines with a newline ending every file
 [*]
 end_of_line = lf

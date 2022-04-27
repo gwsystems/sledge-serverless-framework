@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -32,53 +33,55 @@ client_socket_close(int client_socket, struct sockaddr *client_address)
 	}
 }
 
+typedef void (*void_cb)(void);
+
 /**
- * Rejects request due to admission control or error
+ * Writes buffer to the client socket
  * @param client_socket - the client we are rejecting
- * @param status_code - either 503 or 400
+ * @param buffer - buffer to write to socket
+ * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
+ * @returns 0 on success, -1 on error.
  */
 static inline int
-client_socket_send(int client_socket, int status_code)
+client_socket_send(int client_socket, const char *buffer, size_t buffer_len, void_cb on_eagain)
 {
-	const char *response;
-	int         rc;
-	switch (status_code) {
-	case 503:
-		response = HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
-		http_total_increment_5XX();
-		break;
-	case 413:
-		response = HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE;
-		http_total_increment_4XX();
-		break;
-	case 400:
-		response = HTTP_RESPONSE_400_BAD_REQUEST;
-		http_total_increment_4XX();
-		break;
-	default:
-		panic("%d is not a valid status code\n", status_code);
-	}
+	int rc;
 
-	size_t total_sent = 0;
-	size_t to_send    = strlen(response);
+	size_t cursor = 0;
 
-	while (total_sent < to_send) {
-		ssize_t sent = write(client_socket, &response[total_sent], to_send - total_sent);
+	while (cursor < buffer_len) {
+		ssize_t sent = write(client_socket, &buffer[cursor], buffer_len - cursor);
 		if (sent < 0) {
-			if (errno == EAGAIN) { debuglog("Unexpectedly blocking on write of %s\n", response); }
-
-			debuglog("Error with %s\n", strerror(errno));
-
-			goto send_err;
+			if (errno == EAGAIN) {
+				if (on_eagain == NULL) {
+					rc = -1;
+					goto done;
+				}
+				on_eagain();
+			} else {
+				debuglog("Error sending to client: %s", strerror(errno));
+				rc = -1;
+				goto done;
+			}
 		}
-		total_sent += sent;
+
+		assert(sent > 0);
+		cursor += (size_t)sent;
 	};
 
 	rc = 0;
 done:
 	return rc;
-send_err:
-	debuglog("Error sending to client: %s", strerror(errno));
-	rc = -1;
-	goto done;
+}
+
+/**
+ * Rejects request due to admission control or error
+ * @param client_socket - the client we are rejecting
+ * @param buffer - buffer to write to socket
+ * @returns 0
+ */
+static inline int
+client_socket_send_oneshot(int client_socket, const char *buffer, size_t buffer_len)
+{
+	return client_socket_send(client_socket, buffer, buffer_len, NULL);
 }

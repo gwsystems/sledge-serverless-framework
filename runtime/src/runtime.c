@@ -21,7 +21,7 @@
 #include "listener_thread.h"
 #include "module.h"
 #include "runtime.h"
-#include "sandbox_request.h"
+#include "sandbox_total.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
 
@@ -30,7 +30,7 @@
  **************************/
 
 pthread_t *runtime_worker_threads;
-int *      runtime_worker_threads_argument;
+int       *runtime_worker_threads_argument;
 /* The active deadline of the sandbox running on each worker thread */
 uint64_t *runtime_worker_threads_deadline;
 
@@ -47,8 +47,7 @@ runtime_cleanup()
 	if (runtime_worker_threads_argument) free(runtime_worker_threads_argument);
 	if (runtime_worker_threads) free(runtime_worker_threads);
 
-	software_interrupt_deferred_sigalrm_max_print();
-	software_interrupt_deferred_sigalrm_max_free();
+	software_interrupt_cleanup();
 	exit(EXIT_SUCCESS);
 }
 
@@ -65,7 +64,7 @@ runtime_set_resource_limits_to_max()
 	char          max[uint64_t_max_digits + 1];
 
 	uint64_t resources[]      = { RLIMIT_DATA, RLIMIT_NOFILE };
-	char *   resource_names[] = { "RLIMIT_DATA", "RLIMIT_NOFILE" };
+	char    *resource_names[] = { "RLIMIT_DATA", "RLIMIT_NOFILE" };
 
 	for (int i = 0; i < sizeof(resources) / sizeof(resources[0]); i++) {
 		int resource = resources[i];
@@ -82,11 +81,11 @@ runtime_set_resource_limits_to_max()
 			snprintf(max, uint64_t_max_digits, "%lu", limit.rlim_max);
 		}
 		if (limit.rlim_cur == limit.rlim_max) {
-			printf("\t%s: %s\n", resource_names[i], max);
+			pretty_print_key_value(resource_names[i], "%s\n", max);
 		} else {
 			limit.rlim_cur = limit.rlim_max;
 			if (setrlimit(resource, &limit) < 0) panic_err();
-			printf("\t%s: %s (Increased from %s)\n", resource_names[i], max, lim);
+			pretty_print_key_value(resource_names[i], "%s (Increased from %s)\n", max, lim);
 		}
 	}
 }
@@ -97,14 +96,17 @@ runtime_set_resource_limits_to_max()
 void
 runtime_initialize(void)
 {
-	runtime_worker_threads          = calloc(runtime_worker_threads_count, sizeof(pthread_t));
+	runtime_worker_threads = calloc(runtime_worker_threads_count, sizeof(pthread_t));
+	assert(runtime_worker_threads != NULL);
 	runtime_worker_threads_argument = calloc(runtime_worker_threads_count, sizeof(int));
+	assert(runtime_worker_threads_argument != NULL);
 	runtime_worker_threads_deadline = malloc(runtime_worker_threads_count * sizeof(uint64_t));
+	assert(runtime_worker_threads_deadline != NULL);
 	memset(runtime_worker_threads_deadline, UINT8_MAX, runtime_worker_threads_count * sizeof(uint64_t));
 
 	http_total_init();
-	sandbox_request_count_initialize();
-	sandbox_count_initialize();
+	sandbox_total_initialize();
+	sandbox_state_totals_initialize();
 
 	/* Setup Scheduler */
 	scheduler_initialize();

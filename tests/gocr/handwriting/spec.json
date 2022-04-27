@@ -1,0 +1,12 @@
+[
+	{
+		"name": "gocr",
+		"path": "gocr.wasm.so",
+		"port": 10000,
+		"expected-execution-us": 5000,
+		"relative-deadline-us": 36000,
+		"http-req-size": 1024000,
+		"http-resp-size": 1024000,
+		"http-resp-content-type": "text/plain"
+	}
+]

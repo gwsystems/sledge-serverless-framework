@@ -23,7 +23,7 @@ scheduler_execute_epoll_loop(void)
 	while (true) {
 		struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 		int                descriptor_count = epoll_wait(worker_thread_epoll_file_descriptor, epoll_events,
-                                                  RUNTIME_MAX_EPOLL_EVENTS, 0);
+		                                                 RUNTIME_MAX_EPOLL_EVENTS, 0);
 
 		if (descriptor_count < 0) {
 			if (errno == EINTR) continue;
@@ -41,8 +41,6 @@ scheduler_execute_epoll_loop(void)
 
 				if (sandbox->state == SANDBOX_ASLEEP) { sandbox_wakeup(sandbox); }
 			} else if (epoll_events[i].events & (EPOLLERR | EPOLLHUP)) {
-				/* Mystery: This seems to never fire. Why? Issue #130 */
-
 				/* Close socket and set as error on socket error or unexpected client hangup */
 				struct sandbox *sandbox = (struct sandbox *)epoll_events[i].data.ptr;
 				int             error   = 0;
@@ -63,7 +61,8 @@ scheduler_execute_epoll_loop(void)
 				case SANDBOX_ERROR:
 					panic("Expected to have closed socket");
 				default:
-					client_socket_send(sandbox->client_socket_descriptor, 503);
+					client_socket_send_oneshot(sandbox->client_socket_descriptor,
+					                           http_header_build(503), http_header_len(503));
 					sandbox_close_http(sandbox);
 					sandbox_set_as_error(sandbox, sandbox->state);
 				}

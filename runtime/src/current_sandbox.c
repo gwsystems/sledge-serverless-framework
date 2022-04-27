@@ -1,29 +1,22 @@
 #include <threads.h>
+#include <setjmp.h>
+#include <threads.h>
 
 #include "current_sandbox.h"
+#include "current_sandbox_send_response.h"
 #include "sandbox_functions.h"
 #include "sandbox_receive_request.h"
-#include "sandbox_send_response.h"
 #include "sandbox_set_as_asleep.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_returned.h"
 #include "sandbox_set_as_complete.h"
 #include "sandbox_set_as_running_user.h"
 #include "sandbox_set_as_running_sys.h"
-#include "sandbox_setup_arguments.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
+#include "wasi.h"
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
-
-thread_local struct sandbox_context_cache local_sandbox_context_cache = {
-	.memory = {
-		.start = NULL,
-		.size = 0,
-		.max = 0,
-	},
-	.module_indirect_table = NULL,
-};
 
 /**
  * @brief Switches from an executing sandbox to the worker thread base context
@@ -33,30 +26,22 @@ thread_local struct sandbox_context_cache local_sandbox_context_cache = {
 void
 current_sandbox_sleep()
 {
-	struct sandbox *sandbox = current_sandbox_get();
-	assert(sandbox != NULL);
-	struct arch_context *current_context = &sandbox->ctxt;
+	struct sandbox *sleeping_sandbox = current_sandbox_get();
+	assert(sleeping_sandbox != NULL);
 
-	scheduler_log_sandbox_switch(sandbox, NULL);
 	generic_thread_dump_lock_overhead();
 
-	assert(sandbox != NULL);
-
-	switch (sandbox->state) {
+	switch (sleeping_sandbox->state) {
 	case SANDBOX_RUNNING_SYS: {
-		sandbox_sleep(sandbox);
+		sandbox_sleep(sleeping_sandbox);
 		break;
 	}
 	default:
 		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
-		      sandbox_state_stringify(sandbox->state));
+		      sandbox_state_stringify(sleeping_sandbox->state));
 	}
 
-	current_sandbox_set(NULL);
-
-	/* Assumption: Base Worker context should never be preempted */
-	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
-	arch_context_switch(current_context, &worker_thread_base_context);
+	scheduler_cooperative_sched(false);
 }
 
 /**
@@ -67,37 +52,81 @@ current_sandbox_sleep()
 void
 current_sandbox_exit()
 {
-	struct sandbox *sandbox = current_sandbox_get();
-	current_sandbox_set(NULL);
+	struct sandbox *exiting_sandbox = current_sandbox_get();
+	assert(exiting_sandbox != NULL);
 
-	assert(sandbox != NULL);
-	struct arch_context *current_context = &sandbox->ctxt;
-
-	scheduler_log_sandbox_switch(sandbox, NULL);
 	generic_thread_dump_lock_overhead();
 
-	assert(sandbox != NULL);
-
-	switch (sandbox->state) {
+	switch (exiting_sandbox->state) {
 	case SANDBOX_RETURNED:
-		sandbox_exit_success(sandbox);
+		sandbox_exit_success(exiting_sandbox);
 		break;
 	case SANDBOX_RUNNING_SYS:
-		sandbox_exit_error(sandbox);
+		sandbox_exit_error(exiting_sandbox);
 		break;
 	default:
 		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
-		      sandbox_state_stringify(sandbox->state));
+		      sandbox_state_stringify(exiting_sandbox->state));
 	}
-	/* Do not access sandbox after this, as it is on the completion queue! */
 
-	/* Assumption: Base Worker context should never be preempted */
-	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
-	arch_context_switch(current_context, &worker_thread_base_context);
+	scheduler_cooperative_sched(true);
 
-	/* The schduler should never switch back to completed sandboxes */
+	/* The scheduler should never switch back to completed sandboxes */
 	assert(0);
 }
+
+void
+current_sandbox_wasm_trap_handler(int trapno)
+{
+	char           *error_message = NULL;
+	struct sandbox *sandbox       = current_sandbox_get();
+	sandbox_syscall(sandbox);
+
+	switch (trapno) {
+	case WASM_TRAP_INVALID_INDEX:
+		error_message = "WebAssembly Trap: Invalid Index\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_MISMATCHED_TYPE:
+		error_message = "WebAssembly Trap: Mismatched Type\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW:
+		error_message = "WebAssembly Trap: Protected Call Stack Overflow\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY:
+		error_message = "WebAssembly Trap: Out of Bounds Linear Memory Access\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION:
+		error_message = "WebAssembly Trap: Illegal Arithmetic Operation\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	case WASM_TRAP_UNREACHABLE:
+		error_message = "WebAssembly Trap: Unreachable Instruction\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	default:
+		error_message = "WebAssembly Trap: Unknown Trapno\n";
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
+		                   current_sandbox_sleep);
+		break;
+	}
+
+	debuglog("%s", error_message);
+	sandbox_close_http(sandbox);
+	generic_thread_dump_lock_overhead();
+	current_sandbox_exit();
+	assert(0);
+}
+
 
 static inline struct sandbox *
 current_sandbox_init()
@@ -106,49 +135,72 @@ current_sandbox_init()
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 
-	int rc = 0;
+	int   rc            = 0;
+	char *error_message = NULL;
 
 	sandbox_open_http(sandbox);
 
 	rc = sandbox_receive_request(sandbox);
 	if (rc == -2) {
+		error_message = "Request size exceeded Buffer\n";
 		/* Request size exceeded Buffer, send 413 Payload Too Large */
-		client_socket_send(sandbox->client_socket_descriptor, 413);
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(413), http_header_len(413),
+		                   current_sandbox_sleep);
 		goto err;
 	} else if (rc == -1) {
-		client_socket_send(sandbox->client_socket_descriptor, 400);
+		client_socket_send(sandbox->client_socket_descriptor, http_header_build(400), http_header_len(400),
+		                   current_sandbox_sleep);
 		goto err;
 	}
 
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
-	module_initialize_globals(current_module);
 	module_initialize_memory(current_module);
-	sandbox_setup_arguments(sandbox);
+
+	/* Initialize WASI */
+	wasi_options_t options;
+	wasi_options_init(&options);
+
+	/* Initialize Arguments. First arg is the module name. Subsequent args are query parameters */
+	char *args[HTTP_MAX_QUERY_PARAM_COUNT + 1];
+	args[0] = sandbox->module->name;
+	for (int i = 0; i < sandbox->http_request.query_params_count; i++)
+		args[i + 1] = (char *)sandbox->http_request.query_params[i].value;
+
+	options.argc                                          = sandbox->http_request.query_params_count + 1;
+	options.argv                                          = (const char **)&args;
+	sandbox->wasi_context                                 = wasi_context_init(&options);
+	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
+	assert(sandbox->wasi_context != NULL);
+
 	sandbox_return(sandbox);
+
+	/* Initialize sandbox globals. Needs to run in user state */
+	module_initialize_globals(current_module);
 
 	return sandbox;
 
 err:
+	debuglog("%s", error_message);
 	sandbox_close_http(sandbox);
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
-	assert(0);
+	return NULL;
 }
 
-static inline void
+extern noreturn void
 current_sandbox_fini()
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	assert(sandbox != NULL);
 
 	char *error_message = "";
-	sandbox_interrupt(sandbox);
+	sandbox_syscall(sandbox);
 
 	sandbox->timestamp_of.completion = __getcycles();
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
-	if (sandbox_send_response(sandbox) < 0) {
+	if (current_sandbox_send_response() < 0) {
 		error_message = "Unable to build and send client response\n";
 		goto err;
 	};
@@ -182,9 +234,15 @@ err:
 void
 current_sandbox_start(void)
 {
-	struct sandbox *sandbox        = current_sandbox_init();
-	struct module * current_module = sandbox_get_module(sandbox);
-	int32_t         argument_count = 0;
-	sandbox->return_value          = module_entrypoint(current_module, argument_count, sandbox->arguments_offset);
+	struct sandbox *sandbox = current_sandbox_init();
+
+	int rc = sigsetjmp(sandbox->ctxt.start_buf, 1);
+	if (rc == 0) {
+		struct module *current_module = sandbox_get_module(sandbox);
+		sandbox->return_value         = module_entrypoint(current_module);
+	} else {
+		current_sandbox_wasm_trap_handler(rc);
+	}
+
 	current_sandbox_fini();
 }

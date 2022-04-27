@@ -1,6 +1,7 @@
 #pragma once
 
 #include <pthread.h>
+#include <sched.h>
 #include <stdint.h>
 #include <stdio.h>
 

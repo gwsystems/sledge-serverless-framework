@@ -2,13 +2,24 @@
 
 **SLEdge** is a lightweight serverless solution suitable for edge computing. It builds on WebAssembly sandboxing provided by the [aWsm compiler](https://github.com/gwsystems/aWsm).
 
-## Host Dependencies
+## Setting up a development environment
 
-- Docker - [Installation Instructions](https://docs.docker.com/install/)
+### Native on Debian Host
 
-## Setting up the environment
+```sh
+git clone https://github.com/gwsystems/sledge-serverless-framework.git
+cd sledge-serverless-framework
+./install_deb.sh
+source ~/.bashrc
+make install
+make test
+```
+
+### Docker
 
 **Note: These steps require Docker. Make sure you've got it installed!**
+
+[Docker Installation Instructions](https://docs.docker.com/install/)
 
 We provide a Docker build environment configured with the dependencies and toolchain needed to build the SLEdge runtime and serverless functions.
 
@@ -18,7 +29,7 @@ To setup this environment, run:
 ./devenv.sh setup
 ```
 
-## Using the Docker container to compile your serverless functions
+### Using the Docker container to compile your serverless functions
 
 To enter the docker environment, run:
 
@@ -33,10 +44,10 @@ cd /sledge/runtime
 make clean all
 ```
 
-There are a set of benchmarking applications in the `/sledge/runtime/tests` directory. Run the following to compile all benchmarks runtime tests using the aWsm compiler and then copy all resulting `<application>_wasm.so` files to /sledge/runtime/bin.
+There are a set of benchmarking applications in the `/sledge/applications` directory. Run the following to compile all benchmarks runtime tests using the aWsm compiler and then copy all resulting `<application>.wasm.so` files to /sledge/runtime/bin.
 
 ```bash
-cd /sledge/runtime/tests/
+cd /sledge/applications/
 make clean all
 ```
 
@@ -54,6 +65,16 @@ To stop the Docker container:
 ./devenv.sh stop
 ```
 
+### Deleting Docker Build Containers
+
+If you are finished working with the SLEdge runtime and wish to remove it, run the following command to delete our Docker build and runtime images.
+
+```bash
+./devenv.sh rma
+```
+
+And then simply delete this repository.
+
 ## Running your first serverless function
 
 An SLEdge serverless function consists of a shared library (\*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:
@@ -61,7 +82,7 @@ An SLEdge serverless function consists of a shared library (\*.so) and a JSON co
 ```json
 {
   "name": "fibonacci",
-  "path": "fibonacci_wasm.so",
+  "path": "fibonacci.wasm.so",
   "port": 10000,
   "expected-execution-us": 600,
   "relative-deadline-us": 2000,
@@ -85,7 +106,7 @@ From the root project directory of the host environment (not the Docker containe
 cd runtime/bin/
 ```
 
-Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `runtime/tests/` directory to LD_LIBRARY_PATH.
+Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `applications/` directory to LD_LIBRARY_PATH.
 
 ```bash
 LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_fibonacci.json
@@ -115,18 +136,10 @@ When done, terminal the SLEdge runtime with `Ctrl+c`
 
 ## Running Test Workloads
 
-Various synthetic and real-world tests can be found in `runtime/experiments`. Generally, each experiment can be run be executing the `run.sh` script.
+Various synthetic and real-world tests can be found in `runtime/tests`. Generally, each experiment can be run by Make rules in the top level `test.mk`.
 
-## Removing the SLEdge Runtime
-
-If you are finished working with the SLEdge runtime and wish to remove it, run the following command to delete our Docker build and runtime images.
-
-```bash
-./devenv.sh rma
-```
-
-And then simply delete this repository.
+`make -f test.mk all`
 
 ## Problems or Feedback?
 
-If you encountered bugs or have feedback, please let us know in our [issue tracker.](https://github.com/phanikishoreg/awsm-Serverless-Framework/issues)
+If you encountered bugs or have feedback, please let us know in our [issue tracker.](https://github.com/gwsystems/sledge-serverless-framework/issues)
