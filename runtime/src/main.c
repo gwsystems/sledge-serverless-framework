@@ -474,6 +474,8 @@ main(int argc, char **argv)
 		struct module *module = module_alloc(&module_config_vec[module_idx]);
 		if (unlikely(module == NULL)) panic("failed to initialize module(s) defined in %s\n", json_path);
 
+		if (module_is_paid(module)) global_timeout_queue_add(module);
+
 		int rc = module_database_add(module);
 		if (rc < 0) {
 			panic("Module database full!\n");

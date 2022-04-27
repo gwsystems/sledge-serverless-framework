@@ -22,6 +22,8 @@ enum
 	module_path,
 	module_port,
 	module_expected_execution_us,
+	module_replenishment_period_us,
+	module_max_budget_us,
 	module_admissions_percentile,
 	module_relative_deadline_us,
 	module_http_req_size,
@@ -34,6 +36,8 @@ static const char *module_keys[module_keys_len] = { "name",
 	                                            "path",
 	                                            "port",
 	                                            "expected-execution-us",
+												"replenishment-period-us",
+												"max-budget-us",
 	                                            "admissions-percentile",
 	                                            "relative-deadline-us",
 	                                            "http-req-size",
@@ -253,6 +257,18 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 
 				int rc = parse_uint32_t(tokens[i], json_buf, module_keys[module_expected_execution_us],
 				                        &(*module_config_vec)[module_idx].expected_execution_us);
+				if (rc < 0) goto json_parse_err;
+			} else if (strcmp(key, module_keys[module_replenishment_period_us]) == 0) {
+				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
+
+				int rc = parse_uint32_t(tokens[i], json_buf, module_keys[module_replenishment_period_us],
+										&(*module_config_vec)[module_idx].replenishment_period_us);
+				if (rc < 0) goto json_parse_err;
+			} else if (strcmp(key, module_keys[module_max_budget_us]) == 0) {
+				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
+
+				int rc = parse_uint32_t(tokens[i], json_buf, module_keys[module_max_budget_us],
+										&(*module_config_vec)[module_idx].max_budget_us);
 				if (rc < 0) goto json_parse_err;
 			} else if (strcmp(key, module_keys[module_admissions_percentile]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;

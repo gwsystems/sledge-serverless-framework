@@ -11,6 +11,8 @@ struct module_config {
 	uint8_t  admissions_percentile;
 	uint32_t expected_execution_us;
 	uint32_t relative_deadline_us;
+	uint32_t replenishment_period_us;
+	uint32_t max_budget_us;
 	uint32_t http_req_size;
 	uint32_t http_resp_size;
 	char    *http_resp_content_type;
