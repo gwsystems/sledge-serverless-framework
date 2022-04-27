@@ -117,7 +117,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (worker_thread_is_running_cooperative_scheduler()) {
 			/* There is no benefit to deferring SIGALRMs that occur when we are already in the cooperative
 			 * scheduler, so just propagate and return */
-		if (scheduler == SCHEDULER_MTS && signal_info->si_code == SI_KERNEL) {
+		if (scheduler == SCHEDULER_MTDS && signal_info->si_code == SI_KERNEL) {
 			/* Global tenant promotions */
 			global_timeout_queue_process_promotions();
 		}
@@ -125,7 +125,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		} else if (current_sandbox_is_preemptable()) {
 			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
 			sandbox_interrupt(current_sandbox);
-			if (scheduler == SCHEDULER_MTS && signal_info->si_code == SI_KERNEL) {
+			if (scheduler == SCHEDULER_MTDS && signal_info->si_code == SI_KERNEL) {
 			/* Global tenant promotions */
 			global_timeout_queue_process_promotions();
 		}
@@ -135,7 +135,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			/* We transition the sandbox to an interrupted state to exclude time propagating signals and
 			 * running the scheduler from per-sandbox accounting */
 			sandbox_state_t interrupted_state = current_sandbox->state;
-			if (scheduler == SCHEDULER_MTS && signal_info->si_code == SI_KERNEL) {
+			if (scheduler == SCHEDULER_MTDS && signal_info->si_code == SI_KERNEL) {
 			/* Global tenant promotions */
 			global_timeout_queue_process_promotions();
 		}

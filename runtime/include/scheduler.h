@@ -9,11 +9,11 @@
 #include "global_request_scheduler.h"
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
-#include "global_request_scheduler_mts.h"
+#include "global_request_scheduler_mtds.h"
 #include "local_runqueue.h"
 #include "local_runqueue_minheap.h"
 #include "local_runqueue_list.h"
-#include "local_runqueue_mts.h"
+#include "local_runqueue_mtds.h"
 #include "panic.h"
 #include "sandbox_functions.h"
 #include "sandbox_types.h"
@@ -67,13 +67,13 @@ enum SCHEDULER
 {
 	SCHEDULER_FIFO = 0,
 	SCHEDULER_EDF  = 1,
-	SCHEDULER_MTS  = 2
+	SCHEDULER_MTDS  = 2
 };
 
 extern enum SCHEDULER scheduler;
 
 static inline struct sandbox *
-scheduler_mts_get_next()
+scheduler_mtds_get_next()
 {
 	/* Get the deadline of the sandbox at the head of the local queue */
 	struct sandbox *         local          = local_runqueue_get_next();
@@ -83,8 +83,8 @@ scheduler_mts_get_next()
 
 	if (local) local_mt_class = local->module->pwm_sandboxes[worker_thread_idx].mt_class;
 
-	uint64_t global_guaranteed_deadline = global_request_scheduler_mts_guaranteed_peek();
-	uint64_t global_default_deadline    = global_request_scheduler_mts_default_peek();
+	uint64_t global_guaranteed_deadline = global_request_scheduler_mtds_guaranteed_peek();
+	uint64_t global_default_deadline    = global_request_scheduler_mtds_default_peek();
 
 	/* Try to pull and allocate from the global queue if earlier
 	 * This will be placed at the head of the local runqueue */
@@ -162,8 +162,8 @@ static inline struct sandbox *
 scheduler_get_next()
 {
 	switch (scheduler) {
-	case SCHEDULER_MTS:
-		return scheduler_mts_get_next();
+	case SCHEDULER_MTDS:
+		return scheduler_mtds_get_next();
 	case SCHEDULER_EDF:
 		return scheduler_edf_get_next();
 	case SCHEDULER_FIFO:
@@ -177,8 +177,8 @@ static inline void
 scheduler_initialize()
 {
 	switch (scheduler) {
-	case SCHEDULER_MTS:
-		global_request_scheduler_mts_initialize();
+	case SCHEDULER_MTDS:
+		global_request_scheduler_mtds_initialize();
 		break;
 	case SCHEDULER_EDF:
 		global_request_scheduler_minheap_initialize();
@@ -195,8 +195,8 @@ static inline void
 scheduler_runqueue_initialize()
 {
 	switch (scheduler) {
-	case SCHEDULER_MTS:
-		local_runqueue_mts_initialize();
+	case SCHEDULER_MTDS:
+		local_runqueue_mtds_initialize();
 		break;
 	case SCHEDULER_EDF:
 		local_runqueue_minheap_initialize();
@@ -217,8 +217,8 @@ scheduler_print(enum SCHEDULER variant)
 		return "FIFO";
 	case SCHEDULER_EDF:
 		return "EDF";
-	case SCHEDULER_MTS:
-		return "MTS";
+	case SCHEDULER_MTDS:
+		return "MTDS";
 	}
 }
 
@@ -276,7 +276,7 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
 static inline void
 scheduler_process_policy_updates(struct sandbox *interrupted_sandbox)
 {
-	if (scheduler != SCHEDULER_MTS) return;
+	if (scheduler != SCHEDULER_MTDS) return;
 
 	struct module *module = interrupted_sandbox->module;
 
