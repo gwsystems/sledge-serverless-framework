@@ -19,50 +19,12 @@ struct tenant *tenant_database_find_by_port(uint16_t port);
 static inline struct tenant *
 tenant_alloc(struct tenant_config *config)
 {
-	/* Validate config */
-	if (strlen(config->name) == 0) panic("name field is required\n");
-	if (config->port == 0) panic("port field is required\n");
-	if (config->routes_len == 0) panic("one or more routesa are required\n");
-
 	struct tenant *existing_tenant = tenant_database_find_by_name(config->name);
 	if (existing_tenant != NULL) panic("Tenant %s is already initialized\n", existing_tenant->name);
 
 	existing_tenant = tenant_database_find_by_port(config->port);
 	if (existing_tenant != NULL)
 		panic("Tenant %s is already configured with port %u\n", existing_tenant->name, config->port);
-
-	for (int i = 0; i < config->routes_len; i++) {
-		struct route_config *route_config = &config->routes[i];
-		if (route_config->path == 0) panic("path field is required\n");
-		if (route_config->route == 0) panic("route field is required\n");
-
-		if (route_config->relative_deadline_us > (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX)
-			panic("Relative-deadline-us must be between 0 and %u, was %u\n",
-			      (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, route_config->relative_deadline_us);
-
-#ifdef ADMISSIONS_CONTROL
-		/* expected-execution-us and relative-deadline-us are required in case of admissions control */
-		if (route_config->expected_execution_us == 0) panic("expected-execution-us is required\n");
-		if (route_config->relative_deadline_us == 0) panic("relative_deadline_us is required\n");
-
-		if (route_config->admissions_percentile > 99 || route_config->admissions_percentile < 50)
-			panic("admissions-percentile must be > 50 and <= 99 but was %u\n",
-			      route_config->admissions_percentile);
-
-		/* If the ratio is too big, admissions control is too coarse */
-		uint32_t ratio = route_config->relative_deadline_us / route_config->expected_execution_us;
-		if (ratio > ADMISSIONS_CONTROL_GRANULARITY)
-			panic("Ratio of Deadline to Execution time cannot exceed admissions control "
-			      "granularity of "
-			      "%d\n",
-			      ADMISSIONS_CONTROL_GRANULARITY);
-#else
-		/* relative-deadline-us is required if scheduler is EDF */
-		if (scheduler == SCHEDULER_EDF && route_config->relative_deadline_us == 0)
-			panic("relative_deadline_us is required\n");
-#endif
-	}
-
 
 	struct tenant *tenant = (struct tenant *)calloc(1, sizeof(struct tenant));
 

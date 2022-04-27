@@ -13,5 +13,5 @@ sandbox_receive_request(struct sandbox *sandbox)
 	assert(sandbox != NULL);
 	struct http_session *session = sandbox->http;
 
-	return http_session_receive(session, current_sandbox_sleep);
+	return http_session_receive_request(session, current_sandbox_sleep);
 }

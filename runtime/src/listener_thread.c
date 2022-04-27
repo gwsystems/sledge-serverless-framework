@@ -172,7 +172,7 @@ listener_thread_main(void *dummy)
 				/* Read HTTP request */
 				/* TODO: Use epoll on block instead of busy looping */
 				int rc = 0;
-				while ((rc = http_session_receive(session, NULL)) == -3)
+				while ((rc = http_session_receive_request(session, NULL)) == -3)
 					;
 
 				if (rc == -2) {

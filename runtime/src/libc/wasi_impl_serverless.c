@@ -786,32 +786,21 @@ wasi_snapshot_preview1_backing_fd_write(wasi_context_t *context, __wasi_fd_t fd,
 	if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
 		struct sandbox *s                = current_sandbox_get();
 		size_t          buffer_remaining = 0;
-		size_t          old_response_len = s->http->response.length;
-		__wasi_size_t   sum              = 0;
+		__wasi_size_t   nwritten         = 0;
+		int             rc               = 0;
 
 		for (size_t i = 0; i < iovs_len; i++) {
-			buffer_remaining = s->http->response.capacity - s->http->response.length;
-
-			if (buffer_remaining < iovs[i].buf_len) {
-				vec_u8_grow(&s->http->response);
-				buffer_remaining = s->http->response.capacity - s->http->response.length;
-			}
-
-			if (buffer_remaining == 0) {
-				*nwritten_retptr = s->http->response.length - old_response_len;
-				return __WASI_ERRNO_FBIG;
-			}
-			ssize_t to_write = buffer_remaining > iovs[i].buf_len ? iovs[i].buf_len : buffer_remaining;
-			memcpy(&s->http->response.buffer[s->http->response.length], iovs[i].buf, to_write);
 #ifdef LOG_SANDBOX_STDERR
 			if (fd == STDERR_FILENO) {
-				debuglog("STDERR from Sandbox:");
-				write(2, iovs[i].buf, iovs[i].buf_len);
+				debuglog("STDERR from Sandbox: %.*s", iovs[i].buf_len, iovs[i].buf);
 			}
 #endif
-			s->http->response.length += to_write;
+			rc = http_session_write_response(s->http, iovs[i].buf, iovs[i].buf_len);
+			if (rc < 0) return __WASI_ERRNO_FBIG;
+
+			nwritten += rc;
 		}
-		*nwritten_retptr = s->http->response.length - old_response_len;
+		*nwritten_retptr = nwritten;
 		return __WASI_ERRNO_SUCCESS;
 	}
 

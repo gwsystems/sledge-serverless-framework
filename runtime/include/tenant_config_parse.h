@@ -4,35 +4,37 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "debuglog.h"
 #include "json.h"
 #include "route_config_parse.h"
 #include "tenant_config.h"
 
-enum
+static const char *tenant_config_json_keys[tenant_config_member_len] = { "name", "port", "routes" };
+
+static inline int
+tenant_config_set_key_once(bool *did_set, enum tenant_config_member member)
 {
-	tenant_config_json_key_name,
-	tenant_config_json_key_port,
-	tenant_config_json_key_routes,
-	tenant_config_json_key_len
-};
+	if (did_set[member]) {
+		debuglog("Redundant key %s\n", tenant_config_json_keys[member]);
+		return -1;
+	}
 
-static const char *tenant_config_json_keys[tenant_config_json_key_len] = { "name", "port", "routes" };
-
-
-/* Tenant Config */
+	did_set[member] = true;
+	return 0;
+}
 
 static inline int
 tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_t *tokens, size_t tokens_base,
                     int tokens_size)
 {
-	int  i       = tokens_base;
-	char key[32] = { 0 };
+	int  i                                 = tokens_base;
+	char key[32]                           = { 0 };
+	bool did_set[tenant_config_member_len] = { false };
 
 	if (!has_valid_type(tokens[i], "Anonymous Tenant Config Object", JSMN_OBJECT, json_buf)) return -1;
 	if (!is_nonempty_object(tokens[i], "Anonymous Tenant Config Object")) return -1;
 
 	int tenant_key_count = tokens[i].size;
-
 
 	for (int tenant_key_idx = 0; tenant_key_idx < tenant_key_count; tenant_key_idx++) {
 		/* Advance to key */
@@ -47,18 +49,21 @@ tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_
 		/* Advance to Value */
 		i++;
 
-		if (strcmp(key, tenant_config_json_keys[tenant_config_json_key_name]) == 0) {
+		if (strcmp(key, tenant_config_json_keys[tenant_config_member_name]) == 0) {
 			if (!is_nonempty_string(tokens[i], key)) return -1;
+			if (tenant_config_set_key_once(did_set, tenant_config_member_name) == -1) return -1;
 
 			config->name = strndup(json_buf + tokens[i].start, tokens[i].end - tokens[i].start);
-		} else if (strcmp(key, tenant_config_json_keys[tenant_config_json_key_port]) == 0) {
+		} else if (strcmp(key, tenant_config_json_keys[tenant_config_member_port]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+			if (tenant_config_set_key_once(did_set, tenant_config_member_port) == -1) return -1;
 
-			int rc = parse_uint16_t(tokens[i], json_buf,
-			                        tenant_config_json_keys[tenant_config_json_key_port], &config->port);
+			int rc = parse_uint16_t(tokens[i], json_buf, tenant_config_json_keys[tenant_config_member_port],
+			                        &config->port);
 			if (rc < 0) return -1;
-		} else if (strcmp(key, tenant_config_json_keys[tenant_config_json_key_routes]) == 0) {
+		} else if (strcmp(key, tenant_config_json_keys[tenant_config_member_routes]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_ARRAY, json_buf)) return -1;
+			if (tenant_config_set_key_once(did_set, tenant_config_member_routes) == -1) return -1;
 
 			int routes_len     = tokens[i].size;
 			config->routes_len = routes_len;
@@ -76,6 +81,8 @@ tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_
 			return -1;
 		}
 	}
+
+	if (tenant_config_validate(config, did_set) < 0) return -1;
 
 	return i;
 }
