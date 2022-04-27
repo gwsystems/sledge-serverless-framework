@@ -1,13 +1,17 @@
 [
 	{
-		"name": "fibonacci_40",
-		"path": "trap_divzero.wasm.so",
+		"name": "gwu",
 		"port": 10000,
-		"expected-execution-us": 10000000,
-		"admissions-percentile": 70,
-		"relative-deadline-us": 20000000,
-		"http-req-size": 1024,
-		"http-resp-size": 1024,
-		"http-resp-content-type": "text/plain"
+		"routes": [
+			{
+				"route": "/divide",
+				"path": "trap_divzero.wasm.so",
+				"expected-execution-us": 10000000,
+				"admissions-percentile": 70,
+				"relative-deadline-us": 20000000,
+				"http-resp-size": 64,
+				"http-resp-content-type": "text/plain"
+			}
+		]
 	}
 ]

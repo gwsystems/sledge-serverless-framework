@@ -23,10 +23,11 @@ source path_join.sh || exit 1
 source validate_dependencies.sh || exit 1
 source percentiles_table.sh || exit 1
 
-validate_dependencies hey jq
+# validate_dependencies hey jq
+validate_dependencies hey
 
 declare -a workloads=()
-declare -A port=()
+declare -A path=()
 
 # Example of stripping off multiple suffix from variable in format string_multiple
 # test="ekf_12223.23343"
@@ -46,17 +47,13 @@ initialize_globals() {
 		workload="${buffer[1]}"
 		# Update workload mix structures
 		workloads+=("$workload")
-		port+=(["$workload"]=$(get_port "$workload"))
+		path+=(["$workload"]=$(get_path "$workload"))
 	done < "$__run_sh__base_path/mix.csv"
 }
 
-get_port() {
+get_path() {
 	local name="$1"
-	{
-		echo "["
-		cat ./spec.json
-		echo "]"
-	} | jq ".[] | select(.name == \"$name\") | .port"
+	cat spec.json | jq ".[] | select(.name==\"gwu\") | .routes[] | select(.route==\"/${name}\") | .route"
 }
 
 run_experiments() {
@@ -125,7 +122,7 @@ run_experiments() {
 			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
 				# We require word splitting on the value returned by the body associative array
 				#shellcheck disable=SC2086
-				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$shortname]} "http://${hostname}:${port[$workload]}" > /dev/null 2> /dev/null &
+				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET ${body[$shortname]} "http://${hostname}:10000/${path[$shortname]}" > /dev/null 2> /dev/null &
 				break
 			fi
 		done

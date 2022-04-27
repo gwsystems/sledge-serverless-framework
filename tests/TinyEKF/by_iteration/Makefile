@@ -18,10 +18,10 @@ debug:
 		--eval-command="run spec.json"
 
 client:
-	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@initial_state.dat" "${HOSTNAME}:10000" --output result1.dat
+	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@initial_state.dat" "${HOSTNAME}:10000/ekf_first_iter" --output result1.dat
 	diff -s result1.dat one_iteration.dat
-	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@result1.dat" "${HOSTNAME}:10000" --output result2.dat
+	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@result1.dat" "${HOSTNAME}:10000/ekf_second_iter" --output result2.dat
 	diff -s result2.dat two_iterations.dat
-	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@result2.dat" "${HOSTNAME}:10000" --output result3.dat
+	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@result2.dat" "${HOSTNAME}:10000/ekf_third_iter" --output result3.dat
 	diff -s result3.dat three_iterations.dat
 	rm result*.dat

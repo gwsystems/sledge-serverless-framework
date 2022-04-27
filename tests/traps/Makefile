@@ -35,30 +35,30 @@ debug: sledgert trap_divzero
 		--eval-command="run spec.json"
 
 client-ok:
-	echo "1" | http :10000
+	echo "1" | http :10000/divide
 
 client-trap:
-	echo "0" | http :10000
+	echo "0" | http :10000/divide
 
 client-trap2:
-	echo "-1" | http :10000
+	echo "-1" | http :10000/divide
 
 test:
-	echo "4" | http :10000
-	echo "0" | http :10000
-	echo "3" | http :10000
-	echo "0" | http :10000
-	echo "2" | http :10000
-	echo "0" | http :10000
-	echo "1" | http :10000
-	echo "0" | http :10000
-	echo "1" | http :10000
-	echo "0" | http :10000
-	echo "2" | http :10000
-	echo "0" | http :10000
-	echo "3" | http :10000
-	echo "0" | http :10000
-	echo "4" | http :10000
+	echo "4" | http :10000/divide
+	echo "0" | http :10000/divide
+	echo "3" | http :10000/divide
+	echo "0" | http :10000/divide
+	echo "2" | http :10000/divide
+	echo "0" | http :10000/divide
+	echo "1" | http :10000/divide
+	echo "0" | http :10000/divide
+	echo "1" | http :10000/divide
+	echo "0" | http :10000/divide
+	echo "2" | http :10000/divide
+	echo "0" | http :10000/divide
+	echo "3" | http :10000/divide
+	echo "0" | http :10000/divide
+	echo "4" | http :10000/divide
 
 client-fib10-multi:
-	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${HOSTNAME}:10010"
+	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${HOSTNAME}:10010/divide"

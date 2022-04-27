@@ -28,9 +28,9 @@ run_functional_tests() {
 	}
 
 	for ((i = 0; i < total_count; i++)); do
-		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@initial_state.dat" "$hostname":10000 2> /dev/null > "$tmpfs_dir/one_iteration_res.dat"
-		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@$tmpfs_dir/one_iteration_res.dat" "$hostname":10001 2> /dev/null > "$tmpfs_dir/two_iterations_res.dat"
-		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@$tmpfs_dir/two_iterations_res.dat" "$hostname":10002 2> /dev/null > "$tmpfs_dir/three_iterations_res.dat"
+		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@initial_state.dat" "$hostname":10000/ekf_first_iter 2> /dev/null > "$tmpfs_dir/one_iteration_res.dat"
+		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@$tmpfs_dir/one_iteration_res.dat" "$hostname":10000/ekf_second_iter 2> /dev/null > "$tmpfs_dir/two_iterations_res.dat"
+		curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@$tmpfs_dir/two_iterations_res.dat" "$hostname":10000/ekf_third_iter 2> /dev/null > "$tmpfs_dir/three_iterations_res.dat"
 
 		if diff -s "$tmpfs_dir/one_iteration_res.dat" one_iteration.dat > /dev/null \
 			&& diff -s "$tmpfs_dir/two_iterations_res.dat" two_iterations.dat > /dev/null \
@@ -68,7 +68,7 @@ run_perf_tests() {
 			done
 			((batch_id++))
 
-			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "./${workload}.dat" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" &
+			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "./${workload}.dat" "http://${hostname}:10000${path[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" &
 		done
 		pids=$(pgrep hey | tr '\n' ' ')
 		[[ -n $pids ]] && wait -f $pids
@@ -142,10 +142,10 @@ if  [[ ! -f "$__run_sh__base_path/initial_state.dat" ]]; then
 fi
 
 declare -a workloads=(initial_state one_iteration two_iterations)
-declare -A port=(
-	[initial_state]=10000
-	[one_iteration]=10001
-	[two_iterations]=10002
+declare -A path=(
+	[initial_state]=/ekf_first_iter
+	[one_iteration]=/ekf_second_iter
+	[two_iterations]=/ekf_third_iter
 )
 
 framework_init "$@"

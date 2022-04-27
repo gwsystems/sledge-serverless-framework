@@ -35,4 +35,4 @@ debug: sledgert stack_overflow
 		--eval-command="run spec.json"
 
 client:
-	http :10000
+	http :10000/stack_overflow

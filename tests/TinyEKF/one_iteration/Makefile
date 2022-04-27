@@ -18,5 +18,5 @@ debug:
 		--eval-command="run spec.json"
 
 client:
-	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@ekf_raw.dat" "${HOSTNAME}:10000" --output result.dat
+	curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@ekf_raw.dat" "${HOSTNAME}:10000/ekf" --output result.dat
 	diff -s result.dat expected_result.dat

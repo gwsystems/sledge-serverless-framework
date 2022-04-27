@@ -22,7 +22,7 @@ run_functional_tests() {
 	expected_result="$(tr -d '\0' < ./expected_result.dat)"
 
 	for ((i = 0; i < total_count; i++)); do
-		result="$(curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@ekf_raw.dat" "$hostname:10000" 2> /dev/null | tr -d '\0')"
+		result="$(curl -H 'Expect:' -H "Content-Type: application/octet-stream" --data-binary "@ekf_raw.dat" "$hostname:10000/ekf" 2> /dev/null | tr -d '\0')"
 		if [[ "$expected_result" == "$result" ]]; then
 			((success_count++))
 		else
