@@ -52,4 +52,8 @@ sandbox_syscall(struct sandbox *sandbox)
 {
 	assert(sandbox->state == SANDBOX_RUNNING_USER);
 	sandbox_set_as_running_sys(sandbox, SANDBOX_RUNNING_USER);
+
+	if (module_is_paid(sandbox->module)) {
+		atomic_fetch_sub(&sandbox->module->remaining_budget, sandbox->last_duration_of_exec);
+	}
 }

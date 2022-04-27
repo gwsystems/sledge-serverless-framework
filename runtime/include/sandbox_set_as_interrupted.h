@@ -23,7 +23,8 @@ sandbox_set_as_interrupted(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
-	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
+	sandbox->last_duration_of_exec = now - sandbox->timestamp_of.last_state_change;
+	sandbox->duration_of_state[last_state] += sandbox->last_duration_of_exec;
 	sandbox->timestamp_of.last_state_change = now;
 	/* We do not append SANDBOX_INTERRUPTED to the sandbox_state_history because it would quickly fill the buffer */
 	sandbox_state_totals_increment(SANDBOX_INTERRUPTED);
@@ -34,6 +35,10 @@ static inline void
 sandbox_interrupt(struct sandbox *sandbox)
 {
 	sandbox_set_as_interrupted(sandbox, sandbox->state);
+
+	if (module_is_paid(sandbox->module)) {
+		atomic_fetch_sub(&sandbox->module->remaining_budget, sandbox->last_duration_of_exec);
+	}
 }
 
 

@@ -212,6 +212,9 @@ current_sandbox_fini()
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 	sandbox_close_http(sandbox);
 	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING_SYS);
+	if (module_is_paid(sandbox->module)) {
+		atomic_fetch_sub(&sandbox->module->remaining_budget, sandbox->last_duration_of_exec);
+	}
 
 done:
 	/* Cleanup connection and exit sandbox */
