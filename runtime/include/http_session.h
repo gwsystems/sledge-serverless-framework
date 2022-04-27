@@ -25,7 +25,7 @@ struct http_session {
 	/* HTTP State */
 	struct sockaddr     client_address; /* client requesting connection! */
 	int                 socket;
-	http_parser         http_parser;
+	struct http_parser  http_parser;
 	struct http_request http_request;
 	struct vec_u8       request;
 	struct vec_u8       response;

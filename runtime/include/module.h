@@ -18,9 +18,6 @@
 #include "wasm_memory.h"
 #include "wasm_table.h"
 
-#define MODULE_MAX_PATH_LENGTH  256
-#define MODULE_MAX_ROUTE_LENGTH 256
-
 #define MODULE_DATABASE_CAPACITY 128
 
 extern thread_local int worker_thread_idx;

@@ -113,7 +113,6 @@
 		"vec.h": "c",
 		"module_database.h": "c",
 		"perf_window_t.h": "c",
-		"typeinfo": "c",
 		"module_config.h": "c",
 		"tenant.h": "c",
 		"route_config.h": "c",

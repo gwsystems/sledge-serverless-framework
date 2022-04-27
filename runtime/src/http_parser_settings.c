@@ -191,23 +191,8 @@ http_parser_settings_on_header_end(http_parser *parser)
 	debuglog("parser: %p\n", parser);
 #endif
 
-	http_request->header_end = true;
-
-	/* Search header for content length */
-	for (int i = 0; i < http_request->header_count; i++) {
-		if (strncasecmp(http_request->headers[i].key, "content-length", strlen("content-length")) == 0) {
-			intmax_t temp = strtoimax(http_request->headers[i].value, NULL, 10);
-
-			if (temp < 0 || temp > INT_MAX) {
-				/* TODO: Improve error handling to not crash runtime */
-				fprintf(stderr, "Unable to parse int for key %.*s\n",
-				        http_request->headers[i].key_length, http_request->headers[i].key);
-				assert(0);
-			} else {
-				http_request->body_length = (int)temp;
-			}
-		}
-	}
+	http_request->header_end  = true;
+	http_request->body_length = parser->content_length;
 
 	return 0;
 }
