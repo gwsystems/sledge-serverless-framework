@@ -1,14 +1,17 @@
 [
 	{
-		"name": "html",
-		"path": "html.wasm.so",
+		"name": "gwu",
 		"port": 1337,
-		"route": "/index.html",
-		"expected-execution-us": 10000000,
-		"admissions-percentile": 70,
-		"relative-deadline-us": 20000000,
-		"http-req-size": 1024,
-		"http-resp-size": 102400,
-		"http-resp-content-type": "text/html"
+		"routes": [
+			{
+				"route": "/index.html",
+				"path": "html.wasm.so",
+				"expected-execution-us": 10000000,
+				"admissions-percentile": 70,
+				"relative-deadline-us": 20000000,
+				"http-resp-size": 102400,
+				"http-resp-content-type": "text/html"
+			}
+		]
 	}
 ]
