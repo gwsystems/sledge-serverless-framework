@@ -101,7 +101,7 @@ static inline void
 software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void *interrupted_context_raw)
 {
 	/* Only workers should receive signals */
-	assert(!self_is_listener_thread());
+	assert(!listener_thread_is_running());
 
 	/* Signals should not nest */
 	assert(handler_depth == 0);

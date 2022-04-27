@@ -75,11 +75,11 @@ extern enum SCHEDULER scheduler;
 static inline struct sandbox *
 scheduler_mts_get_next()
 {
-	/* Get the deadline of the sandbox at the head of the local request queue */
-	struct sandbox_request * request        = NULL;
+	/* Get the deadline of the sandbox at the head of the local queue */
 	struct sandbox *         local          = local_runqueue_get_next();
 	uint64_t                 local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
 	enum MULTI_TENANCY_CLASS local_mt_class = MT_DEFAULT;
+	struct sandbox *         global         = NULL;
 
 	if (local) local_mt_class = local->module->pwm_sandboxes[worker_thread_idx].mt_class;
 
@@ -97,11 +97,9 @@ scheduler_mts_get_next()
 		break;
 	}
 
-	if (global_request_scheduler_remove_with_mt_class(&request, local_deadline, local_mt_class) == 0) {
-		assert(request != NULL);
-		struct sandbox *global = sandbox_allocate(request);
-		if (!global) goto err_allocate;
-
+	if (global_request_scheduler_remove_with_mt_class(&global, local_deadline, local_mt_class) == 0) {
+		assert(global != NULL);
+		sandbox_prepare_execution_environment(global);
 		assert(global->state == SANDBOX_INITIALIZED);
 		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
 	}
@@ -109,17 +107,12 @@ scheduler_mts_get_next()
 /* Return what is at the head of the local runqueue or NULL if empty */
 done:
 	return local_runqueue_get_next();
-err_allocate:
-	client_socket_send(request->socket_descriptor, 503);
-	client_socket_close(request->socket_descriptor, &request->socket_address);
-	free(request);
-	goto done;
 }
 
 static inline struct sandbox *
 scheduler_edf_get_next()
 {
-	/* Get the deadline of the sandbox at the head of the local request queue */
+	/* Get the deadline of the sandbox at the head of the local queue */
 	struct sandbox *local          = local_runqueue_get_next();
 	uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
 	struct sandbox *global         = NULL;
@@ -281,22 +274,15 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
  *  properties for the given tenant.
  */
 static inline void
-scheduler_process_policy_updates(struct sandbox *current_sandbox)
+scheduler_process_policy_updates(struct sandbox *interrupted_sandbox)
 {
 	if (scheduler != SCHEDULER_MTS) return;
 
-	struct module *module = current_sandbox->module;
+	struct module *module = interrupted_sandbox->module;
 
 	/* Reduce module's budget only if it is a paid tenant */
 	if (module_is_paid(module)) {
-		atomic_fetch_sub(&module->remaining_budget, current_sandbox->last_duration_of_exec);
-		// if (current->module->remaining_budget <= 0 ) {
-		// 	if(current->module->pwm_sandboxes[worker_thread_idx].mt_class == MT_GUARANTEED) {
-		// 		local_runqueue_mts_demote(&current->module->pwm_sandboxes[worker_thread_idx]);
-		// 		debuglog("Demoted '%s' locally in scheduler", current->module->name);
-		// 	}
-		// 	current->module->pwm_sandboxes[worker_thread_idx].mt_class = MT_DEFAULT;
-		// }
+		atomic_fetch_sub(&module->remaining_budget, interrupted_sandbox->last_duration_of_exec);
 	}
 
 	local_timeout_queue_process_promotions();
@@ -320,7 +306,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	assert(interrupted_sandbox != NULL);
 	assert(interrupted_sandbox->state == SANDBOX_INTERRUPTED);
 
-	scheduler_process_policy_updates(current);
+	scheduler_process_policy_updates(interrupted_sandbox);
 
 	struct sandbox *next = scheduler_get_next();
 	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */

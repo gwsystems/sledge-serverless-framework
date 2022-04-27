@@ -16,9 +16,9 @@ static inline uint64_t
 module_request_queue_get_priority(void *element)
 {
 	struct module_global_request_queue *mgrq            = (struct module_global_request_queue *)element;
-	struct sandbox_request *            sandbox_request = NULL;
-	priority_queue_top_nolock(mgrq->sandbox_requests, (void **)&sandbox_request);
-	return (sandbox_request) ? sandbox_request->absolute_deadline : UINT64_MAX;
+	struct sandbox *            sandbox = NULL;
+	priority_queue_top_nolock(mgrq->sandbox_requests, (void **)&sandbox);
+	return (sandbox) ? sandbox->absolute_deadline : UINT64_MAX;
 };
 
 /**
@@ -47,30 +47,30 @@ global_request_scheduler_mts_demote_nolock(struct module_global_request_queue *m
 
 /**
  * Pushes a sandbox request to the global runqueue
- * @param sandbox_request
+ * @param sandbox
  * @returns pointer to request if added. NULL otherwise
  */
-static struct sandbox_request *
-global_request_scheduler_mts_add(struct sandbox_request *sandbox_request)
+static struct sandbox *
+global_request_scheduler_mts_add(struct sandbox *sandbox)
 {
-	assert(sandbox_request);
+	assert(sandbox);
 	assert(global_request_scheduler_mts_guaranteed && global_request_scheduler_mts_default);
-	if (unlikely(!self_is_listener_thread())) panic("%s is only callable by the listener thread\n", __func__);
+	if (unlikely(!listener_thread_is_running())) panic("%s is only callable by the listener thread\n", __func__);
 
-	struct module_global_request_queue *mgrq = sandbox_request->module->mgrq_requests;
+	struct module_global_request_queue *mgrq = sandbox->module->mgrq_requests;
 
 	LOCK_LOCK(&global_lock);
 
 	struct priority_queue *destination_queue = global_request_scheduler_mts_default;
-	if (sandbox_request->module->mgrq_requests->mt_class == MT_GUARANTEED) {
+	if (sandbox->module->mgrq_requests->mt_class == MT_GUARANTEED) {
 		destination_queue = global_request_scheduler_mts_guaranteed;
 	}
 
 	uint64_t last_mrq_deadline = priority_queue_peek(mgrq->sandbox_requests);
 
-	int rc = priority_queue_enqueue_nolock(mgrq->sandbox_requests, sandbox_request);
+	int rc = priority_queue_enqueue_nolock(mgrq->sandbox_requests, sandbox);
 	if (rc == -ENOSPC) panic("Module's Request Queue is full\n");
-	// debuglog("Added a sandbox_request to the MGRQ");
+	// debuglog("Added a sandbox to the MGRQ");
 
 	/* Maintain the minheap structure by Removing and Adding the MGRQ from and to the global runqueue.
 	 * Do this only when the MGRQ's priority is updated.
@@ -85,7 +85,7 @@ global_request_scheduler_mts_add(struct sandbox_request *sandbox_request)
 
 	LOCK_UNLOCK(&global_lock);
 
-	return sandbox_request;
+	return sandbox;
 }
 
 /**
@@ -93,7 +93,7 @@ global_request_scheduler_mts_add(struct sandbox_request *sandbox_request)
  * @returns 0 if successful, -ENOENT if empty
  */
 int
-global_request_scheduler_mts_remove(struct sandbox_request **removed_sandbox_request)
+global_request_scheduler_mts_remove(struct sandbox **removed_sandbox)
 {
 	/* This function won't be used with the MTS scheduler. Keeping merely for the polymorhism. */
 	return -1;
@@ -101,12 +101,12 @@ global_request_scheduler_mts_remove(struct sandbox_request **removed_sandbox_req
 
 
 /**
- * @param removed_sandbox_request pointer to set to removed sandbox request
+ * @param removed_sandbox pointer to set to removed sandbox request
  * @param target_deadline the deadline that the request must be earlier than to dequeue
  * @returns 0 if successful, -ENOENT if empty or if request isn't earlier than target_deadline
  */
 int
-global_request_scheduler_mts_remove_if_earlier(struct sandbox_request **removed_sandbox_request,
+global_request_scheduler_mts_remove_if_earlier(struct sandbox **removed_sandbox,
                                                uint64_t                 target_deadline)
 {
 	/* This function won't be used with the MTS scheduler. Keeping merely for the polymorhism. */
@@ -114,13 +114,13 @@ global_request_scheduler_mts_remove_if_earlier(struct sandbox_request **removed_
 }
 
 /**
- * @param removed_sandbox_request pointer to set to removed sandbox request
+ * @param removed_sandbox pointer to set to removed sandbox request
  * @param target_deadline the deadline that the request must be earlier than to dequeue
  * @param mt_class the multi-tenancy class of the global request to compare the target deadline against
  * @returns 0 if successful, -ENOENT if empty or if request isn't earlier than target_deadline
  */
 int
-global_request_scheduler_mts_remove_with_mt_class(struct sandbox_request **removed_sandbox_request,
+global_request_scheduler_mts_remove_with_mt_class(struct sandbox **removed_sandbox,
                                                   uint64_t target_deadline, enum MULTI_TENANCY_CLASS target_mt_class)
 {
 	int rc = -ENOENT;
@@ -167,7 +167,7 @@ global_request_scheduler_mts_remove_with_mt_class(struct sandbox_request **remov
 	assert(top_mgrq);
 
 	/* Remove the sandbox from the corresponding MGRQ */
-	rc = priority_queue_dequeue_nolock(top_mgrq->sandbox_requests, (void **)removed_sandbox_request);
+	rc = priority_queue_dequeue_nolock(top_mgrq->sandbox_requests, (void **)removed_sandbox);
 	assert(rc == 0);
 
 	/* Delete the MGRQ from the global runqueue completely if MGRQ is empty, re-add otherwise to heapify */
