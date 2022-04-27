@@ -1,7 +1,7 @@
 [
 	{
 		"name": "fib30",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 10030,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,

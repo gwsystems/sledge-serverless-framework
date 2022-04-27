@@ -1,7 +1,7 @@
 [
 	{
 		"name": "fib30",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 10030,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -14,7 +14,7 @@
 	},
 	{
 		"name": "fib30_5k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20005,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -27,7 +27,7 @@
 	},
 	{
 		"name": "fib30_6k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20006,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -40,7 +40,7 @@
 	},
 	{
 		"name": "fib30_7k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20007,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -53,7 +53,7 @@
 	},
 	{
 		"name": "fib30_8k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20008,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -66,7 +66,7 @@
 	},
 	{
 		"name": "fib30_9k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20009,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -79,7 +79,7 @@
 	},
 	{
 		"name": "fib30_10k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20010,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -92,7 +92,7 @@
 	},
 	{
 		"name": "fib30_30k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20030,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -105,7 +105,7 @@
 	},
 	{
 		"name": "fib30_60k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20060,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -118,7 +118,7 @@
 	},
 	{
 		"name": "fib30_90k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20090,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -131,7 +131,7 @@
 	},
 	{
 		"name": "fib30_120k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20120,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,
@@ -144,7 +144,7 @@
 	},
 	{
 		"name": "fib30_180k",
-		"path": "fibonacci_wasm.so",
+		"path": "fibonacci.wasm.so",
 		"port": 20180,
 		"expected-execution-us": 6500,
 		"relative-deadline-us": 10000,

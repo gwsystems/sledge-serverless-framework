@@ -1,6 +1,6 @@
 {
 	"name": "",
-	"path": "fibonacci_wasm.so",
+	"path": "fibonacci.wasm.so",
 	"port": 0,
 	"expected-execution-us": 0,
 	"relative-deadline-us": 0,

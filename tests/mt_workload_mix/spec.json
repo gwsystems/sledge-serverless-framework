@@ -1,7 +1,7 @@
 {
 	"active": true,
 	"name": "fib10",
-	"path": "fibonacci_wasm.so",
+	"path": "fibonacci.wasm.so",
 	"port": 10010,
 	"expected-execution-us": 60,
 	"relative-deadline-us": 600,
@@ -18,7 +18,7 @@
 {
 	"active": true,
 	"name": "fib10_rich",
-	"path": "fibonacci_wasm.so",
+	"path": "fibonacci.wasm.so",
 	"port": 20010,
 	"expected-execution-us": 60,
 	"relative-deadline-us": 600,
@@ -35,7 +35,7 @@
 {
 	"active": true,
 	"name": "fib40",
-	"path": "fibonacci_wasm.so",
+	"path": "fibonacci.wasm.so",
 	"port": 10040,
 	"expected-execution-us": 70,
 	"relative-deadline-us": 700,
