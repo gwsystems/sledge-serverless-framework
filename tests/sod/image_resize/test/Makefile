@@ -18,4 +18,4 @@ debug:
 		--eval-command="run spec.json"
 
 client:
-	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "result.jpg" "${HOSTNAME}:10000"
+	curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "result.jpg" "${HOSTNAME}:10000/resize"

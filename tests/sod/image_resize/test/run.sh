@@ -28,7 +28,7 @@ experiment_client() {
 	for ((i = 0; i < total_count; i++)); do
 		ext="$RANDOM"
 
-		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "$tmpfs_dir/result_$ext.jpg" "$hostname:10000" 2> /dev/null 1> /dev/null; then
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@flower.jpg" --output "$tmpfs_dir/result_$ext.jpg" "$hostname:10000/resize" 2> /dev/null 1> /dev/null; then
 
 			pixel_differences="$(compare -identify -metric AE "$tmpfs_dir/result_$ext.jpg" expected_result.jpg null: 2>&1 > /dev/null)"
 

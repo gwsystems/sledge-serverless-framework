@@ -1,12 +1,16 @@
 [
 	{
-		"name": "resize",
-		"path": "resize_image.wasm.so",
+		"name": "gwu",
 		"port": 10000,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 50000,
-		"http-req-size": 1024000,
-		"http-resp-size": 1024000,
-		"http-resp-content-type": "image/png"
+		"routes": [
+			{
+				"route": "/resize",
+				"path": "resize_image.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 50000,
+				"http-resp-size": 1024000,
+				"http-resp-content-type": "image/jpeg"
+			}
+		]
 	}
 ]
