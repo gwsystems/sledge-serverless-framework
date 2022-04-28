@@ -120,7 +120,7 @@ runtime_get_processor_speed_MHz(void)
 	if (unlikely(n != 1)) goto err;
 	if (unlikely(processor_speed_MHz < 0)) goto err;
 
-	return_value = 2700; // hardcoded!!! // (uint32_t)nearbyintf(processor_speed_MHz);
+	return_value = (uint32_t)nearbyintf(processor_speed_MHz);
 
 done:
 	pclose(cmd);
