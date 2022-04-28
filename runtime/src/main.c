@@ -183,15 +183,15 @@ runtime_configure()
 {
 	/* Scheduler Policy */
 	char *scheduler_policy = getenv("SLEDGE_SCHEDULER");
-	if (scheduler_policy == NULL) scheduler_policy = "MTS";
-	if (strcmp(scheduler_policy, "MTS") == 0) {
-		scheduler = SCHEDULER_MTS;
+	if (scheduler_policy == NULL) scheduler_policy = "MTDS";
+	if (strcmp(scheduler_policy, "MTDS") == 0) {
+		scheduler = SCHEDULER_MTDS;
 	} else if (strcmp(scheduler_policy, "EDF") == 0) {
 		scheduler = SCHEDULER_EDF;
 	} else if (strcmp(scheduler_policy, "FIFO") == 0) {
 		scheduler = SCHEDULER_FIFO;
 	} else {
-		panic("Invalid scheduler policy: %s. Must be {MTS|EDF|FIFO}\n", scheduler_policy);
+		panic("Invalid scheduler policy: %s. Must be {MTDS|EDF|FIFO}\n", scheduler_policy);
 	}
 	pretty_print_key_value("Scheduler Policy", "%s\n", scheduler_print(scheduler));
 

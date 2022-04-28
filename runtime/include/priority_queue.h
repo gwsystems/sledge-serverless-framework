@@ -331,7 +331,7 @@ static inline int
 priority_queue_length_nolock(struct priority_queue *priority_queue)
 {
 	assert(priority_queue != NULL);
-	if (scheduler != SCHEDULER_MTS) assert(!listener_thread_is_running());
+	if (scheduler != SCHEDULER_MTDS) assert(!listener_thread_is_running());
 	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
 
 	return priority_queue->size;
@@ -403,7 +403,7 @@ priority_queue_delete_nolock(struct priority_queue *priority_queue, void *value)
 {
 	assert(priority_queue != NULL);
 	assert(value != NULL);
-	if (scheduler != SCHEDULER_MTS) assert(!listener_thread_is_running());
+	if (scheduler != SCHEDULER_MTDS) assert(!listener_thread_is_running());
 	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
 
 	for (int i = 1; i <= priority_queue->size; i++) {
@@ -469,7 +469,7 @@ priority_queue_top_nolock(struct priority_queue *priority_queue, void **dequeued
 	assert(priority_queue != NULL);
 	assert(dequeued_element != NULL);
 	assert(priority_queue->get_priority_fn != NULL);
-	if (scheduler != SCHEDULER_MTS) assert(!listener_thread_is_running());
+	if (scheduler != SCHEDULER_MTDS) assert(!listener_thread_is_running());
 	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
 
 	int return_code;

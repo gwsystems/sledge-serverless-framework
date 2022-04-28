@@ -7,14 +7,14 @@
 #include "debuglog.h"
 #include "global_request_scheduler.h"
 #include "local_runqueue.h"
-#include "local_runqueue_mts.h"
+#include "local_runqueue_mtds.h"
 #include "panic.h"
 #include "priority_queue.h"
 #include "sandbox_functions.h"
 #include "runtime.h"
 
-thread_local static struct priority_queue *local_runqueue_mts_guaranteed;
-thread_local static struct priority_queue *local_runqueue_mts_default;
+thread_local static struct priority_queue *local_runqueue_mtds_guaranteed;
+thread_local static struct priority_queue *local_runqueue_mtds_default;
 
 extern __thread struct priority_queue *worker_thread_timeout_queue;
 
@@ -37,10 +37,10 @@ perworker_module_get_priority(void *element)
  * @returns true if empty. false otherwise
  */
 bool
-local_runqueue_mts_is_empty()
+local_runqueue_mtds_is_empty()
 {
-	return priority_queue_length_nolock(local_runqueue_mts_guaranteed) == 0
-	       && priority_queue_length_nolock(local_runqueue_mts_default) == 0;
+	return priority_queue_length_nolock(local_runqueue_mtds_guaranteed) == 0
+	       && priority_queue_length_nolock(local_runqueue_mtds_default) == 0;
 }
 
 /**
@@ -49,13 +49,13 @@ local_runqueue_mts_is_empty()
  * @returns pointer to sandbox added
  */
 void
-local_runqueue_mts_add(struct sandbox *sandbox)
+local_runqueue_mtds_add(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
 	struct perworker_module_sandbox_queue *pwm = &sandbox->module->pwm_sandboxes[worker_thread_idx];
-	struct priority_queue *destination_queue   = pwm->mt_class == MT_GUARANTEED ? local_runqueue_mts_guaranteed
-	                                                                            : local_runqueue_mts_default;
+	struct priority_queue *destination_queue   = pwm->mt_class == MT_GUARANTEED ? local_runqueue_mtds_guaranteed
+	                                                                            : local_runqueue_mtds_default;
 
 	uint64_t prev_pwm_deadline = priority_queue_peek(pwm->sandboxes);
 
@@ -93,7 +93,7 @@ local_runqueue_mts_add(struct sandbox *sandbox)
  * @param sandbox to delete
  */
 static void
-local_runqueue_mts_delete(struct sandbox *sandbox)
+local_runqueue_mtds_delete(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 	struct perworker_module_sandbox_queue *pwm = &sandbox->module->pwm_sandboxes[worker_thread_idx];
@@ -103,9 +103,9 @@ local_runqueue_mts_delete(struct sandbox *sandbox)
 		panic("Tried to delete sandbox %lu from PWM queue, but was not present\n", sandbox->id);
 	}
 
-	struct priority_queue *destination_queue = local_runqueue_mts_default;
+	struct priority_queue *destination_queue = local_runqueue_mtds_default;
 
-	if (pwm->mt_class == MT_GUARANTEED) { destination_queue = local_runqueue_mts_guaranteed; }
+	if (pwm->mt_class == MT_GUARANTEED) { destination_queue = local_runqueue_mtds_guaranteed; }
 
 
 	/* Delete the PWM from the local runqueue completely if pwm is empty, re-add otherwise to heapify */
@@ -131,23 +131,23 @@ local_runqueue_mts_delete(struct sandbox *sandbox)
  * @return the sandbox to execute or NULL if none are available
  */
 struct sandbox *
-local_runqueue_mts_get_next()
+local_runqueue_mtds_get_next()
 {
 	/* Get the deadline of the sandbox at the head of the local request queue */
 	struct perworker_module_sandbox_queue *next_pwm = NULL;
-	struct priority_queue *                dq       = local_runqueue_mts_guaranteed;
+	struct priority_queue *                dq       = local_runqueue_mtds_guaranteed;
 
 	/* Check the local guaranteed queue for any potential demotions */
 	int rc = priority_queue_top_nolock(dq, (void **)&next_pwm);
 	while (rc != -ENOENT && next_pwm->module->remaining_budget <= 0) { // next_pwm->mt_class==MT_DEFAULT){
-		local_runqueue_mts_demote(next_pwm);
+		local_runqueue_mtds_demote(next_pwm);
 		// debuglog("Demoted '%s' locally in GetNext", next_pwm->module->name);
 		next_pwm->mt_class = MT_DEFAULT;
 		rc                 = priority_queue_top_nolock(dq, (void **)&next_pwm);
 	}
 
 	if (rc == -ENOENT) {
-		dq = local_runqueue_mts_default;
+		dq = local_runqueue_mtds_default;
 		rc = priority_queue_top_nolock(dq, (void **)&next_pwm);
 		if (rc == -ENOENT) return NULL;
 	}
@@ -163,19 +163,19 @@ local_runqueue_mts_get_next()
  * Registers the PS variant with the polymorphic interface
  */
 void
-local_runqueue_mts_initialize()
+local_runqueue_mtds_initialize()
 {
 	/* Initialize local state */
-	local_runqueue_mts_guaranteed = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
+	local_runqueue_mtds_guaranteed = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
 	                                                          perworker_module_get_priority);
-	local_runqueue_mts_default    = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
+	local_runqueue_mtds_default    = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
                                                                perworker_module_get_priority);
 
 	/* Register Function Pointers for Abstract Scheduling API */
-	struct local_runqueue_config config = { .add_fn      = local_runqueue_mts_add,
-		                                .is_empty_fn = local_runqueue_mts_is_empty,
-		                                .delete_fn   = local_runqueue_mts_delete,
-		                                .get_next_fn = local_runqueue_mts_get_next };
+	struct local_runqueue_config config = { .add_fn      = local_runqueue_mtds_add,
+		                                .is_empty_fn = local_runqueue_mtds_is_empty,
+		                                .delete_fn   = local_runqueue_mtds_delete,
+		                                .get_next_fn = local_runqueue_mtds_get_next };
 
 	local_runqueue_initialize(&config);
 }
@@ -185,12 +185,12 @@ local_runqueue_mts_initialize()
  *  and adds to the Guaranteed queue.
  */
 void
-local_runqueue_mts_promote(struct perworker_module_sandbox_queue *pwm)
+local_runqueue_mtds_promote(struct perworker_module_sandbox_queue *pwm)
 {
 	assert(pwm != NULL);
 
 	/* Delete the corresponding PWM from the Guaranteed queue */
-	int rc = priority_queue_delete_nolock(local_runqueue_mts_default, pwm);
+	int rc = priority_queue_delete_nolock(local_runqueue_mtds_default, pwm);
 	if (rc == -1) {
 		panic("Tried to delete a non-present PWM of %s from the Local Default queue. Already deleted? , ITS "
 		      "SIZE: %d",
@@ -198,7 +198,7 @@ local_runqueue_mts_promote(struct perworker_module_sandbox_queue *pwm)
 	}
 
 	/* Add the corresponding PWM to the Default queue */
-	rc = priority_queue_enqueue_nolock(local_runqueue_mts_guaranteed, pwm);
+	rc = priority_queue_enqueue_nolock(local_runqueue_mtds_guaranteed, pwm);
 	if (rc == -ENOSPC) panic("Local Guaranteed queue is full!\n");
 }
 
@@ -207,12 +207,12 @@ local_runqueue_mts_promote(struct perworker_module_sandbox_queue *pwm)
  *  and adds to the Default queue.
  */
 void
-local_runqueue_mts_demote(struct perworker_module_sandbox_queue *pwm)
+local_runqueue_mtds_demote(struct perworker_module_sandbox_queue *pwm)
 {
 	assert(pwm != NULL);
 
 	/* Delete the corresponding PWM from the Guaranteed queue */
-	int rc = priority_queue_delete_nolock(local_runqueue_mts_guaranteed, pwm);
+	int rc = priority_queue_delete_nolock(local_runqueue_mtds_guaranteed, pwm);
 	if (rc == -1) {
 		panic("Tried to delete a non-present PWM of %s from the Local Guaranteed queue. Already deleted? , ITS "
 		      "SIZE: %d",
@@ -220,7 +220,7 @@ local_runqueue_mts_demote(struct perworker_module_sandbox_queue *pwm)
 	}
 
 	/* Add the corresponding PWM to the Default queue */
-	rc = priority_queue_enqueue_nolock(local_runqueue_mts_default, pwm);
+	rc = priority_queue_enqueue_nolock(local_runqueue_mtds_default, pwm);
 	if (rc == -ENOSPC) panic("Local Default queue is full!\n");
 }
 
@@ -246,7 +246,7 @@ local_timeout_queue_process_promotions()
 		assert(priority_queue_length_nolock(pwm_to_promote->sandboxes) > 0);
 
 		if (pwm_to_promote->mt_class == MT_DEFAULT) {
-			local_runqueue_mts_promote(pwm_to_promote);
+			local_runqueue_mtds_promote(pwm_to_promote);
 			pwm_to_promote->mt_class = MT_GUARANTEED;
 			// debuglog("Promoted '%s' locally", top_module_timeout->module->name);
 		}

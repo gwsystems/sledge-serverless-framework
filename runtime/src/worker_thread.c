@@ -73,7 +73,7 @@ worker_thread_main(void *argument)
 		software_interrupt_unmask_signal(SIGUSR1);
 	}
 
-	if (scheduler == SCHEDULER_MTS) {
+	if (scheduler == SCHEDULER_MTDS) {
 		worker_thread_timeout_queue = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
 		                                                        module_timeout_get_priority);
 	}

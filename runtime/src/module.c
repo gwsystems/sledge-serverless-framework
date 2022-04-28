@@ -102,7 +102,7 @@ module_init(struct module *module, struct module_config *config)
 	admissions_info_initialize(&module->admissions_info, config->admissions_percentile, expected_execution,
 	                           module->relative_deadline);
 
-	if (scheduler == SCHEDULER_MTS) {
+	if (scheduler == SCHEDULER_MTDS) {
 		/* Deferable Server Initialization */
 		module->replenishment_period = (uint64_t)config->replenishment_period_us * runtime_processor_speed_MHz;
 		module->max_budget           = (uint64_t)config->max_budget_us * runtime_processor_speed_MHz;
@@ -235,7 +235,7 @@ module_free(struct module *module)
 	/* Do not free if we still have oustanding references */
 	if (module->reference_count) return;
 
-	if (scheduler == SCHEDULER_MTS) {
+	if (scheduler == SCHEDULER_MTDS) {
 		if (module->pwm_sandboxes == NULL) return;
 		if (module->mgrq_requests == NULL) return;
 
