@@ -29,7 +29,6 @@ VEC(u8)
 
 struct sandbox_timestamps {
 	uint64_t last_state_change; /* Used for bookkeeping of actual execution time */
-	uint64_t last_preemption;   /* Timestamp when sandbox is last preempted or blocked */
 	uint64_t request_arrival;   /* Timestamp when request is received */
 	uint64_t allocation;        /* Timestamp when sandbox is allocated */
 	uint64_t response;          /* Timestamp when response is sent */
