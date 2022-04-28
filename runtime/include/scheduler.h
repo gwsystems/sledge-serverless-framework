@@ -274,18 +274,17 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
  *  properties for the given tenant.
  */
 static inline void
-scheduler_process_policy_updates(struct sandbox *interrupted_sandbox)
+scheduler_process_policy_specific_updates_on_interrupts()
 {
-	if (scheduler != SCHEDULER_MTDS) return;
-
-	struct module *module = interrupted_sandbox->module;
-
-	/* Reduce module's budget only if it is a paid tenant */
-	if (module_is_paid(module)) {
-		atomic_fetch_sub(&module->remaining_budget, interrupted_sandbox->last_duration_of_exec);
+	switch (scheduler) {
+	case SCHEDULER_FIFO:
+		return;
+	case SCHEDULER_EDF:
+		return;
+	case SCHEDULER_MTDS:
+		local_timeout_queue_process_promotions();
+		return;
 	}
-
-	local_timeout_queue_process_promotions();
 }
 
 /**
@@ -306,7 +305,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	assert(interrupted_sandbox != NULL);
 	assert(interrupted_sandbox->state == SANDBOX_INTERRUPTED);
 
-	scheduler_process_policy_updates(interrupted_sandbox);
+	scheduler_process_policy_specific_updates_on_interrupts();
 
 	struct sandbox *next = scheduler_get_next();
 	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */

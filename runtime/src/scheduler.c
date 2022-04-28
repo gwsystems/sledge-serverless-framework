@@ -1,3 +1,3 @@
 #include "scheduler.h"
 
-enum SCHEDULER scheduler = SCHEDULER_MTDS;
+enum SCHEDULER scheduler = SCHEDULER_EDF;
