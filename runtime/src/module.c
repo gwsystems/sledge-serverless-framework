@@ -11,13 +11,62 @@
 #include "listener_thread.h"
 #include "module.h"
 #include "module_database.h"
-#include "scheduler.h"
+// #include "scheduler.h"
 #include "wasm_table.h"
 #include "priority_queue.h"
 
 /*************************
  * Private Static Inline *
  ************************/
+
+static inline int
+module_policy_specific_init(struct module *module, struct module_config *config)
+{
+	switch (scheduler)
+	{
+	case SCHEDULER_FIFO:
+		break;
+	case SCHEDULER_EDF:
+		break;
+	case SCHEDULER_MTDS:
+		/* Deferable Server Initialization */
+		module->replenishment_period = (uint64_t)config->replenishment_period_us * runtime_processor_speed_MHz;
+		module->max_budget           = (uint64_t)config->max_budget_us * runtime_processor_speed_MHz;
+		module->remaining_budget     = module->max_budget;
+
+		module->pwm_sandboxes = (struct perworker_module_sandbox_queue *)malloc(
+		  runtime_worker_threads_count * sizeof(struct perworker_module_sandbox_queue));
+		if (!module->pwm_sandboxes) {
+			fprintf(stderr, "Failed to allocate module_sandboxes array: %s\n", strerror(errno));
+			return -1;
+		};
+
+		memset(module->pwm_sandboxes, 0,
+		       runtime_worker_threads_count * sizeof(struct perworker_module_sandbox_queue));
+
+		for (int i = 0; i < runtime_worker_threads_count; i++) {
+			module->pwm_sandboxes[i].sandboxes = priority_queue_initialize(RUNTIME_MODULE_QUEUE_SIZE, false,
+			                                                               sandbox_get_priority);
+			module->pwm_sandboxes[i].module    = module;
+			module->pwm_sandboxes[i].mt_class  = (module->replenishment_period == 0) ? MT_DEFAULT
+			                                                                         : MT_GUARANTEED;
+			module->pwm_sandboxes[i].module_timeout.module = module;
+			module->pwm_sandboxes[i].module_timeout.pwm    = &module->pwm_sandboxes[i];
+		}
+
+		/* Initialize the module's global request queue */
+		module->mgrq_requests                   = malloc(sizeof(struct module_global_request_queue));
+		module->mgrq_requests->sandbox_requests = priority_queue_initialize(RUNTIME_MODULE_QUEUE_SIZE, false,
+		                                                                    sandbox_get_priority_fn);
+		module->mgrq_requests->module           = module;
+		module->mgrq_requests->mt_class = (module->replenishment_period == 0) ? MT_DEFAULT : MT_GUARANTEED;
+		module->mgrq_requests->module_timeout.module = module;
+		module->mgrq_requests->module_timeout.pwm    = NULL;
+		break;
+	}
+
+	return 0;
+}
 
 static inline int
 module_init(struct module *module, struct module_config *config)
@@ -102,41 +151,7 @@ module_init(struct module *module, struct module_config *config)
 	admissions_info_initialize(&module->admissions_info, config->admissions_percentile, expected_execution,
 	                           module->relative_deadline);
 
-	if (scheduler == SCHEDULER_MTDS) {
-		/* Deferable Server Initialization */
-		module->replenishment_period = (uint64_t)config->replenishment_period_us * runtime_processor_speed_MHz;
-		module->max_budget           = (uint64_t)config->max_budget_us * runtime_processor_speed_MHz;
-		module->remaining_budget     = module->max_budget;
-
-		module->pwm_sandboxes = (struct perworker_module_sandbox_queue *)malloc(
-		  runtime_worker_threads_count * sizeof(struct perworker_module_sandbox_queue));
-		if (!module->pwm_sandboxes) {
-			fprintf(stderr, "Failed to allocate module_sandboxes array: %s\n", strerror(errno));
-			goto err;
-		};
-
-		memset(module->pwm_sandboxes, 0,
-		       runtime_worker_threads_count * sizeof(struct perworker_module_sandbox_queue));
-
-		for (int i = 0; i < runtime_worker_threads_count; i++) {
-			module->pwm_sandboxes[i].sandboxes = priority_queue_initialize(RUNTIME_MODULE_QUEUE_SIZE, false,
-			                                                               sandbox_get_priority);
-			module->pwm_sandboxes[i].module    = module;
-			module->pwm_sandboxes[i].mt_class  = (module->replenishment_period == 0) ? MT_DEFAULT
-			                                                                         : MT_GUARANTEED;
-			module->pwm_sandboxes[i].module_timeout.module = module;
-			module->pwm_sandboxes[i].module_timeout.pwm    = &module->pwm_sandboxes[i];
-		}
-
-		/* Initialize the module's global request queue */
-		module->mgrq_requests                   = malloc(sizeof(struct module_global_request_queue));
-		module->mgrq_requests->sandbox_requests = priority_queue_initialize(RUNTIME_MODULE_QUEUE_SIZE, false,
-		                                                                    sandbox_get_priority_fn);
-		module->mgrq_requests->module           = module;
-		module->mgrq_requests->mt_class = (module->replenishment_period == 0) ? MT_DEFAULT : MT_GUARANTEED;
-		module->mgrq_requests->module_timeout.module = module;
-		module->mgrq_requests->module_timeout.pwm    = NULL;
-	}
+	if (module_policy_specific_init(module, config)) goto err;
 
 	/* Request Response Buffer */
 	if (config->http_req_size == 0) config->http_req_size = MODULE_DEFAULT_REQUEST_RESPONSE_SIZE;
