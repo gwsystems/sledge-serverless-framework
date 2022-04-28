@@ -1,7 +1,7 @@
 #pragma once
 
 #include "http_router.h"
-#include "module.h"
+#include "module_database.h"
 #include "tcp_server.h"
 
 #define TENANT_DATABASE_CAPACITY 128

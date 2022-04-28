@@ -27,6 +27,7 @@
 #define RUNTIME_LOG_FILE                  "sledge.log"
 #define RUNTIME_MAX_EPOLL_EVENTS          128
 #define RUNTIME_MAX_WORKER_COUNT          32 /* Static buffer size for per-worker globals */
+#define RUNTIME_MAX_TENANT_COUNT          32 /* Static buffer size for per-worker globals */
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
 #define RUNTIME_RELATIVE_DEADLINE_US_MAX  3600000000 /* One Hour. Fits in uint32_t */
 

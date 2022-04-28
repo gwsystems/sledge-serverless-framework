@@ -4,7 +4,6 @@
 
 #include "current_sandbox.h"
 #include "sandbox_functions.h"
-#include "sandbox_receive_request.h"
 #include "sandbox_set_as_asleep.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_returned.h"

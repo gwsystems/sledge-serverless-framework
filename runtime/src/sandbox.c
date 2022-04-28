@@ -130,7 +130,6 @@ err_memory_allocation_failed:
 err_globals_allocation_failed:
 err_http_allocation_failed:
 	http_session_send_err_oneshot(sandbox->http, 503);
-	http_session_close(sandbox->http);
 	sandbox_set_as_error(sandbox, SANDBOX_ALLOCATED);
 	perror(error_message);
 	rc = -1;
@@ -139,7 +138,7 @@ err_http_allocation_failed:
 
 void
 sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session *session, struct route *route,
-             struct tenant *tenant, uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
+             struct tenant *tenant, uint64_t admissions_estimate)
 {
 	/* Sets the ID to the value before the increment */
 	sandbox->id     = sandbox_total_postfix_increment();
@@ -155,8 +154,8 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 	sandbox->tenant = tenant;
 	sandbox->route  = route;
 
-	sandbox->timestamp_of.request_arrival = request_arrival_timestamp;
-	sandbox->absolute_deadline            = request_arrival_timestamp + sandbox->route->relative_deadline;
+	sandbox->timestamp_of.request_arrival = session->request_arrival_timestamp;
+	sandbox->absolute_deadline            = session->request_arrival_timestamp + sandbox->route->relative_deadline;
 
 	/*
 	 * Admissions Control State
@@ -174,13 +173,12 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
  * @param module the module we want to request
  * @param socket_descriptor
  * @param socket_address
- * @param request_arrival_timestamp the timestamp of when we receives the request from the network (in cycles)
  * @param admissions_estimate the timestamp of when we receives the request from the network (in cycles)
  * @return the new sandbox request
  */
 struct sandbox *
 sandbox_alloc(struct module *module, struct http_session *session, struct route *route, struct tenant *tenant,
-              uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
+              uint64_t admissions_estimate)
 {
 	struct sandbox *sandbox                   = NULL;
 	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
@@ -189,7 +187,7 @@ sandbox_alloc(struct module *module, struct http_session *session, struct route 
 	if (unlikely(sandbox == NULL)) return NULL;
 
 	sandbox_set_as_allocated(sandbox);
-	sandbox_init(sandbox, module, session, route, tenant, request_arrival_timestamp, admissions_estimate);
+	sandbox_init(sandbox, module, session, route, tenant, admissions_estimate);
 
 
 	return sandbox;
@@ -209,6 +207,7 @@ sandbox_deinit(struct sandbox *sandbox)
 	assert(sandbox->memory == NULL);
 
 	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
+	if (likely(sandbox->http != NULL)) http_session_free(sandbox->http);
 
 	if (likely(sandbox->globals.buffer != NULL)) sandbox_free_globals(sandbox);
 }

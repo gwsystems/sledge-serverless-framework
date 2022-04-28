@@ -79,3 +79,16 @@ tenant_database_find_by_port(uint16_t port)
 	}
 	return NULL;
 }
+
+/**
+ * Checks is an opaque pointer is a tenant by comparing against
+ */
+struct tenant *
+tenant_database_find_by_ptr(void *ptr)
+{
+	for (size_t i = 0; i < tenant_database_count; i++) {
+		assert(tenant_database[i]);
+		if (tenant_database[i] == ptr) return tenant_database[i];
+	}
+	return NULL;
+}

@@ -6,6 +6,7 @@
 #include "admissions_info.h"
 #include "http.h"
 #include "listener_thread.h"
+#include "module_database.h"
 #include "panic.h"
 #include "scheduler_options.h"
 #include "tenant.h"
@@ -15,6 +16,7 @@ int            tenant_database_add(struct tenant *tenant);
 struct tenant *tenant_database_find_by_name(char *name);
 struct tenant *tenant_database_find_by_socket_descriptor(int socket_descriptor);
 struct tenant *tenant_database_find_by_port(uint16_t port);
+struct tenant *tenant_database_find_by_ptr(void *ptr);
 
 static inline struct tenant *
 tenant_alloc(struct tenant_config *config)

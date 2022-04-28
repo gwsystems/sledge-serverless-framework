@@ -18,7 +18,7 @@ module_database_init(struct module_database *db)
  * @param module module to add
  * @return 0 on success. -ENOSPC when full
  */
-int
+static int
 module_database_add(struct module_database *db, struct module *module)
 {
 	assert(db->count <= MODULE_DATABASE_CAPACITY);

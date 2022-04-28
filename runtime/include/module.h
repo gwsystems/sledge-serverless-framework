@@ -18,8 +18,6 @@
 #include "wasm_memory.h"
 #include "wasm_table.h"
 
-#define MODULE_DATABASE_CAPACITY 128
-
 extern thread_local int worker_thread_idx;
 
 INIT_POOL(wasm_memory, wasm_memory_free)
@@ -212,12 +210,3 @@ module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
 	wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
 }
-
-struct module_database {
-	struct module *modules[MODULE_DATABASE_CAPACITY];
-	size_t         count;
-};
-
-int            module_database_add(struct module_database *db, struct module *module);
-struct module *module_database_find_by_path(struct module_database *db, char *path);
-void           module_database_init(struct module_database *db);

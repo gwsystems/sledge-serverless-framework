@@ -14,6 +14,7 @@
 #include "http_request.h"
 #include "http_parser.h"
 #include "http_parser_settings.h"
+#include "tenant.h"
 #include "vec.h"
 
 #define HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
@@ -28,6 +29,8 @@ struct http_session {
 	struct http_request http_request;
 	struct vec_u8       request_buffer;
 	struct vec_u8       response_buffer;
+	struct tenant      *tenant; /* Backlink required when read blocks on listener core */
+	uint64_t            request_arrival_timestamp;
 };
 
 /**
@@ -35,13 +38,16 @@ struct http_session {
  * @returns 0 on success, -1 on error
  */
 static inline int
-http_session_init(struct http_session *session, int socket_descriptor, const struct sockaddr *socket_address)
+http_session_init(struct http_session *session, int socket_descriptor, const struct sockaddr *socket_address,
+                  struct tenant *tenant, uint64_t request_arrival_timestamp)
 {
 	assert(session != NULL);
 	assert(socket_descriptor >= 0);
 	assert(socket_address != NULL);
 
-	session->socket = socket_descriptor;
+	session->tenant                    = tenant;
+	session->socket                    = socket_descriptor;
+	session->request_arrival_timestamp = request_arrival_timestamp;
 	memcpy(&session->client_address, socket_address, sizeof(struct sockaddr));
 
 	http_parser_init(&session->http_parser, HTTP_REQUEST);
@@ -76,7 +82,8 @@ http_session_init_response_buffer(struct http_session *session, size_t capacity)
 }
 
 static inline struct http_session *
-http_session_alloc(int socket_descriptor, const struct sockaddr *socket_address)
+http_session_alloc(int socket_descriptor, const struct sockaddr *socket_address, struct tenant *tenant,
+                   uint64_t request_arrival_timestamp)
 {
 	assert(socket_descriptor >= 0);
 	assert(socket_address != NULL);
@@ -84,7 +91,7 @@ http_session_alloc(int socket_descriptor, const struct sockaddr *socket_address)
 	struct http_session *session = calloc(sizeof(struct http_session), 1);
 	if (session == NULL) return NULL;
 
-	int rc = http_session_init(session, socket_descriptor, socket_address);
+	int rc = http_session_init(session, socket_descriptor, socket_address, tenant, request_arrival_timestamp);
 	if (rc != 0) {
 		free(session);
 		return NULL;
@@ -131,13 +138,32 @@ http_session_send_err(struct http_session *session, int status_code, void_cb on_
 	                        on_eagain);
 }
 
+
+static inline void
+http_session_close(struct http_session *session)
+{
+	assert(session != NULL);
+
+	return tcp_session_close(session->socket, &session->client_address);
+}
+
+/**
+ * Writes an HTTP error code to the TCP socket associated with the session
+ * Closes without writing if TCP socket would have blocked
+ * Also cleans up the HTTP session
+ */
 static inline int
 http_session_send_err_oneshot(struct http_session *session, int status_code)
 {
 	assert(session != NULL);
 	assert(status_code >= 100 && status_code <= 599);
 
-	return tcp_session_send_oneshot(session->socket, http_header_build(status_code), http_header_len(status_code));
+	int rc = tcp_session_send_oneshot(session->socket, http_header_build(status_code),
+	                                  http_header_len(status_code));
+	http_session_close(session);
+	http_session_free(session);
+
+	return rc;
 }
 
 static inline int
@@ -170,21 +196,15 @@ err:
 	goto done;
 }
 
-static inline void
-http_session_close(struct http_session *session)
-{
-	assert(session != NULL);
 
-	return tcp_session_close(session->socket, &session->client_address);
-}
-
+typedef void (*http_session_receive_request_egain_cb)(struct http_session *);
 
 /**
  * Receive and Parse the Request for the current sandbox
  * @return 0 if message parsing complete, -1 on error, -2 if buffers run out of space
  */
 static inline int
-http_session_receive_request(struct http_session *session, void_cb on_eagain)
+http_session_receive_request(struct http_session *session, http_session_receive_request_egain_cb on_eagain)
 {
 	assert(session != NULL);
 
@@ -247,12 +267,8 @@ http_session_receive_request(struct http_session *session, void_cb on_eagain)
 
 		if (bytes_received < 0) {
 			if (errno == EAGAIN) {
-				if (on_eagain == NULL) {
-					goto err_eagain;
-				} else {
-					on_eagain();
-					continue;
-				}
+				on_eagain(session);
+				goto err_eagain;
 			} else {
 				debuglog("Error reading socket %d - %s\n", session->socket, strerror(errno));
 				goto err;

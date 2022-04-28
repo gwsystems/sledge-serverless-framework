@@ -197,8 +197,7 @@ http_parser_settings_on_header_end(http_parser *parser)
 	return 0;
 }
 
-const size_t http_methods_len               = 8;
-const char  *http_methods[http_methods_len] = { "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT" };
+const char *http_methods[] = { "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT" };
 
 /**
  * http-parser callback called for HTTP Bodies

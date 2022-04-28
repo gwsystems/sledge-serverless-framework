@@ -3,25 +3,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "admissions_info.h"
 #include "http.h"
-#include "module_database.h"
+#include "module.h"
+#include "route.h"
 #include "route_config.h"
-#include "tcp_server.h"
 
 #define HTTP_ROUTER_ROUTES_CAPACITY 32
 
-/* Assumption: entrypoint is always _start. This should be enhanced later */
-struct route {
-	char          *route;
-	struct module *module;
-	/* HTTP State */
-	uint32_t               relative_deadline_us;
-	uint64_t               relative_deadline; /* cycles */
-	size_t                 response_size;
-	char                  *response_content_type;
-	struct admissions_info admissions_info;
-};
 
 struct http_router {
 	struct route routes[HTTP_ROUTER_ROUTES_CAPACITY];
