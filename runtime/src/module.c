@@ -11,7 +11,6 @@
 #include "listener_thread.h"
 #include "module.h"
 #include "module_database.h"
-// #include "scheduler.h"
 #include "wasm_table.h"
 #include "priority_queue.h"
 
