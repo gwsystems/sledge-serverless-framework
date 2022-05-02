@@ -55,20 +55,20 @@ enum MULTI_TENANCY_CLASS
 
 struct module_timeout {
 	uint64_t                               timeout;
-	struct module *                        module;
+	struct module                         *module;
 	struct perworker_module_sandbox_queue *pwm;
 };
 
 struct perworker_module_sandbox_queue {
-	struct priority_queue *  sandboxes;
-	struct module *          module; // to be able to find the RB/MB/RP/RT.
+	struct priority_queue   *sandboxes;
+	struct module           *module; // to be able to find the RB/MB/RP/RT.
 	struct module_timeout    module_timeout;
 	enum MULTI_TENANCY_CLASS mt_class; // check whether the corresponding PWM has been demoted
 } __attribute__((aligned(128)));
 
 struct module_global_request_queue {
-	struct priority_queue *                   sandbox_requests;
-	struct module *                           module;
+	struct priority_queue                    *sandbox_requests;
+	struct module                            *module;
 	struct module_timeout                     module_timeout;
 	_Atomic volatile enum MULTI_TENANCY_CLASS mt_class;
 };
@@ -94,7 +94,7 @@ struct module {
 	_Atomic volatile int64_t remaining_budget;     /* cycles left till next replenishment, can be negative */
 
 	struct perworker_module_sandbox_queue *pwm_sandboxes;
-	struct module_global_request_queue *   mgrq_requests;
+	struct module_global_request_queue    *mgrq_requests;
 
 	/* HTTP State */
 	size_t             max_request_size;

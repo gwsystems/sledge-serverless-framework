@@ -15,8 +15,8 @@ static lock_t                 global_lock;
 static inline uint64_t
 module_request_queue_get_priority(void *element)
 {
-	struct module_global_request_queue *mgrq            = (struct module_global_request_queue *)element;
-	struct sandbox *            sandbox = NULL;
+	struct module_global_request_queue *mgrq    = (struct module_global_request_queue *)element;
+	struct sandbox                     *sandbox = NULL;
 	priority_queue_top_nolock(mgrq->sandbox_requests, (void **)&sandbox);
 	return (sandbox) ? sandbox->absolute_deadline : UINT64_MAX;
 };
@@ -106,8 +106,7 @@ global_request_scheduler_mtds_remove(struct sandbox **removed_sandbox)
  * @returns 0 if successful, -ENOENT if empty or if request isn't earlier than target_deadline
  */
 int
-global_request_scheduler_mtds_remove_if_earlier(struct sandbox **removed_sandbox,
-                                               uint64_t                 target_deadline)
+global_request_scheduler_mtds_remove_if_earlier(struct sandbox **removed_sandbox, uint64_t target_deadline)
 {
 	/* This function won't be used with the MTDS scheduler. Keeping merely for the polymorhism. */
 	return -1;
@@ -120,8 +119,8 @@ global_request_scheduler_mtds_remove_if_earlier(struct sandbox **removed_sandbox
  * @returns 0 if successful, -ENOENT if empty or if request isn't earlier than target_deadline
  */
 int
-global_request_scheduler_mtds_remove_with_mt_class(struct sandbox **removed_sandbox,
-                                                  uint64_t target_deadline, enum MULTI_TENANCY_CLASS target_mt_class)
+global_request_scheduler_mtds_remove_with_mt_class(struct sandbox **removed_sandbox, uint64_t target_deadline,
+                                                   enum MULTI_TENANCY_CLASS target_mt_class)
 {
 	int rc = -ENOENT;
 	;
@@ -142,7 +141,7 @@ global_request_scheduler_mtds_remove_with_mt_class(struct sandbox **removed_sand
 	}
 
 	struct module_global_request_queue *top_mgrq          = NULL;
-	struct priority_queue *             destination_queue = global_request_scheduler_mtds_guaranteed;
+	struct priority_queue              *destination_queue = global_request_scheduler_mtds_guaranteed;
 
 	/* Spot the Module Global Request Queue (MGRQ) to remove the sandbox request from */
 	rc = priority_queue_top_nolock(destination_queue, (void **)&top_mgrq);
@@ -220,9 +219,9 @@ void
 global_request_scheduler_mtds_initialize()
 {
 	global_request_scheduler_mtds_guaranteed = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
-	                                                                    module_request_queue_get_priority);
+	                                                                     module_request_queue_get_priority);
 	global_request_scheduler_mtds_default    = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
-                                                                         module_request_queue_get_priority);
+	                                                                     module_request_queue_get_priority);
 
 	global_module_timeout_queue = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
 	                                                        module_timeout_get_priority);
@@ -300,7 +299,7 @@ global_timeout_queue_process_promotions()
 	priority_queue_top_nolock(global_module_timeout_queue, (void **)&top_module_timeout);
 	if (top_module_timeout == NULL) return; // no guaranteed tenants
 
-	struct module *                     module          = NULL;
+	struct module	              *module          = NULL;
 	struct module_global_request_queue *mgrq_to_promote = NULL;
 	uint64_t                            now             = __getcycles();
 	int64_t                             prev_budget;

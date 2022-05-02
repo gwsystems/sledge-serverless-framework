@@ -27,7 +27,7 @@ static inline uint64_t
 perworker_module_get_priority(void *element)
 {
 	struct perworker_module_sandbox_queue *pwm     = (struct perworker_module_sandbox_queue *)element;
-	struct sandbox *                       sandbox = NULL;
+	struct sandbox                        *sandbox = NULL;
 	priority_queue_top_nolock(pwm->sandboxes, (void **)&sandbox);
 	return (sandbox) ? sandbox->absolute_deadline : UINT64_MAX;
 }
@@ -135,7 +135,7 @@ local_runqueue_mtds_get_next()
 {
 	/* Get the deadline of the sandbox at the head of the local request queue */
 	struct perworker_module_sandbox_queue *next_pwm = NULL;
-	struct priority_queue *                dq       = local_runqueue_mtds_guaranteed;
+	struct priority_queue                 *dq       = local_runqueue_mtds_guaranteed;
 
 	/* Check the local guaranteed queue for any potential demotions */
 	int rc = priority_queue_top_nolock(dq, (void **)&next_pwm);
@@ -167,9 +167,9 @@ local_runqueue_mtds_initialize()
 {
 	/* Initialize local state */
 	local_runqueue_mtds_guaranteed = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
-	                                                          perworker_module_get_priority);
+	                                                           perworker_module_get_priority);
 	local_runqueue_mtds_default    = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
-                                                               perworker_module_get_priority);
+	                                                           perworker_module_get_priority);
 
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_mtds_add,

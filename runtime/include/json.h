@@ -261,14 +261,15 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct module_config **m
 			} else if (strcmp(key, module_keys[module_replenishment_period_us]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
-				int rc = parse_uint32_t(tokens[i], json_buf, module_keys[module_replenishment_period_us],
-										&(*module_config_vec)[module_idx].replenishment_period_us);
+				int rc = parse_uint32_t(tokens[i], json_buf,
+				                        module_keys[module_replenishment_period_us],
+				                        &(*module_config_vec)[module_idx].replenishment_period_us);
 				if (rc < 0) goto json_parse_err;
 			} else if (strcmp(key, module_keys[module_max_budget_us]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;
 
 				int rc = parse_uint32_t(tokens[i], json_buf, module_keys[module_max_budget_us],
-										&(*module_config_vec)[module_idx].max_budget_us);
+				                        &(*module_config_vec)[module_idx].max_budget_us);
 				if (rc < 0) goto json_parse_err;
 			} else if (strcmp(key, module_keys[module_admissions_percentile]) == 0) {
 				if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE)) goto json_parse_err;

@@ -21,8 +21,7 @@
 static inline int
 module_policy_specific_init(struct module *module, struct module_config *config)
 {
-	switch (scheduler)
-	{
+	switch (scheduler) {
 	case SCHEDULER_FIFO:
 		break;
 	case SCHEDULER_EDF:

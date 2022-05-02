@@ -67,7 +67,7 @@ enum SCHEDULER
 {
 	SCHEDULER_FIFO = 0,
 	SCHEDULER_EDF  = 1,
-	SCHEDULER_MTDS  = 2
+	SCHEDULER_MTDS = 2
 };
 
 extern enum SCHEDULER scheduler;
@@ -76,10 +76,10 @@ static inline struct sandbox *
 scheduler_mtds_get_next()
 {
 	/* Get the deadline of the sandbox at the head of the local queue */
-	struct sandbox *         local          = local_runqueue_get_next();
+	struct sandbox          *local          = local_runqueue_get_next();
 	uint64_t                 local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
 	enum MULTI_TENANCY_CLASS local_mt_class = MT_DEFAULT;
-	struct sandbox *         global         = NULL;
+	struct sandbox          *global         = NULL;
 
 	if (local) local_mt_class = local->module->pwm_sandboxes[worker_thread_idx].mt_class;
 
