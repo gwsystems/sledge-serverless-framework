@@ -202,14 +202,13 @@ sandbox_deinit(struct sandbox *sandbox)
 
 	module_release(sandbox->module);
 
-	/* HTTP Session was already deinited, freed, and set to NULL */
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
 	assert(sandbox->memory == NULL);
 
 	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
 	if (likely(sandbox->http != NULL)) http_session_free(sandbox->http);
-
 	if (likely(sandbox->globals.buffer != NULL)) sandbox_free_globals(sandbox);
+	if (likely(sandbox->wasi_context != NULL)) wasi_context_destroy(sandbox->wasi_context);
 }
 
 /**
