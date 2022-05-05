@@ -136,6 +136,7 @@ envrun() {
 		echo "Starting ${SYS_DOC_NAME}"
 		docker run \
 			--privileged \
+			--network="host" \
 			--security-opt seccomp:unconfined \
 			--name=${SYS_DOC_NAME} \
 			--detach \
