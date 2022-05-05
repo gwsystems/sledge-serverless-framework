@@ -249,10 +249,8 @@ resume_blocked_read(struct epoll_event *evt)
 		return;
 	}
 
-	/* If the global request scheduler is full, return a 429 to the client
-	 */
-	sandbox = global_request_scheduler_add(sandbox);
-	if (unlikely(sandbox == NULL)) {
+	/* If the global request scheduler is full, return a 429 to the client */
+	if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
 		http_session_send_err_oneshot(session, 429);
 		sandbox_free(sandbox);
 	}
