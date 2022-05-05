@@ -94,13 +94,18 @@ module_free(struct module *module)
  */
 
 struct module *
-module_alloc(char *path)
+module_alloc(IN char *path)
 {
-	struct module *module = (struct module *)calloc(1, sizeof(struct module));
+	size_t alignment     = (size_t)CACHE_PAD;
+	size_t size_to_alloc = (size_t)round_to_cache_pad(sizeof(struct module));
+
+	struct module *module = aligned_alloc(alignment, size_to_alloc);
 	if (!module) {
 		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));
 		goto err;
 	};
+
+	memset(module, 0, size_to_alloc);
 
 	int rc = module_init(module, path);
 	if (rc < 0) goto init_err;
@@ -109,6 +114,7 @@ done:
 	return module;
 
 init_err:
+	free(path);
 	free(module);
 err:
 	module = NULL;

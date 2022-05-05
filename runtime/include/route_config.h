@@ -32,9 +32,12 @@ struct route_config {
 static inline void
 route_config_deinit(struct route_config *config)
 {
-	free(config->path);
-	free(config->route);
-	free(config->http_resp_content_type);
+	/* ownership of the route and http_resp_content_type strings was moved during http_router_add_route */
+	assert(config->route == NULL);
+	assert(config->http_resp_content_type == NULL);
+
+	/* ownership of the path stringswas moved during module_alloc */
+	assert(config->path == NULL);
 }
 
 static inline void

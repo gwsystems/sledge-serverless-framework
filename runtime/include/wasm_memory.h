@@ -56,7 +56,7 @@ static INLINE void    wasm_memory_set_f64(struct wasm_memory *wasm_memory, uint3
 static INLINE struct wasm_memory *
 wasm_memory_alloc(uint64_t initial, uint64_t max)
 {
-	struct wasm_memory *wasm_memory = aligned_alloc(4096, sizeof(struct wasm_memory));
+	struct wasm_memory *wasm_memory = aligned_alloc(4096, round_up_to_page(sizeof(struct wasm_memory)));
 	if (wasm_memory == NULL) return wasm_memory;
 
 	int rc = wasm_memory_init(wasm_memory, initial, max);

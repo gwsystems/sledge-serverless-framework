@@ -39,10 +39,16 @@ tenant_alloc(struct tenant_config *config)
 	module_database_init(&tenant->module_db);
 
 	for (int i = 0; i < config->routes_len; i++) {
-		/* Resolve module */
-		struct module *module = module_database_find_by_path(&tenant->module_db, config->routes[i].path);
+		/* Resolve module, Ownership of path moves here */
+		struct module *module  = module_database_find_by_path(&tenant->module_db, config->routes[i].path);
+		config->routes[i].path = NULL;
+
 		assert(module != NULL);
+
+		/* Ownership of config's route and http_resp_content_type move here */
 		http_router_add_route(&tenant->router, &config->routes[i], module);
+		config->routes[i].route                  = NULL;
+		config->routes[i].http_resp_content_type = NULL;
 	}
 
 	return tenant;

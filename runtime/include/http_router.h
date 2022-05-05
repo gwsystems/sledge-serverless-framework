@@ -43,10 +43,6 @@ http_router_add_route(struct http_router *router, struct route_config *config, s
 		.response_content_type = config->http_resp_content_type
 	};
 
-	/* Move strings from config */
-	config->route                  = NULL;
-	config->http_resp_content_type = NULL;
-
 	/* Admissions Control */
 	uint64_t expected_execution = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz;
 	admissions_info_initialize(&router->routes[router->routes_length].admissions_info,

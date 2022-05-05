@@ -42,7 +42,7 @@ struct module {
 	struct sledge_abi__wasm_table *indirect_table;
 
 	struct module_pools pools[MAX_WORKER_THREADS];
-};
+} __attribute__((aligned(CACHE_PAD)));
 
 /********************************
  * Public Methods from module.c *

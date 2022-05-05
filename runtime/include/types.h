@@ -11,11 +11,15 @@
 #define CACHE_PAD (CACHE_LINE * 2)
 
 /* For this family of macros, do NOT pass zero as the pow2 */
-#define round_to_pow2(x, pow2)    (((unsigned long)(x)) & (~((pow2)-1)))
-#define round_up_to_pow2(x, pow2) (round_to_pow2(((unsigned long)(x)) + (pow2)-1, (pow2)))
+#define round_to_pow2(x, pow2) (((unsigned long)(x)) & (~(((unsigned long)(pow2)) - 1)))
+#define round_up_to_pow2(x, pow2) \
+	(round_to_pow2(((unsigned long)(x)) + ((unsigned long)(pow2)) - 1, (unsigned long)((pow2))))
 
 #define round_to_page(x)    round_to_pow2(x, PAGE_SIZE)
 #define round_up_to_page(x) round_up_to_pow2(x, PAGE_SIZE)
+
+#define round_to_cache_pad(x)    round_to_pow2((unsigned long)(x), CACHE_PAD)
+#define round_up_to_cache_pad(x) round_up_to_pow2((unsigned long)(x), CACHE_PAD)
 
 #define EXPORT       __attribute__((visibility("default")))
 #define IMPORT       __attribute__((visibility("default")))

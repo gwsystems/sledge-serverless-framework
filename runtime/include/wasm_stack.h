@@ -120,10 +120,9 @@ wasm_stack_reinit(struct wasm_stack *wasm_stack)
 {
 	assert(wasm_stack != NULL);
 	assert(wasm_stack->buffer != NULL);
-
-	wasm_stack->low = wasm_stack->buffer + /* guard page */ PAGE_SIZE;
+	assert(wasm_stack->low == wasm_stack->buffer + /* guard page */ PAGE_SIZE);
+	assert(wasm_stack->high == wasm_stack->low + wasm_stack->capacity);
 
 	memset(wasm_stack->low, 0, wasm_stack->capacity);
 	ps_list_init_d(wasm_stack);
-	wasm_stack->high = wasm_stack->low + wasm_stack->capacity;
 }

@@ -3,7 +3,7 @@
 #include "local_completion_queue.h"
 #include "sandbox_functions.h"
 
-thread_local static struct ps_list_head local_completion_queue;
+thread_local static struct ps_list_head local_completion_queue __attribute__((aligned(16)));
 
 
 void
