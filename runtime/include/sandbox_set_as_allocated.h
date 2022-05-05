@@ -8,6 +8,7 @@
 #include "current_sandbox.h"
 #include "ps_list.h"
 #include "sandbox_state_history.h"
+#include "sandbox_state_transition.h"
 #include "sandbox_types.h"
 
 /**
@@ -28,4 +29,8 @@ sandbox_set_as_allocated(struct sandbox *sandbox)
 	sandbox_state_history_init(&sandbox->state_history);
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_ALLOCATED);
 	sandbox_state_totals_increment(SANDBOX_ALLOCATED);
+
+	/* State Change Hooks */
+	sandbox_state_transition_from_hook(sandbox, SANDBOX_UNINITIALIZED);
+	sandbox_state_transition_to_hook(sandbox, SANDBOX_ALLOCATED);
 }

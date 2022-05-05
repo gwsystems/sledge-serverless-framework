@@ -8,6 +8,7 @@
 #include "panic.h"
 #include "sandbox_functions.h"
 #include "sandbox_state_history.h"
+#include "sandbox_state_transition.h"
 #include "sandbox_types.h"
 
 static inline void
@@ -23,11 +24,16 @@ sandbox_set_as_interrupted(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
-	sandbox->duration_of_state[last_state] += (now - sandbox->timestamp_of.last_state_change);
+	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
+	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
 	/* We do not append SANDBOX_INTERRUPTED to the sandbox_state_history because it would quickly fill the buffer */
 	sandbox_state_totals_increment(SANDBOX_INTERRUPTED);
 	sandbox_state_totals_decrement(last_state);
+
+	/* State Change Hooks */
+	sandbox_state_transition_from_hook(sandbox, last_state);
+	sandbox_state_transition_to_hook(sandbox, SANDBOX_INTERRUPTED);
 }
 
 static inline void

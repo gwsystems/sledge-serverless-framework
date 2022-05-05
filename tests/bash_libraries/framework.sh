@@ -228,15 +228,21 @@ __framework_sh__log_environment() {
 	echo ""
 
 	echo "************"
+	echo "* Spec.json *"
+	echo "************"
+	cat "$(path_join "$__framework_sh__application_directory" ./spec.json)"
+	echo ""
+
+	echo "************"
 	echo "* Makefile *"
 	echo "************"
 	cat "$(path_join "$__framework_sh__path" ../../Makefile)"
 	echo ""
 
-	echo "**********"
-	echo "* Run.sh *"
-	echo "**********"
-	cat "$(path_join "$__framework_sh__application_directory" ./run.sh)"
+	echo "**************"
+	echo "* " "$0" " *"
+	echo "**************"
+	cat "$(path_join "$__framework_sh__application_directory" "$0")"
 	echo ""
 
 	echo "************"

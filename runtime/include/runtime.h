@@ -30,6 +30,7 @@
 #define RUNTIME_MAX_TENANT_COUNT          32 /* Static buffer size for per-worker globals */
 #define RUNTIME_READ_WRITE_VECTOR_LENGTH  16
 #define RUNTIME_RELATIVE_DEADLINE_US_MAX  3600000000 /* One Hour. Fits in uint32_t */
+#define RUNTIME_RUNQUEUE_SIZE             256        /* Minimum guaranteed size. Might grow! */
 
 enum RUNTIME_SIGALRM_HANDLER
 {
