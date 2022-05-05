@@ -13,8 +13,6 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
-#define INITIAL_LOCAL_RUNQUEUE_MINHEAP_CAPACITY 256
-
 thread_local static struct priority_queue *local_runqueue_minheap;
 
 /**
@@ -85,8 +83,7 @@ void
 local_runqueue_minheap_initialize()
 {
 	/* Initialize local state */
-	local_runqueue_minheap = priority_queue_initialize(INITIAL_LOCAL_RUNQUEUE_MINHEAP_CAPACITY, false,
-	                                                   sandbox_get_priority);
+	local_runqueue_minheap = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false, sandbox_get_priority);
 
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,
