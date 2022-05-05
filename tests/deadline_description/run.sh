@@ -17,7 +17,6 @@ source validate_dependencies.sh || exit 1
 validate_dependencies awk hey jq
 
 # Please keep the element ordered alphabetically!
-# declare -a workloads=(cifar10 ekf gocr lpd resize)
 declare -a workloads=(cifar10 ekf gocr lpd resize)
 declare -a multiples=(1.5 2.0 3.0 4.0)
 declare -ri percentile=50
