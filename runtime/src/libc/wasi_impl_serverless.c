@@ -663,6 +663,8 @@ wasi_snapshot_preview1_backing_fd_read(wasi_context_t *context, __wasi_fd_t fd, 
 		int                  old_read        = current_request->cursor;
 		int                  bytes_to_read   = current_request->body_length - old_read;
 
+		assert(current_request->body_length >= 0);
+
 		for (int i = 0; i < iovs_len; i++) {
 			if (bytes_to_read == 0) goto done;
 

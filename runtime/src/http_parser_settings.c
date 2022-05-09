@@ -191,8 +191,13 @@ http_parser_settings_on_header_end(http_parser *parser)
 	debuglog("parser: %p\n", parser);
 #endif
 
-	http_request->header_end  = true;
-	http_request->body_length = parser->content_length;
+	http_request->header_end = true;
+
+	if (parser->method == HTTP_PUT || parser->method == HTTP_POST) {
+		http_request->body_length = parser->content_length;
+	} else {
+		http_request->body_length = 0;
+	}
 
 	return 0;
 }
