@@ -46,7 +46,12 @@ tenant_alloc(struct tenant_config *config)
 		assert(module != NULL);
 
 		/* Ownership of config's route and http_resp_content_type move here */
-		http_router_add_route(&tenant->router, &config->routes[i], module);
+		int rc = http_router_add_route(&tenant->router, &config->routes[i], module);
+		if (unlikely(rc != 0)) {
+			panic("Tenant %s defined %lu routes, but router could only hold %d\n", tenant->name,
+			      config->routes_len, HTTP_ROUTER_ROUTES_CAPACITY);
+		}
+
 		config->routes[i].route                  = NULL;
 		config->routes[i].http_resp_content_type = NULL;
 	}

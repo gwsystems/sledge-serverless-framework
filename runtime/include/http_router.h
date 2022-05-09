@@ -30,7 +30,7 @@ http_router_add_route(struct http_router *router, struct route_config *config, s
 	assert(module != NULL);
 	assert(config->route != NULL);
 	assert(config->http_resp_content_type != NULL);
-	assert(router->routes_length <= HTTP_ROUTER_ROUTES_CAPACITY);
+	assert(router->routes_length < HTTP_ROUTER_ROUTES_CAPACITY);
 
 	if (unlikely(router->routes_length == HTTP_ROUTER_ROUTES_CAPACITY)) { return -1; }
 
