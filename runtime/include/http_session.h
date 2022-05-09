@@ -55,7 +55,7 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
 	/* Set the http_request member as the data pointer the http_parser callbacks receive */
 	session->http_parser.data = &session->http_request;
 
-	memset(&session->http_request, 0, sizeof(struct http_parser));
+	memset(&session->http_request, 0, sizeof(struct http_request));
 
 	int rc = vec_u8_init(&session->request_buffer, HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE);
 	if (rc < 0) return -1;
