@@ -142,7 +142,7 @@ static inline int
 parse_uint32_t(jsmntok_t tok, const char *json_buf, const char *key, uint32_t *ret)
 {
 	char     *end  = NULL;
-	uintmax_t temp = strtoimax(&json_buf[tok.start], &end, 10);
+	intmax_t temp = strtoimax(&json_buf[tok.start], &end, 10);
 
 	if (end != &json_buf[tok.end] || temp < 0 || temp > UINT32_MAX) {
 		fprintf(stderr, "Unable to parse uint32_t for key %s\n", key);
@@ -157,10 +157,10 @@ static inline int
 parse_uint64_t(jsmntok_t tok, const char *json_buf, const char *key, uint64_t *ret)
 {
 	char     *end  = NULL;
-	uintmax_t temp = strtoimax(&json_buf[tok.start], &end, 10);
+	intmax_t temp = strtoimax(&json_buf[tok.start], &end, 10);
 
 	if (end != &json_buf[tok.end] || temp < 0 || temp > UINT64_MAX) {
-		fprintf(stderr, "Unable to parse uint32_t for key %s\n", key);
+		fprintf(stderr, "Unable to parse uint64_t for key %s\n", key);
 		return -1;
 	}
 
