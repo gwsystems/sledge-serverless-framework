@@ -12,9 +12,6 @@ tenant_listen(struct tenant *tenant)
 	int rc = tcp_server_listen(&tenant->tcp_server);
 	if (rc < 0) goto err;
 
-	/* Set the socket descriptor and register with our global epoll instance to monitor for incoming HTTP requests
-	 */
-
 	rc = listener_thread_register_tenant(tenant);
 	if (unlikely(rc < 0)) goto err_add_to_epoll;
 
