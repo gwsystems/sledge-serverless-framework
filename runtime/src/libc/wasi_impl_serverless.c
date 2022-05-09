@@ -791,6 +791,19 @@ wasi_snapshot_preview1_backing_fd_write(wasi_context_t *context, __wasi_fd_t fd,
 		__wasi_size_t   nwritten         = 0;
 		int             rc               = 0;
 
+		/* Precompute required buffer size for entire iovec to call realloc at most once */
+		size_t total_size_to_copy = 0;
+		for (size_t i = 0; i < iovs_len; i++) { total_size_to_copy += iovs[i].buf_len; }
+		buffer_remaining = s->http->response_buffer.capacity - s->http->response_buffer.length;
+
+		if (buffer_remaining < total_size_to_copy) {
+			rc = vec_u8_resize(&s->http->response_buffer,
+			                   s->http->response_buffer.capacity + total_size_to_copy - buffer_remaining);
+			assert(rc == 0);
+		}
+
+		assert(s->http->response_buffer.capacity - s->http->response_buffer.length >= total_size_to_copy);
+
 		for (size_t i = 0; i < iovs_len; i++) {
 #ifdef LOG_SANDBOX_STDERR
 			if (fd == STDERR_FILENO) {

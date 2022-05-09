@@ -313,8 +313,6 @@ http_session_receive_request(struct http_session *session, http_session_receive_
 			goto err;
 		}
 
-		assert(bytes_parsed == bytes_received);
-
 		session->http_request.length_parsed += bytes_parsed;
 	}
 
@@ -353,8 +351,10 @@ http_session_write_response(struct http_session *session, const uint8_t *source,
 
 	int rc = 0;
 
-	if (session->response_buffer.capacity - session->response_buffer.length < n) {
-		rc = vec_u8_grow(&session->response_buffer);
+	size_t buffer_remaining = session->response_buffer.capacity - session->response_buffer.length;
+
+	if (buffer_remaining < n) {
+		rc = vec_u8_resize(&session->response_buffer, session->response_buffer.capacity + n - buffer_remaining);
 		if (rc != 0) goto DONE;
 	}
 
