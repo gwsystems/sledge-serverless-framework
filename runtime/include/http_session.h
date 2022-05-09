@@ -88,7 +88,7 @@ http_session_alloc(int socket_descriptor, const struct sockaddr *socket_address,
 	assert(socket_descriptor >= 0);
 	assert(socket_address != NULL);
 
-	struct http_session *session = calloc(sizeof(struct http_session), 1);
+	struct http_session *session = calloc(1, sizeof(struct http_session));
 	if (session == NULL) return NULL;
 
 	int rc = http_session_init(session, socket_descriptor, socket_address, tenant, request_arrival_timestamp);
