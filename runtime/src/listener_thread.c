@@ -222,7 +222,7 @@ resume_blocked_read(struct epoll_event *evt)
 		return;
 	}
 
-	/* We read session to completion, so can remote from epoll */
+	/* We read session to completion, so can remove from epoll */
 	listener_thread_unregister_http_session(session);
 
 	struct route *route = http_router_match_route(&session->tenant->router, session->http_request.full_url);
