@@ -84,6 +84,10 @@ tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_
 
 	if (tenant_config_validate(config, did_set) < 0) return -1;
 
+#ifdef LOG_TENANT_LOADING
+	tenant_config_print(config);
+#endif
+
 	return i;
 }
 
@@ -113,6 +117,9 @@ tenant_config_vec_parse(struct tenant_config **tenant_config_vec, int *tenant_co
 		return -1;
 	}
 
+#ifdef LOG_TENANT_LOADING
+	fprintf(stderr, "Tenants Size: %d\n", *tenant_config_vec_len);
+#endif
 
 	for (int tenant_idx = 0; tenant_idx < *tenant_config_vec_len; tenant_idx++) {
 		i++;
