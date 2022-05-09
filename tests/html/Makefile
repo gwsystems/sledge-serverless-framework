@@ -34,13 +34,13 @@ debug: sledgert html
 		--eval-command="run spec.json"
 
 client:
-	http :1337
+	http :1337/index.html
 
 browser-args:
 	xdg-open "http://localhost:1337/index.html"
 
 client-stdin:
-	echo "Example STDIN" | http :1337
+	echo "Example STDIN" | http :1337/index.html
 
 client-args:
 	http ":1337/index.html?firstArg&secondArg&thirdArg"

@@ -38,10 +38,10 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 	/* Full URL excludes query params if present */
 	size_t full_url_length = query_params == NULL ? length : query_params - at;
 
-	size_t to_copy = full_url_length < HTTP_MAX_FULL_URL_LENGTH - 1 ? full_url_length
-	                                                                : HTTP_MAX_FULL_URL_LENGTH - 1;
-	strncpy(http_request->full_url, at, to_copy);
-	http_request->full_url[to_copy] = '\0';
+	size_t size_to_copy = full_url_length < HTTP_MAX_FULL_URL_LENGTH - 1 ? full_url_length
+	                                                                     : HTTP_MAX_FULL_URL_LENGTH - 1;
+	memcpy(http_request->full_url, at, size_to_copy);
+	http_request->full_url[size_to_copy] = '\0';
 
 	if (query_params != NULL) {
 		char *prev = query_params + 1;
@@ -53,8 +53,10 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 			http_request->query_params[http_request->query_params_count].value_length =
 			  len < HTTP_MAX_QUERY_PARAM_LENGTH - 1 ? len : HTTP_MAX_QUERY_PARAM_LENGTH - 1;
 
-			strncpy(http_request->query_params[http_request->query_params_count].value, prev,
-			        http_request->query_params[http_request->query_params_count].value_length);
+			memcpy(http_request->query_params[http_request->query_params_count].value, prev,
+			       http_request->query_params[http_request->query_params_count].value_length);
+			http_request->query_params[http_request->query_params_count]
+			  .value[http_request->query_params[http_request->query_params_count].value_length] = '\0';
 
 			http_request->query_params_count++;
 			prev = cur;
@@ -64,8 +66,10 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 			http_request->query_params[http_request->query_params_count].value_length =
 			  len < HTTP_MAX_QUERY_PARAM_LENGTH - 1 ? len : HTTP_MAX_QUERY_PARAM_LENGTH - 1;
 
-			strncpy(http_request->query_params[http_request->query_params_count].value, prev,
-			        http_request->query_params[http_request->query_params_count].value_length);
+			memcpy(http_request->query_params[http_request->query_params_count].value, prev,
+			       http_request->query_params[http_request->query_params_count].value_length);
+			http_request->query_params[http_request->query_params_count]
+			  .value[http_request->query_params[http_request->query_params_count].value_length] = '\0';
 
 			http_request->query_params_count++;
 		}
