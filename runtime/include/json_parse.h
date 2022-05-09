@@ -26,11 +26,11 @@ parse_json(const char *json_buf, ssize_t json_buf_size, struct tenant_config **t
 	int       i                     = 0;
 
 	/* Initialize the Jasmine Parser and an array to hold the tokens */
-	jsmn_parser module_parser;
-	jsmn_init(&module_parser);
+	jsmn_parser parser;
+	jsmn_init(&parser);
 
 	/* Use Jasmine to parse the JSON */
-	int total_tokens = jsmn_parse(&module_parser, json_buf, json_buf_size, tokens, JSON_TOKENS_CAPACITY);
+	int total_tokens = jsmn_parse(&parser, json_buf, json_buf_size, tokens, JSON_TOKENS_CAPACITY);
 	if (total_tokens < 0) {
 		if (total_tokens == JSMN_ERROR_INVAL) {
 			fprintf(stderr, "Error parsing %s: bad token, JSON string is corrupted\n", json_buf);
