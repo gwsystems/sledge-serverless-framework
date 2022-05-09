@@ -243,7 +243,7 @@ http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 
 #ifdef LOG_HTTP_PARSER
 	int capped_len = length > 1000 ? 1000 : length;
-	debuglog("parser: %p, length: %zu, Content(up to 1000 chars) \"%.*s\"\n", parser, length, (int)capped_len, at);
+	debuglog("parser: %p, length: %zu, Content(up to 1000 chars) \"%.*s\"\n", parser, length, capped_len, at);
 #endif
 
 	return 0;
