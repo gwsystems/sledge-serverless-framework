@@ -1,5 +1,6 @@
 #include <errno.h>
 
+#include "runtime.h"
 #include "tenant.h"
 #include "panic.h"
 
@@ -7,7 +8,7 @@
  * Tenant Database *
  ******************/
 
-struct tenant *tenant_database[TENANT_DATABASE_CAPACITY] = { NULL };
+struct tenant *tenant_database[RUNTIME_MAX_TENANT_COUNT] = { NULL };
 size_t         tenant_database_count                     = 0;
 
 /**
@@ -18,11 +19,11 @@ size_t         tenant_database_count                     = 0;
 int
 tenant_database_add(struct tenant *tenant)
 {
-	assert(tenant_database_count <= TENANT_DATABASE_CAPACITY);
+	assert(tenant_database_count <= RUNTIME_MAX_TENANT_COUNT);
 
 	int rc;
 
-	if (tenant_database_count == TENANT_DATABASE_CAPACITY) goto err_no_space;
+	if (tenant_database_count == RUNTIME_MAX_TENANT_COUNT) goto err_no_space;
 	tenant_database[tenant_database_count++] = tenant;
 
 	rc = 0;
