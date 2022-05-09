@@ -212,7 +212,7 @@ http_session_receive_request(struct http_session *session, http_session_receive_
 
 	struct vec_u8 *request_buffer = &session->request_buffer;
 	assert(request_buffer->capacity > 0);
-	assert(request_buffer->length < request_buffer->capacity);
+	assert(request_buffer->length <= request_buffer->capacity);
 
 	while (!session->http_request.message_end) {
 		/* Read from the Socket */
@@ -312,6 +312,8 @@ http_session_receive_request(struct http_session *session, http_session_receive_
 			debuglog("Error parsing socket %d\n", session->socket);
 			goto err;
 		}
+
+		assert(bytes_parsed == bytes_received);
 
 		session->http_request.length_parsed += bytes_parsed;
 	}
