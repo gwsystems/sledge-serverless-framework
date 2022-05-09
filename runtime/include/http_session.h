@@ -221,7 +221,8 @@ http_session_receive_request(struct http_session *session, http_session_receive_
 		http_parser                *parser   = &session->http_parser;
 		const http_parser_settings *settings = http_parser_settings_get();
 
-		/* If header parsing is complete, resize using content-length */
+		/* If header parsing is complete and the header specified a content-length, resize */
+		/* If http_request.body is NULL, then the request has no body (i.e. a GET request) */
 		if (session->http_request.header_end && session->http_request.body != NULL) {
 			int header_size = (uint8_t *)session->http_request.body - session->request_buffer.buffer;
 			assert(header_size > 0);
@@ -245,7 +246,9 @@ http_session_receive_request(struct http_session *session, http_session_receive_
 				}
 			}
 		} else if (request_buffer->length == request_buffer->capacity) {
-			/* Otherwise, we have a huge header and should just grow */
+			/* When the length of our buffer is equal to capacity, the buffer is full */
+			/* We have not yet fully parsed the header, so we don't know content-length, so just grow
+			 * (double) the buffer */
 			uint8_t *old_buffer = request_buffer->buffer;
 
 			if (vec_u8_grow(request_buffer) != 0) {
