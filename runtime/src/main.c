@@ -35,8 +35,6 @@ uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
 
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
-int                          runtime_worker_core_count;
-
 
 bool     runtime_preemption_enabled = true;
 uint32_t runtime_quantum_us         = 5000; /* 5ms */

@@ -23,10 +23,7 @@ extern thread_local int worker_thread_idx;
 INIT_POOL(wasm_memory, wasm_memory_free)
 INIT_POOL(wasm_stack, wasm_stack_free)
 
-/* TODO: Dynamically size based on number of threads */
-#define MAX_WORKER_THREADS 64
-
-struct module_pools {
+struct module_pool {
 	struct wasm_memory_pool memory;
 	struct wasm_stack_pool  stack;
 } __attribute__((aligned(CACHE_PAD)));
@@ -41,7 +38,7 @@ struct module {
 	_Atomic uint32_t               reference_count; /* ref count how many instances exist here. */
 	struct sledge_abi__wasm_table *indirect_table;
 
-	struct module_pools pools[MAX_WORKER_THREADS];
+	struct module_pool *pools;
 } __attribute__((aligned(CACHE_PAD)));
 
 /********************************
@@ -118,9 +115,18 @@ module_alloc_table(struct module *module)
 static inline void
 module_initialize_pools(struct module *module)
 {
-	for (int i = 0; i < MAX_WORKER_THREADS; i++) {
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		wasm_memory_pool_init(&module->pools[i].memory, false);
 		wasm_stack_pool_init(&module->pools[i].stack, false);
+	}
+}
+
+static inline void
+module_deinitialize_pools(struct module *module)
+{
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
+		wasm_memory_pool_deinit(&module->pools[i].memory);
+		wasm_stack_pool_deinit(&module->pools[i].stack);
 	}
 }
 

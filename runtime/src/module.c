@@ -39,6 +39,8 @@ module_init(struct module *module, IN char *path)
 	rc = sledge_abi_symbols_init(&module->abi, path);
 	if (rc != 0) goto err;
 
+	module->pools = calloc(runtime_worker_threads_count, sizeof(struct module_pool));
+
 	module->path = path;
 
 	module->stack_size = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
@@ -50,6 +52,19 @@ done:
 err:
 	rc = -1;
 	goto done;
+}
+
+static inline void
+module_deinit(struct module *module)
+{
+	assert(module == NULL);
+	assert(module->reference_count == 0);
+
+	free(module->path);
+	sledge_abi_symbols_deinit(&module->abi);
+	/* TODO: Free indirect_table */
+	module_deinitialize_pools(module);
+	free(module->pools);
 }
 
 /***************************************
@@ -69,14 +84,11 @@ void
 module_free(struct module *module)
 {
 	if (module == NULL) return;
+	assert(module->reference_count == 0);
 
 	panic("Unimplemented!\n");
 
-	/* TODO: Should allocating routes increment reference */
-	/* Do not free if we still have oustanding references */
-	if (module->reference_count) return;
-
-	sledge_abi_symbols_deinit(&module->abi);
+	module_deinit(module);
 	free(module);
 }
 
