@@ -141,7 +141,7 @@ parse_uint16_t(jsmntok_t tok, const char *json_buf, const char *key, uint16_t *r
 static inline int
 parse_uint32_t(jsmntok_t tok, const char *json_buf, const char *key, uint32_t *ret)
 {
-	char     *end  = NULL;
+	char    *end  = NULL;
 	intmax_t temp = strtoimax(&json_buf[tok.start], &end, 10);
 
 	if (end != &json_buf[tok.end] || temp < 0 || temp > UINT32_MAX) {
@@ -156,7 +156,7 @@ parse_uint32_t(jsmntok_t tok, const char *json_buf, const char *key, uint32_t *r
 static inline int
 parse_uint64_t(jsmntok_t tok, const char *json_buf, const char *key, uint64_t *ret)
 {
-	char     *end  = NULL;
+	char    *end  = NULL;
 	intmax_t temp = strtoimax(&json_buf[tok.start], &end, 10);
 
 	if (end != &json_buf[tok.end] || temp < 0 || temp > UINT64_MAX) {
