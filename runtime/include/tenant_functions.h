@@ -35,7 +35,7 @@ tenant_alloc(struct tenant_config *config)
 	config->name = NULL;
 
 	tcp_server_init(&tenant->tcp_server, config->port);
-	http_router_init(&tenant->router);
+	http_router_init(&tenant->router, config->routes_len);
 	module_database_init(&tenant->module_db);
 
 	for (int i = 0; i < config->routes_len; i++) {
@@ -48,8 +48,8 @@ tenant_alloc(struct tenant_config *config)
 		/* Ownership of config's route and http_resp_content_type move here */
 		int rc = http_router_add_route(&tenant->router, &config->routes[i], module);
 		if (unlikely(rc != 0)) {
-			panic("Tenant %s defined %lu routes, but router could only hold %d\n", tenant->name,
-			      config->routes_len, HTTP_ROUTER_ROUTES_CAPACITY);
+			panic("Tenant %s defined %lu routes, but router failed to grow beyond %lu\n", tenant->name,
+			      config->routes_len, tenant->router.capacity);
 		}
 
 		config->routes[i].route                  = NULL;

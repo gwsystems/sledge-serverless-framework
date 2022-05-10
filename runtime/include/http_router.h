@@ -7,58 +7,53 @@
 #include "module.h"
 #include "route.h"
 #include "route_config.h"
+#include "vec.h"
 
-#define HTTP_ROUTER_ROUTES_CAPACITY 32
+typedef struct route route_t;
+VEC(route_t)
 
-
-struct http_router {
-	struct route routes[HTTP_ROUTER_ROUTES_CAPACITY];
-	size_t       routes_length;
-};
+typedef struct vec_route_t http_router_t;
 
 static inline void
-http_router_init(struct http_router *router)
+http_router_init(http_router_t *router, size_t capacity)
 {
-	router->routes_length = 0;
+	vec_route_t_init(router, capacity);
 }
 
 static inline int
-http_router_add_route(struct http_router *router, struct route_config *config, struct module *module)
+http_router_add_route(http_router_t *router, struct route_config *config, struct module *module)
 {
 	assert(router != NULL);
 	assert(config != NULL);
 	assert(module != NULL);
 	assert(config->route != NULL);
 	assert(config->http_resp_content_type != NULL);
-	assert(router->routes_length < HTTP_ROUTER_ROUTES_CAPACITY);
 
-	if (unlikely(router->routes_length == HTTP_ROUTER_ROUTES_CAPACITY)) { return -1; }
-
-	router->routes[router->routes_length] = (struct route){
-		.route                 = config->route,
-		.module                = module,
-		.relative_deadline_us  = config->relative_deadline_us,
-		.relative_deadline     = (uint64_t)config->relative_deadline_us * runtime_processor_speed_MHz,
-		.response_size         = config->http_resp_size,
-		.response_content_type = config->http_resp_content_type
-	};
+	struct route route = { .route                = config->route,
+		               .module               = module,
+		               .relative_deadline_us = config->relative_deadline_us,
+		               .relative_deadline    = (uint64_t)config->relative_deadline_us
+		                                    * runtime_processor_speed_MHz,
+		               .response_size         = config->http_resp_size,
+		               .response_content_type = config->http_resp_content_type };
 
 	/* Admissions Control */
 	uint64_t expected_execution = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz;
-	admissions_info_initialize(&router->routes[router->routes_length].admissions_info,
-	                           config->admissions_percentile, expected_execution,
-	                           router->routes[router->routes_length].relative_deadline);
+	admissions_info_initialize(&route.admissions_info, config->admissions_percentile, expected_execution,
+	                           route.relative_deadline);
 
-	router->routes_length++;
+	int rc = vec_route_t_push(router, route);
+	if (unlikely(rc == -1)) { return -1; }
+
 	return 0;
 }
 
 static inline struct route *
-http_router_match_route(struct http_router *router, char *route)
+http_router_match_route(http_router_t *router, char *route)
 {
-	for (int i = 0; i < router->routes_length; i++) {
-		if (strncmp(route, router->routes[i].route, strlen(router->routes[i].route)) == 0) {
-			return &router->routes[i];
+	for (int i = 0; i < router->length; i++) {
+		if (strncmp(route, router->buffer[i].route, strlen(router->buffer[i].route)) == 0) {
+			return &router->buffer[i];
 		}
 	}
 

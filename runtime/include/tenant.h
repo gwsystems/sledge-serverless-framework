@@ -7,6 +7,6 @@
 struct tenant {
 	char                  *name;
 	struct tcp_server      tcp_server;
-	struct http_router     router;
+	http_router_t          router;
 	struct module_database module_db;
 };
