@@ -110,7 +110,6 @@ done:
 	return module;
 
 init_err:
-	free(path);
 	free(module);
 err:
 	module = NULL;
