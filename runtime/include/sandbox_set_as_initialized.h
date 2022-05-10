@@ -6,7 +6,6 @@
 
 #include "arch/context.h"
 #include "current_sandbox.h"
-#include "ps_list.h"
 #include "sandbox_state_history.h"
 #include "sandbox_state_transition.h"
 #include "sandbox_types.h"

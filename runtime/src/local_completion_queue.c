@@ -3,7 +3,8 @@
 #include "local_completion_queue.h"
 #include "sandbox_functions.h"
 
-thread_local static struct ps_list_head local_completion_queue __attribute__((aligned(16)));
+/* Must be the same alignment as sandbox structs because of how the ps_list macros work */
+thread_local static struct ps_list_head local_completion_queue PAGE_ALIGNED;
 
 
 void
@@ -39,8 +40,6 @@ local_completion_queue_add(struct sandbox *sandbox)
 void
 local_completion_queue_free()
 {
-	if (local_completion_queue_is_empty()) return;
-
 	struct sandbox *sandbox_iterator = NULL;
 	struct sandbox *buffer           = NULL;
 

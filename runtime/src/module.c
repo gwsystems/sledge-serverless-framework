@@ -111,6 +111,8 @@ module_alloc(char *path)
 	size_t alignment     = (size_t)CACHE_PAD;
 	size_t size_to_alloc = (size_t)round_to_cache_pad(sizeof(struct module));
 
+	assert(size_to_alloc % alignment == 0);
+
 	struct module *module = aligned_alloc(alignment, size_to_alloc);
 	if (!module) {
 		fprintf(stderr, "Failed to allocate module: %s\n", strerror(errno));

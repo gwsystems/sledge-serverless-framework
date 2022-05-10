@@ -26,7 +26,7 @@ INIT_POOL(wasm_stack, wasm_stack_free)
 struct module_pool {
 	struct wasm_memory_pool memory;
 	struct wasm_stack_pool  stack;
-} __attribute__((aligned(CACHE_PAD)));
+} CACHE_PAD_ALIGNED;
 
 struct module {
 	char    *path;
@@ -39,7 +39,7 @@ struct module {
 	struct sledge_abi__wasm_table *indirect_table;
 
 	struct module_pool *pools;
-} __attribute__((aligned(CACHE_PAD)));
+} CACHE_PAD_ALIGNED;
 
 /********************************
  * Public Methods from module.c *

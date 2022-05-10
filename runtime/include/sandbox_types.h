@@ -32,11 +32,14 @@ struct sandbox_timestamps {
 };
 
 struct sandbox {
+	/* used by ps_list's default name-based MACROS for the scheduling runqueue */
+	/* Keep as first member of sandbox struct to ensure ps_list maintains alignment */
+	struct ps_list list;
+
 	uint64_t                     id;
 	sandbox_state_t              state;
 	struct sandbox_state_history state_history;
 
-	struct ps_list list; /* used by ps_list's default name-based MACROS for the scheduling runqueue */
 
 	/* Accounting Info */
 	struct route  *route;

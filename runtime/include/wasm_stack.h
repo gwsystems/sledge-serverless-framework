@@ -5,6 +5,7 @@
 #include <sys/mman.h>
 #include <string.h>
 
+#include "ps_list.h"
 #include "types.h"
 
 /**

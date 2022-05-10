@@ -180,11 +180,16 @@ struct sandbox *
 sandbox_alloc(struct module *module, struct http_session *session, struct route *route, struct tenant *tenant,
               uint64_t admissions_estimate)
 {
-	struct sandbox *sandbox                   = NULL;
-	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
-	sandbox                                   = aligned_alloc(PAGE_SIZE, page_aligned_sandbox_size);
-	memset(sandbox, 0, page_aligned_sandbox_size);
+	size_t alignment     = (size_t)PAGE_SIZE;
+	size_t size_to_alloc = (size_t)round_up_to_page(sizeof(struct module));
+
+	assert(size_to_alloc % alignment == 0);
+
+	struct sandbox *sandbox = NULL;
+	sandbox                 = aligned_alloc(alignment, size_to_alloc);
+
 	if (unlikely(sandbox == NULL)) return NULL;
+	memset(sandbox, 0, size_to_alloc);
 
 	sandbox_set_as_allocated(sandbox);
 	sandbox_init(sandbox, module, session, route, tenant, admissions_estimate);
