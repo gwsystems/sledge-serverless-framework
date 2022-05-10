@@ -17,14 +17,19 @@
 #include "tcp_server.h"
 #include "wasm_table.h"
 
-#define IN
-
 /*************************
  * Private Static Inline *
  ************************/
 
+/**
+ * Initializes a module
+ *
+ * @param module
+ * @param path passes ownership of string to the allocated module if successful
+ * @returns 0 on success, -1 on error
+ */
 static inline int
-module_init(struct module *module, IN char *path)
+module_init(struct module *module, char *path)
 {
 	assert(module != NULL);
 	assert(path != NULL);
@@ -94,15 +99,14 @@ module_free(struct module *module)
 
 /**
  * Module Contructor
- * Creates a new module, invokes initialize_tables to initialize the indirect table, and adds it to the module DB
+ * Allocates and initializes a new module
  *
- * @param name
- * @param path
+ * @param path passes ownership of string to the allocated module if successful
  * @returns A new module or NULL in case of failure
  */
 
 struct module *
-module_alloc(IN char *path)
+module_alloc(char *path)
 {
 	size_t alignment     = (size_t)CACHE_PAD;
 	size_t size_to_alloc = (size_t)round_to_cache_pad(sizeof(struct module));
