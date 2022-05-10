@@ -86,10 +86,6 @@ module_free(struct module *module)
  *
  * @param name
  * @param path
- * @param stack_size
- * @param relative_deadline_us
- * @param port
- * @param request_size
  * @returns A new module or NULL in case of failure
  */
 
