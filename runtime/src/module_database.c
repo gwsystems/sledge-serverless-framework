@@ -18,7 +18,7 @@ module_database_init(struct module_database *db)
  * @param module module to add
  * @return 0 on success. -ENOSPC when full
  */
-static int
+int
 module_database_add(struct module_database *db, struct module *module)
 {
 	assert(db->count <= MODULE_DATABASE_CAPACITY);
@@ -49,12 +49,6 @@ module_database_find_by_path(struct module_database *db, char *path)
 	for (size_t i = 0; i < db->count; i++) {
 		assert(db->modules[i]);
 		if (strcmp(db->modules[i]->path, path) == 0) return db->modules[i];
-	}
-
-	struct module *module = module_alloc(path);
-	if (module != NULL) {
-		module_database_add(db, module);
-		return module;
 	}
 
 	return NULL;

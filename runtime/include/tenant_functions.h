@@ -39,9 +39,18 @@ tenant_alloc(struct tenant_config *config)
 	module_database_init(&tenant->module_db);
 
 	for (int i = 0; i < config->routes_len; i++) {
-		/* Resolve module, Ownership of path moves here */
-		struct module *module  = module_database_find_by_path(&tenant->module_db, config->routes[i].path);
-		config->routes[i].path = NULL;
+		struct module *module = module_database_find_by_path(&tenant->module_db, config->routes[i].path);
+		if (module == NULL) {
+			/* Ownership of path moves here */
+			module = module_alloc(config->routes[i].path);
+			if (module != NULL) {
+				module_database_add(&tenant->module_db, module);
+				config->routes[i].path = NULL;
+			}
+		} else {
+			free(config->routes[i].path);
+			config->routes[i].path = NULL;
+		}
 
 		assert(module != NULL);
 
