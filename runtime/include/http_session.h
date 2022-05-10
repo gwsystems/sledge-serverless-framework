@@ -228,8 +228,6 @@ http_session_receive_request(struct http_session *session, http_session_receive_
 			assert(header_size > 0);
 			int required_size = header_size + session->http_request.body_length;
 
-			assert(required_size > 0);
-
 			if (required_size > request_buffer->capacity) {
 				uint8_t *old_buffer = request_buffer->buffer;
 				if (vec_u8_resize(request_buffer, required_size) != 0) {
