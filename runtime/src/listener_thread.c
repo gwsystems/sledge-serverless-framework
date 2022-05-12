@@ -162,7 +162,6 @@ handle_tcp_requests(struct epoll_event *evt)
 		}
 
 		assert(session->http_request.message_end);
-		assert(session->http_request.body);
 
 		/* Route to sandbox */
 		struct route *route = http_router_match_route(&tenant->router, session->http_request.full_url);
