@@ -26,7 +26,7 @@ run_functional_tests() {
 		ext="$RANDOM"
 
 		# Small
-		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "/tmp/result_${ext}_small.jpg" "${hostname}:10000" 2> /dev/null 1> /dev/null; then
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_small.jpg" --output "/tmp/result_${ext}_small.jpg" "${hostname}:10000/resize_small" 2> /dev/null 1> /dev/null; then
 			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_small.jpg" expected_result_small.jpg null: 2>&1 > /dev/null)"
 			rm -f "/tmp/result_${ext}_small.jpg"
 			if [[ "$pixel_differences" != "0" ]]; then
@@ -40,7 +40,7 @@ run_functional_tests() {
 		fi
 
 		# Medium
-		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "/tmp/result_${ext}_medium.jpg" "${hostname}:10001" 2> /dev/null 1> /dev/null; then
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_medium.jpg" --output "/tmp/result_${ext}_medium.jpg" "${hostname}:10000/resize_medium" 2> /dev/null 1> /dev/null; then
 			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_medium.jpg" expected_result_medium.jpg null: 2>&1 > /dev/null)"
 			rm -f "/tmp/result_${ext}_medium.jpg"
 			if [[ "$pixel_differences" != "0" ]]; then
@@ -54,7 +54,7 @@ run_functional_tests() {
 		fi
 
 		# Large
-		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "/tmp/result_${ext}_large.jpg" "${hostname}:10002" 2> /dev/null 1> /dev/null; then
+		if curl -H 'Expect:' -H "Content-Type: image/jpg" --data-binary "@shrinking_man_large.jpg" --output "/tmp/result_${ext}_large.jpg" "${hostname}:10000/resize_large" 2> /dev/null 1> /dev/null; then
 			pixel_differences="$(compare -identify -metric AE "/tmp/result_${ext}_large.jpg" expected_result_large.jpg null: 2>&1 > /dev/null)"
 			rm -f "/tmp/result_${ext}_large.jpg"
 			if [[ "$pixel_differences" != "0" ]]; then
@@ -95,7 +95,7 @@ run_perf_tests() {
 			done
 			((batch_id++))
 
-			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "shrinking_man_${workload}.jpg" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "shrinking_man_${workload}.jpg" "http://${hostname}:10000${route[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 		done
 		pids=$(pgrep hey | tr '\n' ' ')
 		[[ -n $pids ]] && wait -f $pids
@@ -160,10 +160,10 @@ experiment_client() {
 validate_dependencies curl
 
 declare -ar workloads=(small medium large)
-declare -Ar port=(
-	[small]=10000
-	[medium]=10001
-	[large]=10002
+declare -Ar route=(
+	[small]=/resize_small
+	[medium]=/resize_medium
+	[large]=/resize_large
 )
 
 framework_init "$@"

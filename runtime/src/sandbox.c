@@ -81,28 +81,6 @@ sandbox_free_stack(struct sandbox *sandbox)
 }
 
 /**
- * Allocate http request and response buffers for a sandbox
- * @param sandbox sandbox that we want to allocate HTTP buffers for
- * @returns 0 on success, -1 on error
- */
-static inline int
-sandbox_allocate_http_buffers(struct sandbox *sandbox)
-{
-	int rc;
-	rc = vec_u8_init(&sandbox->request, sandbox->module->max_request_size);
-	if (rc < 0) return -1;
-
-	rc = vec_u8_init(&sandbox->response, sandbox->module->max_response_size);
-	if (rc < 0) {
-		vec_u8_deinit(&sandbox->request);
-		return -1;
-	}
-
-	return 0;
-}
-
-
-/**
  * Allocates HTTP buffers and performs our approximation of "WebAssembly instantiation"
  * @param sandbox
  * @returns 0 on success, -1 on error
@@ -116,9 +94,10 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 
 	int rc;
 
-	if (sandbox_allocate_http_buffers(sandbox)) {
-		error_message = "failed to allocate http buffers";
-		goto err_http_allocation_failed;
+	rc = http_session_init_response_buffer(sandbox->http, sandbox->route->response_size);
+	if (rc < 0) {
+		error_message = "failed to allocate response buffer";
+		goto err_globals_allocation_failed;
 	}
 
 	rc = sandbox_allocate_globals(sandbox);
@@ -150,8 +129,7 @@ err_stack_allocation_failed:
 err_memory_allocation_failed:
 err_globals_allocation_failed:
 err_http_allocation_failed:
-	client_socket_send_oneshot(sandbox->client_socket_descriptor, http_header_build(503), http_header_len(503));
-	client_socket_close(sandbox->client_socket_descriptor, &sandbox->client_address);
+	http_session_send_err_oneshot(sandbox->http, 503);
 	sandbox_set_as_error(sandbox, SANDBOX_ALLOCATED);
 	perror(error_message);
 	rc = -1;
@@ -159,8 +137,8 @@ err_http_allocation_failed:
 }
 
 void
-sandbox_init(struct sandbox *sandbox, struct module *module, int socket_descriptor,
-             const struct sockaddr *socket_address, uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
+sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session *session, struct route *route,
+             struct tenant *tenant, uint64_t admissions_estimate)
 {
 	/* Sets the ID to the value before the increment */
 	sandbox->id     = sandbox_total_postfix_increment();
@@ -170,10 +148,14 @@ sandbox_init(struct sandbox *sandbox, struct module *module, int socket_descript
 	/* Initialize Parsec control structures */
 	ps_list_init_d(sandbox);
 
-	sandbox->client_socket_descriptor = socket_descriptor;
-	memcpy(&sandbox->client_address, socket_address, sizeof(struct sockaddr));
-	sandbox->timestamp_of.request_arrival = request_arrival_timestamp;
-	sandbox->absolute_deadline            = request_arrival_timestamp + module->relative_deadline;
+	/* Allocate HTTP session structure */
+	assert(session);
+	sandbox->http   = session;
+	sandbox->tenant = tenant;
+	sandbox->route  = route;
+
+	sandbox->timestamp_of.request_arrival = session->request_arrival_timestamp;
+	sandbox->absolute_deadline            = session->request_arrival_timestamp + sandbox->route->relative_deadline;
 
 	/*
 	 * Admissions Control State
@@ -191,23 +173,26 @@ sandbox_init(struct sandbox *sandbox, struct module *module, int socket_descript
  * @param module the module we want to request
  * @param socket_descriptor
  * @param socket_address
- * @param request_arrival_timestamp the timestamp of when we receives the request from the network (in cycles)
  * @param admissions_estimate the timestamp of when we receives the request from the network (in cycles)
  * @return the new sandbox request
  */
 struct sandbox *
-sandbox_alloc(struct module *module, int socket_descriptor, const struct sockaddr *socket_address,
-              uint64_t request_arrival_timestamp, uint64_t admissions_estimate)
+sandbox_alloc(struct module *module, struct http_session *session, struct route *route, struct tenant *tenant,
+              uint64_t admissions_estimate)
 {
-	struct sandbox *sandbox                   = NULL;
-	size_t          page_aligned_sandbox_size = round_up_to_page(sizeof(struct sandbox));
-	sandbox                                   = aligned_alloc(PAGE_SIZE, page_aligned_sandbox_size);
-	memset(sandbox, 0, page_aligned_sandbox_size);
+	size_t alignment     = (size_t)PAGE_SIZE;
+	size_t size_to_alloc = (size_t)round_up_to_page(sizeof(struct module));
+
+	assert(size_to_alloc % alignment == 0);
+
+	struct sandbox *sandbox = NULL;
+	sandbox                 = aligned_alloc(alignment, size_to_alloc);
+
 	if (unlikely(sandbox == NULL)) return NULL;
+	memset(sandbox, 0, size_to_alloc);
 
 	sandbox_set_as_allocated(sandbox);
-	sandbox_init(sandbox, module, socket_descriptor, socket_address, request_arrival_timestamp,
-	             admissions_estimate);
+	sandbox_init(sandbox, module, session, route, tenant, admissions_estimate);
 
 
 	return sandbox;
@@ -226,8 +211,9 @@ sandbox_deinit(struct sandbox *sandbox)
 	assert(sandbox->memory == NULL);
 
 	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
-
+	if (likely(sandbox->http != NULL)) http_session_free(sandbox->http);
 	if (likely(sandbox->globals.buffer != NULL)) sandbox_free_globals(sandbox);
+	if (likely(sandbox->wasi_context != NULL)) wasi_context_destroy(sandbox->wasi_context);
 }
 
 /**

@@ -9,14 +9,11 @@
 #include <unistd.h>
 
 #include "debuglog.h"
-#include "http.h"
-#include "http_total.h"
 #include "panic.h"
 #include "likely.h"
 
-
 static inline void
-client_socket_close(int client_socket, struct sockaddr *client_address)
+tcp_session_close(int client_socket, struct sockaddr *client_address)
 {
 	/* Should never close 0, 1, or 2 */
 	assert(client_socket != STDIN_FILENO);
@@ -37,13 +34,13 @@ typedef void (*void_cb)(void);
 
 /**
  * Writes buffer to the client socket
- * @param client_socket - the client we are rejecting
+ * @param client_socket - the client
  * @param buffer - buffer to write to socket
  * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
  * @returns 0 on success, -1 on error.
  */
 static inline int
-client_socket_send(int client_socket, const char *buffer, size_t buffer_len, void_cb on_eagain)
+tcp_session_send(int client_socket, const char *buffer, size_t buffer_len, void_cb on_eagain)
 {
 	int rc;
 
@@ -81,7 +78,7 @@ done:
  * @returns 0
  */
 static inline int
-client_socket_send_oneshot(int client_socket, const char *buffer, size_t buffer_len)
+tcp_session_send_oneshot(int client_socket, const char *buffer, size_t buffer_len)
 {
-	return client_socket_send(client_socket, buffer, buffer_len, NULL);
+	return tcp_session_send(client_socket, buffer, buffer_len, NULL);
 }

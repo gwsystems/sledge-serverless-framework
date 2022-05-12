@@ -12,11 +12,11 @@ experiment_client() {
 	local -r hostname="$1"
 
 	for ((i = 1; i <= 10; i++)); do
-		echo "$i" | http -p h "${hostname}:10000" | grep 200 || {
+		echo "$i" | http -p h "${hostname}:10000/divide" | grep 200 || {
 			echo "FAIL"
 			return 1
 		}
-		echo "0" | http -p h "${hostname}:10000" | grep 500 || {
+		echo "0" | http -p h "${hostname}:10000/divide" | grep 500 || {
 			echo "FAIL"
 			return 1
 		}

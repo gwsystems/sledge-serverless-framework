@@ -1,12 +1,16 @@
 [
 	{
-		"name": "ekf",
-		"path": "gps_ekf.wasm.so",
+		"name": "gwu",
 		"port": 10000,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 50000,
-		"http-req-size": 1024000,
-		"http-resp-size": 1024000,
-		"http-resp-content-type": "application/octet-stream"
+		"routes": [
+			{
+				"route": "/ekf",
+				"path": "gps_ekf.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 50000,
+				"http-resp-size": 1024000,
+				"http-resp-content-type": "application/octet-stream"
+			}
+		]
 	}
 ]

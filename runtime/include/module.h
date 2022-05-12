@@ -8,66 +8,29 @@
 #include "admissions_control.h"
 #include "admissions_info.h"
 #include "current_wasm_module_instance.h"
-#include "http.h"
-#include "module_config.h"
 #include "panic.h"
 #include "pool.h"
 #include "sledge_abi_symbols.h"
+#include "tcp_server.h"
 #include "types.h"
 #include "sledge_abi_symbols.h"
 #include "wasm_stack.h"
 #include "wasm_memory.h"
 #include "wasm_table.h"
 
-#define MODULE_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
-
-#define MODULE_MAX_NAME_LENGTH 32
-#define MODULE_MAX_PATH_LENGTH 256
-
 extern thread_local int worker_thread_idx;
 
 INIT_POOL(wasm_memory, wasm_memory_free)
 INIT_POOL(wasm_stack, wasm_stack_free)
 
-/*
- * Defines the listen backlog, the queue length for completely established socketeds waiting to be accepted
- * If this value is greater than the value in /proc/sys/net/core/somaxconn (typically 128), then it is silently
- * truncated to this value. See man listen(2) for info
- *
- * When configuring the number of sockets to handle, the queue length of incomplete sockets defined in
- * /proc/sys/net/ipv4/tcp_max_syn_backlog should also be considered. Optionally, enabling syncookies removes this
- * maximum logical length. See tcp(7) for more info.
- */
-#define MODULE_MAX_PENDING_CLIENT_REQUESTS 128
-#if MODULE_MAX_PENDING_CLIENT_REQUESTS > 128
-#warning \
-  "MODULE_MAX_PENDING_CLIENT_REQUESTS likely exceeds the value in /proc/sys/net/core/somaxconn and thus may be silently truncated";
-#endif
-
-/* TODO: Dynamically size based on number of threads */
-#define MAX_WORKER_THREADS 64
-
-struct module_pools {
+struct module_pool {
 	struct wasm_memory_pool memory;
 	struct wasm_stack_pool  stack;
-} __attribute__((aligned(CACHE_PAD)));
+} CACHE_PAD_ALIGNED;
 
 struct module {
-	/* Metadata from JSON Config */
-	char                   name[MODULE_MAX_NAME_LENGTH];
-	char                   path[MODULE_MAX_PATH_LENGTH];
-	uint32_t               stack_size; /* a specification? */
-	uint32_t               relative_deadline_us;
-	uint16_t               port;
-	struct admissions_info admissions_info;
-	uint64_t               relative_deadline; /* cycles */
-
-	/* HTTP State */
-	size_t             max_request_size;
-	size_t             max_response_size;
-	char               response_content_type[HTTP_MAX_HEADER_VALUE_LENGTH];
-	struct sockaddr_in socket_address;
-	int                socket_descriptor;
+	char    *path;
+	uint32_t stack_size; /* a specification? */
 
 	/* Handle and ABI Symbols for *.so file */
 	struct sledge_abi_symbols abi;
@@ -75,8 +38,15 @@ struct module {
 	_Atomic uint32_t               reference_count; /* ref count how many instances exist here. */
 	struct sledge_abi__wasm_table *indirect_table;
 
-	struct module_pools pools[MAX_WORKER_THREADS];
-};
+	struct module_pool *pools;
+} CACHE_PAD_ALIGNED;
+
+/********************************
+ * Public Methods from module.c *
+ *******************************/
+
+void           module_free(struct module *module);
+struct module *module_alloc(char *path);
 
 /*************************
  * Public Static Inlines *
@@ -145,9 +115,18 @@ module_alloc_table(struct module *module)
 static inline void
 module_initialize_pools(struct module *module)
 {
-	for (int i = 0; i < MAX_WORKER_THREADS; i++) {
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		wasm_memory_pool_init(&module->pools[i].memory, false);
 		wasm_stack_pool_init(&module->pools[i].stack, false);
+	}
+}
+
+static inline void
+module_deinitialize_pools(struct module *module)
+{
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
+		wasm_memory_pool_deinit(&module->pools[i].memory);
+		wasm_stack_pool_deinit(&module->pools[i].stack);
 	}
 }
 
@@ -237,11 +216,3 @@ module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
 	wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
 }
-
-/********************************
- * Public Methods from module.c *
- *******************************/
-
-void           module_free(struct module *module);
-struct module *module_alloc(struct module_config *config);
-int            module_listen(struct module *module);

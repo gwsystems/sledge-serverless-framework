@@ -8,6 +8,7 @@
 #define HTTP_MAX_HEADER_COUNT        16
 #define HTTP_MAX_HEADER_LENGTH       32
 #define HTTP_MAX_HEADER_VALUE_LENGTH 256
+#define HTTP_MAX_FULL_URL_LENGTH     256
 
 #define HTTP_MAX_QUERY_PARAM_COUNT  16
 #define HTTP_MAX_QUERY_PARAM_LENGTH 32
@@ -27,6 +28,12 @@
 	"HTTP/1.1 400 Bad Request\r\n" \
 	"Server: SLEdge\r\n"           \
 	"Connection: close\r\n"        \
+	"\r\n"
+
+#define HTTP_RESPONSE_404_NOT_FOUND  \
+	"HTTP/1.1 404 Not Found\r\n" \
+	"Server: SLEdge\r\n"         \
+	"Connection: close\r\n"      \
 	"\r\n"
 
 #define HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE  \
@@ -69,6 +76,10 @@ http_header_build(int status_code)
 		response = HTTP_RESPONSE_400_BAD_REQUEST;
 		http_total_increment_4XX();
 		break;
+	case 404:
+		response = HTTP_RESPONSE_404_NOT_FOUND;
+		http_total_increment_4XX();
+		break;
 	case 413:
 		response = HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE;
 		http_total_increment_4XX();
@@ -98,6 +109,8 @@ http_header_len(int status_code)
 	switch (status_code) {
 	case 400:
 		return strlen(HTTP_RESPONSE_400_BAD_REQUEST);
+	case 404:
+		return strlen(HTTP_RESPONSE_404_NOT_FOUND);
 	case 413:
 		return strlen(HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE);
 	case 429:

@@ -18,20 +18,26 @@ struct http_query_param {
 };
 
 struct http_request {
+	char                    full_url[HTTP_MAX_FULL_URL_LENGTH];
 	struct http_header      headers[HTTP_MAX_HEADER_COUNT];
 	int                     header_count;
+	uint32_t                method;
 	struct http_query_param query_params[HTTP_MAX_QUERY_PARAM_COUNT];
 	int                     query_params_count;
 	char                   *body;
 	int                     body_length;
-	int                     body_read_length; /* How far we've read */
+	int                     body_length_read; /* Amount read into buffer from socket */
 
 	/* additional members for http-parser */
+	int  length_parsed;  /* Amount parsed */
 	bool last_was_value; /* http-parser flag used to help the http-parser callbacks differentiate between header
 	                       fields and values to know when to allocate a new header */
 	bool header_end;     /* boolean flag set when header processing is complete */
 	bool message_begin;  /* boolean flag set when body processing begins */
 	bool message_end;    /* boolean flag set when body processing is complete */
+
+	/* Runtime state used by WASI */
+	int cursor; /* Sandbox cursor (offset from body pointer) */
 };
 
 void http_request_print(struct http_request *http_request);

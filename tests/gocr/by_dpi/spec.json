@@ -1,32 +1,32 @@
 [
 	{
-		"name": "gocr_72_dpi",
-		"path": "gocr.wasm.so",
+		"name": "gwu",
 		"port": 10000,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 36000,
-		"http-req-size": 5335057,
-		"http-resp-size": 5335057,
-		"http-resp-content-type": "text/plain"
-	},
-	{
-		"name": "gocr_108_dpi",
-		"path": "gocr.wasm.so",
-		"port": 10001,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 36000,
-		"http-req-size": 5335057,
-		"http-resp-size": 5335057,
-		"http-resp-content-type": "text/plain"
-	},
-	{
-		"name": "gocr_144_dpi",
-		"path": "gocr.wasm.so",
-		"port": 10002,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 36000,
-		"http-req-size": 5335057,
-		"http-resp-size": 5335057,
-		"http-resp-content-type": "text/plain"
+		"routes": [
+			{
+				"route": "/gocr_72_dpi",
+				"path": "gocr.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 36000,
+				"http-resp-size": 5335057,
+				"http-resp-content-type": "text/plain"
+			},
+			{
+				"route": "/gocr_108_dpi",
+				"path": "gocr.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 36000,
+				"http-resp-size": 5335057,
+				"http-resp-content-type": "text/plain"
+			},
+			{
+				"route": "/gocr_144_dpi",
+				"path": "gocr.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 36000,
+				"http-resp-size": 5335057,
+				"http-resp-content-type": "text/plain"
+			}
+		]
 	}
 ]

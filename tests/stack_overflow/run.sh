@@ -12,7 +12,7 @@ experiment_client() {
 	local -r hostname="$1"
 
 	for ((i = 1; i <= 10; i++)); do
-		http -p h "${hostname}:10000" | grep 500 || {
+		http -p h "${hostname}:10000/stack_overflow" | grep 500 || {
 			echo "FAIL"
 			return 1
 		}

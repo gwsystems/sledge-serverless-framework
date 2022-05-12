@@ -1,24 +1,41 @@
 [
 	{
-		"name": "fibonacci_10",
-		"path": "fibonacci.wasm.so",
+		"name": "gwu",
 		"port": 10010,
-		"expected-execution-us": 6000,
-		"admissions-percentile": 70,
-		"relative-deadline-us": 20000,
-		"http-req-size": 1024,
-		"http-resp-size": 1024,
-		"http-resp-content-type": "text/plain"
+		"routes": [
+			{
+				"route": "/fib",
+				"path": "fibonacci.wasm.so",
+				"admissions-percentile": 70,
+				"expected-execution-us": 6000,
+				"relative-deadline-us": 20000,
+				"http-resp-size": 1024,
+				"http-resp-content-type": "text/plain"
+			},
+			{
+				"route": "/fib2",
+				"path": "fibonacci.wasm.so",
+				"expected-execution-us": 10000000,
+				"admissions-percentile": 70,
+				"relative-deadline-us": 20000000,
+				"http-resp-size": 1024,
+				"http-resp-content-type": "text/plain"
+			}
+		]
 	},
 	{
-		"name": "fibonacci_40",
-		"path": "fibonacci.wasm.so",
-		"port": 10040,
-		"expected-execution-us": 10000000,
-		"admissions-percentile": 70,
-		"relative-deadline-us": 20000000,
-		"http-req-size": 1024,
-		"http-resp-size": 1024,
-		"http-resp-content-type": "text/plain"
+		"name": "conix",
+		"port": 10020,
+		"routes": [
+			{
+				"route": "/fib",
+				"path": "fibonacci.wasm.so",
+				"admissions-percentile": 70,
+				"expected-execution-us": 6000,
+				"relative-deadline-us": 20000,
+				"http-resp-size": 1024,
+				"http-resp-content-type": "text/plain"
+			}
+		]
 	}
 ]

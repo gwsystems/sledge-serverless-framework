@@ -34,10 +34,10 @@ experiment_client() {
 	# Perform Experiments
 	printf "Running Experiments\n"
 	local -ar dpis=(72 108 144)
-	local -Ar dpi_to_port=(
-		[72]=10000
-		[108]=10001
-		[144]=10002
+	local -Ar dpi_to_path=(
+		[72]=/gocr_72_dpi
+		[108]=/gocr_108_dpi
+		[144]=/gocr_144_dpi
 	)
 	local words
 	for ((i = 0; i < iteration_count; i++)); do
@@ -47,7 +47,7 @@ experiment_client() {
 			pango-view --dpi="$dpi" --font=mono -qo "${dpi}"_dpi.png -t "$words"
 			pngtopnm "${dpi}"_dpi.png > "${dpi}"_dpi.pnm
 
-			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"${dpi}"_dpi.pnm "$hostname:${dpi_to_port[$dpi]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${dpi}_time.txt")
+			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"${dpi}"_dpi.pnm "$hostname:10000${dpi_to_path[$dpi]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${dpi}_time.txt")
 
 			rm "${dpi}"_dpi.png "${dpi}"_dpi.pnm
 

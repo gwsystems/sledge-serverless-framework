@@ -17,4 +17,4 @@ debug:
 
 .PHONY: client
 client:
-	curl  -H 'Expect:' -H "Content-Type: text/plain" "${HOSTNAME}:10000"
+	curl  -H 'Expect:' -H "Content-Type: text/plain" "${HOSTNAME}:10000/empty"

@@ -4,7 +4,11 @@
 
 #define MODULE_DATABASE_CAPACITY 128
 
-int            module_database_add(struct module *module);
-struct module *module_database_find_by_name(char *name);
-struct module *module_database_find_by_socket_descriptor(int socket_descriptor);
-struct module *module_database_find_by_port(uint16_t port);
+struct module_database {
+	struct module *modules[MODULE_DATABASE_CAPACITY];
+	size_t         count;
+};
+
+struct module *module_database_find_by_path(struct module_database *db, char *path);
+void           module_database_init(struct module_database *db);
+int            module_database_add(struct module_database *db, struct module *module);

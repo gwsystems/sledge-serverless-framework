@@ -12,7 +12,6 @@
 
 #include "admissions_control.h"
 #include "arch/context.h"
-#include "client_socket.h"
 #include "debuglog.h"
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"

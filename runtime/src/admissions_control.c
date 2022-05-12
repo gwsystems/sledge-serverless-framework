@@ -3,7 +3,6 @@
 
 #include "admissions_control.h"
 #include "debuglog.h"
-#include "client_socket.h"
 
 /*
  * Unitless estimate of the instantaneous fraction of system capacity required to complete all previously

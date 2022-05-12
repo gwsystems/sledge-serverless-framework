@@ -1,52 +1,48 @@
 [
 	{
-		"name": "ekf",
-		"path": "gps_ekf.wasm.so",
+		"name": "gwu",
 		"port": 10000,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 50000,
-		"http-req-size": 1024000,
-		"http-resp-size": 1024000,
-		"http-resp-content-type": "application/octet-stream"
-	},
-	{
-		"name": "resize",
-		"path": "resize_image.wasm.so",
-		"port": 10001,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 50000,
-		"http-req-size": 1024000,
-		"http-resp-size": 1024000,
-		"http-resp-content-type": "image/png"
-	},
-	{
-		"name": "lpd",
-		"path": "license_plate_detection.wasm.so",
-		"port": 10002,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 50000,
-		"http-req-size": 1002400,
-		"http-resp-size": 1048576,
-		"http-resp-content-type": "text/plain"
-	},
-	{
-		"name": "gocr",
-		"path": "gocr.wasm.so",
-		"port": 10003,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 360000,
-		"http-req-size": 5335057,
-		"http-resp-size": 5335057,
-		"http-resp-content-type": "text/plain"
-	},
-	{
-		"name": "cifar10",
-		"path": "cifar10.wasm.so",
-		"port": 10004,
-		"expected-execution-us": 5000,
-		"relative-deadline-us": 50000,
-		"http-req-size": 4096,
-		"http-resp-size": 128,
-		"http-resp-content-type": "text/plain"
+		"routes": [
+			{
+				"route": "/ekf",
+				"path": "gps_ekf.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 50000,
+				"http-resp-size": 1024000,
+				"http-resp-content-type": "application/octet-stream"
+			},
+			{
+				"route": "/resize",
+				"path": "resize_image.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 50000,
+				"http-resp-size": 1024000,
+				"http-resp-content-type": "image/png"
+			},
+			{
+				"route": "/lpd",
+				"path": "license_plate_detection.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 50000,
+				"http-resp-size": 1048576,
+				"http-resp-content-type": "text/plain"
+			},
+			{
+				"route": "/gocr",
+				"path": "gocr.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 360000,
+				"http-resp-size": 5335057,
+				"http-resp-content-type": "text/plain"
+			},
+			{
+				"route": "/cifar10",
+				"path": "cifar10.wasm.so",
+				"expected-execution-us": 5000,
+				"relative-deadline-us": 50000,
+				"http-resp-size": 128,
+				"http-resp-content-type": "text/plain"
+			}
+		]
 	}
 ]

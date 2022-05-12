@@ -1,13 +1,17 @@
 [
 	{
-		"name": "empty",
-		"path": "empty.wasm.so",
+		"name": "gwu",
 		"port": 10000,
-		"expected-execution-us": 500,
-		"admissions-percentile": 70,
-		"relative-deadline-us": 50000,
-		"http-req-size": 1024,
-		"http-resp-size": 1024,
-		"http-resp-content-type": "text/plain"
+		"routes": [
+			{
+				"route": "/empty",
+				"path": "empty.wasm.so",
+				"expected-execution-us": 500,
+				"admissions-percentile": 70,
+				"relative-deadline-us": 50000,
+				"http-resp-size": 0,
+				"http-resp-content-type": "text/plain"
+			}
+		]
 	}
 ]

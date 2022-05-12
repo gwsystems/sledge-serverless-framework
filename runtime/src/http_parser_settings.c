@@ -1,8 +1,11 @@
+#include <inttypes.h>
+#include <limits.h>
+
 #include "debuglog.h"
 #include "http.h"
 #include "http_request.h"
 #include "http_parser_settings.h"
-#include "sandbox_types.h"
+#include "likely.h"
 
 http_parser_settings runtime_http_parser_settings;
 
@@ -21,46 +24,54 @@ http_parser_settings runtime_http_parser_settings;
 int
 http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox *sandbox = (struct sandbox *)parser->data;
+	struct http_request *http_request = (struct http_request *)parser->data;
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
+	debuglog("parser: %p, length: %zu, Content \"%.*s\"\n", parser, length, (int)length, at);
 #endif
 
 	char *query_params = memchr(at, '?', length);
+
+	/* Full URL excludes query params if present */
+	size_t full_url_length = query_params == NULL ? length : query_params - at;
+
+	size_t size_to_copy = full_url_length < HTTP_MAX_FULL_URL_LENGTH - 1 ? full_url_length
+	                                                                     : HTTP_MAX_FULL_URL_LENGTH - 1;
+	memcpy(http_request->full_url, at, size_to_copy);
+	http_request->full_url[size_to_copy] = '\0';
 
 	if (query_params != NULL) {
 		char *prev = query_params + 1;
 		char *cur  = NULL;
 		while ((cur = strchr(prev, '&')) != NULL
-		       && sandbox->http_request.query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
+		       && http_request->query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
 			cur++;
 			size_t len = cur - prev - 1;
-			sandbox->http_request.query_params[sandbox->http_request.query_params_count].value_length =
+			http_request->query_params[http_request->query_params_count].value_length =
 			  len < HTTP_MAX_QUERY_PARAM_LENGTH - 1 ? len : HTTP_MAX_QUERY_PARAM_LENGTH - 1;
 
-			strncpy(sandbox->http_request.query_params[sandbox->http_request.query_params_count].value,
-			        prev,
-			        sandbox->http_request.query_params[sandbox->http_request.query_params_count]
-			          .value_length);
+			memcpy(http_request->query_params[http_request->query_params_count].value, prev,
+			       http_request->query_params[http_request->query_params_count].value_length);
+			http_request->query_params[http_request->query_params_count]
+			  .value[http_request->query_params[http_request->query_params_count].value_length] = '\0';
 
-			sandbox->http_request.query_params_count++;
+			http_request->query_params_count++;
 			prev = cur;
 		}
-		if (prev != NULL && sandbox->http_request.query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
+		if (prev != NULL && http_request->query_params_count < HTTP_MAX_QUERY_PARAM_COUNT) {
 			size_t len = &at[length] - prev;
-			sandbox->http_request.query_params[sandbox->http_request.query_params_count].value_length =
+			http_request->query_params[http_request->query_params_count].value_length =
 			  len < HTTP_MAX_QUERY_PARAM_LENGTH - 1 ? len : HTTP_MAX_QUERY_PARAM_LENGTH - 1;
 
-			strncpy(sandbox->http_request.query_params[sandbox->http_request.query_params_count].value,
-			        prev,
-			        sandbox->http_request.query_params[sandbox->http_request.query_params_count]
-			          .value_length);
+			memcpy(http_request->query_params[http_request->query_params_count].value, prev,
+			       http_request->query_params[http_request->query_params_count].value_length);
+			http_request->query_params[http_request->query_params_count]
+			  .value[http_request->query_params[http_request->query_params_count].value_length] = '\0';
 
-			sandbox->http_request.query_params_count++;
+			http_request->query_params_count++;
 		}
 	}
 
@@ -75,14 +86,13 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
 int
 http_parser_settings_on_message_begin(http_parser *parser)
 {
-	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = (struct http_request *)parser->data;
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->id);
+	debuglog("parser: %p\n", parser);
 #endif
 
 	http_request->message_begin  = true;
@@ -103,15 +113,14 @@ http_parser_settings_on_message_begin(http_parser *parser)
 int
 http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = (struct http_request *)parser->data;
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
+	debuglog("parser: %p, length: %zu, Content \"%.*s\"\n", parser, length, (int)length, at);
 #endif
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 	if (http_request->last_was_value == false) {
 		/* Previous key continues */
@@ -146,16 +155,15 @@ http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t
 int
 http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = (struct http_request *)parser->data;
 
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu, length: %zu, Content \"%.*s\"\n", sandbox->id, length, (int)length, at);
+	debuglog("parser: %p, length: %zu, Content \"%.*s\"\n", parser, length, (int)length, at);
 #endif
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 	if (!http_request->last_was_value) {
 		if (unlikely(length >= HTTP_MAX_HEADER_VALUE_LENGTH)) return -1;
@@ -173,31 +181,41 @@ http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t
 /**
  * http-parser callback called when header parsing is complete
  * Just sets the HTTP Request's header_end flag to true
+ *
+ * Should return 1 to tell parser not to expect a body
+ * Should return 2 to tell parser not to expect a body nor any further responses
  * @param parser
  */
 int
 http_parser_settings_on_header_end(http_parser *parser)
 {
-	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = (struct http_request *)parser->data;
 
-	assert(!sandbox->http_request.message_end);
-	assert(!sandbox->http_request.header_end);
+	assert(!http_request->message_end);
+	assert(!http_request->header_end);
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->id);
+	debuglog("parser: %p\n", parser);
 #endif
 
 	http_request->header_end = true;
-	return 0;
+	http_request->method     = parser->method;
+
+	/* Ignore the body of HTTP messages other than PUT and POST */
+	if (parser->method == HTTP_PUT || parser->method == HTTP_POST) {
+		http_request->body_length = parser->content_length;
+		return 0;
+	} else {
+		http_request->body_length = 0;
+		return 2;
+	}
 }
 
-const size_t http_methods_len               = 8;
-const char  *http_methods[http_methods_len] = { "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT" };
+const char *http_methods[] = { "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT" };
 
 /**
  * http-parser callback called for HTTP Bodies
- * Assigns the parsed data to the http_request body of the sandbox struct
+ * Assigns the parsed data to the http_request struct
  * Presumably, this might only be part of the body
  * @param parser
  * @param at - start address of body
@@ -207,35 +225,30 @@ const char  *http_methods[http_methods_len] = { "OPTIONS", "GET", "HEAD", "POST"
 int
 http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 {
-	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = (struct http_request *)parser->data;
 
-	assert(sandbox->http_request.header_end);
-	assert(!sandbox->http_request.message_end);
+	assert(http_request->header_end);
+	assert(!http_request->message_end);
 
-
-	/* Assumption: We should never exceed the buffer we're reusing */
-	assert(http_request->body_length + length <= sandbox->module->max_request_size);
-
-
-	if (!http_request->body) {
+	if (http_request->body == NULL) {
 #ifdef LOG_HTTP_PARSER
 		debuglog("Setting start of body!\n");
 #endif
 		/* If this is the first invocation of the callback, just set */
-		http_request->body        = (char *)at;
-		http_request->body_length = length;
+		http_request->body             = (char *)at;
+		http_request->cursor           = 0;
+		http_request->body_length_read = length;
 	} else {
 #ifdef LOG_HTTP_PARSER
 		debuglog("Appending to existing body!\n");
 #endif
-		http_request->body_length += length;
+		assert(http_request->body_length > 0);
+		http_request->body_length_read += length;
 	}
 
 #ifdef LOG_HTTP_PARSER
 	int capped_len = length > 1000 ? 1000 : length;
-	debuglog("sandbox: %lu, length: %zu, Content(up to 1000 chars) \"%.*s\"\n", sandbox->id, length,
-	         (int)capped_len, at);
+	debuglog("parser: %p, length: %zu, Content(up to 1000 chars) \"%.*s\"\n", parser, length, capped_len, at);
 #endif
 
 	return 0;
@@ -249,14 +262,13 @@ http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
 int
 http_parser_settings_on_msg_end(http_parser *parser)
 {
-	struct sandbox      *sandbox      = (struct sandbox *)parser->data;
-	struct http_request *http_request = &sandbox->http_request;
+	struct http_request *http_request = (struct http_request *)parser->data;
 
-	assert(sandbox->http_request.header_end);
-	assert(!sandbox->http_request.message_end);
+	assert(http_request->header_end);
+	assert(!http_request->message_end);
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("sandbox: %lu\n", sandbox->id);
+	debuglog("parser: %p\n", parser);
 #endif
 
 	http_request->message_end = true;

@@ -3,9 +3,7 @@
 #include <threads.h>
 
 #include "current_sandbox.h"
-#include "current_sandbox_send_response.h"
 #include "sandbox_functions.h"
-#include "sandbox_receive_request.h"
 #include "sandbox_set_as_asleep.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_returned.h"
@@ -15,6 +13,7 @@
 #include "scheduler.h"
 #include "software_interrupt.h"
 #include "wasi.h"
+#include "worker_thread_epoll.h"
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
@@ -82,46 +81,42 @@ current_sandbox_wasm_trap_handler(int trapno)
 	struct sandbox *sandbox       = current_sandbox_get();
 	sandbox_syscall(sandbox);
 
+	struct http_session *session = sandbox->http;
+
 	switch (trapno) {
 	case WASM_TRAP_INVALID_INDEX:
 		error_message = "WebAssembly Trap: Invalid Index\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
-		                   current_sandbox_sleep);
+		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_MISMATCHED_TYPE:
 		error_message = "WebAssembly Trap: Mismatched Type\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
-		                   current_sandbox_sleep);
+		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW:
 		error_message = "WebAssembly Trap: Protected Call Stack Overflow\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
-		                   current_sandbox_sleep);
+		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY:
 		error_message = "WebAssembly Trap: Out of Bounds Linear Memory Access\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
-		                   current_sandbox_sleep);
+		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION:
 		error_message = "WebAssembly Trap: Illegal Arithmetic Operation\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
-		                   current_sandbox_sleep);
+		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_UNREACHABLE:
 		error_message = "WebAssembly Trap: Unreachable Instruction\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
-		                   current_sandbox_sleep);
+		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	default:
 		error_message = "WebAssembly Trap: Unknown Trapno\n";
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(500), http_header_len(500),
-		                   current_sandbox_sleep);
+		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	}
 
 	debuglog("%s", error_message);
-	sandbox_close_http(sandbox);
+	worker_thread_epoll_remove_sandbox(sandbox);
+	http_session_close(sandbox->http);
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
 	assert(0);
@@ -138,20 +133,7 @@ current_sandbox_init()
 	int   rc            = 0;
 	char *error_message = NULL;
 
-	sandbox_open_http(sandbox);
-
-	rc = sandbox_receive_request(sandbox);
-	if (rc == -2) {
-		error_message = "Request size exceeded Buffer\n";
-		/* Request size exceeded Buffer, send 413 Payload Too Large */
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(413), http_header_len(413),
-		                   current_sandbox_sleep);
-		goto err;
-	} else if (rc == -1) {
-		client_socket_send(sandbox->client_socket_descriptor, http_header_build(400), http_header_len(400),
-		                   current_sandbox_sleep);
-		goto err;
-	}
+	worker_thread_epoll_add_sandbox(sandbox);
 
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
@@ -163,11 +145,11 @@ current_sandbox_init()
 
 	/* Initialize Arguments. First arg is the module name. Subsequent args are query parameters */
 	char *args[HTTP_MAX_QUERY_PARAM_COUNT + 1];
-	args[0] = sandbox->module->name;
-	for (int i = 0; i < sandbox->http_request.query_params_count; i++)
-		args[i + 1] = (char *)sandbox->http_request.query_params[i].value;
+	args[0] = sandbox->module->path;
+	for (int i = 0; i < sandbox->http->http_request.query_params_count; i++)
+		args[i + 1] = (char *)sandbox->http->http_request.query_params[i].value;
 
-	options.argc                                          = sandbox->http_request.query_params_count + 1;
+	options.argc                                          = sandbox->http->http_request.query_params_count + 1;
 	options.argv                                          = (const char **)&args;
 	sandbox->wasi_context                                 = wasi_context_init(&options);
 	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
@@ -182,7 +164,8 @@ current_sandbox_init()
 
 err:
 	debuglog("%s", error_message);
-	sandbox_close_http(sandbox);
+	worker_thread_epoll_remove_sandbox(sandbox);
+	http_session_close(sandbox->http);
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
 	return NULL;
@@ -198,9 +181,11 @@ current_sandbox_fini()
 	sandbox_syscall(sandbox);
 
 	sandbox->timestamp_of.completion = __getcycles();
+	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.request_arrival;
 
 	/* Retrieve the result, construct the HTTP response, and send to client */
-	if (current_sandbox_send_response() < 0) {
+	if (http_session_send_response(sandbox->http, sandbox->route->response_content_type, current_sandbox_sleep)
+	    < 0) {
 		error_message = "Unable to build and send client response\n";
 		goto err;
 	};
@@ -210,10 +195,12 @@ current_sandbox_fini()
 	sandbox->timestamp_of.response = __getcycles();
 
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
-	sandbox_close_http(sandbox);
-	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING_SYS);
+	worker_thread_epoll_remove_sandbox(sandbox);
 
 done:
+	http_session_close(sandbox->http);
+	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING_SYS);
+
 	/* Cleanup connection and exit sandbox */
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
@@ -222,7 +209,6 @@ err:
 	debuglog("%s", error_message);
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 
-	sandbox_close_http(sandbox);
 	goto done;
 }
 

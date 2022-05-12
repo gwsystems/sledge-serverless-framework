@@ -85,9 +85,30 @@
 		free(vec);                                                                                       \
 	}                                                                                                        \
                                                                                                                  \
+	static inline int vec_##TYPE##_resize(struct vec_##TYPE *vec, size_t capacity)                           \
+	{                                                                                                        \
+		if (vec->capacity != capacity) {                                                                 \
+			TYPE *temp = (TYPE *)realloc(vec->buffer, sizeof(TYPE) * capacity);                      \
+			if (temp == NULL) return -1;                                                             \
+			vec->buffer   = temp;                                                                    \
+			vec->capacity = capacity;                                                                \
+		}                                                                                                \
+		return 0;                                                                                        \
+	}                                                                                                        \
+                                                                                                                 \
+                                                                                                                 \
+	static inline int vec_##TYPE##_grow(struct vec_##TYPE *vec)                                              \
+	{                                                                                                        \
+		size_t capacity = vec->capacity == 0 ? 1 : vec->capacity * 2;                                    \
+		return vec_##TYPE##_resize(vec, capacity);                                                       \
+	}                                                                                                        \
+                                                                                                                 \
 	static inline int vec_##TYPE##_insert(struct vec_##TYPE *vec, uint32_t idx, TYPE value)                  \
 	{                                                                                                        \
-		if (idx >= vec->capacity) return -1;                                                             \
+		if (vec->length == vec->capacity) {                                                              \
+			int rc = vec_##TYPE##_grow(vec);                                                         \
+			if (rc != 0) return -1;                                                                  \
+		}                                                                                                \
                                                                                                                  \
 		vec->buffer[idx] = value;                                                                        \
 		return 0;                                                                                        \
@@ -98,4 +119,17 @@
 		if (idx >= vec->capacity) return NULL;                                                           \
                                                                                                                  \
 		return &vec->buffer[idx];                                                                        \
+	}                                                                                                        \
+                                                                                                                 \
+	static inline int vec_##TYPE##_push(struct vec_##TYPE *vec, TYPE value)                                  \
+	{                                                                                                        \
+		if (vec->length == vec->capacity) {                                                              \
+			int rc = vec_##TYPE##_grow(vec);                                                         \
+			if (rc != 0) return -1;                                                                  \
+		}                                                                                                \
+                                                                                                                 \
+		vec->buffer[vec->length] = value;                                                                \
+		vec->length++;                                                                                   \
+                                                                                                                 \
+		return 0;                                                                                        \
 	}

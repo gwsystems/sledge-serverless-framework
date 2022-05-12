@@ -37,23 +37,23 @@ run_samples() {
 
 	# Scrape the perf window size from the source if possible
 	# TODO: Make a util function
-	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../include/perf_window_t.h)"
+	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../runtime/include/perf_window_t.h)"
 	local -i perf_window_buffer_size
 	if ! perf_window_buffer_size=$(grep "#define PERF_WINDOW_BUFFER_SIZE" < "$perf_window_path" | cut -d\  -f3); then
-		printf "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../include/perf_window.h\n"
+		printf "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../runtime/include/perf_window.h\n"
 		printf "Defaulting to 16\n"
 		perf_window_buffer_size=16
 	fi
 	local -ir perf_window_buffer_size
 
 	printf "Running Samples: "
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10040" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fibonacci_40 samples failed with $?"
 		return 1
 	}
 
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:100010" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fibonacci_10 samples failed with $?"
 		return 1
@@ -83,9 +83,9 @@ run_experiments() {
 
 	local -a workloads=()
 
-	local -Ar port=(
-		[fibonacci_10]=10010
-		[fibonacci_40]=10040
+	local -Ar path=(
+		[fibonacci_10]=/fibonacci_10
+		[fibonacci_40]=/fibonacci_40
 	)
 
 	local -Ar body=(
@@ -140,7 +140,7 @@ run_experiments() {
 		((batch_id++))
 		for workload in "${workloads[@]}"; do
 			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
-				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -d "${body[$workload]}\n" "http://${hostname}:${port[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -d "${body[$workload]}\n" "http://${hostname}:10000${path[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 				break
 			fi
 		done

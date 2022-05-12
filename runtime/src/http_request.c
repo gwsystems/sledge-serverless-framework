@@ -9,6 +9,7 @@
 void
 http_request_print(struct http_request *http_request)
 {
+	printf("Full URL %s\n", http_request->full_url);
 	printf("Header Count %d\n", http_request->header_count);
 	printf("Header Content:\n");
 	for (int i = 0; i < http_request->header_count; i++) {
@@ -22,5 +23,5 @@ http_request_print(struct http_request *http_request)
 		putchar('\n');
 	}
 	printf("Body Length %d\n", http_request->body_length);
-	printf("Body Read Length %d\n", http_request->body_read_length);
+	printf("Body Length Read %d\n", http_request->body_length_read);
 }
