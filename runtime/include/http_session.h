@@ -196,8 +196,140 @@ err:
 	goto done;
 }
 
+static inline bool
+http_session_request_buffer_is_full(struct http_session *session)
+{
+	return session->request_buffer.length == session->request_buffer.capacity;
+}
+
+/**
+ * Initalize state associated with an http parser
+ * Because the http_parser structure uses pointers to the request buffer, if realloc moves the request
+ * buffer, this should be called to clear stale state to force parsing to restart
+ */
+static inline void
+http_session_parser_init(struct http_session *session)
+{
+	memset(&session->http_request, 0, sizeof(struct http_request));
+	http_parser_init(&session->http_parser, HTTP_REQUEST);
+	/* Set the session as the data the http-parser has access to */
+	session->http_parser.data = &session->http_request;
+}
+
+static inline int
+http_session_request_buffer_grow(struct http_session *session)
+{
+	/* We have not yet fully parsed the header, so we don't know content-length, so just grow
+	 * (double) the buffer */
+	uint8_t *old_buffer = session->request_buffer.buffer;
+
+	if (vec_u8_grow(&session->request_buffer) != 0) {
+		debuglog("Failed to grow request buffer\n");
+		return -1;
+	}
+
+	/* buffer moved, so invalidate to reparse */
+	if (old_buffer != session->request_buffer.buffer) { http_session_parser_init(session); }
+
+	return 0;
+}
+
+static inline int
+http_session_request_buffer_resize(struct http_session *session, int required_size)
+{
+	uint8_t *old_buffer = session->request_buffer.buffer;
+	if (vec_u8_resize(&session->request_buffer, required_size) != 0) {
+		debuglog("Failed to resize request vector to %d bytes\n", required_size);
+		return -1;
+	}
+
+	/* buffer moved, so invalidate to reparse */
+	if (old_buffer != session->request_buffer.buffer) { http_session_parser_init(session); }
+
+	return 0;
+}
 
 typedef void (*http_session_receive_request_egain_cb)(struct http_session *);
+
+static inline ssize_t
+http_session_receive_raw(struct http_session *session, http_session_receive_request_egain_cb on_eagain)
+{
+	assert(session->request_buffer.capacity > session->request_buffer.length);
+
+	ssize_t bytes_received = recv(session->socket, &session->request_buffer.buffer[session->request_buffer.length],
+	                              session->request_buffer.capacity - session->request_buffer.length, 0);
+
+	if (bytes_received < 0) {
+		if (errno == EAGAIN) {
+			on_eagain(session);
+			return -EAGAIN;
+		} else {
+			debuglog("Error reading socket %d - %s\n", session->socket, strerror(errno));
+			return -1;
+		}
+	}
+
+	/* If we received an EOF before we were able to parse a complete HTTP message, request is malformed */
+	if (bytes_received == 0 && !session->http_request.message_end) {
+		char client_address_text[INET6_ADDRSTRLEN] = {};
+		if (unlikely(inet_ntop(AF_INET, &session->client_address, client_address_text, INET6_ADDRSTRLEN)
+		             == NULL)) {
+			debuglog("Failed to log client_address: %s", strerror(errno));
+		}
+
+		debuglog("recv returned 0 before a complete request was received: socket: %d. Address: "
+		         "%s\n",
+		         session->socket, client_address_text);
+		http_request_print(&session->http_request);
+		return -1;
+	}
+
+	session->request_buffer.length += bytes_received;
+	return bytes_received;
+}
+
+static inline ssize_t
+http_session_parse(struct http_session *session, ssize_t bytes_received)
+{
+	assert(session != 0);
+	assert(bytes_received > 0);
+
+	const http_parser_settings *settings = http_parser_settings_get();
+
+#ifdef LOG_HTTP_PARSER
+	debuglog("http_parser_execute(%p, %p, %p, %zu\n)", &session->http_parser, settings,
+	         &session->request_buffer.buffer[session->request_buffer.length], bytes_received);
+#endif
+	size_t bytes_parsed =
+	  http_parser_execute(&session->http_parser, settings,
+	                      (const char *)&session->request_buffer.buffer[session->http_request.length_parsed],
+	                      (size_t)session->request_buffer.length - session->http_request.length_parsed);
+
+	if (bytes_parsed < (size_t)bytes_received) {
+		debuglog("Error: %s, Description: %s\n",
+		         http_errno_name((enum http_errno)session->http_parser.http_errno),
+		         http_errno_description((enum http_errno)session->http_parser.http_errno));
+		debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, (size_t)bytes_received);
+		debuglog("Error parsing socket %d\n", session->socket);
+		return -1;
+	}
+
+	session->http_request.length_parsed += bytes_parsed;
+
+	return (ssize_t)bytes_parsed;
+}
+
+static inline void
+http_session_log_query_params(struct http_session *session)
+{
+#ifdef LOG_HTTP_PARSER
+	for (int i = 0; i < session->http_request.query_params_count; i++) {
+		debuglog("Argument %d, Len: %d, %.*s\n", i, session->http_request.query_params[i].value_length,
+		         session->http_request.query_params[i].value_length,
+		         session->http_request.query_params[i].value);
+	}
+#endif
+}
 
 /**
  * Receive and Parse the Request for the current sandbox
@@ -207,120 +339,39 @@ static inline int
 http_session_receive_request(struct http_session *session, http_session_receive_request_egain_cb on_eagain)
 {
 	assert(session != NULL);
+	assert(session->request_buffer.capacity > 0);
+	assert(session->request_buffer.length <= session->request_buffer.capacity);
 
 	int rc = 0;
 
-	struct vec_u8 *request_buffer = &session->request_buffer;
-	assert(request_buffer->capacity > 0);
-	assert(request_buffer->length <= request_buffer->capacity);
+	http_session_parser_init(session);
 
 	while (!session->http_request.message_end) {
-		/* Read from the Socket */
-
-		/* Structured to closely follow usage example at https://github.com/nodejs/http-parser */
-		http_parser                *parser   = &session->http_parser;
-		const http_parser_settings *settings = http_parser_settings_get();
-
-		/* If header parsing is complete and the header specified a content-length, resize */
-		/* If http_request.body is NULL, then the request has no body (i.e. a GET request) */
-		if (session->http_request.header_end && session->http_request.body != NULL) {
-			int header_size = (uint8_t *)session->http_request.body - session->request_buffer.buffer;
-			assert(header_size > 0);
+		/* If we know the header size and content-length, resize exactly. Otherwise double */
+		if (session->http_request.header_end && session->http_request.body) {
+			int header_size   = (uint8_t *)session->http_request.body - session->request_buffer.buffer;
 			int required_size = header_size + session->http_request.body_length;
 
-			if (required_size > request_buffer->capacity) {
-				uint8_t *old_buffer = request_buffer->buffer;
-				if (vec_u8_resize(request_buffer, required_size) != 0) {
-					debuglog("Failed to resize request vector to %d bytes\n", required_size);
-					goto err_nobufs;
-				}
-
-				if (old_buffer != request_buffer->buffer) {
-					/* buffer moved, so invalidate to reparse */
-					memset(&session->http_request, 0, sizeof(struct http_request));
-					http_parser_init(&session->http_parser, HTTP_REQUEST);
-					/* Set the session as the data the http-parser has access to */
-					session->http_parser.data = &session->http_request;
-				}
+			if (required_size > session->request_buffer.capacity) {
+				rc = http_session_request_buffer_resize(session, required_size);
+				if (rc != 0) goto err_nobufs;
 			}
-		} else if (request_buffer->length == request_buffer->capacity) {
-			/* When the length of our buffer is equal to capacity, the buffer is full */
-			/* We have not yet fully parsed the header, so we don't know content-length, so just grow
-			 * (double) the buffer */
-			uint8_t *old_buffer = request_buffer->buffer;
-
-			if (vec_u8_grow(request_buffer) != 0) {
-				debuglog("Failed to grow request buffer\n");
-				goto err_nobufs;
-			}
-
-			if (old_buffer != request_buffer->buffer) {
-				/* buffer moved, so invalidate to reparse */
-				memset(&session->http_request, 0, sizeof(struct http_request));
-				http_parser_init(&session->http_parser, HTTP_REQUEST);
-				/* Set the session as the data the http-parser has access to */
-				session->http_parser.data = &session->http_request;
-			}
+		} else if (http_session_request_buffer_is_full(session)) {
+			rc = http_session_request_buffer_grow(session);
+			if (rc != 0) goto err_nobufs;
 		}
 
-		ssize_t bytes_received = recv(session->socket, &request_buffer->buffer[request_buffer->length],
-		                              request_buffer->capacity - request_buffer->length, 0);
+		ssize_t bytes_received = http_session_receive_raw(session, on_eagain);
+		if (bytes_received == -EAGAIN) goto err_eagain;
+		if (bytes_received == -1) goto err;
 
-		if (bytes_received < 0) {
-			if (errno == EAGAIN) {
-				on_eagain(session);
-				goto err_eagain;
-			} else {
-				debuglog("Error reading socket %d - %s\n", session->socket, strerror(errno));
-				goto err;
-			}
-		}
-
-		/* If we received an EOF before we were able to parse a complete HTTP header, request is malformed */
-		if (bytes_received == 0 && !session->http_request.message_end) {
-			char client_address_text[INET6_ADDRSTRLEN] = {};
-			if (unlikely(inet_ntop(AF_INET, &session->client_address, client_address_text, INET6_ADDRSTRLEN)
-			             == NULL)) {
-				debuglog("Failed to log client_address: %s", strerror(errno));
-			}
-
-			debuglog("recv returned 0 before a complete request was received: socket: %d. Address: %s\n",
-			         session->socket, client_address_text);
-			http_request_print(&session->http_request);
-			goto err;
-		}
-
-		assert(bytes_received > 0);
-		request_buffer->length += bytes_received;
-
-#ifdef LOG_HTTP_PARSER
-		debuglog("http_parser_execute(%p, %p, %p, %zu\n)", parser, settings,
-		         &session->request_buffer.buffer[session->request_buffer.length], bytes_received);
-#endif
-		size_t bytes_parsed =
-		  http_parser_execute(parser, settings,
-		                      (const char *)&request_buffer->buffer[session->http_request.length_parsed],
-		                      (size_t)request_buffer->length - session->http_request.length_parsed);
-
-		if (bytes_parsed < (size_t)bytes_received) {
-			debuglog("Error: %s, Description: %s\n",
-			         http_errno_name((enum http_errno)session->http_parser.http_errno),
-			         http_errno_description((enum http_errno)session->http_parser.http_errno));
-			debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, (size_t)bytes_received);
-			debuglog("Error parsing socket %d\n", session->socket);
-			goto err;
-		}
-
-		session->http_request.length_parsed += bytes_parsed;
+		ssize_t bytes_parsed = http_session_parse(session, bytes_received);
+		if (bytes_parsed == -1) goto err;
 	}
 
-#ifdef LOG_HTTP_PARSER
-	for (int i = 0; i < session->http_request.query_params_count; i++) {
-		debuglog("Argument %d, Len: %d, %.*s\n", i, session->http_request.query_params[i].value_length,
-		         session->http_request.query_params[i].value_length,
-		         session->http_request.query_params[i].value);
-	}
-#endif
+	assert(session->http_request.message_end == true);
+
+	http_session_log_query_params(session);
 
 	rc = 0;
 done:

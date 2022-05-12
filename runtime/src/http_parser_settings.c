@@ -181,6 +181,9 @@ http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t
 /**
  * http-parser callback called when header parsing is complete
  * Just sets the HTTP Request's header_end flag to true
+ *
+ * Should return 1 to tell parser not to expect a body
+ * Should return 2 to tell parser not to expect a body nor any further responses
  * @param parser
  */
 int
@@ -196,14 +199,16 @@ http_parser_settings_on_header_end(http_parser *parser)
 #endif
 
 	http_request->header_end = true;
+	http_request->method     = parser->method;
 
+	/* Ignore the body of HTTP messages other than PUT and POST */
 	if (parser->method == HTTP_PUT || parser->method == HTTP_POST) {
 		http_request->body_length = parser->content_length;
+		return 0;
 	} else {
 		http_request->body_length = 0;
+		return 2;
 	}
-
-	return 0;
 }
 
 const char *http_methods[] = { "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT" };

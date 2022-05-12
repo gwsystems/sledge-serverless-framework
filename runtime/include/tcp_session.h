@@ -34,7 +34,7 @@ typedef void (*void_cb)(void);
 
 /**
  * Writes buffer to the client socket
- * @param client_socket - the client we are rejecting
+ * @param client_socket - the client
  * @param buffer - buffer to write to socket
  * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
  * @returns 0 on success, -1 on error.

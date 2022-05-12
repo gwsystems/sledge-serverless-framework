@@ -161,6 +161,9 @@ handle_tcp_requests(struct epoll_event *evt)
 			continue;
 		}
 
+		assert(session->http_request.message_end);
+		assert(session->http_request.body);
+
 		/* Route to sandbox */
 		struct route *route = http_router_match_route(&tenant->router, session->http_request.full_url);
 		if (route == NULL) {
@@ -221,6 +224,8 @@ resume_blocked_read(struct epoll_event *evt)
 		http_session_send_err_oneshot(session, 400);
 		return;
 	}
+
+	assert(session->http_request.message_end);
 
 	/* We read session to completion, so can remove from epoll */
 	listener_thread_unregister_http_session(session);
