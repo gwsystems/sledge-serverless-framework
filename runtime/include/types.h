@@ -24,10 +24,10 @@
 #define PAGE_ALIGNED      __attribute__((aligned(PAGE_SIZE)))
 #define CACHE_PAD_ALIGNED __attribute__((aligned(CACHE_PAD)))
 
-#define EXPORT            __attribute__((visibility("default")))
-#define IMPORT            __attribute__((visibility("default")))
-#define INLINE            __attribute__((always_inline))
-#define WEAK              __attribute__((weak))
+#define EXPORT __attribute__((visibility("default")))
+#define IMPORT __attribute__((visibility("default")))
+#define INLINE __attribute__((always_inline))
+#define WEAK   __attribute__((weak))
 
 
 #ifndef unlikely
