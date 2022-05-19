@@ -7,7 +7,7 @@
 #include <threads.h>
 
 #include "current_sandbox.h"
-#include "local_completion_queue.h"
+#include "local_cleanup_queue.h"
 #include "local_runqueue.h"
 #include "local_runqueue_list.h"
 #include "local_runqueue_minheap.h"
@@ -52,8 +52,8 @@ worker_thread_main(void *argument)
 
 	scheduler_runqueue_initialize();
 
-	/* Initialize Completion Queue */
-	local_completion_queue_initialize();
+	/* Initialize Cleanup Queue */
+	local_cleanup_queue_initialize();
 
 	/* Initialize epoll */
 	worker_thread_epoll_file_descriptor = epoll_create1(0);

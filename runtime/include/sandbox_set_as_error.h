@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 #include "arch/getcycles.h"
-#include "local_completion_queue.h"
 #include "local_runqueue.h"
 #include "sandbox_state.h"
 #include "sandbox_functions.h"
@@ -17,7 +16,7 @@
 /**
  * Transitions a sandbox to the SANDBOX_ERROR state.
  * This can occur during initialization or execution
- * Unmaps linear memory, removes from the runqueue (if on it), and adds to the completion queue
+ * Unmaps linear memory, removes from the runqueue (if on it)
  * Because the stack is still in use, freeing the stack is deferred until later
  *
  * @param sandbox the sandbox erroring out
@@ -67,7 +66,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_transition_from_hook(sandbox, last_state);
 	sandbox_state_transition_to_hook(sandbox, SANDBOX_ERROR);
 
-	/* Does not add to completion queue until in cooperative scheduler */
+	/* Does not add to cleanup queue until in cooperative scheduler */
 }
 
 static inline void
