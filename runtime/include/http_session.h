@@ -274,44 +274,6 @@ http_session_request_buffer_resize(struct http_session *session, int required_si
 
 typedef void (*http_session_cb)(struct http_session *);
 
-/* TODO: Why is this not in TCP logic? */
-static inline ssize_t
-http_session_receive_raw(struct http_session *session, void_star_cb on_eagain)
-{
-	assert(session->request_buffer.capacity > session->request_buffer.length);
-
-	ssize_t bytes_received = recv(session->socket, &session->request_buffer.buffer[session->request_buffer.length],
-	                              session->request_buffer.capacity - session->request_buffer.length, 0);
-
-	if (bytes_received < 0) {
-		if (errno == EAGAIN) {
-			on_eagain(session);
-			return -EAGAIN;
-		} else {
-			debuglog("Error reading socket %d - %s\n", session->socket, strerror(errno));
-			return -1;
-		}
-	}
-
-	/* If we received an EOF before we were able to parse a complete HTTP message, request is malformed */
-	if (bytes_received == 0 && !session->http_request.message_end) {
-		char client_address_text[INET6_ADDRSTRLEN] = {};
-		if (unlikely(inet_ntop(AF_INET, &session->client_address, client_address_text, INET6_ADDRSTRLEN)
-		             == NULL)) {
-			debuglog("Failed to log client_address: %s", strerror(errno));
-		}
-
-		debuglog("recv returned 0 before a complete request was received: socket: %d. Address: "
-		         "%s\n",
-		         session->socket, client_address_text);
-		http_request_print(&session->http_request);
-		return -1;
-	}
-
-	session->request_buffer.length += bytes_received;
-	return bytes_received;
-}
-
 static inline ssize_t
 http_session_parse(struct http_session *session, ssize_t bytes_received)
 {
@@ -355,6 +317,20 @@ http_session_log_query_params(struct http_session *session)
 #endif
 }
 
+static inline void
+http_session_log_malformed_request(struct http_session *session)
+{
+#ifndef NDEBUG
+	char client_address_text[INET6_ADDRSTRLEN] = {};
+	if (unlikely(inet_ntop(AF_INET, &session->client_address, client_address_text, INET6_ADDRSTRLEN) == NULL)) {
+		debuglog("Failed to log client_address: %s", strerror(errno));
+	}
+
+	debuglog("socket: %d. Address: %s\n", session->socket, client_address_text);
+	http_request_print(&session->http_request);
+#endif
+}
+
 /**
  * Receive and Parse the Request for the current sandbox
  * @return 0 if message parsing complete, -1 on error, -2 if buffers run out of space, -3 EAGAIN
@@ -386,10 +362,17 @@ http_session_receive_request(struct http_session *session, void_star_cb on_eagai
 			if (rc != 0) goto err_nobufs;
 		}
 
-		/* TODO: Why is this a call to TCP receive? */
-		ssize_t bytes_received = http_session_receive_raw(session, on_eagain);
+		ssize_t bytes_received =
+		  tcp_session_recv(session->socket,
+		                   (char *)&session->request_buffer.buffer[session->request_buffer.length],
+		                   session->request_buffer.capacity - session->request_buffer.length, on_eagain,
+		                   session);
 		if (bytes_received == -EAGAIN) goto err_eagain;
 		if (bytes_received == -1) goto err;
+		/* If we received an EOF before we were able to parse a complete HTTP message, request is malformed */
+		if (bytes_received == 0 && !session->http_request.message_end) goto err;
+
+		session->request_buffer.length += bytes_received;
 
 		ssize_t bytes_parsed = http_session_parse(session, bytes_received);
 		if (bytes_parsed == -1) goto err;
@@ -404,12 +387,15 @@ http_session_receive_request(struct http_session *session, void_star_cb on_eagai
 done:
 	return rc;
 err_eagain:
+	http_session_log_malformed_request(session);
 	rc = -3;
 	goto done;
 err_nobufs:
+	http_session_log_malformed_request(session);
 	rc = -2;
 	goto done;
 err:
+	http_session_log_malformed_request(session);
 	rc = -1;
 	goto done;
 }
