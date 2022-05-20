@@ -51,7 +51,8 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_totals_increment(SANDBOX_RETURNED);
 	sandbox_state_totals_decrement(last_state);
 
-	http_session_set_response_header(sandbox->http, 200);
+	http_session_set_response_header(sandbox->http, 200, sandbox->route->response_content_type,
+	                                 sandbox->http->response_buffer.length);
 	sandbox->http->state = HTTP_SESSION_EXECUTION_COMPLETE;
 	http_session_send_response(sandbox->http, (void_star_cb)listener_thread_register_http_session);
 	sandbox->http = NULL;

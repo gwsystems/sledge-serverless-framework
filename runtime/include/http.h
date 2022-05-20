@@ -13,11 +13,16 @@
 #define HTTP_MAX_QUERY_PARAM_COUNT  16
 #define HTTP_MAX_QUERY_PARAM_LENGTH 32
 
-#define HTTP_RESPONSE_200_OK    \
-	"HTTP/1.1 200 OK\r\n"   \
-	"Server: SLEdge\r\n"    \
-	"Connection: close\r\n" \
+#define HTTP_RESPONSE_200_TEMPLATE \
+	"HTTP/1.1 200 OK\r\n"      \
+	"Server: SLEdge\r\n"       \
+	"Connection: close\r\n"    \
+	"Content-Type: %s\r\n"     \
+	"Content-Length: %lu\r\n"  \
 	"\r\n"
+
+/* The sum of format specifier characters in the template above */
+#define HTTP_RESPONSE_200_TEMPLATE_FORMAT_SPECIFIER_LENGTH 5
 
 #define HTTP_RESPONSE_400_BAD_REQUEST  \
 	"HTTP/1.1 400 Bad Request\r\n" \
@@ -61,10 +66,6 @@ http_header_build(int status_code)
 	const char *response;
 	int         rc;
 	switch (status_code) {
-	case 200:
-		response = HTTP_RESPONSE_200_OK;
-		http_total_increment_2XX();
-		break;
 	case 400:
 		response = HTTP_RESPONSE_400_BAD_REQUEST;
 		http_total_increment_4XX();
@@ -100,8 +101,6 @@ static inline size_t
 http_header_len(int status_code)
 {
 	switch (status_code) {
-	case 200:
-		return strlen(HTTP_RESPONSE_200_OK);
 	case 400:
 		return strlen(HTTP_RESPONSE_400_BAD_REQUEST);
 	case 404:

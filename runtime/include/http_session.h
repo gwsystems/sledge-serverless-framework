@@ -38,6 +38,8 @@ enum http_session_state
 	HTTP_SESSION_SENT_RESPONSE
 };
 
+#define HTTP_SESSION_RESPONSE_HEADER_CAPACITY 256
+
 struct http_session {
 	enum http_session_state state;
 	struct sockaddr         client_address; /* client requesting connection! */
@@ -45,7 +47,7 @@ struct http_session {
 	struct http_parser      http_parser;
 	struct http_request     http_request;
 	struct vec_u8           request_buffer;
-	const char             *response_header;
+	char                    response_header[HTTP_SESSION_RESPONSE_HEADER_CAPACITY];
 	size_t                  response_header_length;
 	size_t                  response_header_written;
 	struct vec_u8           response_buffer;
@@ -161,13 +163,25 @@ http_session_free(struct http_session *session)
  * @param status_code
  */
 static inline void
-http_session_set_response_header(struct http_session *session, int status_code)
+http_session_set_response_header(struct http_session *session, int status_code, const char *content_type,
+                                 size_t content_length)
 {
 	assert(session != NULL);
-	assert(status_code >= 100 && status_code <= 599);
+	assert(status_code >= 200 && status_code <= 599);
 
-	session->response_header        = http_header_build(status_code);
-	session->response_header_length = http_header_len(status_code);
+	if (status_code == 200) {
+		session->response_header_length = snprintf(session->response_header,
+		                                           HTTP_SESSION_RESPONSE_HEADER_CAPACITY,
+		                                           HTTP_RESPONSE_200_TEMPLATE, content_type, content_length);
+	} else {
+		size_t header_len = http_header_len(status_code);
+		size_t to_copy    = HTTP_SESSION_RESPONSE_HEADER_CAPACITY < header_len
+		                      ? HTTP_SESSION_RESPONSE_HEADER_CAPACITY
+		                      : header_len;
+
+		strncpy(session->response_header, http_header_build(status_code), to_copy - 1);
+		session->response_header_length = to_copy;
+	}
 }
 
 static inline void
@@ -215,7 +229,6 @@ static inline int
 http_session_send_response_body(struct http_session *session, void_star_cb on_eagain)
 {
 	assert(session != NULL);
-	assert(session->response_buffer.buffer != NULL);
 
 	while (session->response_buffer_written < session->response_buffer.length) {
 		ssize_t sent =
@@ -367,10 +380,13 @@ http_session_receive_request(struct http_session *session, void_star_cb on_eagai
 		                   (char *)&session->request_buffer.buffer[session->request_buffer.length],
 		                   session->request_buffer.capacity - session->request_buffer.length, on_eagain,
 		                   session);
-		if (bytes_received == -EAGAIN) goto err_eagain;
+		if (bytes_received == -3) goto err_eagain;
 		if (bytes_received == -1) goto err;
 		/* If we received an EOF before we were able to parse a complete HTTP message, request is malformed */
 		if (bytes_received == 0 && !session->http_request.message_end) goto err;
+
+		assert(bytes_received > 0);
+		assert(session->request_buffer.length < session->request_buffer.capacity);
 
 		session->request_buffer.length += bytes_received;
 
