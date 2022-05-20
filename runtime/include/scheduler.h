@@ -11,6 +11,7 @@
 #include "local_runqueue.h"
 #include "local_runqueue_minheap.h"
 #include "local_runqueue_list.h"
+#include "local_cleanup_queue.h"
 #include "panic.h"
 #include "sandbox_functions.h"
 #include "sandbox_types.h"
@@ -319,20 +320,20 @@ scheduler_idle_loop()
 			scheduler_cooperative_switch_to(&worker_thread_base_context, next_sandbox);
 		}
 
-		/* Clear the completion queue */
-		local_completion_queue_free();
+		/* Clear the cleanup queue */
+		local_cleanup_queue_free();
 	}
 }
 
 /**
  * @brief Used to cooperative switch sandboxes when a sandbox sleeps or exits
  * Because of use-after-free bugs that interfere with our loggers, when a sandbox exits and switches away never to
- * return, the boolean add_to_completion_queue needs to be set to true. Otherwise, we will leak sandboxes.
- * @param add_to_completion_queue - Indicates that the sandbox should be added to the completion queue before switching
+ * return, the boolean add_to_cleanup_queue needs to be set to true. Otherwise, we will leak sandboxes.
+ * @param add_to_cleanup_queue - Indicates that the sandbox should be added to the cleanup queue before switching
  * away
  */
 static inline void
-scheduler_cooperative_sched(bool add_to_completion_queue)
+scheduler_cooperative_sched(bool add_to_cleanup_queue)
 {
 	struct sandbox *exiting_sandbox = current_sandbox_get();
 	assert(exiting_sandbox != NULL);
@@ -353,8 +354,8 @@ scheduler_cooperative_sched(bool add_to_completion_queue)
 	/* Try to wakeup sleeping sandboxes */
 	scheduler_execute_epoll_loop();
 
-	/* We have not added ourself to the completion queue, so we can free */
-	local_completion_queue_free();
+	/* We have not added ourself to the cleanup queue, so we can free */
+	local_cleanup_queue_free();
 
 	/* Switch to a sandbox if one is ready to run */
 	struct sandbox *next_sandbox = scheduler_get_next();
@@ -371,7 +372,7 @@ scheduler_cooperative_sched(bool add_to_completion_queue)
 	// Write back global at idx 0
 	wasm_globals_set_i64(&exiting_sandbox->globals, 0, sledge_abi__current_wasm_module_instance.abi.wasmg_0, true);
 
-	if (add_to_completion_queue) local_completion_queue_add(exiting_sandbox);
+	if (add_to_cleanup_queue) local_cleanup_queue_add(exiting_sandbox);
 	/* Do not touch sandbox struct after this point! */
 
 	if (next_sandbox != NULL) {

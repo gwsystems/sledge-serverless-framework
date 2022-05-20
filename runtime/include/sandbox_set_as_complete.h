@@ -5,7 +5,6 @@
 
 #include "arch/getcycles.h"
 #include "panic.h"
-#include "local_completion_queue.h"
 #include "sandbox_functions.h"
 #include "sandbox_perf_log.h"
 #include "sandbox_state.h"
@@ -16,7 +15,6 @@
 
 /**
  * Transitions a sandbox from the SANDBOX_RETURNED state to the SANDBOX_COMPLETE state.
- * Adds the sandbox to the completion queue
  * @param sandbox
  * @param last_state the state the sandbox is transitioning from. This is expressed as a constant to
  * enable the compiler to perform constant propagation optimizations.
@@ -61,7 +59,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_transition_from_hook(sandbox, last_state);
 	sandbox_state_transition_to_hook(sandbox, SANDBOX_COMPLETE);
 
-	/* Does not add to completion queue until in cooperative scheduler */
+	/* Does not add to cleanup queue until in cooperative scheduler */
 }
 
 static inline void
