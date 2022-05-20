@@ -129,7 +129,6 @@ err_stack_allocation_failed:
 err_memory_allocation_failed:
 err_globals_allocation_failed:
 err_http_allocation_failed:
-	http_session_send_err_oneshot(sandbox->http, 503);
 	sandbox_set_as_error(sandbox, SANDBOX_ALLOCATED);
 	perror(error_message);
 	rc = -1;
@@ -205,13 +204,15 @@ sandbox_deinit(struct sandbox *sandbox)
 	assert(sandbox != current_sandbox_get());
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
 
+	/* Assumption: HTTP session was migrated to listener core */
+	assert(sandbox->http == NULL);
+
 	module_release(sandbox->module);
 
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
 	assert(sandbox->memory == NULL);
 
 	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
-	if (likely(sandbox->http != NULL)) http_session_free(sandbox->http);
 	if (likely(sandbox->globals.buffer != NULL)) sandbox_free_globals(sandbox);
 	if (likely(sandbox->wasi_context != NULL)) wasi_context_destroy(sandbox->wasi_context);
 }

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "arch/getcycles.h"
+#include "listener_thread.h"
 #include "local_runqueue.h"
 #include "panic.h"
 #include "sandbox_functions.h"
@@ -49,6 +50,11 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RETURNED);
 	sandbox_state_totals_increment(SANDBOX_RETURNED);
 	sandbox_state_totals_decrement(last_state);
+
+	http_session_set_response_header(sandbox->http, 200);
+	sandbox->http->state = HTTP_SESSION_EXECUTION_COMPLETE;
+	http_session_send_response(sandbox->http, (void_star_cb)listener_thread_register_http_session);
+	sandbox->http = NULL;
 
 	/* State Change Hooks */
 	sandbox_state_transition_from_hook(sandbox, last_state);

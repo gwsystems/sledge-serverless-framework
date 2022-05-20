@@ -35,7 +35,7 @@ http_total_increment_request()
 }
 
 static inline void
-http_total_increment_2xx()
+http_total_increment_2XX()
 {
 #ifdef LOG_TOTAL_REQS_RESPS
 	atomic_fetch_add(&http_total_2XX, 1);

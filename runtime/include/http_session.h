@@ -22,19 +22,54 @@
 #define u8 uint8_t
 VEC(u8)
 
+enum http_session_state
+{
+	HTTP_SESSION_UNINITIALIZED = 0,
+	HTTP_SESSION_INITIALIZED,
+	HTTP_SESSION_RECEIVING_REQUEST,
+	HTTP_SESSION_RECEIVE_REQUEST_BLOCKED,
+	HTTP_SESSION_RECEIVED_REQUEST,
+	HTTP_SESSION_EXECUTING,
+	HTTP_SESSION_EXECUTION_COMPLETE,
+	HTTP_SESSION_SENDING_RESPONSE_HEADER,
+	HTTP_SESSION_SEND_RESPONSE_HEADER_BLOCKED,
+	HTTP_SESSION_SENDING_RESPONSE,
+	HTTP_SESSION_SEND_RESPONSE_BLOCKED,
+	HTTP_SESSION_SENT_RESPONSE
+};
+
 struct http_session {
-	struct sockaddr     client_address; /* client requesting connection! */
-	int                 socket;
-	struct http_parser  http_parser;
-	struct http_request http_request;
-	struct vec_u8       request_buffer;
-	struct vec_u8       response_buffer;
-	struct tenant      *tenant; /* Backlink required when read blocks on listener core */
-	uint64_t            request_arrival_timestamp;
+	enum http_session_state state;
+	struct sockaddr         client_address; /* client requesting connection! */
+	int                     socket;
+	struct http_parser      http_parser;
+	struct http_request     http_request;
+	struct vec_u8           request_buffer;
+	const char             *response_header;
+	size_t                  response_header_length;
+	size_t                  response_header_written;
+	struct vec_u8           response_buffer;
+	size_t                  response_buffer_written;
+	struct tenant          *tenant; /* Backlink required when read blocks on listener core */
+	uint64_t                request_arrival_timestamp;
 };
 
 /**
- * @param session sandbox that we want to init
+ * Initalize state associated with an http parser
+ * Because the http_parser structure uses pointers to the request buffer, if realloc moves the request
+ * buffer, this should be called to clear stale state to force parsing to restart
+ */
+static inline void
+http_session_parser_init(struct http_session *session)
+{
+	memset(&session->http_request, 0, sizeof(struct http_request));
+	http_parser_init(&session->http_parser, HTTP_REQUEST);
+	/* Set the session as the data the http-parser has access to */
+	session->http_parser.data = &session->http_request;
+}
+
+/**
+ * @param session session that we want to init
  * @returns 0 on success, -1 on error
  */
 static inline int
@@ -42,6 +77,7 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
                   struct tenant *tenant, uint64_t request_arrival_timestamp)
 {
 	assert(session != NULL);
+	assert(session->state == HTTP_SESSION_UNINITIALIZED);
 	assert(socket_descriptor >= 0);
 	assert(socket_address != NULL);
 
@@ -50,18 +86,15 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
 	session->request_arrival_timestamp = request_arrival_timestamp;
 	memcpy(&session->client_address, socket_address, sizeof(struct sockaddr));
 
-	http_parser_init(&session->http_parser, HTTP_REQUEST);
-
-	/* Set the http_request member as the data pointer the http_parser callbacks receive */
-	session->http_parser.data = &session->http_request;
-
-	memset(&session->http_request, 0, sizeof(struct http_request));
+	http_session_parser_init(session);
 
 	int rc = vec_u8_init(&session->request_buffer, HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE);
 	if (rc < 0) return -1;
 
 	/* Defer allocating response until we've matched a route */
 	session->response_buffer.buffer = NULL;
+
+	session->state = HTTP_SESSION_INITIALIZED;
 
 	return 0;
 }
@@ -123,21 +156,19 @@ http_session_free(struct http_session *session)
 }
 
 /**
- * Writes buffer to the client socket
- * @param session - the HTTP session we want to send a 500 to
- * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
- * @returns 0 on success, -1 on error.
+ * Set Response Header
+ * @param session - the HTTP session we want to set the response header of
+ * @param status_code
  */
-static inline int
-http_session_send_err(struct http_session *session, int status_code, void_cb on_eagain)
+static inline void
+http_session_set_response_header(struct http_session *session, int status_code)
 {
 	assert(session != NULL);
 	assert(status_code >= 100 && status_code <= 599);
 
-	return tcp_session_send(session->socket, http_header_build(status_code), http_header_len(status_code),
-	                        on_eagain);
+	session->response_header        = http_header_build(status_code);
+	session->response_header_length = http_header_len(status_code);
 }
-
 
 static inline void
 http_session_close(struct http_session *session)
@@ -148,72 +179,64 @@ http_session_close(struct http_session *session)
 }
 
 /**
- * Writes an HTTP error code to the TCP socket associated with the session
- * Closes without writing if TCP socket would have blocked
- * Also cleans up the HTTP session
+ * Writes an HTTP header to the client
+ * @param client_socket - the client
+ * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
+ * @returns 0 on success, -1 on error, -2 unused, -3 on eagain
  */
 static inline int
-http_session_send_err_oneshot(struct http_session *session, int status_code)
+http_session_send_response_header(struct http_session *session, void_star_cb on_eagain)
 {
 	assert(session != NULL);
-	assert(status_code >= 100 && status_code <= 599);
 
-	int rc = tcp_session_send_oneshot(session->socket, http_header_build(status_code),
-	                                  http_header_len(status_code));
-	http_session_close(session);
-	http_session_free(session);
+	while (session->response_header_length > session->response_header_written) {
+		ssize_t sent =
+		  tcp_session_send(session->socket,
+		                   (const char *)&session->response_header[session->response_header_written],
+		                   session->response_header_length - session->response_header_written, on_eagain,
+		                   session);
+		if (sent < 0) {
+			return (int)sent;
+		} else {
+			session->response_header_written += (size_t)sent;
+		}
+	}
 
-	return rc;
+	return 0;
 }
 
+/**
+ * Writes an HTTP body to the client
+ * @param client_socket - the client
+ * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
+ * @returns 0 on success, -1 on error, -2 unused, -3 on eagain
+ */
 static inline int
-http_session_send_response(struct http_session *session, const char *response_content_type, void_cb on_eagain)
+http_session_send_response_body(struct http_session *session, void_star_cb on_eagain)
 {
 	assert(session != NULL);
 	assert(session->response_buffer.buffer != NULL);
-	assert(response_content_type != NULL);
 
-	int rc = 0;
+	while (session->response_buffer_written < session->response_buffer.length) {
+		ssize_t sent =
+		  tcp_session_send(session->socket,
+		                   (const char *)&session->response_buffer.buffer[session->response_buffer_written],
+		                   session->response_buffer.length - session->response_buffer_written, on_eagain,
+		                   session);
+		if (sent < 0) {
+			return (int)sent;
+		} else {
+			session->response_buffer_written += (size_t)sent;
+		}
+	}
 
-	struct vec_u8 *response_buffer = &session->response_buffer;
-
-	/* Send HTTP Response Header and Body */
-	rc = http_header_200_write(session->socket, response_content_type, response_buffer->length);
-	if (rc < 0) goto err;
-
-	rc = tcp_session_send(session->socket, (const char *)response_buffer->buffer, response_buffer->length,
-	                      on_eagain);
-	if (rc < 0) goto err;
-
-	http_total_increment_2xx();
-	rc = 0;
-
-done:
-	return rc;
-err:
-	debuglog("Error sending to client: %s", strerror(errno));
-	rc = -1;
-	goto done;
+	return 0;
 }
 
 static inline bool
 http_session_request_buffer_is_full(struct http_session *session)
 {
 	return session->request_buffer.length == session->request_buffer.capacity;
-}
-
-/**
- * Initalize state associated with an http parser
- * Because the http_parser structure uses pointers to the request buffer, if realloc moves the request
- * buffer, this should be called to clear stale state to force parsing to restart
- */
-static inline void
-http_session_parser_init(struct http_session *session)
-{
-	memset(&session->http_request, 0, sizeof(struct http_request));
-	http_parser_init(&session->http_parser, HTTP_REQUEST);
-	/* Set the session as the data the http-parser has access to */
-	session->http_parser.data = &session->http_request;
 }
 
 static inline int
@@ -249,10 +272,11 @@ http_session_request_buffer_resize(struct http_session *session, int required_si
 	return 0;
 }
 
-typedef void (*http_session_receive_request_egain_cb)(struct http_session *);
+typedef void (*http_session_cb)(struct http_session *);
 
+/* TODO: Why is this not in TCP logic? */
 static inline ssize_t
-http_session_receive_raw(struct http_session *session, http_session_receive_request_egain_cb on_eagain)
+http_session_receive_raw(struct http_session *session, void_star_cb on_eagain)
 {
 	assert(session->request_buffer.capacity > session->request_buffer.length);
 
@@ -333,18 +357,19 @@ http_session_log_query_params(struct http_session *session)
 
 /**
  * Receive and Parse the Request for the current sandbox
- * @return 0 if message parsing complete, -1 on error, -2 if buffers run out of space
+ * @return 0 if message parsing complete, -1 on error, -2 if buffers run out of space, -3 EAGAIN
  */
 static inline int
-http_session_receive_request(struct http_session *session, http_session_receive_request_egain_cb on_eagain)
+http_session_receive_request(struct http_session *session, void_star_cb on_eagain)
 {
 	assert(session != NULL);
 	assert(session->request_buffer.capacity > 0);
 	assert(session->request_buffer.length <= session->request_buffer.capacity);
+	assert(session->state == HTTP_SESSION_INITIALIZED || session->state == HTTP_SESSION_RECEIVE_REQUEST_BLOCKED);
+
+	session->state = HTTP_SESSION_RECEIVING_REQUEST;
 
 	int rc = 0;
-
-	http_session_parser_init(session);
 
 	while (!session->http_request.message_end) {
 		/* If we know the header size and content-length, resize exactly. Otherwise double */
@@ -361,6 +386,7 @@ http_session_receive_request(struct http_session *session, http_session_receive_
 			if (rc != 0) goto err_nobufs;
 		}
 
+		/* TODO: Why is this a call to TCP receive? */
 		ssize_t bytes_received = http_session_receive_raw(session, on_eagain);
 		if (bytes_received == -EAGAIN) goto err_eagain;
 		if (bytes_received == -1) goto err;
@@ -370,6 +396,7 @@ http_session_receive_request(struct http_session *session, http_session_receive_
 	}
 
 	assert(session->http_request.message_end == true);
+	session->state = HTTP_SESSION_RECEIVED_REQUEST;
 
 	http_session_log_query_params(session);
 
@@ -415,4 +442,29 @@ http_session_write_response(struct http_session *session, const uint8_t *source,
 
 DONE:
 	return rc;
+}
+
+static inline void
+http_session_send_response(struct http_session *session, void_star_cb on_eagain)
+{
+	int rc = http_session_send_response_header(session, on_eagain);
+	if (unlikely(rc == -3)) {
+		/* session blocked and registered to epoll so continue to next handle */
+		return;
+	} else if (unlikely(rc == -1)) {
+		http_session_close(session);
+		return;
+	}
+
+	rc = http_session_send_response_body(session, on_eagain);
+	if (unlikely(rc == -3)) {
+		/* session blocked and registered to epoll so continue to next handle */
+		return;
+	} else if (unlikely(rc == -1)) {
+		http_session_close(session);
+		return;
+	}
+
+	http_session_close(session);
+	http_session_free(session);
 }
