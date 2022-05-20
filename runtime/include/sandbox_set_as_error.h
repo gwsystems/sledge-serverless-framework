@@ -5,7 +5,6 @@
 
 #include "arch/getcycles.h"
 #include "listener_thread.h"
-#include "local_completion_queue.h"
 #include "local_runqueue.h"
 #include "sandbox_state.h"
 #include "sandbox_functions.h"
