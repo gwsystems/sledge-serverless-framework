@@ -81,8 +81,6 @@ current_sandbox_wasm_trap_handler(int trapno)
 	struct sandbox *sandbox       = current_sandbox_get();
 	sandbox_syscall(sandbox);
 
-	struct http_session *session = sandbox->http;
-
 	switch (trapno) {
 	case WASM_TRAP_INVALID_INDEX:
 		error_message = "WebAssembly Trap: Invalid Index\n";
