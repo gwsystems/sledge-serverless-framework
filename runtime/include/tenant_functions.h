@@ -37,6 +37,7 @@ tenant_alloc(struct tenant_config *config)
 	tcp_server_init(&tenant->tcp_server, config->port);
 	http_router_init(&tenant->router, config->routes_len);
 	module_database_init(&tenant->module_db);
+	map_init(&tenant->scratch_storage);
 
 	for (int i = 0; i < config->routes_len; i++) {
 		struct module *module = module_database_find_by_path(&tenant->module_db, config->routes[i].path);

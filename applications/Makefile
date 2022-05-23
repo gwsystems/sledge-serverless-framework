@@ -88,3 +88,9 @@ stack_overflow.install: ../runtime/bin/stack_overflow.wasm.so
 
 .PHONY: html.install
 html.install: ../runtime/bin/html.wasm.so
+
+.PHONY: scratch_storage_get.install
+scratch_storage_get.install: ../runtime/bin/scratch_storage_get.wasm.so
+
+.PHONY: scratch_storage_set.install
+scratch_storage_set.install: ../runtime/bin/scratch_storage_set.wasm.so

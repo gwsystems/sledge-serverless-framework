@@ -1,0 +1,26 @@
+[
+	{
+		"name": "gwu",
+		"port": 1337,
+		"routes": [
+			{
+				"route": "/set",
+				"path": "scratch_storage_set.wasm.so",
+				"expected-execution-us": 10000000,
+				"admissions-percentile": 70,
+				"relative-deadline-us": 20000000,
+				"http-resp-content-type": "text/plain",
+				"http-resp-size": 1024
+			},
+			{
+				"route": "/get",
+				"path": "scratch_storage_get.wasm.so",
+				"expected-execution-us": 10000000,
+				"admissions-percentile": 70,
+				"relative-deadline-us": 20000000,
+				"http-resp-content-type": "text/plain",
+				"http-resp-size": 1024
+			}
+		]
+	}
+]

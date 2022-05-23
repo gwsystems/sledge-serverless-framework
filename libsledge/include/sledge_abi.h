@@ -249,3 +249,10 @@ uint32_t sledge_abi__wasi_snapshot_preview1_sock_send(__wasi_fd_t fd, __wasi_siz
                                                       __wasi_size_t nbytes_retoffset);
 
 uint32_t sledge_abi__wasi_snapshot_preview1_sock_shutdown(__wasi_fd_t fd, uint32_t how);
+
+uint32_t sledge_abi__scratch_storage_get_size(uint32_t key_offset, uint32_t key_len);
+int      sledge_abi__scratch_storage_get(uint32_t key_offset, uint32_t key_size, uint32_t buf_offset, uint32_t buf_len);
+int sledge_abi__scratch_storage_set(uint32_t key_offset, uint32_t key_len, uint32_t value_offset, uint32_t value_len);
+int sledge_abi__scratch_storage_delete(uint32_t key_offset, uint32_t key_len);
+void
+sledge_abi__scratch_storage_upsert(uint32_t key_offset, uint32_t key_len, uint32_t value_offset, uint32_t value_len);
