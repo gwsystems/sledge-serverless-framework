@@ -1148,7 +1148,6 @@ DONE:
  * @param key_len
  * @param value_offset
  * @param value_len
- * @returns 0 on success, 1 if already present,
  */
 EXPORT void
 sledge_abi__scratch_storage_upsert(uint32_t key_offset, uint32_t key_len, uint32_t value_offset, uint32_t value_len)

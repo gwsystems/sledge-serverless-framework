@@ -153,9 +153,9 @@ map_upsert(struct map *map, uint8_t *key, uint32_t key_len, uint8_t *value, uint
 	for (struct map_node *node = map->buckets[hash % MAP_BUCKET_COUNT]; node != NULL; node = node->next) {
 		if (node->hash == hash) {
 			node->value_len = value_len;
-			node->value     = realloc(&node->value, value_len);
+			node->value     = realloc(node->value, value_len);
 			assert(node->value);
-			memcpy(&node->value, value, value_len);
+			memcpy(node->value, value, value_len);
 		}
 		goto DONE;
 	}
@@ -173,8 +173,8 @@ map_upsert(struct map *map, uint8_t *key, uint32_t key_len, uint8_t *value, uint
 	assert(new_node->value);
 
 	// Copy Key and Value
-	memcpy(&new_node->key, key, key_len);
-	memcpy(&new_node->value, value, value_len);
+	memcpy(new_node->key, key, key_len);
+	memcpy(new_node->value, value, value_len);
 
 	map->buckets[hash % MAP_BUCKET_COUNT] = new_node;
 

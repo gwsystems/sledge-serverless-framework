@@ -22,7 +22,11 @@ all: \
 	gocr.install \
 	gps_ekf.install \
 	license_plate_detection.install \
-	resize_image.install
+	resize_image.install \
+	scratch_storage_get.install \
+	scratch_storage_set.install \
+	scratch_storage_delete.install \
+	scratch_storage_upsert.install \
 
 .PHONY: clean
 clean:
@@ -94,3 +98,9 @@ scratch_storage_get.install: ../runtime/bin/scratch_storage_get.wasm.so
 
 .PHONY: scratch_storage_set.install
 scratch_storage_set.install: ../runtime/bin/scratch_storage_set.wasm.so
+
+.PHONY: scratch_storage_delete.install
+scratch_storage_delete.install: ../runtime/bin/scratch_storage_delete.wasm.so
+
+.PHONY: scratch_storage_upsert.install
+scratch_storage_upsert.install: ../runtime/bin/scratch_storage_upsert.wasm.so
