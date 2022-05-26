@@ -36,5 +36,11 @@ debug: sledgert  scratch_storage_get scratch_storage_set
 		--eval-command="set pagination off" \
 		--eval-command="run spec.json"
 
+client-upsert-multi:
+	hey -z 6s -cpus 4 -c 100 -t 0 -o csv -m GET "http://${HOSTNAME}:1337/upsert?test&wakka2"
+
+client-get-multi:
+	hey -z 6s -cpus 4 -c 100 -t 0 -o csv -m GET "http://${HOSTNAME}:1337/get?test"
+
 client:
 	http :1337/scratch_storage
