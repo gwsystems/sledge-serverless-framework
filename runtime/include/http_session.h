@@ -403,7 +403,6 @@ http_session_receive_request(struct http_session *session, void_star_cb on_eagai
 done:
 	return rc;
 err_eagain:
-	http_session_log_malformed_request(session);
 	rc = -3;
 	goto done;
 err_nobufs:
