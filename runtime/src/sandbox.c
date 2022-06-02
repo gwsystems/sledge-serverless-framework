@@ -181,7 +181,7 @@ sandbox_alloc(struct module *module, struct http_session *session, struct route 
               uint64_t admissions_estimate)
 {
 	size_t alignment     = (size_t)PAGE_SIZE;
-	size_t size_to_alloc = (size_t)round_up_to_page(sizeof(struct module));
+	size_t size_to_alloc = (size_t)round_up_to_page(sizeof(struct sandbox));
 
 	assert(size_to_alloc % alignment == 0);
 
