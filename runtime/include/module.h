@@ -143,8 +143,6 @@ module_initialize_memory(struct module *module)
 /**
  * Invoke a module's entry function, forwarding on argc and argv
  * @param module
- * @param argc standard UNIX count of arguments
- * @param argv standard UNIX vector of arguments
  * @return return code of module's main function
  */
 static inline int32_t

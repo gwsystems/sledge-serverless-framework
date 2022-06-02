@@ -304,7 +304,7 @@ http_session_parse(struct http_session *session, ssize_t bytes_received)
 	                      (const char *)&session->request_buffer.buffer[session->http_request.length_parsed],
 	                      (size_t)session->request_buffer.length - session->http_request.length_parsed);
 
-	if (bytes_parsed < (size_t)bytes_received) {
+	if (session->http_parser.http_errno != HPE_OK) {
 		debuglog("Error: %s, Description: %s\n",
 		         http_errno_name((enum http_errno)session->http_parser.http_errno),
 		         http_errno_description((enum http_errno)session->http_parser.http_errno));

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "worker_thread.h"
 
 static inline void
