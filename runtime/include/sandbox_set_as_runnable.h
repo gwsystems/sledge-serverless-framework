@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "arch/getcycles.h"
 #include "local_runqueue.h"
@@ -9,6 +10,7 @@
 #include "sandbox_state_history.h"
 #include "sandbox_state_transition.h"
 #include "sandbox_types.h"
+#include "worker_thread_epoll.h"
 
 /**
  * Transitions a sandbox to the SANDBOX_RUNNABLE state.
@@ -30,11 +32,9 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
-		local_runqueue_add(sandbox);
 		break;
 	}
 	case SANDBOX_ASLEEP: {
-		local_runqueue_add(sandbox);
 		break;
 	}
 	default: {
@@ -63,4 +63,13 @@ sandbox_wakeup(struct sandbox *sandbox)
 {
 	assert(sandbox->state == SANDBOX_ASLEEP);
 	sandbox_set_as_runnable(sandbox, SANDBOX_ASLEEP);
+
+	int random = rand() % 100;
+	if (random == 0) {
+		debuglog("Writeback\n");
+		worker_thread_epoll_remove_sandbox(sandbox);
+		global_request_scheduler_add(sandbox);
+	} else {
+		local_runqueue_add(sandbox);
+	}
 }

@@ -123,8 +123,6 @@ current_sandbox_init()
 	int   rc            = 0;
 	char *error_message = NULL;
 
-	worker_thread_epoll_add_sandbox(sandbox);
-
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
 	module_initialize_memory(current_module);
