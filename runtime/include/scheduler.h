@@ -110,9 +110,16 @@ scheduler_fifo_get_next()
 		/* If the local runqueue is empty, pull from global request scheduler */
 		if (global_request_scheduler_remove(&global) < 0) goto done;
 
-		sandbox_prepare_execution_environment(global);
-		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+		if (global->state == SANDBOX_INITIALIZED) {
+			sandbox_prepare_execution_environment(global);
+			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+		} else {
+			debuglog("Resuming writeback\n");
+		}
+
+		assert(global->state == SANDBOX_RUNNABLE || global->state == SANDBOX_PREEMPTED);
 		local_runqueue_add(global);
+		worker_thread_epoll_add_sandbox(global);
 	} else if (local == current_sandbox_get()) {
 		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */
 		local_runqueue_list_rotate();
