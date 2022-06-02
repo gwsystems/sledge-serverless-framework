@@ -75,13 +75,23 @@ scheduler_edf_get_next()
 
 	/* Try to pull and allocate from the global queue if earlier
 	 * This will be placed at the head of the local runqueue */
+
+	/* TODO: Only try to pull from global if we have capacity on the worker for it */
 	if (global_deadline < local_deadline) {
 		if (global_request_scheduler_remove_if_earlier(&global, local_deadline) == 0) {
 			assert(global != NULL);
 			assert(global->absolute_deadline < local_deadline);
-			sandbox_prepare_execution_environment(global);
-			assert(global->state == SANDBOX_INITIALIZED);
-			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+
+			if (global->state == SANDBOX_INITIALIZED) {
+				sandbox_prepare_execution_environment(global);
+				sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+			} else {
+				debuglog("Resuming writeback\n");
+			}
+
+			assert(global->state == SANDBOX_RUNNABLE || global->state == SANDBOX_PREEMPTED);
+			local_runqueue_add(global);
+			worker_thread_epoll_add_sandbox(global);
 		}
 	}
 
@@ -102,6 +112,7 @@ scheduler_fifo_get_next()
 
 		sandbox_prepare_execution_environment(global);
 		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+		local_runqueue_add(global);
 	} else if (local == current_sandbox_get()) {
 		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */
 		local_runqueue_list_rotate();
@@ -190,6 +201,13 @@ scheduler_log_sandbox_switch(struct sandbox *current_sandbox, struct sandbox *ne
 static inline void
 scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *next)
 {
+	// switch to base context;
+	if (next == NULL) {
+		arch_context_restore_fast(&interrupted_context->uc_mcontext, &worker_thread_base_context);
+		current_sandbox_set(NULL);
+		return;
+	}
+
 	/* Switch to next sandbox */
 	switch (next->ctxt.variant) {
 	case ARCH_CONTEXT_VARIANT_FAST: {
@@ -234,6 +252,24 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	struct sandbox *next = scheduler_get_next();
 	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
 	assert(next != NULL);
+
+	int random = rand() % 100;
+	if (random == 0) {
+		sandbox_preempt(interrupted_sandbox);
+		wasm_globals_set_i64(&interrupted_sandbox->globals, 0,
+		                     sledge_abi__current_wasm_module_instance.abi.wasmg_0, true);
+		arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
+		local_runqueue_delete(interrupted_sandbox);
+		/* Checking next with interrupted_sandbox off all queues */
+		next = scheduler_get_next();
+
+		debuglog("Writeback\n");
+		worker_thread_epoll_remove_sandbox(interrupted_sandbox);
+		global_request_scheduler_add(interrupted_sandbox);
+
+		scheduler_preemptive_switch_to(interrupted_context, next);
+		return;
+	}
 
 	/* If current equals next, no switch is necessary, so resume execution */
 	if (interrupted_sandbox == next) {
