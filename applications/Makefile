@@ -31,6 +31,7 @@ all: \
 .PHONY: clean
 clean:
 	@make -C wasm_apps clean
+	@make -C scratch_storage clean
 	@rm -rf dist
 	@rm -rf ../runtime/bin/*.so
 
@@ -42,6 +43,23 @@ wasm_apps/dist/%.wasm:
 
 ../libsledge/dist/libsledge.a: ../libsledge/dist/
 	make -C .. libsledge
+
+PHONY: scratch_storage
+scratch_storage:
+	make -C scratch_storage all
+
+PHONY: scratch_storage.install
+scratch_storage.install: \
+	scratch_storage_get.install \
+	scratch_storage_set.install \
+	scratch_storage_delete.install \
+	scratch_storage_upsert.install
+
+scratch_storage/scratch_storage_%.wasm:
+	make -C scratch_storage all
+
+dist/scratch_storage_%.bc: scratch_storage/scratch_storage_%.wasm dist
+	${AWSMCC} ${AWSMFLAGS} $< -o $@
 
 dist/%.bc: ./wasm_apps/dist/%.wasm dist
 	${AWSMCC} ${AWSMFLAGS} $< -o $@
