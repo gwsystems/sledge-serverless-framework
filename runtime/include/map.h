@@ -16,12 +16,12 @@
 #define MAP_HASH jenkins_hash
 
 struct map_node {
-	uint32_t         hash;
-	uint8_t         *key;
-	uint32_t         key_len;
-	uint8_t         *value;
-	uint32_t         value_len;
 	struct map_node *next;
+	uint8_t         *key;
+	uint8_t         *value;
+	uint32_t         key_len;
+	uint32_t         value_len;
+	uint32_t         hash;
 };
 
 struct map {
