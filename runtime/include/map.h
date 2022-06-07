@@ -12,7 +12,7 @@
 
 /* Bucket count is sized to be a prime that is approximately 20% larger than the desired capacity (6k keys) */
 #define MAP_BUCKET_COUNT 7907
-#define MAP_HASH jenkins_hash
+#define MAP_HASH         jenkins_hash
 
 struct map_node {
 	struct map_node *next;
