@@ -1,4 +1,5 @@
 #include "current_sandbox.h"
+#include "map.h"
 #include "sandbox_set_as_running_sys.h"
 #include "sandbox_set_as_running_user.h"
 #include "sledge_abi.h"
@@ -1038,4 +1039,127 @@ EXPORT uint32_t
 sledge_abi__wasi_snapshot_preview1_sock_shutdown(__wasi_fd_t fd, uint32_t how)
 {
 	return wasi_unsupported_syscall(__func__);
+}
+
+/**
+ * @param key
+ * @param key_len
+ * @returns value_len at key or 0 if key not present
+ */
+EXPORT uint32_t
+sledge_abi__scratch_storage_get_size(uint32_t key_offset, uint32_t key_len)
+{
+	struct sandbox *sandbox = current_sandbox_get();
+
+	sandbox_syscall(sandbox);
+
+	uint8_t *key = (uint8_t *)get_memory_ptr_for_runtime(key_offset, key_len);
+
+	uint32_t value_len;
+	map_get(&sandbox->tenant->scratch_storage, key, key_len, &value_len);
+
+	sandbox_return(sandbox);
+
+	return value_len;
+}
+
+EXPORT int
+sledge_abi__scratch_storage_get(uint32_t key_offset, uint32_t key_len, uint32_t buf_offset, uint32_t buf_len)
+{
+	int rc = 0;
+
+	struct sandbox *sandbox = current_sandbox_get();
+
+	sandbox_syscall(sandbox);
+
+	uint8_t *key = (uint8_t *)get_memory_ptr_for_runtime(key_offset, key_len);
+	uint8_t *buf = (uint8_t *)get_memory_ptr_for_runtime(buf_offset, buf_len);
+
+	uint32_t value_len;
+	uint8_t *value = map_get(&sandbox->tenant->scratch_storage, key, key_len, &value_len);
+
+	if (value == NULL) {
+		rc = 1;
+		goto DONE;
+	} else if (value_len > buf_len) {
+		rc = 2;
+		goto DONE;
+	} else {
+		memcpy(buf, value, value_len);
+		rc = 0;
+	}
+
+DONE:
+	sandbox_return(sandbox);
+	return rc;
+}
+
+/**
+ * @param key_offset
+ * @param key_len
+ * @param value_offset
+ * @param value_len
+ * @returns 0 on success, 1 if already present,
+ */
+EXPORT int
+sledge_abi__scratch_storage_set(uint32_t key_offset, uint32_t key_len, uint32_t value_offset, uint32_t value_len)
+{
+	int rc = 0;
+
+	struct sandbox *sandbox = current_sandbox_get();
+
+	sandbox_syscall(sandbox);
+
+	uint8_t *key   = (uint8_t *)get_memory_ptr_for_runtime(key_offset, key_len);
+	uint8_t *value = (uint8_t *)get_memory_ptr_for_runtime(value_offset, value_len);
+
+	bool did_set = map_set(&sandbox->tenant->scratch_storage, key, key_len, value, value_len);
+
+DONE:
+	sandbox_return(sandbox);
+	return did_set ? 0 : 1;
+}
+
+/**
+ * @param key_offset
+ * @param key_len
+ * @returns 0 on success, 1 if not present
+ */
+EXPORT int
+sledge_abi__scratch_storage_delete(uint32_t key_offset, uint32_t key_len)
+{
+	int rc = 0;
+
+	struct sandbox *sandbox = current_sandbox_get();
+
+	sandbox_syscall(sandbox);
+
+	uint8_t *key = (uint8_t *)get_memory_ptr_for_runtime(key_offset, key_len);
+
+	bool did_delete = map_delete(&sandbox->tenant->scratch_storage, key, key_len);
+
+DONE:
+	sandbox_return(sandbox);
+	return did_delete ? 0 : 1;
+}
+
+/**
+ * @param key_offset
+ * @param key_len
+ * @param value_offset
+ * @param value_len
+ */
+EXPORT void
+sledge_abi__scratch_storage_upsert(uint32_t key_offset, uint32_t key_len, uint32_t value_offset, uint32_t value_len)
+{
+	struct sandbox *sandbox = current_sandbox_get();
+
+	sandbox_syscall(sandbox);
+
+	uint8_t *key   = (uint8_t *)get_memory_ptr_for_runtime(key_offset, key_len);
+	uint8_t *value = (uint8_t *)get_memory_ptr_for_runtime(value_offset, value_len);
+
+	map_upsert(&sandbox->tenant->scratch_storage, key, key_len, value, value_len);
+
+	sandbox_return(sandbox);
 }

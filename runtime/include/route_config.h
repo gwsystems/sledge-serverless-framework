@@ -73,7 +73,6 @@ route_config_validate(struct route_config *config, bool *did_set)
 	if (did_set[route_config_member_http_resp_content_type] == false) {
 		debuglog("http_resp_content_type not set, defaulting to text/plain\n");
 		config->http_resp_content_type = "text/plain";
-		return -1;
 	}
 
 	if (scheduler == SCHEDULER_EDF) {

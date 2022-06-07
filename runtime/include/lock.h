@@ -5,6 +5,7 @@
 
 #include "arch/getcycles.h"
 #include "runtime.h"
+#include "generic_thread.h"
 
 typedef ck_spinlock_mcs_t lock_t;
 

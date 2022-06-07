@@ -22,11 +22,16 @@ all: \
 	gocr.install \
 	gps_ekf.install \
 	license_plate_detection.install \
-	resize_image.install
+	resize_image.install \
+	scratch_storage_get.install \
+	scratch_storage_set.install \
+	scratch_storage_delete.install \
+	scratch_storage_upsert.install \
 
 .PHONY: clean
 clean:
 	@make -C wasm_apps clean
+	@make -C scratch_storage clean
 	@rm -rf dist
 	@rm -rf ../runtime/bin/*.so
 
@@ -38,6 +43,23 @@ wasm_apps/dist/%.wasm:
 
 ../libsledge/dist/libsledge.a: ../libsledge/dist/
 	make -C .. libsledge
+
+PHONY: scratch_storage
+scratch_storage:
+	make -C scratch_storage all
+
+PHONY: scratch_storage.install
+scratch_storage.install: \
+	scratch_storage_get.install \
+	scratch_storage_set.install \
+	scratch_storage_delete.install \
+	scratch_storage_upsert.install
+
+scratch_storage/scratch_storage_%.wasm:
+	make -C scratch_storage all
+
+dist/scratch_storage_%.bc: scratch_storage/scratch_storage_%.wasm dist
+	${AWSMCC} ${AWSMFLAGS} $< -o $@
 
 dist/%.bc: ./wasm_apps/dist/%.wasm dist
 	${AWSMCC} ${AWSMFLAGS} $< -o $@
@@ -88,3 +110,15 @@ stack_overflow.install: ../runtime/bin/stack_overflow.wasm.so
 
 .PHONY: html.install
 html.install: ../runtime/bin/html.wasm.so
+
+.PHONY: scratch_storage_get.install
+scratch_storage_get.install: ../runtime/bin/scratch_storage_get.wasm.so
+
+.PHONY: scratch_storage_set.install
+scratch_storage_set.install: ../runtime/bin/scratch_storage_set.wasm.so
+
+.PHONY: scratch_storage_delete.install
+scratch_storage_delete.install: ../runtime/bin/scratch_storage_delete.wasm.so
+
+.PHONY: scratch_storage_upsert.install
+scratch_storage_upsert.install: ../runtime/bin/scratch_storage_upsert.wasm.so
