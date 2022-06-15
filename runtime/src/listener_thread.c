@@ -178,17 +178,17 @@ on_client_request_receiving(struct http_session *session)
 	if (likely(rc == 0)) {
 		on_client_request_received(session);
 		return;
-	} else if (rc == -3) {
+	} else if (unlikely(rc == -EAGAIN)) {
 		/* session blocked and registered to epoll so continue to next handle */
 		return;
-	} else if (rc == -2) {
+	} else if (unlikely(rc == -ENOMEM)) {
 		/* Failed to grow request buffer */
 		debuglog("Failed to grow http request buffer\n");
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
 		http_session_set_response_header(session, 500, NULL, 0);
 		on_client_response_header_sending(session);
 		return;
-	} else if (rc == -1) {
+	} else if (rc < 0) {
 		debuglog("Failed to receive or parse request\n");
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
 		http_session_set_response_header(session, 400, NULL, 0);
@@ -257,11 +257,12 @@ on_client_response_header_sending(struct http_session *session)
 	if (likely(rc == 0)) {
 		on_client_response_body_sending(session);
 		return;
-	} else if (rc == -3) {
+	} else if (unlikely(rc == -EAGAIN)) {
 		/* session blocked and registered to epoll so continue to next handle */
 		return;
-	} else if (rc == -1) {
+	} else if (rc < 0) {
 		http_session_close(session);
+		http_session_free(session);
 		return;
 	}
 }
@@ -274,12 +275,12 @@ on_client_response_body_sending(struct http_session *session)
 	if (likely(rc == 0)) {
 		on_client_response_sent(session);
 		return;
-	}
-	if (rc == -3) {
+	} else if (unlikely(rc == -EAGAIN)) {
 		/* session blocked and registered to epoll so continue to next handle */
 		return;
-	} else if (rc == -1) {
+	} else if (unlikely(rc < 0)) {
 		http_session_close(session);
+		http_session_free(session);
 		return;
 	}
 }
@@ -287,6 +288,8 @@ on_client_response_body_sending(struct http_session *session)
 static void
 on_client_response_sent(struct http_session *session)
 {
+	session->response_sent_timestamp = __getcycles();
+
 	http_session_close(session);
 	http_session_free(session);
 	return;

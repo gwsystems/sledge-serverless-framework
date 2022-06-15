@@ -37,7 +37,7 @@ typedef void (*void_star_cb)(void *);
  * @param client_socket - the client
  * @param buffer - buffer to write to socket
  * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
- * @returns nwritten on success, -1 on error, -2 unused, -3 on eagain
+ * @returns nwritten on success, -errno, -EAGAIN on block
  */
 static inline ssize_t
 tcp_session_send(int client_socket, const char *buffer, size_t buffer_len, void_star_cb on_eagain, void *dataptr)
@@ -49,9 +49,9 @@ tcp_session_send(int client_socket, const char *buffer, size_t buffer_len, void_
 	if (sent < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			if (on_eagain != NULL) on_eagain(dataptr);
-			return -3;
+			return -EAGAIN;
 		} else {
-			return -1;
+			return -errno;
 		}
 	}
 
@@ -64,7 +64,7 @@ tcp_session_send(int client_socket, const char *buffer, size_t buffer_len, void_
  * @param buffer - buffer to reach the socket into
  * @param buffer_len - buffer to reach the socket into
  * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
- * @returns nwritten on success, -1 on error, -2 unused, -3 on eagain
+ * @returns nwritten on success, -errno on error, -eagain on block
  */
 static inline ssize_t
 tcp_session_recv(int client_socket, char *buffer, size_t buffer_len, void_star_cb on_eagain, void *dataptr)
@@ -76,9 +76,9 @@ tcp_session_recv(int client_socket, char *buffer, size_t buffer_len, void_star_c
 	if (received < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			if (on_eagain != NULL) on_eagain(dataptr);
-			return -3;
+			return -EAGAIN;
 		} else {
-			return -1;
+			return -errno;
 		}
 	}
 

@@ -21,9 +21,8 @@
 
 struct sandbox_timestamps {
 	uint64_t last_state_change; /* Used for bookkeeping of actual execution time */
-	uint64_t request_arrival;   /* Timestamp when request is received */
 	uint64_t allocation;        /* Timestamp when sandbox is allocated */
-	uint64_t response;          /* Timestamp when response is sent */
+	uint64_t dispatched;        /* Timestamp when a sandbox is first added to a worker's runqueue */
 	uint64_t completion;        /* Timestamp when sandbox runs to completion */
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	uint32_t page_allocations[SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT];

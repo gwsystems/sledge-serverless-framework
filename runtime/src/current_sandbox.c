@@ -170,9 +170,7 @@ current_sandbox_fini()
 	sandbox_syscall(sandbox);
 
 	sandbox->timestamp_of.completion = __getcycles();
-	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.request_arrival;
-
-	sandbox->timestamp_of.response = __getcycles();
+	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation;
 
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 	worker_thread_epoll_remove_sandbox(sandbox);

@@ -153,8 +153,7 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 	sandbox->tenant = tenant;
 	sandbox->route  = route;
 
-	sandbox->timestamp_of.request_arrival = session->request_arrival_timestamp;
-	sandbox->absolute_deadline            = session->request_arrival_timestamp + sandbox->route->relative_deadline;
+	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->route->relative_deadline;
 
 	/*
 	 * Admissions Control State

@@ -54,6 +54,7 @@ struct http_session {
 	size_t                  response_buffer_written;
 	struct tenant          *tenant; /* Backlink required when read blocks on listener core */
 	uint64_t                request_arrival_timestamp;
+	uint64_t                response_sent_timestamp;
 };
 
 /**
@@ -196,7 +197,7 @@ http_session_close(struct http_session *session)
  * Writes an HTTP header to the client
  * @param client_socket - the client
  * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
- * @returns 0 on success, -1 on error, -2 unused, -3 on eagain
+ * @returns 0 on success, -errno on error
  */
 static inline int
 http_session_send_response_header(struct http_session *session, void_star_cb on_eagain)
@@ -223,7 +224,7 @@ http_session_send_response_header(struct http_session *session, void_star_cb on_
  * Writes an HTTP body to the client
  * @param client_socket - the client
  * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
- * @returns 0 on success, -1 on error, -2 unused, -3 on eagain
+ * @returns 0 on success, -errno on error
  */
 static inline int
 http_session_send_response_body(struct http_session *session, void_star_cb on_eagain)
@@ -346,7 +347,7 @@ http_session_log_malformed_request(struct http_session *session)
 
 /**
  * Receive and Parse the Request for the current sandbox
- * @return 0 if message parsing complete, -1 on error, -2 if buffers run out of space, -3 EAGAIN
+ * @return 0 if message parsing complete, -1 on error, -ENOMEM if buffers run out of space, -3 EAGAIN if would block
  */
 static inline int
 http_session_receive_request(struct http_session *session, void_star_cb on_eagain)
@@ -380,10 +381,13 @@ http_session_receive_request(struct http_session *session, void_star_cb on_eagai
 		                   (char *)&session->request_buffer.buffer[session->request_buffer.length],
 		                   session->request_buffer.capacity - session->request_buffer.length, on_eagain,
 		                   session);
-		if (bytes_received == -3) goto err_eagain;
-		if (bytes_received == -1) goto err;
+		if (unlikely(bytes_received == -EAGAIN))
+			goto err_eagain;
+		else if (unlikely(bytes_received < 0))
+			goto err;
 		/* If we received an EOF before we were able to parse a complete HTTP message, request is malformed */
-		if (bytes_received == 0 && !session->http_request.message_end) goto err;
+		else if (unlikely(bytes_received == 0 && !session->http_request.message_end))
+			goto err;
 
 		assert(bytes_received > 0);
 		assert(session->request_buffer.length < session->request_buffer.capacity);
@@ -403,11 +407,11 @@ http_session_receive_request(struct http_session *session, void_star_cb on_eagai
 done:
 	return rc;
 err_eagain:
-	rc = -3;
+	rc = -EAGAIN;
 	goto done;
 err_nobufs:
 	http_session_log_malformed_request(session);
-	rc = -2;
+	rc = -ENOMEM;
 	goto done;
 err:
 	http_session_log_malformed_request(session);
@@ -449,23 +453,26 @@ static inline void
 http_session_send_response(struct http_session *session, void_star_cb on_eagain)
 {
 	int rc = http_session_send_response_header(session, on_eagain);
-	if (unlikely(rc == -3)) {
-		/* session blocked and registered to epoll so continue to next handle */
-		return;
-	} else if (unlikely(rc == -1)) {
-		http_session_close(session);
-		return;
+	/* session blocked and registered to epoll so continue to next handle */
+	if (unlikely(rc == -EAGAIN)) {
+		goto DONE;
+	} else if (unlikely(rc < 0)) {
+		goto ERR;
 	}
 
 	rc = http_session_send_response_body(session, on_eagain);
-	if (unlikely(rc == -3)) {
-		/* session blocked and registered to epoll so continue to next handle */
-		return;
-	} else if (unlikely(rc == -1)) {
-		http_session_close(session);
-		return;
+	/* session blocked and registered to epoll so continue to next handle */
+	if (unlikely(rc == -EAGAIN)) {
+		goto DONE;
+	} else if (unlikely(rc < 0)) {
+		goto ERR;
 	}
 
+	session->response_sent_timestamp = __getcycles();
+
+DONE:
+	return;
+ERR:
 	http_session_close(session);
 	http_session_free(session);
 }

@@ -29,7 +29,7 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 	/* If the log was not defined by an environment variable, early out */
 	if (sandbox_perf_log == NULL) return;
 
-	uint64_t queued_duration = sandbox->timestamp_of.allocation - sandbox->timestamp_of.request_arrival;
+	uint64_t queued_duration = sandbox->timestamp_of.dispatched - sandbox->timestamp_of.allocation;
 
 	/*
 	 * Assumption: A sandbox is never able to free pages. If linear memory management
