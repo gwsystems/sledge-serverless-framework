@@ -457,7 +457,7 @@ http_session_send_response(struct http_session *session, void_star_cb on_eagain)
 	if (unlikely(rc == -EAGAIN)) {
 		goto DONE;
 	} else if (unlikely(rc < 0)) {
-		goto ERR;
+		goto CLOSE;
 	}
 
 	rc = http_session_send_response_body(session, on_eagain);
@@ -465,14 +465,14 @@ http_session_send_response(struct http_session *session, void_star_cb on_eagain)
 	if (unlikely(rc == -EAGAIN)) {
 		goto DONE;
 	} else if (unlikely(rc < 0)) {
-		goto ERR;
+		goto CLOSE;
 	}
 
 	session->response_sent_timestamp = __getcycles();
 
-DONE:
-	return;
-ERR:
+CLOSE:
 	http_session_close(session);
 	http_session_free(session);
+DONE:
+	return;
 }
