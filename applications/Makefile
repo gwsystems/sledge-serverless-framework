@@ -12,7 +12,7 @@ LDFLAGS=-shared -fPIC -Wl,--export-dynamic,--whole-archive -L../libsledge/dist/ 
 # LDFLAGS=-flto -fvisibility=hidden
 
 dist:
-	mkdir dist
+	mkdir -p dist
 
 .PHONY: all
 all: \
