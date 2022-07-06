@@ -80,7 +80,7 @@ RUN ./sledge/install_llvm.sh $LLVM_VERSION
 
 # WASI-SDK
 RUN curl -sS -L -O $WASI_SDK_URL && dpkg -i wasi-sdk_12.0_amd64.deb && rm -f wasi-sdk_12.0_amd64.deb
-ENV WASI_SDK=/opt/wasi-sdk
+ENV WASI_SDK_PATH=/opt/wasi-sdk
 
 # Create non-root user and add to sudoers
 ARG USERNAME=dev

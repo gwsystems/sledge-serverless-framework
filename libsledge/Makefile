@@ -21,7 +21,7 @@ CFLAGS := -fPIC -O3
 all: dist/libsledge.a
 
 dist:
-	mkdir dist
+	mkdir -p dist
 
 dist/%.o: src/%.c dist
 	clang ${CFLAGS} -c ${INCLUDES} -o $@ $<
