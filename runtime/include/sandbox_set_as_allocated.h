@@ -24,6 +24,7 @@ sandbox_set_as_allocated(struct sandbox *sandbox)
 
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
+	sandbox->timestamp_of.allocation        = now;
 	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_init(&sandbox->state_history);
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_ALLOCATED);

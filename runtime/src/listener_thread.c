@@ -12,6 +12,18 @@
 #include "tenant.h"
 #include "tenant_functions.h"
 
+static void listener_thread_unregister_http_session(struct http_session *http);
+static void panic_on_epoll_error(struct epoll_event *evt);
+
+static void on_client_socket_epoll_event(struct epoll_event *evt);
+static void on_tenant_socket_epoll_event(struct epoll_event *evt);
+static void on_client_request_arrival(int client_socket, const struct sockaddr *client_address, struct tenant *tenant);
+static void on_client_request_receiving(struct http_session *session);
+static void on_client_request_received(struct http_session *session);
+static void on_client_response_header_sending(struct http_session *session);
+static void on_client_response_body_sending(struct http_session *session);
+static void on_client_response_sent(struct http_session *session);
+
 /*
  * Descriptor of the epoll instance used to monitor the socket descriptors of registered
  * serverless modules. The listener cores listens for incoming client requests through this.
@@ -61,15 +73,32 @@ listener_thread_register_http_session(struct http_session *http)
 	int                rc = 0;
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)http;
-	accept_evt.events   = EPOLLIN;
 
-	epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_ADD, http->socket, &accept_evt);
+	switch (http->state) {
+	case HTTP_SESSION_RECEIVING_REQUEST:
+		accept_evt.events = EPOLLIN;
+		http->state       = HTTP_SESSION_RECEIVE_REQUEST_BLOCKED;
+		break;
+	case HTTP_SESSION_SENDING_RESPONSE_HEADER:
+		accept_evt.events = EPOLLOUT;
+		http->state       = HTTP_SESSION_SEND_RESPONSE_HEADER_BLOCKED;
+		break;
+	case HTTP_SESSION_SENDING_RESPONSE:
+		accept_evt.events = EPOLLOUT;
+		http->state       = HTTP_SESSION_SEND_RESPONSE_BLOCKED;
+		break;
+	default:
+		panic("Invalid HTTP Session State: %d\n", http->state);
+	}
+
+	rc = epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_ADD, http->socket, &accept_evt);
+	if (rc != 0) { panic("Failed to add http session to listener thread epoll\n"); }
 }
 
 /**
  * @brief Registers a serverless tenant on the listener thread's epoll descriptor
  **/
-void
+static void
 listener_thread_unregister_http_session(struct http_session *http)
 {
 	assert(http != NULL);
@@ -78,11 +107,13 @@ listener_thread_unregister_http_session(struct http_session *http)
 		panic("Attempting to unregister an http session before listener thread initialization");
 	}
 
-	epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_DEL, http->socket, NULL);
+	int rc = epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_DEL, http->socket, NULL);
+	if (rc != 0) { panic("Failed to remove http session from listener thread epoll\n"); }
 }
 
 /**
  * @brief Registers a serverless tenant on the listener thread's epoll descriptor
+ * Assumption: We never have to unregister a tenant
  **/
 int
 listener_thread_register_tenant(struct tenant *tenant)
@@ -117,121 +148,68 @@ panic_on_epoll_error(struct epoll_event *evt)
 }
 
 static void
-handle_tcp_requests(struct epoll_event *evt)
+on_client_request_arrival(int client_socket, const struct sockaddr *client_address, struct tenant *tenant)
 {
-	assert((evt->events & EPOLLIN) == EPOLLIN);
+	uint64_t request_arrival_timestamp = __getcycles();
 
-	/* Unpack tenant from epoll event */
-	struct tenant *tenant = (struct tenant *)evt->data.ptr;
-	assert(tenant);
+	http_total_increment_request();
 
-	/* Accept Client Request as a nonblocking socket, saving address information */
-	struct sockaddr_in client_address;
-	socklen_t          address_length = sizeof(client_address);
-
-	/* Accept as many requests as possible, returning when we would have blocked */
-	while (true) {
-		int client_socket = accept4(tenant->tcp_server.socket_descriptor, (struct sockaddr *)&client_address,
-		                            &address_length, SOCK_NONBLOCK);
-		if (unlikely(client_socket < 0)) {
-			if (errno == EWOULDBLOCK || errno == EAGAIN) return;
-
-			panic("accept4: %s", strerror(errno));
-		}
-
-		uint64_t request_arrival_timestamp = __getcycles();
-
-		http_total_increment_request();
-
-		/* Allocate HTTP Session */
-		struct http_session *session = http_session_alloc(client_socket,
-		                                                  (const struct sockaddr *)&client_address, tenant,
-		                                                  request_arrival_timestamp);
-
-		/* Receive HTTP Request */
-		int rc = http_session_receive_request(session, listener_thread_register_http_session);
-		if (rc == -3) {
-			continue;
-		} else if (rc == -2) {
-			debuglog("Request size exceeded Buffer\n");
-			http_session_send_err_oneshot(session, 413);
-			continue;
-		} else if (rc == -1) {
-			http_session_send_err_oneshot(session, 400);
-			continue;
-		}
-
-		assert(session->http_request.message_end);
-
-		/* Route to sandbox */
-		struct route *route = http_router_match_route(&tenant->router, session->http_request.full_url);
-		if (route == NULL) {
-			http_session_send_err_oneshot(session, 404);
-			continue;
-		}
-
-		/*
-		 * Perform admissions control.
-		 * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
-		 * TODO: Consider providing a Retry-After header
-		 */
-		uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
-		if (work_admitted == 0) {
-			http_session_send_err_oneshot(session, 429);
-			continue;
-		}
-
-		/* Allocate a Sandbox */
-		struct sandbox *sandbox = sandbox_alloc(route->module, session, route, tenant, work_admitted);
-		if (unlikely(sandbox == NULL)) {
-			http_session_send_err_oneshot(session, 503);
-			continue;
-		}
-
-		/* If the global request scheduler is full, return a 429 to the client
-		 */
-		sandbox = global_request_scheduler_add(sandbox);
-		if (unlikely(sandbox == NULL)) {
-			http_session_send_err_oneshot(session, 429);
-			sandbox_free(sandbox);
-			continue;
-		}
+	/* Allocate HTTP Session */
+	struct http_session *session = http_session_alloc(client_socket, (const struct sockaddr *)&client_address,
+	                                                  tenant, request_arrival_timestamp);
+	if (likely(session != NULL)) {
+		on_client_request_receiving(session);
+		return;
+	} else {
+		/* Failed to allocate memory */
+		debuglog("Failed to allocate http session\n");
+		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+		http_session_set_response_header(session, 500, NULL, 0);
+		on_client_response_header_sending(session);
+		return;
 	}
 }
 
 static void
-resume_blocked_read(struct epoll_event *evt)
+on_client_request_receiving(struct http_session *session)
 {
-	assert((evt->events & EPOLLIN) == EPOLLIN);
-
-	/* Unpack http session from epoll event */
-	struct http_session *session = (struct http_session *)evt->data.ptr;
-	assert(session);
-
 	/* Read HTTP request */
-	int rc = http_session_receive_request(session, listener_thread_register_http_session);
-	if (rc == -3) {
+	int rc = http_session_receive_request(session, (void_star_cb)listener_thread_register_http_session);
+	if (likely(rc == 0)) {
+		on_client_request_received(session);
 		return;
-	} else if (rc == -2) {
-		debuglog("Request size exceeded Buffer\n");
-		/* Request size exceeded Buffer, send 413 Payload Too Large */
-		listener_thread_unregister_http_session(session);
-		http_session_send_err_oneshot(session, 413);
+	} else if (unlikely(rc == -EAGAIN)) {
+		/* session blocked and registered to epoll so continue to next handle */
 		return;
-	} else if (rc == -1) {
-		listener_thread_unregister_http_session(session);
-		http_session_send_err_oneshot(session, 400);
+	} else if (unlikely(rc == -ENOMEM)) {
+		/* Failed to grow request buffer */
+		debuglog("Failed to grow http request buffer\n");
+		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+		http_session_set_response_header(session, 500, NULL, 0);
+		on_client_response_header_sending(session);
+		return;
+	} else if (rc < 0) {
+		debuglog("Failed to receive or parse request\n");
+		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+		http_session_set_response_header(session, 400, NULL, 0);
+		on_client_response_header_sending(session);
 		return;
 	}
 
-	assert(session->http_request.message_end);
+	assert(0);
+}
 
-	/* We read session to completion, so can remove from epoll */
-	listener_thread_unregister_http_session(session);
+static void
+on_client_request_received(struct http_session *session)
+{
+	assert(session->state == HTTP_SESSION_RECEIVED_REQUEST);
 
 	struct route *route = http_router_match_route(&session->tenant->router, session->http_request.full_url);
 	if (route == NULL) {
-		http_session_send_err_oneshot(session, 404);
+		debuglog("Did not match any routes\n");
+		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+		http_session_set_response_header(session, 404, NULL, 0);
+		on_client_response_header_sending(session);
 		return;
 	}
 
@@ -242,21 +220,132 @@ resume_blocked_read(struct epoll_event *evt)
 	 */
 	uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
 	if (work_admitted == 0) {
-		http_session_send_err_oneshot(session, 429);
+		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+		http_session_set_response_header(session, 429, NULL, 0);
+		on_client_response_header_sending(session);
 		return;
 	}
 
 	/* Allocate a Sandbox */
+	session->state          = HTTP_SESSION_EXECUTING;
 	struct sandbox *sandbox = sandbox_alloc(route->module, session, route, session->tenant, work_admitted);
 	if (unlikely(sandbox == NULL)) {
-		http_session_send_err_oneshot(session, 503);
+		debuglog("Failed to allocate sandbox\n");
+		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+		http_session_set_response_header(session, 500, NULL, 0);
+		on_client_response_header_sending(session);
 		return;
 	}
 
 	/* If the global request scheduler is full, return a 429 to the client */
 	if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
-		http_session_send_err_oneshot(session, 429);
+		debuglog("Failed to add sandbox to global queue\n");
 		sandbox_free(sandbox);
+		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+		http_session_set_response_header(session, 429, NULL, 0);
+		on_client_response_header_sending(session);
+	}
+}
+
+static void
+on_client_response_header_sending(struct http_session *session)
+{
+	assert(session->state = HTTP_SESSION_EXECUTION_COMPLETE);
+	session->state = HTTP_SESSION_SENDING_RESPONSE_HEADER;
+
+	int rc = http_session_send_response_header(session, (void_star_cb)listener_thread_register_http_session);
+	if (likely(rc == 0)) {
+		on_client_response_body_sending(session);
+		return;
+	} else if (unlikely(rc == -EAGAIN)) {
+		/* session blocked and registered to epoll so continue to next handle */
+		return;
+	} else if (rc < 0) {
+		http_session_close(session);
+		http_session_free(session);
+		return;
+	}
+}
+
+static void
+on_client_response_body_sending(struct http_session *session)
+{
+	/* Read HTTP request */
+	int rc = http_session_send_response_body(session, (void_star_cb)listener_thread_register_http_session);
+	if (likely(rc == 0)) {
+		on_client_response_sent(session);
+		return;
+	} else if (unlikely(rc == -EAGAIN)) {
+		/* session blocked and registered to epoll so continue to next handle */
+		return;
+	} else if (unlikely(rc < 0)) {
+		http_session_close(session);
+		http_session_free(session);
+		return;
+	}
+}
+
+static void
+on_client_response_sent(struct http_session *session)
+{
+	session->response_sent_timestamp = __getcycles();
+
+	http_session_close(session);
+	http_session_free(session);
+	return;
+}
+
+static void
+on_tenant_socket_epoll_event(struct epoll_event *evt)
+{
+	assert((evt->events & EPOLLIN) == EPOLLIN);
+
+	struct tenant *tenant = evt->data.ptr;
+	assert(tenant);
+
+	/* Accept Client Request as a nonblocking socket, saving address information */
+	struct sockaddr_in client_address;
+	socklen_t          address_length = sizeof(client_address);
+
+	/* Accept as many clients requests as possible, returning when we would have blocked */
+	while (true) {
+		int client_socket = accept4(tenant->tcp_server.socket_descriptor, (struct sockaddr *)&client_address,
+		                            &address_length, SOCK_NONBLOCK);
+		if (unlikely(client_socket < 0)) {
+			if (errno == EWOULDBLOCK || errno == EAGAIN) return;
+
+			panic("accept4: %s", strerror(errno));
+		}
+
+		on_client_request_arrival(client_socket, (const struct sockaddr *)&client_address, tenant);
+	}
+}
+
+static void
+on_client_socket_epoll_event(struct epoll_event *evt)
+{
+	assert(evt);
+
+	struct http_session *session = evt->data.ptr;
+	assert(session);
+
+	listener_thread_unregister_http_session(session);
+
+	switch (session->state) {
+	case HTTP_SESSION_RECEIVE_REQUEST_BLOCKED:
+		assert((evt->events & EPOLLIN) == EPOLLIN);
+		on_client_request_receiving(session);
+		break;
+	case HTTP_SESSION_SEND_RESPONSE_HEADER_BLOCKED:
+		assert((evt->events & EPOLLOUT) == EPOLLOUT);
+		on_client_response_header_sending(session);
+		break;
+	case HTTP_SESSION_SEND_RESPONSE_BLOCKED:
+		assert((evt->events & EPOLLOUT) == EPOLLOUT);
+		on_client_response_body_sending(session);
+		break;
+	default:
+		panic("Invalid HTTP Session State");
 	}
 }
 
@@ -298,9 +387,9 @@ listener_thread_main(void *dummy)
 			panic_on_epoll_error(&epoll_events[i]);
 
 			if (tenant_database_find_by_ptr(epoll_events[i].data.ptr) != NULL) {
-				handle_tcp_requests(&epoll_events[i]);
+				on_tenant_socket_epoll_event(&epoll_events[i]);
 			} else {
-				resume_blocked_read(&epoll_events[i]);
+				on_client_socket_epoll_event(&epoll_events[i]);
 			}
 		}
 		generic_thread_dump_lock_overhead();

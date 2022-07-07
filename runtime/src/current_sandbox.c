@@ -46,7 +46,7 @@ current_sandbox_sleep()
 /**
  * @brief Switches from an executing sandbox to the worker thread base context
  *
- * This places the current sandbox on the completion queue if in RETURNED state
+ * This places the current sandbox on the completion queue if in RETURNED or RUNNING_SYS state
  */
 void
 current_sandbox_exit()
@@ -81,42 +81,32 @@ current_sandbox_wasm_trap_handler(int trapno)
 	struct sandbox *sandbox       = current_sandbox_get();
 	sandbox_syscall(sandbox);
 
-	struct http_session *session = sandbox->http;
-
 	switch (trapno) {
 	case WASM_TRAP_INVALID_INDEX:
 		error_message = "WebAssembly Trap: Invalid Index\n";
-		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_MISMATCHED_TYPE:
 		error_message = "WebAssembly Trap: Mismatched Type\n";
-		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_PROTECTED_CALL_STACK_OVERFLOW:
 		error_message = "WebAssembly Trap: Protected Call Stack Overflow\n";
-		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY:
 		error_message = "WebAssembly Trap: Out of Bounds Linear Memory Access\n";
-		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_ILLEGAL_ARITHMETIC_OPERATION:
 		error_message = "WebAssembly Trap: Illegal Arithmetic Operation\n";
-		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	case WASM_TRAP_UNREACHABLE:
 		error_message = "WebAssembly Trap: Unreachable Instruction\n";
-		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	default:
 		error_message = "WebAssembly Trap: Unknown Trapno\n";
-		http_session_send_err(session, 500, current_sandbox_sleep);
 		break;
 	}
 
 	debuglog("%s", error_message);
 	worker_thread_epoll_remove_sandbox(sandbox);
-	http_session_close(sandbox->http);
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
 	assert(0);
@@ -165,7 +155,6 @@ current_sandbox_init()
 err:
 	debuglog("%s", error_message);
 	worker_thread_epoll_remove_sandbox(sandbox);
-	http_session_close(sandbox->http);
 	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
 	return NULL;
@@ -181,24 +170,12 @@ current_sandbox_fini()
 	sandbox_syscall(sandbox);
 
 	sandbox->timestamp_of.completion = __getcycles();
-	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.request_arrival;
-
-	/* Retrieve the result, construct the HTTP response, and send to client */
-	if (http_session_send_response(sandbox->http, sandbox->route->response_content_type, current_sandbox_sleep)
-	    < 0) {
-		error_message = "Unable to build and send client response\n";
-		goto err;
-	};
-
-	http_total_increment_2xx();
-
-	sandbox->timestamp_of.response = __getcycles();
+	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation;
 
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 	worker_thread_epoll_remove_sandbox(sandbox);
 
 done:
-	http_session_close(sandbox->http);
 	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING_SYS);
 
 	/* Cleanup connection and exit sandbox */

@@ -30,55 +30,57 @@ tcp_session_close(int client_socket, struct sockaddr *client_address)
 	}
 }
 
-typedef void (*void_cb)(void);
+typedef void (*void_star_cb)(void *);
 
 /**
  * Writes buffer to the client socket
  * @param client_socket - the client
  * @param buffer - buffer to write to socket
  * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
- * @returns 0 on success, -1 on error.
+ * @returns nwritten on success, -errno, -EAGAIN on block
  */
-static inline int
-tcp_session_send(int client_socket, const char *buffer, size_t buffer_len, void_cb on_eagain)
+static inline ssize_t
+tcp_session_send(int client_socket, const char *buffer, size_t buffer_len, void_star_cb on_eagain, void *dataptr)
 {
-	int rc;
+	assert(buffer != NULL);
+	assert(buffer_len > 0);
 
-	size_t cursor = 0;
-
-	while (cursor < buffer_len) {
-		ssize_t sent = write(client_socket, &buffer[cursor], buffer_len - cursor);
-		if (sent < 0) {
-			if (errno == EAGAIN) {
-				if (on_eagain == NULL) {
-					rc = -1;
-					goto done;
-				}
-				on_eagain();
-			} else {
-				debuglog("Error sending to client: %s", strerror(errno));
-				rc = -1;
-				goto done;
-			}
+	ssize_t sent = write(client_socket, buffer, buffer_len);
+	if (sent < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			if (on_eagain != NULL) on_eagain(dataptr);
+			return -EAGAIN;
+		} else {
+			return -errno;
 		}
+	}
 
-		assert(sent > 0);
-		cursor += (size_t)sent;
-	};
-
-	rc = 0;
-done:
-	return rc;
+	return sent;
 }
 
 /**
- * Rejects request due to admission control or error
- * @param client_socket - the client we are rejecting
- * @param buffer - buffer to write to socket
- * @returns 0
+ * Writes buffer to the client socket
+ * @param client_socket - the client
+ * @param buffer - buffer to reach the socket into
+ * @param buffer_len - buffer to reach the socket into
+ * @param on_eagain - cb to execute when client socket returns EAGAIN. If NULL, error out
+ * @returns nwritten on success, -errno on error, -eagain on block
  */
-static inline int
-tcp_session_send_oneshot(int client_socket, const char *buffer, size_t buffer_len)
+static inline ssize_t
+tcp_session_recv(int client_socket, char *buffer, size_t buffer_len, void_star_cb on_eagain, void *dataptr)
 {
-	return tcp_session_send(client_socket, buffer, buffer_len, NULL);
+	assert(buffer != NULL);
+	assert(buffer_len > 0);
+
+	ssize_t received = read(client_socket, buffer, buffer_len);
+	if (received < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			if (on_eagain != NULL) on_eagain(dataptr);
+			return -EAGAIN;
+		} else {
+			return -errno;
+		}
+	}
+
+	return received;
 }

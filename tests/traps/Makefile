@@ -31,6 +31,7 @@ debug: sledgert trap_divzero
 	LD_LIBRARY_PATH=${SLEDGE_BINARY_DIR} gdb ${SLEDGE_BINARY_DIR}/sledgert \
 		--eval-command="handle SIGUSR1 noprint nostop" \
 		--eval-command="handle SIGPIPE noprint nostop" \
+		--eval-command="handle SIGFPE noprint nostop" \
 		--eval-command="set pagination off" \
 		--eval-command="run spec.json"
 
@@ -38,7 +39,7 @@ client-ok:
 	echo "1" | http :10000/divide
 
 client-trap:
-	echo "0" | http :10000/divide
+	echo "0" | http --timeout 3600 :10000/divide
 
 client-trap2:
 	echo "-1" | http :10000/divide

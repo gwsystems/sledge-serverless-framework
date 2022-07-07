@@ -60,12 +60,6 @@
 	"Connection: close\r\n"                \
 	"\r\n"
 
-static inline int
-http_header_200_write(int fd, const char *content_type, size_t content_length)
-{
-	return dprintf(fd, HTTP_RESPONSE_200_TEMPLATE, content_type, content_length);
-}
-
 static inline const char *
 http_header_build(int status_code)
 {
@@ -103,7 +97,7 @@ http_header_build(int status_code)
 	return response;
 }
 
-static inline int
+static inline size_t
 http_header_len(int status_code)
 {
 	switch (status_code) {

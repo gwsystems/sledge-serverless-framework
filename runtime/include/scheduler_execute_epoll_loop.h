@@ -60,8 +60,6 @@ scheduler_execute_epoll_loop(void)
 				case SANDBOX_ERROR:
 					panic("Expected to have closed socket");
 				default:
-					http_session_send_err_oneshot(sandbox->http, 503);
-					http_session_close(sandbox->http);
 					sandbox_set_as_error(sandbox, sandbox->state);
 				}
 			} else {
