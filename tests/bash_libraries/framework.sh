@@ -107,6 +107,7 @@ __framework_sh__initialize_globals() {
 	declare -gr __framework_sh__application_directory="$(dirname "$(realpath "$0"))")"
 	# shellcheck disable=SC2155
 	declare -gr __framework_sh__path=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
+	declare -gr __framework_sh__common_path="$(cd "$__framework_sh__path" && cd ../common && pwd)"
 	local -r binary_directory="$(cd "$__framework_sh__path" && cd ../../runtime/bin && pwd)"
 	export PATH=$binary_directory:$PATH
 	export LD_LIBRARY_PATH=$binary_directory:$LD_LIBRARY_PATH
@@ -441,7 +442,7 @@ __framework_sh__run_both() {
 		__framework_sh__run_both_env "$__framework_sh__envfile"
 	else
 		local -i envfiles_found=0
-		for envfile in "$__framework_sh__application_directory"/*.env; do
+		for envfile in "$__framework_sh__common_path"/*.env; do
 			((envfiles_found++))
 			__framework_sh__run_both_env "$envfile" || exit 1
 		done
