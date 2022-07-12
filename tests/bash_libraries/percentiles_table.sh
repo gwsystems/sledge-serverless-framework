@@ -36,7 +36,7 @@ percentiles_table_row() {
 	local -r table_file="${2:?table_file not set}"
 	check_file table_file
 	local -r row_label="${3:?row_label not set}"
-	local -r format_string="${4:-%1.2f}"
+	local -r format_string="${4:-%1.0f}"
 
 	# Count the number of results
 	local -i sample_size
