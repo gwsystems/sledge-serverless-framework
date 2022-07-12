@@ -70,7 +70,7 @@ if ! command -v imagemagick > /dev/null; then
 	fi
 fi
 
-# For GOCR:
+# For GOCR, too many to check one-by-one, so uncomment below to install:
 # if [[ "$(whoami)" == "root" ]]; then
 # 	apt-get install -y netpbm pango1.0-tools wamerican fonts-roboto fonts-cascadia-code fonts-dejavu
 # else
