@@ -128,13 +128,13 @@ all: thirdparty runtime
 clean: thirdparty.clean runtime.clean
 
 # sledgert Rules
-bin/sledgert: ${HEADER_DEPS} ${CFILES}
+bin/${BINARY_NAME}: ${HEADER_DEPS} ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ ${CFILES} -o bin/sledgert
+	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ ${CFILES} -o bin/${BINARY_NAME}
 
 .PHONY: runtime
-runtime: bin/sledgert
+runtime: bin/${BINARY_NAME}
 
 .PHONY: runtime.clean
 runtime.clean:

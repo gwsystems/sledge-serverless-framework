@@ -107,6 +107,7 @@ __framework_sh__initialize_globals() {
 	declare -gr __framework_sh__application_directory="$(dirname "$(realpath "$0"))")"
 	# shellcheck disable=SC2155
 	declare -gr __framework_sh__path=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
+	declare -gr __framework_sh__common_path="$(cd "$__framework_sh__path" && cd ../common && pwd)"
 	local -r binary_directory="$(cd "$__framework_sh__path" && cd ../../runtime/bin && pwd)"
 	export PATH=$binary_directory:$PATH
 	export LD_LIBRARY_PATH=$binary_directory:$LD_LIBRARY_PATH
@@ -354,6 +355,7 @@ __framework_sh__run_debug() {
 			--eval-command="handle SIGUSR1 noprint nostop" \
 			--eval-command="handle SIGPIPE noprint nostop" \
 			--eval-command="set pagination off" \
+			--eval-command="set print pretty" \
 			--eval-command="set substitute-path /sledge/runtime $project_directory" \
 			--eval-command="run $__framework_sh__application_directory/spec.json" \
 			sledgert
@@ -362,6 +364,7 @@ __framework_sh__run_debug() {
 			--eval-command="handle SIGUSR1 noprint nostop" \
 			--eval-command="handle SIGPIPE noprint nostop" \
 			--eval-command="set pagination off" \
+			--eval-command="set print pretty" \
 			--eval-command="run $__framework_sh__application_directory/spec.json" \
 			sledgert
 	fi
@@ -371,6 +374,11 @@ __framework_sh__run_debug() {
 }
 
 __framework_sh__run_client() {
+	local -r log_name=log.txt
+	local log="$RESULTS_DIRECTORY/${log_name}"
+	
+	__framework_sh__log_environment >> "$log"
+
 	experiment_client "$__framework_sh__target" "$RESULTS_DIRECTORY" || return 1
 
 	return 0
@@ -434,7 +442,7 @@ __framework_sh__run_both() {
 		__framework_sh__run_both_env "$__framework_sh__envfile"
 	else
 		local -i envfiles_found=0
-		for envfile in "$__framework_sh__application_directory"/*.env; do
+		for envfile in "$__framework_sh__common_path"/*.env; do
 			((envfiles_found++))
 			__framework_sh__run_both_env "$envfile" || exit 1
 		done
@@ -452,7 +460,8 @@ __framework_sh__run_both() {
 __framework_sh__create_and_export_results_directory() {
 	local -r subdirectory=${1:-""}
 
-	local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$subdirectory"
+	local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name"
+	# local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$subdirectory"
 
 	mkdir -p "$dir" || {
 		panic "mkdir -p $dir"

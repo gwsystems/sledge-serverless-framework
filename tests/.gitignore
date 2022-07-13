@@ -1,0 +1,10 @@
+res
+perf.data
+perf.data.old
+samples
+perf.log
+log.csv
+*res.dat
+result.dat
+result.jpg
+rt.log
