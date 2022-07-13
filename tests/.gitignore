@@ -1,4 +1,6 @@
 res
+perf.data
+perf.data.old
 samples
 perf.log
 log.csv
