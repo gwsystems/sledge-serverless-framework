@@ -9,7 +9,8 @@
 #include "route_config_parse.h"
 #include "tenant_config.h"
 
-static const char *tenant_config_json_keys[tenant_config_member_len] = { "name", "port", "replenishment-period-us", "max-budget-us", "routes" };
+static const char *tenant_config_json_keys[tenant_config_member_len] = { "name", "port", "replenishment-period-us",
+	                                                                 "max-budget-us", "routes" };
 
 static inline int
 tenant_config_set_key_once(bool *did_set, enum tenant_config_member member)
@@ -63,16 +64,19 @@ tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_
 			if (rc < 0) return -1;
 		} else if (strcmp(key, tenant_config_json_keys[tenant_config_member_replenishment_period_us]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
-			if (tenant_config_set_key_once(did_set, tenant_config_member_replenishment_period_us) == -1) return -1;
+			if (tenant_config_set_key_once(did_set, tenant_config_member_replenishment_period_us) == -1)
+				return -1;
 
-			int rc = parse_uint32_t(tokens[i], json_buf, tenant_config_json_keys[tenant_config_member_replenishment_period_us],
+			int rc = parse_uint32_t(tokens[i], json_buf,
+			                        tenant_config_json_keys[tenant_config_member_replenishment_period_us],
 			                        &config->replenishment_period_us);
 			if (rc < 0) return -1;
 		} else if (strcmp(key, tenant_config_json_keys[tenant_config_member_max_budget_us]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
 			if (tenant_config_set_key_once(did_set, tenant_config_member_max_budget_us) == -1) return -1;
 
-			int rc = parse_uint32_t(tokens[i], json_buf, tenant_config_json_keys[tenant_config_member_max_budget_us],
+			int rc = parse_uint32_t(tokens[i], json_buf,
+			                        tenant_config_json_keys[tenant_config_member_max_budget_us],
 			                        &config->max_budget_us);
 			if (rc < 0) return -1;
 		} else if (strcmp(key, tenant_config_json_keys[tenant_config_member_routes]) == 0) {

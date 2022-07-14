@@ -39,10 +39,10 @@ struct tenant {
 	struct map             scratch_storage;
 
 	/* Deferrable Server Attributes */
-	uint64_t                 replenishment_period;   /* cycles, not changing after init */
-	uint64_t                 max_budget;             /* cycles, not changing after init */
-	_Atomic volatile int64_t remaining_budget;       /* cycles left till next replenishment, can be negative */
-	
+	uint64_t                 replenishment_period; /* cycles, not changing after init */
+	uint64_t                 max_budget;           /* cycles, not changing after init */
+	_Atomic volatile int64_t remaining_budget;     /* cycles left till next replenishment, can be negative */
+
 	struct perworker_tenant_sandbox_queue *pwt_sandboxes;
 	struct tenant_global_request_queue    *tgrq_requests;
 };

@@ -13,11 +13,11 @@ typedef int (*global_request_scheduler_remove_with_mt_class_fn_t)(struct sandbox
 typedef uint64_t (*global_request_scheduler_peek_fn_t)(void);
 
 struct global_request_scheduler_config {
-	global_request_scheduler_add_fn_t               add_fn;
-	global_request_scheduler_remove_fn_t            remove_fn;
-	global_request_scheduler_remove_if_earlier_fn_t remove_if_earlier_fn;
+	global_request_scheduler_add_fn_t                  add_fn;
+	global_request_scheduler_remove_fn_t               remove_fn;
+	global_request_scheduler_remove_if_earlier_fn_t    remove_if_earlier_fn;
 	global_request_scheduler_remove_with_mt_class_fn_t remove_with_mt_class_fn;
-	global_request_scheduler_peek_fn_t              peek_fn;
+	global_request_scheduler_peek_fn_t                 peek_fn;
 };
 
 
