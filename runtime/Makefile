@@ -131,7 +131,7 @@ clean: thirdparty.clean runtime.clean
 bin/${BINARY_NAME}: ${HEADER_DEPS} ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ ${CFILES} -o bin/${BINARY_NAME}
+	@${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ ${CFILES} -o bin/${BINARY_NAME}
 
 .PHONY: runtime
 runtime: bin/${BINARY_NAME}

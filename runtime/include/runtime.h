@@ -23,9 +23,10 @@
 
 #define RUNTIME_LOG_FILE                 "sledge.log"
 #define RUNTIME_MAX_EPOLL_EVENTS         128
-#define RUNTIME_MAX_TENANT_COUNT         32         /* Static buffer size for per-worker globals */
+#define RUNTIME_MAX_TENANT_COUNT         32
 #define RUNTIME_RELATIVE_DEADLINE_US_MAX 3600000000 /* One Hour. Fits in uint32_t */
 #define RUNTIME_RUNQUEUE_SIZE            256        /* Minimum guaranteed size. Might grow! */
+#define RUNTIME_TENANT_QUEUE_SIZE        4096
 
 enum RUNTIME_SIGALRM_HANDLER
 {
@@ -41,6 +42,7 @@ extern pthread_t                   *runtime_worker_threads;
 extern uint32_t                     runtime_worker_threads_count;
 extern int                         *runtime_worker_threads_argument;
 extern uint64_t                    *runtime_worker_threads_deadline;
+extern uint64_t                     runtime_boot_timestamp;
 
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);

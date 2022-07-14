@@ -46,7 +46,7 @@ current_sandbox_sleep()
 /**
  * @brief Switches from an executing sandbox to the worker thread base context
  *
- * This places the current sandbox on the completion queue if in RETURNED or RUNNING_SYS state
+ * This places the current sandbox on the cleanup queue if in RETURNED or RUNNING_SYS state
  */
 void
 current_sandbox_exit()

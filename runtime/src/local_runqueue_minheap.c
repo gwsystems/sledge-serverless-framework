@@ -57,10 +57,9 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 
 /**
  * This function determines the next sandbox to run.
- * This is either the head of the runqueue or the head of the request queue
+ * This is the head of the local runqueue
  *
  * Execute the sandbox at the head of the thread local runqueue
- * If the runqueue is empty, pull a fresh batch of sandbox requests, instantiate them, and then execute the new head
  * @return the sandbox to execute or NULL if none are available
  */
 struct sandbox *

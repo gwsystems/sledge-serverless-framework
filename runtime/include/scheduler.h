@@ -8,10 +8,12 @@
 #include "global_request_scheduler.h"
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
+#include "global_request_scheduler_mtds.h"
 #include "local_runqueue.h"
 #include "local_runqueue_minheap.h"
 #include "local_runqueue_list.h"
 #include "local_cleanup_queue.h"
+#include "local_runqueue_mtds.h"
 #include "panic.h"
 #include "sandbox_functions.h"
 #include "sandbox_types.h"
@@ -62,11 +64,53 @@
  * initialize a sandbox.
  */
 
+static inline struct sandbox *
+scheduler_mtdbf_get_next()
+{
+	return NULL;
+}
+
+static inline struct sandbox *
+scheduler_mtds_get_next()
+{
+	/* Get the deadline of the sandbox at the head of the local queue */
+	struct sandbox          *local          = local_runqueue_get_next();
+	uint64_t                 local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
+	enum MULTI_TENANCY_CLASS local_mt_class = MT_DEFAULT;
+	struct sandbox          *global         = NULL;
+
+	if (local) local_mt_class = local->tenant->pwt_sandboxes[worker_thread_idx].mt_class;
+
+	uint64_t global_guaranteed_deadline = global_request_scheduler_mtds_guaranteed_peek();
+	uint64_t global_default_deadline    = global_request_scheduler_mtds_default_peek();
+
+	/* Try to pull and allocate from the global queue if earlier
+	 * This will be placed at the head of the local runqueue */
+	switch (local_mt_class) {
+	case MT_GUARANTEED:
+		if (global_guaranteed_deadline >= local_deadline) goto done;
+		break;
+	case MT_DEFAULT:
+		if (global_guaranteed_deadline == UINT64_MAX && global_default_deadline >= local_deadline) goto done;
+		break;
+	}
+
+	if (global_request_scheduler_remove_with_mt_class(&global, local_deadline, local_mt_class) == 0) {
+		assert(global != NULL);
+		sandbox_prepare_execution_environment(global);
+		assert(global->state == SANDBOX_INITIALIZED);
+		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+	}
+
+/* Return what is at the head of the local runqueue or NULL if empty */
+done:
+	return local_runqueue_get_next();
+}
 
 static inline struct sandbox *
 scheduler_edf_get_next()
 {
-	/* Get the deadline of the sandbox at the head of the local request queue */
+	/* Get the deadline of the sandbox at the head of the local queue */
 	struct sandbox *local          = local_runqueue_get_next();
 	uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
 	struct sandbox *global         = NULL;
@@ -116,6 +160,10 @@ static inline struct sandbox *
 scheduler_get_next()
 {
 	switch (scheduler) {
+	case SCHEDULER_MTDBF:
+		return scheduler_mtdbf_get_next();
+	case SCHEDULER_MTDS:
+		return scheduler_mtds_get_next();
 	case SCHEDULER_EDF:
 		return scheduler_edf_get_next();
 	case SCHEDULER_FIFO:
@@ -129,6 +177,12 @@ static inline void
 scheduler_initialize()
 {
 	switch (scheduler) {
+	case SCHEDULER_MTDBF:
+		// global_request_scheduler_mtdbf_initialize();
+		break;
+	case SCHEDULER_MTDS:
+		global_request_scheduler_mtds_initialize();
+		break;
 	case SCHEDULER_EDF:
 		global_request_scheduler_minheap_initialize();
 		break;
@@ -144,6 +198,12 @@ static inline void
 scheduler_runqueue_initialize()
 {
 	switch (scheduler) {
+	case SCHEDULER_MTDBF:
+		// local_runqueue_mtdbf_initialize();
+		break;
+	case SCHEDULER_MTDS:
+		local_runqueue_mtds_initialize();
+		break;
 	case SCHEDULER_EDF:
 		local_runqueue_minheap_initialize();
 		break;
@@ -163,6 +223,10 @@ scheduler_print(enum SCHEDULER variant)
 		return "FIFO";
 	case SCHEDULER_EDF:
 		return "EDF";
+	case SCHEDULER_MTDS:
+		return "MTDS";
+	case SCHEDULER_MTDBF:
+		return "MTDBF";
 	}
 }
 
@@ -214,6 +278,30 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
 }
 
 /**
+ * Call either at preemptions or blockings to update the scheduler-specific
+ *  properties for the given tenant.
+ */
+static inline void
+scheduler_process_policy_specific_updates_on_interrupts(struct sandbox *interrupted_sandbox)
+{
+	switch (scheduler) {
+	case SCHEDULER_FIFO:
+		return;
+	case SCHEDULER_EDF:
+		return;
+	case SCHEDULER_MTDS:
+		local_timeout_queue_process_promotions();
+		return;
+	case SCHEDULER_MTDBF:
+		// scheduler_check_messages_from_listener();
+		if (interrupted_sandbox->state != SANDBOX_ERROR) {
+			sandbox_process_scheduler_updates(interrupted_sandbox);
+		}
+		return;
+	}
+}
+
+/**
  * Called by the SIGALRM handler after a quantum
  * Assumes the caller validates that there is something to preempt
  * @param interrupted_context - The context of our user-level Worker thread
@@ -230,6 +318,8 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	struct sandbox *interrupted_sandbox = current_sandbox_get();
 	assert(interrupted_sandbox != NULL);
 	assert(interrupted_sandbox->state == SANDBOX_INTERRUPTED);
+	// printf ("Worker #%d interrupted sandbox #%lu\n", worker_thread_idx, interrupted_sandbox->id);
+	scheduler_process_policy_specific_updates_on_interrupts(interrupted_sandbox);
 
 	struct sandbox *next = scheduler_get_next();
 	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */

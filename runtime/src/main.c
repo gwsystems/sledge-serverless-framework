@@ -38,6 +38,7 @@ enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_B
 
 bool     runtime_preemption_enabled = true;
 uint32_t runtime_quantum_us         = 5000; /* 5ms */
+uint64_t runtime_boot_timestamp;
 
 /**
  * Returns instructions on use of CLI if used incorrectly
@@ -178,12 +179,19 @@ runtime_configure()
 	/* Scheduler Policy */
 	char *scheduler_policy = getenv("SLEDGE_SCHEDULER");
 	if (scheduler_policy == NULL) scheduler_policy = "EDF";
-	if (strcmp(scheduler_policy, "EDF") == 0) {
+	if (strcmp(scheduler_policy, "MTDBF") == 0) {
+#ifndef TRAFFIC_CONTROL
+		panic("This scheduler requires the TRAFFIC_CONTROL toggle ON!");
+#endif
+		scheduler = SCHEDULER_MTDBF;
+	} else if (strcmp(scheduler_policy, "MTDS") == 0) {
+		scheduler = SCHEDULER_MTDS;
+	} else if (strcmp(scheduler_policy, "EDF") == 0) {
 		scheduler = SCHEDULER_EDF;
 	} else if (strcmp(scheduler_policy, "FIFO") == 0) {
 		scheduler = SCHEDULER_FIFO;
 	} else {
-		panic("Invalid scheduler policy: %s. Must be {EDF|FIFO}\n", scheduler_policy);
+		panic("Invalid scheduler policy: %s. Must be {MTDBF|MTDS|EDF|FIFO}\n", scheduler_policy);
 	}
 	pretty_print_key_value("Scheduler Policy", "%s\n", scheduler_print(scheduler));
 
@@ -284,6 +292,12 @@ log_compiletime_config()
 	pretty_print_key_disabled("Log Lock Overhead");
 #endif
 
+#ifdef LOG_TENANT_LOADING
+	pretty_print_key_enabled("Log Tenant Loading");
+#else
+	pretty_print_key_disabled("Log Tenant Loading");
+#endif
+
 #ifdef LOG_PREEMPTION
 	pretty_print_key_enabled("Log Preemption");
 #else
@@ -377,6 +391,9 @@ load_file_into_buffer(const char *file_name, char **file_buffer)
 
 	/* Read the file into the buffer and check that the buffer size equals the file size */
 	size_t total_chars_read = fread(*file_buffer, sizeof(char), stat_buffer.st_size, file);
+#ifdef LOG_TENANT_LOADING
+	debuglog("size read: %d content: %s\n", total_chars_read, *file_buffer);
+#endif
 	if (total_chars_read != stat_buffer.st_size) {
 		fprintf(stderr, "Attempt to read %s into buffer failed: %s\n", file_name, strerror(errno));
 		goto fread_err;
@@ -414,7 +431,6 @@ main(int argc, char **argv)
 
 	printf("Starting the Sledge runtime\n");
 
-
 	log_compiletime_config();
 	runtime_process_debug_log_behavior();
 
@@ -437,6 +453,9 @@ main(int argc, char **argv)
 	runtime_start_runtime_worker_threads();
 	software_interrupt_arm_timer();
 
+#ifdef LOG_TENANT_LOADING
+	debuglog("Parsing <spec.json> file [%s]\n", argv[1]);
+#endif
 	const char *json_path    = argv[1];
 	char       *json_buf     = NULL;
 	size_t      json_buf_len = load_file_into_buffer(json_path, &json_buf);
@@ -460,6 +479,8 @@ main(int argc, char **argv)
 		rc = tenant_listen(tenant);
 		if (rc < 0) exit(-1);
 	}
+
+	runtime_boot_timestamp = __getcycles();
 
 	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
 		tenant_config_deinit(&tenant_config_vec[tenant_idx]);
