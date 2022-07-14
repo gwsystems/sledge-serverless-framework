@@ -95,7 +95,7 @@ scheduler_mtds_get_next()
 		break;
 	}
 
-	if (global_request_scheduler_remove_with_mt_class(&global, local_deadline, local_mt_class) == 0) {
+	if (global_request_scheduler_mtds_remove_with_mt_class(&global, local_deadline, local_mt_class) == 0) {
 		assert(global != NULL);
 		sandbox_prepare_execution_environment(global);
 		assert(global->state == SANDBOX_INITIALIZED);
