@@ -219,12 +219,12 @@ global_request_scheduler_mtds_default_peek(void)
 void
 global_request_scheduler_mtds_initialize()
 {
-	global_request_scheduler_mtds_guaranteed = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
+	global_request_scheduler_mtds_guaranteed = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
 	                                                                     tenant_request_queue_get_priority);
-	global_request_scheduler_mtds_default    = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
+	global_request_scheduler_mtds_default    = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
 	                                                                     tenant_request_queue_get_priority);
 
-	global_tenant_timeout_queue = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
+	global_tenant_timeout_queue = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
 	                                                        tenant_timeout_get_priority);
 
 	LOCK_INIT(&global_lock);
