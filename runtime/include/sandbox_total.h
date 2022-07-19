@@ -9,7 +9,7 @@ extern _Atomic uint32_t sandbox_total;
 static inline void
 sandbox_total_initialize()
 {
-	atomic_init(&sandbox_total, 0);
+	atomic_init(&sandbox_total, 1); /* keep zero for error-handling purposes */
 }
 
 static inline uint32_t

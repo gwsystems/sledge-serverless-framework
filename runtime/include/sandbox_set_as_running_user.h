@@ -47,6 +47,9 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_transition_from_hook(sandbox, last_state);
 	sandbox_state_transition_to_hook(sandbox, SANDBOX_RUNNING_USER);
 
+	if (last_state == SANDBOX_RUNNING_SYS)
+		sandbox_process_scheduler_updates(sandbox); // TODO: is this code preemptable? Ok to be?
+
 	barrier();
 	sandbox->state = SANDBOX_RUNNING_USER;
 	/* WARNING: All code after this assignment is preemptable */

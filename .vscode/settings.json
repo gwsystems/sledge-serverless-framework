@@ -123,7 +123,8 @@
 		"route_config_parse.h": "c",
 		"route.h": "c",
 		"pool.h": "c",
-		"local_cleanup_queue.h": "c"
+		"local_cleanup_queue.h": "c",
+		"sandbox_state_transition.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,

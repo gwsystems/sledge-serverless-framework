@@ -2,6 +2,8 @@
 	{
 		"name": "gwu",
 		"port": 10000,
+		"replenishment-period-us": 0,
+		"max-budget-us": 0,
 		"routes": [
 			{
 				"route": "/gocr_72_dpi",

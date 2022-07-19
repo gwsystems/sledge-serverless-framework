@@ -75,7 +75,7 @@ route_config_validate(struct route_config *config, bool *did_set)
 		config->http_resp_content_type = "text/plain";
 	}
 
-	if (scheduler == SCHEDULER_EDF) {
+	if (scheduler != SCHEDULER_FIFO) {
 		if (did_set[route_config_member_relative_deadline_us] == false) {
 			fprintf(stderr, "relative_deadline_us is required\n");
 			return -1;

@@ -79,4 +79,6 @@ sandbox_exit_error(struct sandbox *sandbox)
 {
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 	sandbox_set_as_error(sandbox, SANDBOX_RUNNING_SYS);
+
+	sandbox_process_scheduler_updates(sandbox);
 }

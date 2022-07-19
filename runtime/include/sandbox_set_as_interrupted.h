@@ -40,6 +40,8 @@ static inline void
 sandbox_interrupt(struct sandbox *sandbox)
 {
 	sandbox_set_as_interrupted(sandbox, sandbox->state);
+
+	sandbox_process_scheduler_updates(sandbox);
 }
 
 
@@ -62,6 +64,10 @@ sandbox_interrupt_return(struct sandbox *sandbox, sandbox_state_t interrupted_st
 	/* We do not append SANDBOX_INTERRUPTED to the sandbox_state_history because it would quickly fill the buffer */
 	sandbox_state_totals_increment(interrupted_state);
 	sandbox_state_totals_decrement(SANDBOX_INTERRUPTED);
+
+	if (sandbox->absolute_deadline < now) {
+		// printf("Interrupted Sandbox missed deadline already!\n");
+	}
 
 	barrier();
 	/* WARNING: Code after this assignment may be preemptable */

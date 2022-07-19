@@ -59,4 +59,6 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* State Change Hooks */
 	sandbox_state_transition_from_hook(sandbox, last_state);
 	sandbox_state_transition_to_hook(sandbox, SANDBOX_RETURNED);
+
+	sandbox_process_scheduler_updates(sandbox);
 }
