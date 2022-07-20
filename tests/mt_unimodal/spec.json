@@ -18,7 +18,7 @@
   },
   {
     "name": "GWU",
-    "port": 10031,
+    "port": 20030,
     "replenishment-period-us": 16000,
     "max-budget-us": 144000,
     "routes": [

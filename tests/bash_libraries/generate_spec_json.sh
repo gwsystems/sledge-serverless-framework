@@ -7,16 +7,15 @@ __generate_spec_json_sh__=$(date)
 generate_spec_json() {
 	printf "Generating 'spec.json'\n"
 
-	local -i port=$INIT_PORT
-
 	for tenant in "${TENANTS[@]}"; do
-		repl_period=${MTDS_REPLENISH_PERIODS_us[${tenant}]}
-		budget=${MTDS_MAX_BUDGETS_us[${tenant}]}
+		port=${PORTS[$tenant]}
+		repl_period=${MTDS_REPLENISH_PERIODS_us[$tenant]}
+		budget=${MTDS_MAX_BUDGETS_us[$tenant]}
 		# reservation=${MTDBF_RESERVATIONS_percen[${tenant}]}
-		route=${ROUTES[${tenant}]}
-		workload="$tenant-${route:1}"
-		deadline=${DEADLINES_us[${workload}]}
-		expected=${EXPECTED_EXECUTIONS_us[${workload}]}
+		route=${ROUTES[$tenant]}
+		workload="$tenant-$route"
+		deadline=${DEADLINES_us[$workload]}
+		expected=${EXPECTED_EXECUTIONS_us[$workload]}
 
 		# Generates unique module specs on different ports using the given 'ru's
 		jq ". + { \
@@ -26,7 +25,7 @@ generate_spec_json() {
 			\"max-budget-us\": $budget} | \
 			(.routes[] = \
 				.routes[] + { \
-				\"route\": \"$route\",\
+				\"route\": \"/$route\",\
 				\"admissions-percentile\": $ESTIMATIONS_PERCENTILE,\
 				\"expected-execution-us\": $expected,\
 				\"relative-deadline-us\": $deadline 
@@ -35,8 +34,6 @@ generate_spec_json() {
 			< "./template.json" \
 			> "./result_${tenant}.json"
 		# \"reservation-percentile\": $reservation, \
-
-		((port++))
 	done
 
 	if [ "$CLIENT_TERMINATE_SERVER" == true ]; then
