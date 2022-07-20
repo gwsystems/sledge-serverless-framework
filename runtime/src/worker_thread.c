@@ -60,7 +60,7 @@ worker_thread_main(void *argument)
 	local_cleanup_queue_initialize();
 
 	if (scheduler == SCHEDULER_MTDS) {
-		worker_thread_timeout_queue = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
+		worker_thread_timeout_queue = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
 		                                                        tenant_timeout_get_priority);
 	}
 

@@ -41,7 +41,7 @@ sandbox_interrupt(struct sandbox *sandbox)
 {
 	sandbox_set_as_interrupted(sandbox, sandbox->state);
 
-	// sandbox_process_scheduler_updates(sandbox);
+	sandbox_process_scheduler_updates(sandbox);
 }
 
 

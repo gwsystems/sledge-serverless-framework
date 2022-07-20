@@ -166,9 +166,9 @@ void
 local_runqueue_mtds_initialize()
 {
 	/* Initialize local state */
-	local_runqueue_mtds_guaranteed = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
+	local_runqueue_mtds_guaranteed = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
 	                                                           perworker_tenant_get_priority);
-	local_runqueue_mtds_default    = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false,
+	local_runqueue_mtds_default    = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
 	                                                           perworker_tenant_get_priority);
 
 	/* Register Function Pointers for Abstract Scheduling API */
