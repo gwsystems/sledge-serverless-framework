@@ -11,6 +11,7 @@
 #include "tcp_session.h"
 #include "tenant.h"
 #include "tenant_functions.h"
+#include "http_session_perf_log.h"
 
 static void listener_thread_unregister_http_session(struct http_session *http);
 static void panic_on_epoll_error(struct epoll_event *evt);
@@ -203,6 +204,7 @@ static void
 on_client_request_received(struct http_session *session)
 {
 	assert(session->state == HTTP_SESSION_RECEIVED_REQUEST);
+	session->request_downloaded_timestamp = __getcycles();
 
 	struct route *route = http_router_match_route(&session->tenant->router, session->http_request.full_url);
 	if (route == NULL) {
@@ -288,7 +290,9 @@ on_client_response_body_sending(struct http_session *session)
 static void
 on_client_response_sent(struct http_session *session)
 {
+	/* Terminal State Logging for Http Session */
 	session->response_sent_timestamp = __getcycles();
+	http_session_perf_log_print_entry(session);
 
 	http_session_close(session);
 	http_session_free(session);

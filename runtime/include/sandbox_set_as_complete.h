@@ -51,7 +51,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	                                                           + sandbox->duration_of_state[SANDBOX_RUNNING_SYS]);
 	admissions_control_subtract(sandbox->admissions_estimate);
 
-	/* Terminal State Logging */
+	/* Terminal State Logging for Sandbox */
 	sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 

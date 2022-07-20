@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# shellcheck disable=SC1091,SC2034,SC2155
 if [ -n "$__framework_sh__" ]; then return; fi
 __framework_sh__=$(date)
 
@@ -85,6 +86,7 @@ __framework_sh__usage() {
 	echo "  -p,--perf                Run under perf. Limited to running on a baremetal Linux host!"
 	echo "  -s,--serve               Serve but do not run client"
 	echo "  -t,--target=<target url> Execute as client against remote URL"
+	echo "  -l,--loadgen=<hey|lt>    Pick load generator to use for client. Default is hey."
 	echo "  -v,--valgrind            Debug under Valgrind but do not run client"
 }
 
@@ -92,8 +94,6 @@ __framework_sh__usage() {
 __framework_sh__initialize_globals() {
 	# timestamp is used to name the results directory for a particular test run
 	# This can be manually overridden via the name argument
-	# shellcheck disable=SC2155
-	# shellcheck disable=SC2034
 	declare -gir __framework_sh__timestamp=$(date +%s)
 	declare -g __framework_sh__experiment_name="$__framework_sh__timestamp"
 
@@ -101,13 +101,12 @@ __framework_sh__initialize_globals() {
 	declare -g __framework_sh__target=""
 	declare -g __framework_sh__role=""
 	declare -g __framework_sh__envfile=""
+	declare -g __framework_sh__loadgen=""
 
 	# Configure environment variables
-	# shellcheck disable=SC2155
 	declare -gr __framework_sh__application_directory="$(dirname "$(realpath "$0"))")"
-	# shellcheck disable=SC2155
 	declare -gr __framework_sh__path=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
-	declare -gr __framework_sh__common_path="$(cd "$__framework_sh__path" && cd ../common && pwd)"
+	declare -gr common_directory="$(cd "$__framework_sh__path" && cd ../common && pwd)"
 	local -r binary_directory="$(cd "$__framework_sh__path" && cd ../../runtime/bin && pwd)"
 	export PATH=$binary_directory:$PATH
 	export LD_LIBRARY_PATH=$binary_directory:$LD_LIBRARY_PATH
@@ -176,6 +175,16 @@ __framework_sh__parse_arguments() {
 				fi
 				__framework_sh__envfile="${i#*=}"
 				echo "Set envfile to $__framework_sh__envfile"
+				;;
+			-l=* | --loadgen=*)
+				if [[ "$__framework_sh__role" == "server" ]]; then
+					echo "Expected to be used with run by the client"
+					__framework_sh__usage
+					return 1
+				fi
+				__framework_sh__loadgen="${i#*=}"
+				echo "Set load generator to $__framework_sh__loadgen"
+				shift
 				;;
 			-h | --help)
 				__framework_sh__usage
@@ -279,7 +288,7 @@ __framework_sh__start_runtime() {
 	local -r how_to_run="$1"
 	local -r specification="$2"
 
-	local -r log_name=log.txt
+	local -r log_name=log_server.txt
 	local log="$RESULTS_DIRECTORY/${log_name}"
 
 	local -i sledgert_pid=0
@@ -346,7 +355,7 @@ __framework_sh__run_valgrind() {
 # Starts the Sledge Runtime under GDB
 __framework_sh__run_debug() {
 	validate_dependencies gdb
-	# shellcheck disable=SC2155
+
 	local project_directory=$(cd ../.. && pwd)
 
 	if [[ "$project_directory" != "/sledge/runtime" ]]; then
@@ -374,12 +383,12 @@ __framework_sh__run_debug() {
 }
 
 __framework_sh__run_client() {
-	local -r log_name=log.txt
+	local -r log_name=log_client.txt
 	local log="$RESULTS_DIRECTORY/${log_name}"
-	
+
 	__framework_sh__log_environment >> "$log"
 
-	experiment_client "$__framework_sh__target" "$RESULTS_DIRECTORY" || return 1
+	experiment_client "$__framework_sh__target" "$RESULTS_DIRECTORY" "$__framework_sh__loadgen" || return 1
 
 	return 0
 }
@@ -442,7 +451,7 @@ __framework_sh__run_both() {
 		__framework_sh__run_both_env "$__framework_sh__envfile"
 	else
 		local -i envfiles_found=0
-		for envfile in "$__framework_sh__common_path"/*.env; do
+		for envfile in "$common_directory"/*.env; do
 			((envfiles_found++))
 			__framework_sh__run_both_env "$envfile" || exit 1
 		done

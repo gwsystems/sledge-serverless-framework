@@ -40,6 +40,7 @@ void
 runtime_cleanup()
 {
 	sandbox_perf_log_cleanup();
+	http_session_perf_log_cleanup();
 
 	if (runtime_worker_threads_deadline) free(runtime_worker_threads_deadline);
 	if (runtime_worker_threads_argument) free(runtime_worker_threads_argument);

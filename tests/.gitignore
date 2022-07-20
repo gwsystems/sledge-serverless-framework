@@ -3,6 +3,7 @@ perf.data
 perf.data.old
 samples
 perf.log
+http_perf.log
 log.csv
 *res.dat
 result.dat
