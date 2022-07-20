@@ -16,8 +16,10 @@
 #include "http_parser_settings.h"
 #include "tenant.h"
 #include "vec.h"
+#include "http_session_perf_log.h"
 
 #define HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
+#define HTTP_SESSION_RESPONSE_HEADER_CAPACITY      256
 
 #define u8 uint8_t
 VEC(u8)
@@ -38,8 +40,6 @@ enum http_session_state
 	HTTP_SESSION_SENT_RESPONSE
 };
 
-#define HTTP_SESSION_RESPONSE_HEADER_CAPACITY 256
-
 struct http_session {
 	enum http_session_state state;
 	struct sockaddr         client_address; /* client requesting connection! */
@@ -54,8 +54,12 @@ struct http_session {
 	size_t                  response_buffer_written;
 	struct tenant          *tenant; /* Backlink required when read blocks on listener core */
 	uint64_t                request_arrival_timestamp;
+	uint64_t                request_downloaded_timestamp;
+	uint64_t                response_takeoff_timestamp;
 	uint64_t                response_sent_timestamp;
 };
+
+extern void http_session_perf_log_print_entry(struct http_session *http_session);
 
 /**
  * Initalize state associated with an http parser
@@ -183,6 +187,8 @@ http_session_set_response_header(struct http_session *session, int status_code, 
 		strncpy(session->response_header, http_header_build(status_code), to_copy - 1);
 		session->response_header_length = to_copy;
 	}
+
+	session->response_takeoff_timestamp = __getcycles();
 }
 
 static inline void
@@ -468,7 +474,9 @@ http_session_send_response(struct http_session *session, void_star_cb on_eagain)
 		goto CLOSE;
 	}
 
+	/* Terminal State Logging for Http Session */
 	session->response_sent_timestamp = __getcycles();
+	http_session_perf_log_print_entry(session);
 
 CLOSE:
 	http_session_close(session);

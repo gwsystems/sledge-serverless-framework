@@ -124,7 +124,8 @@
 		"route.h": "c",
 		"pool.h": "c",
 		"local_cleanup_queue.h": "c",
-		"sandbox_state_transition.h": "c"
+		"sandbox_state_transition.h": "c",
+		"http_session_perf_log.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,
