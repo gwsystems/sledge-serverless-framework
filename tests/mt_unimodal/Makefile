@@ -2,7 +2,7 @@ RUNTIME_DIR=../../../runtime/
 SLEDGE_BINARY_DIR=${RUNTIME_DIR}/bin
 SLEDGE_TESTS_DIR=${RUNTIME_DIR}/tests
 HOSTNAME=localhost
-DURATION_SEC=1
+DURATION_SEC=5
 
 all: run
 
@@ -32,16 +32,14 @@ debug: sledgert fibonacci
 		--eval-command="handle SIGUSR1 noprint nostop" \
 		--eval-command="handle SIGPIPE noprint nostop" \
 		--eval-command="set pagination off" \
+		--eval-command="set print pretty" \
 		--eval-command="run spec.json"
 
 client-fib30-once:
 	echo 30 | http :10031/fib
 
 client-fib40-once:
-	http :10031/fib?40
-
-client-preempt:
-	(http :10010/fib2?40 &); http :10010/fib?10
+	http :10030/fib?40
 
 client-fib30-multi:
 	hey -z ${DURATION_SEC}s -cpus 2 -c 100 -t 0 -o csv -m POST -d "30\n" "http://${HOSTNAME}:10030/fib"

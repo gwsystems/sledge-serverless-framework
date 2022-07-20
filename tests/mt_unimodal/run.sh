@@ -29,7 +29,6 @@ validate_dependencies hey loadtest gnuplot jq
 declare -r CLIENT_TERMINATE_SERVER=false
 declare -r ITERATIONS=10000
 declare -r DURATION_sec=1
-declare -r INIT_PORT=10030
 declare -r ESTIMATIONS_PERCENTILE=70
 
 declare -r TENANT_NG="CSU"
@@ -41,9 +40,16 @@ declare -Ar PARAMS=(
 	[$TENANT_GR]="30"
 )
 
+# Make sure not to use 55555 (Reserved for Admin)
+declare -Ar PORTS=(
+	[$TENANT_NG]=10030
+	[$TENANT_GR]=20030
+)
+
+# No need for slashes
 declare -Ar ROUTES=(
-	[$TENANT_NG]="/fib"
-	[$TENANT_GR]="/fib"
+	[$TENANT_NG]="fib"
+	[$TENANT_GR]="fib"
 )
 
 declare -Ar MTDS_REPLENISH_PERIODS_us=(
@@ -61,7 +67,7 @@ declare -Ar MTDBF_RESERVATIONS_percen=(
 	[$TENANT_GR]=0
 )
 
-declare -ar WORKLOADS=("${TENANT_NG}-${ROUTES[$TENANT_NG]:1}" "${TENANT_GR}-${ROUTES[$TENANT_GR]:1}")
+declare -ar WORKLOADS=("${TENANT_NG}-${ROUTES[$TENANT_NG]}" "${TENANT_GR}-${ROUTES[$TENANT_GR]}")
 
 declare -Ar EXPECTED_EXECUTIONS_us=(
 	[${WORKLOADS[0]}]=4000
@@ -94,8 +100,11 @@ run_experiments() {
 	local app_gr_PID
 	local app_ng_PID
 
-	local -r route_ng=${ROUTES[$TENANT_NG]:1}
-	local -r route_gr=${ROUTES[$TENANT_GR]:1}
+	local -r port_ng=${PORTS[$TENANT_NG]}
+	local -r port_gr=${PORTS[$TENANT_GR]}
+	
+	local -r route_ng=${ROUTES[$TENANT_NG]}
+	local -r route_gr=${ROUTES[$TENANT_GR]}
 
 	local -r workload_ng=${WORKLOADS[0]}
 	local -r workload_gr=${WORKLOADS[1]}
@@ -103,8 +112,8 @@ run_experiments() {
 	local -r deadline_ng=${DEADLINES_us[$workload_ng]}
 	local -r deadline_gr=${DEADLINES_us[$workload_gr]}
 
-	local -r con_ng=$((NWORKERS))
-	local -r con_gr=$((NWORKERS))
+	local -r con_ng=$((NWORKERS*10))
+	local -r con_gr=$((NWORKERS*2))
 
 	local -r rps_ng=$((1000000*con_ng/deadline_ng))
 	local -r rps_gr=$((1000000*con_gr/deadline_gr))
@@ -113,20 +122,20 @@ run_experiments() {
 	local -r param_gr=${PARAMS[$TENANT_GR]}
 
 	if [ "$loadgen" = "hey" ]; then
-		hey -disable-compression -disable-keepalive -disable-redirects -z $((DURATION_sec + OFFSET + 1))s -n "$ITERATIONS" -c $con_ng -t 0 -o csv "http://${hostname}:10030/$route_ng?$param_ng" > "$results_directory/$workload_ng.csv" 2> /dev/null &
+		hey -disable-compression -disable-keepalive -disable-redirects -z $((DURATION_sec+OFFSET))s -n "$ITERATIONS" -c $con_ng -t 0 -o csv -m POST -d "$param_ng" "http://${hostname}:$port_ng/$route_ng" > "$results_directory/$workload_ng.csv" 2> /dev/null &
 		app_ng_PID="$!"
 
 		sleep "$OFFSET"s
 
-		hey -disable-compression -disable-keepalive -disable-redirects -z "$DURATION_sec"s -n "$ITERATIONS" -c $con_gr -t 0 -o csv "http://${hostname}:10031/$route_gr?$param_gr" > "$results_directory/$workload_gr.csv" 2> /dev/null &
+		hey -disable-compression -disable-keepalive -disable-redirects -z "$DURATION_sec"s -n "$ITERATIONS" -c $con_gr -t 0 -o csv -m POST -d "$param_gr" "http://${hostname}:$port_gr/$route_gr" > "$results_directory/$workload_gr.csv" 2> /dev/null &
 		app_gr_PID="$!"
 	elif [ "$loadgen" = "loadtest" ]; then
-		loadtest -t $((DURATION_sec + OFFSET + 1)) -c $con_ng --rps $rps_ng "http://${hostname}:10030/$route_ng?$param_ng" > "$results_directory/$workload_ng.dat" & #2> /dev/null &
+		loadtest -t $((DURATION_sec+OFFSET)) -c $con_ng --rps $rps_ng -P "$param_ng" "http://${hostname}:$port_ng/$route_ng" > "$results_directory/$workload_ng.dat" & #2> /dev/null &
 		app_ng_PID="$!"
 
 		sleep "$OFFSET"s
 
-		loadtest -t "$DURATION_sec" -c $con_gr --rps $rps_gr "http://${hostname}:10031/$route_gr?$param_gr" > "$results_directory/$workload_gr.dat" & #2> /dev/null &
+		loadtest -t "$DURATION_sec" -c $con_gr --rps $rps_gr -P "$param_gr" "http://${hostname}:$port_gr/$route_gr" > "$results_directory/$workload_gr.dat" & #2> /dev/null &
 		app_gr_PID="$!"
 	fi
 
