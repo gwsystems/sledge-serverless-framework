@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# shellcheck disable=SC1091
-# shellcheck disable=SC2034
+# shellcheck disable=SC1091,SC2034
 
 # This experiment is intended to document how the level of concurrent requests influence the latency, throughput, and success rate
 # Success - The percentage of requests that complete by their deadlines
@@ -23,7 +22,7 @@ source path_join.sh || exit 1
 source percentiles_table.sh || exit 1
 source experiment_globals.sh || exit 1
 
-validate_dependencies hey loadtest gnuplot jq
+validate_dependencies hey loadtest jq
 
 # The global configs for the scripts
 declare -r CLIENT_TERMINATE_SERVER=false
@@ -31,11 +30,11 @@ declare -r ITERATIONS=10000
 declare -r DURATION_sec=1
 declare -r ESTIMATIONS_PERCENTILE=70
 
-declare -r TENANT_NG="CSU"
+declare -r TENANT_NG="NNN"
 declare -r TENANT_GR="GWU"
 declare -ar TENANTS=("$TENANT_NG" "$TENANT_GR")
 
-declare -Ar PARAMS=(
+declare -Ar ARGS=(
 	[$TENANT_NG]="30"
 	[$TENANT_GR]="30"
 )
@@ -118,24 +117,24 @@ run_experiments() {
 	local -r rps_ng=$((1000000*con_ng/deadline_ng))
 	local -r rps_gr=$((1000000*con_gr/deadline_gr))
 
-	local -r param_ng=${PARAMS[$TENANT_NG]}
-	local -r param_gr=${PARAMS[$TENANT_GR]}
+	local -r arg_ng=${ARGS[$TENANT_NG]}
+	local -r arg_gr=${ARGS[$TENANT_GR]}
 
 	if [ "$loadgen" = "hey" ]; then
-		hey -disable-compression -disable-keepalive -disable-redirects -z $((DURATION_sec+OFFSET))s -n "$ITERATIONS" -c $con_ng -t 0 -o csv -m POST -d "$param_ng" "http://${hostname}:$port_ng/$route_ng" > "$results_directory/$workload_ng.csv" 2> /dev/null &
+		hey -disable-compression -disable-keepalive -disable-redirects -z $((DURATION_sec+OFFSET))s -n "$ITERATIONS" -c $con_ng -t 0 -o csv -m POST -d "$arg_ng" "http://${hostname}:$port_ng/$route_ng" > "$results_directory/$workload_ng.csv" 2> "$results_directory/$workload_ng-err.dat" &
 		app_ng_PID="$!"
 
 		sleep "$OFFSET"s
 
-		hey -disable-compression -disable-keepalive -disable-redirects -z "$DURATION_sec"s -n "$ITERATIONS" -c $con_gr -t 0 -o csv -m POST -d "$param_gr" "http://${hostname}:$port_gr/$route_gr" > "$results_directory/$workload_gr.csv" 2> /dev/null &
+		hey -disable-compression -disable-keepalive -disable-redirects -z "$DURATION_sec"s -n "$ITERATIONS" -c $con_gr -t 0 -o csv -m POST -d "$arg_gr" "http://${hostname}:$port_gr/$route_gr" > "$results_directory/$workload_gr.csv" 2> "$results_directory/$workload_gr-err.dat" &
 		app_gr_PID="$!"
 	elif [ "$loadgen" = "loadtest" ]; then
-		loadtest -t $((DURATION_sec+OFFSET)) -c $con_ng --rps $rps_ng -P "$param_ng" "http://${hostname}:$port_ng/$route_ng" > "$results_directory/$workload_ng.dat" & #2> /dev/null &
+		loadtest -t $((DURATION_sec+OFFSET)) -c $con_ng --rps $rps_ng -P "$arg_ng" "http://${hostname}:$port_ng/$route_ng" > "$results_directory/$workload_ng.dat" 2> "$results_directory/$workload_ng-err.dat" &
 		app_ng_PID="$!"
 
 		sleep "$OFFSET"s
 
-		loadtest -t "$DURATION_sec" -c $con_gr --rps $rps_gr -P "$param_gr" "http://${hostname}:$port_gr/$route_gr" > "$results_directory/$workload_gr.dat" & #2> /dev/null &
+		loadtest -t "$DURATION_sec" -c $con_gr --rps $rps_gr -P "$arg_gr" "http://${hostname}:$port_gr/$route_gr" > "$results_directory/$workload_gr.dat" 2> "$results_directory/$workload_gr-err.dat" &
 		app_gr_PID="$!"
 	fi
 
@@ -180,30 +179,47 @@ process_client_results_hey() {
 	printf "Processing HEY Results: "
 
 	# Write headers to CSVs
-	printf "Workload,Success_Rate\n" >> "$results_directory/success.csv"
+	printf "Workload,Scs%%,TOTAL,ClientScs,All200,AllFail,Deny,MisDL,Shed,MiscErr\n" >> "$results_directory/success.csv"
 	printf "Workload,Throughput\n" >> "$results_directory/throughput.csv"
-	percentiles_table_header "$results_directory/latency.csv"
+	percentiles_table_header "$results_directory/latency.csv" "Workload"
+	# percentiles_table_header "$results_directory/latency-200.csv" "Workload"
 
 	for workload in "${WORKLOADS[@]}"; do
-		# Strip the  suffix when getting the deadline
+
 		local -i deadline=${DEADLINES_us[$workload]}
 
+		# Some requests come back with an "Unsolicited response ..." See issue #185
+		misc_err=$(wc -l < "$results_directory/$workload-err.dat")
+
 		# Calculate Success Rate for csv (percent of requests that return 200 within deadline)
-		awk -F, '
+		awk -v misc_err="$misc_err" -F, '
 			$7 == 200 && ($1 * 1000000) <= '"$deadline"' {ok++}
-			END{printf "'"$workload"',%3.5f\n", (ok / (NR - 1) * 100)}
+			$7 == 200 {all200++}
+			$7 != 200 {total_failed++}
+			$7 == 429 {denied++}
+			$7 == 408 {missed_dl++}
+			$7 == 409 {killed++}
+			END{printf "'"$workload"',%3.1f,%d,%d,%d,%d,%d,%d,%d,%d\n", (ok/(NR-1+misc_err)*100), (NR-1+misc_err), ok, all200, (total_failed-1+misc_err), denied, missed_dl, killed, misc_err}
 		' < "$results_directory/$workload.csv" >> "$results_directory/success.csv"
+
+		# Convert from s to us, and sort
+		awk -F, 'NR > 1 {print ($1 * 1000000)}' < "$results_directory/$workload.csv" \
+			| sort -g > "$results_directory/$workload-response.csv"
 
 		# Filter on 200s, convert from s to us, and sort
 		awk -F, '$7 == 200 {print ($1 * 1000000)}' < "$results_directory/$workload.csv" \
-			| sort -g > "$results_directory/$workload-response.csv"
+			| sort -g > "$results_directory/$workload-response-200.csv"
+
+		# Get Number of all entries
+		all=$(wc -l < "$results_directory/$workload-response.csv")
+		((all == 0)) && continue # If all errors, skip line
 
 		# Get Number of 200s
-		oks=$(wc -l < "$results_directory/$workload-response.csv")
-		((oks == 0)) && continue # If all errors, skip line
+		oks=$(wc -l < "$results_directory/$workload-response-200.csv")
+		# ((oks == 0)) && continue # If all errors, skip line
 
 		# We determine duration by looking at the timestamp of the last complete request
-		# TODO: Should this instead just use the client-side synthetic duration_sec value?
+		# TODO: Should this instead just use the client-side synthetic DURATION_sec value?
 		duration=$(tail -n1 "$results_directory/$workload.csv" | cut -d, -f8)
 
 		# Throughput is calculated as the mean number of successful requests per second
@@ -212,20 +228,14 @@ process_client_results_hey() {
 
 		# Generate Latency Data for csv
 		percentiles_table_row "$results_directory/$workload-response.csv" "$results_directory/latency.csv" "$workload"
-
+		# percentiles_table_row "$results_directory/$workload-response-200.csv" "$results_directory/latency-200.csv" "$workload"
 		# Delete scratch file used for sorting/counting
-		rm -rf "$results_directory/$workload-response.csv"
+		rm "$results_directory/$workload-response.csv" "$results_directory/$workload-response-200.csv"
 	done
 
 	# Transform csvs to dat files for gnuplot
 	csv_to_dat "$results_directory/success.csv" "$results_directory/throughput.csv" "$results_directory/latency.csv"
 	rm "$results_directory/success.csv" "$results_directory/throughput.csv" "$results_directory/latency.csv"
-
-	# Generate gnuplots
-	# generate_gnuplots "$results_directory" "$__run_sh__base_path" || {
-	# 	printf "[ERR]\n"
-	# 	panic "failed to generate gnuplots"
-	# }
 
 	printf "[OK]\n"
 	return 0
@@ -240,9 +250,9 @@ process_client_results_loadtest() {
 	printf "Processing Loadtest Results: "
 
 	# Write headers to CSVs
-	# printf "Workload,Success_Rate\n" >> "$results_directory/success.csv" # not possible to figure out with loadtest
+	printf "Workload,Scs%%,TOTAL,All200,AllFail,Deny,MisDL,Shed,MiscErr\n" >> "$results_directory/success.csv"
 	printf "Workload,Throughput\n" >> "$results_directory/throughput.csv"
-	percentiles_table_header "$results_directory/latency.csv" "Con"
+	percentiles_table_header "$results_directory/latency.csv" "Workload"
 
 	for workload in "${WORKLOADS[@]}"; do
 
@@ -252,32 +262,41 @@ process_client_results_loadtest() {
 			return 1
 		fi
 
-		ok=$(grep "Completed requests:" "$results_directory/$workload.dat" | cut -d ' ' -f 14)
+		# Get Number of 200s and then calculate Success Rate (percent of requests that return 200)
+		#  If using loadtest -n option (not -t), then use all200/iterations instead of all200/total.
+		total=$(grep "Completed requests:" "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 13)
+		total_failed=$(grep "Total errors:" "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 13)
+		denied=$(grep "429:" "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 12)
+		missed_dl=$(grep "408:" "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 12)
+		killed=$(grep "409:" "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 12)
+		misc_err=$(grep "\-1:" "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 12)
+		all200=$((total-total_failed))
+
+		# ((all200 == 0)) && continue # If all errors, skip line
+		success_rate=$(echo "scale=2; $all200/$total*100"|bc)
+		printf "%s,%3.1f,%d,%d,%d,%d,%d,%d,%d\n" "$workload" "$success_rate" "$total" "$all200" "$total_failed" "$denied" "$missed_dl" "$killed" "$misc_err" >> "$results_directory/success.csv"
 
 		# Throughput is calculated as the mean number of successful requests per second
-		throughput=$(grep "Requests per second" "$results_directory/$workload.dat" | cut -d ' ' -f 14 | tail -n 1)
+		duration=$(grep "Total time:" "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 13)
+		printf -v duration %.0f "$duration"
+		# throughput=$(grep "Requests per second" "$results_directory/${workload}.dat" | tr -s ' '  | cut -d ' ' -f 14 | tail -n 1) # throughput of ALL
+		throughput=$(echo "$all200/$duration" | bc)
 		printf "%s,%d\n" "$workload" "$throughput" >> "$results_directory/throughput.csv"
 
 		# Generate Latency Data
-		min=0
-		p50=$(echo 1000*"$(grep 50% "$results_directory/$workload.dat" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
-		p90=$(echo 1000*"$(grep 90% "$results_directory/$workload.dat" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
-		p99=$(echo 1000*"$(grep 99% "$results_directory/$workload.dat" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
-		p100=$(echo 1000*"$(grep 100% "$results_directory/$workload.dat" | tr -s ' ' | cut -d ' ' -f 12)" | bc)
-		mean=$(echo 1000*"$(grep "Mean latency:" "$results_directory/$workload.dat" | tr -s ' ' | cut -d ' ' -f 13)" | bc)
+		min=0 # not provided by loadtest
+		p50=$(echo "$(grep 50% "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 12)*1000" |bc)
+		p90=$(echo "$(grep 90% "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 12)*1000" |bc)
+		p99=$(echo "$(grep 99% "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 12)*1000" |bc)
+		p100=$(echo "$(grep 100% "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 12 | tail -n 1)*1000" |bc)
+		mean=$(echo "scale=1;$(grep "Mean latency:" "$results_directory/${workload}.dat" | tr -s ' ' | cut -d ' ' -f 13)*1000" |bc)
 
-		printf "%s,%d,%d,%.2f,%d,%d,%d,%d\n", "$workload" "$ok" "$min" "$mean" "$p50" "$p90" "$p99" "$p100" >> "$results_directory/latency.csv"
+		printf "%s,%d,%d,%.1f,%d,%d,%d,%d\n" "$workload" "$total" "$min" "$mean" "$p50" "$p90" "$p99" "$p100" >> "$results_directory/latency.csv"
 	done
 
 	# Transform csvs to dat files for gnuplot
-	csv_to_dat "$results_directory/throughput.csv" "$results_directory/latency.csv" #"$results_directory/success.csv"
-	rm "$results_directory/throughput.csv" "$results_directory/latency.csv" #"$results_directory/success.csv"
-
-	# Generate gnuplots
-	# generate_gnuplots "$results_directory" "$__run_sh__base_path" || {
-	# 	printf "[ERR]\n"
-	# 	panic "failed to generate gnuplots"
-	# }
+	csv_to_dat "$results_directory/success.csv" "$results_directory/throughput.csv" "$results_directory/latency.csv"
+	rm "$results_directory/success.csv" "$results_directory/throughput.csv" "$results_directory/latency.csv"
 
 	printf "[OK]\n"
 	return 0
@@ -288,17 +307,26 @@ process_server_results() {
 
 	local -r results_directory="${1:?results_directory not set}"
 
-	printf "Processing Server Results: "
+	printf "Processing Server Results: \n"
+
+	num_of_lines=$(wc -l < "$results_directory/$SERVER_LOG_FILE")
+	if [ "$num_of_lines" == 1 ]; then
+		printf "No results to process! Exiting the script."
+		return 1
+	fi
 
 	# Write headers to CSVs
-	printf "Payload,Success_Rate\n" >> "$results_directory/success.csv"
-	# printf "Payload,Throughput\n" >> "$results_directory/throughput.csv"
-	# percentiles_table_header "$results_directory/latency.csv"
+	printf "Workload,Scs%%,TOTAL,SrvScs,All200,AllFail,DenyAny,DenyG,MisDL_Glb,MisDL_Loc,Shed_Glb,Shed_Loc,QueFull\n" >> "$results_directory/success.csv"
+	printf "Workload,Throughput\n" >> "$results_directory/throughput.csv"
+	percentiles_table_header "$results_directory/latency.csv" "Workload"
 
 	# Write headers to CSVs
 	for metric in "${SANDBOX_METRICS[@]}"; do
-		percentiles_table_header "$results_directory/$metric.csv" "workload"
+		percentiles_table_header "$results_directory/$metric.csv" "Workload"
 	done
+	percentiles_table_header "$results_directory/running_user_200.csv" "Workload"
+	percentiles_table_header "$results_directory/running_user_nonzero.csv" "Workload"
+	percentiles_table_header "$results_directory/total_200.csv" "Workload"
 	# percentiles_table_header "$results_directory/memalloc.csv" "module"
 
 	for workload in "${WORKLOADS[@]}"; do
@@ -306,11 +334,10 @@ process_server_results() {
 
 		local -i deadline=${DEADLINES_us[$workload]}
 
-		# TODO: Only include Complete
 		for metric in "${SANDBOX_METRICS[@]}"; do
 			awk -F, '
 				{workload = sprintf("%s-%s", $'"$SANDBOX_TENANT_NAME_FIELD"', substr($'"$SANDBOX_ROUTE_FIELD"',2))}
-				workload == "'"$workload"'" {printf("%d\n", $'"${SANDBOX_METRICS_FIELDS[$metric]}"' / $'"$SANDBOX_CPU_FREQ_FIELD"')}
+				workload == "'"$workload"'" {printf("%d,%d\n", $'"${SANDBOX_METRICS_FIELDS[$metric]}"' / $'"$SANDBOX_CPU_FREQ_FIELD"', $'"$SANDBOX_RESPONSE_CODE_FIELD"')}
 			' < "$results_directory/$SERVER_LOG_FILE" | sort -g > "$results_directory/$workload/${metric}_sorted.csv"
 
 			percentiles_table_row "$results_directory/$workload/${metric}_sorted.csv" "$results_directory/${metric}.csv" "$workload"
@@ -319,20 +346,39 @@ process_server_results() {
 			# rm "$results_directory/$workload/${metric}_sorted.csv"
 		done
 
+		awk -F, '$2 == 200 {printf("%d,%d\n", $1, $2)}' < "$results_directory/$workload/running_user_sorted.csv" > "$results_directory/$workload/running_user_200_sorted.csv"
+		percentiles_table_row "$results_directory/$workload/running_user_200_sorted.csv" "$results_directory/running_user_200.csv" "$workload"
+		awk -F, '$1 > 0 {printf("%d,%d\n", $1, $2)}' < "$results_directory/$workload/running_user_sorted.csv" > "$results_directory/$workload/running_user_nonzero_sorted.csv"
+		percentiles_table_row "$results_directory/$workload/running_user_nonzero_sorted.csv" "$results_directory/running_user_nonzero.csv" "$workload"
+		awk -F, '$2 == 200 {printf("%d,%d\n", $1, $2)}' < "$results_directory/$workload/total_sorted.csv" > "$results_directory/$workload/total_200_sorted.csv"
+		percentiles_table_row "$results_directory/$workload/total_200_sorted.csv" "$results_directory/total_200.csv" "$workload"
+
+
 		# Memory Allocation
-		# awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $21)}' < "$results_directory/$SERVER_LOG_FILE" | sort -g > "$results_directory/$workload/memalloc_sorted.csv"
+		# awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $MEMORY_FIELD)}' < "$results_directory/$SERVER_LOG_FILE" | sort -g > "$results_directory/$workload/memalloc_sorted.csv"
 
 		# percentiles_table_row "$results_directory/$workload/memalloc_sorted.csv" "$results_directory/memalloc.csv" "$workload" "%1.0f"
 
 		# Calculate Success Rate for csv (percent of requests that complete), $1 and deadline are both in us, so not converting
 		awk -F, '
-			$1 <= '"$deadline"' {ok++}
-			END{printf "'"$workload"',%3.5f\n", (ok / NR * 100)}
+			$2 == 200 && $1 <= '"$deadline"' {ok++}
+			$2 == 200 {all200++}
+			$2 != 200 {total_failed++}
+			$2 == 4290 {denied_any++}
+			$2 == 4291 {denied_gtd++}
+			$2 == 4080 {mis_dl_glob++}
+			$2 == 4081 {mis_dl_local++}
+			$2 == 4090 {shed_glob++}
+			$2 == 4091 {shed_local++}
+			$2 == 999 {global_full++}
+			END{printf "'"$workload"',%3.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", (ok/NR*100), NR, ok, all200, total_failed, denied_any, denied_gtd, mis_dl_glob, mis_dl_local, shed_glob, shed_local, global_full}
 		' < "$results_directory/$workload/total_sorted.csv" >> "$results_directory/success.csv"
 
+		# Throughput is calculated on the client side, so ignore the below line
+		printf "%s,%d\n" "$workload" "1" >> "$results_directory/throughput.csv"
+
 		# Generate Latency Data for csv
-		# Not necessary, since it's the same thing as total.csv
-		# percentiles_table_row "$results_directory/$workload/total_sorted.csv" "$results_directory/latency.csv" "$workload"
+		percentiles_table_row "$results_directory/$workload/total_sorted.csv" "$results_directory/latency.csv" "$workload"
 
 		# Delete scratch file used for sorting/counting
 		# rm "$results_directory/$workload/memalloc_sorted.csv"
@@ -347,9 +393,13 @@ process_server_results() {
 		csv_to_dat "$results_directory/$metric.csv"
 		rm "$results_directory/$metric.csv"
 	done
+	csv_to_dat "$results_directory/running_user_200.csv" "$results_directory/running_user_nonzero.csv" "$results_directory/total_200.csv"
+	rm "$results_directory/running_user_200.csv" "$results_directory/running_user_nonzero.csv" "$results_directory/total_200.csv"
+
 	# csv_to_dat "$results_directory/memalloc.csv"
-	csv_to_dat "$results_directory/success.csv" #"$results_directory/latency.csv"
-	rm "$results_directory/success.csv" #"$results_directory/latency.csv" "$results_directory/memalloc.csv"
+	csv_to_dat "$results_directory/success.csv" "$results_directory/throughput.csv" "$results_directory/latency.csv"
+	# rm "$results_directory/memalloc.csv" 
+	rm "$results_directory/success.csv" "$results_directory/throughput.csv" "$results_directory/latency.csv"
 
 	printf "[OK]\n"
 	return 0
@@ -360,7 +410,13 @@ process_server_http_results() {
 
 	local -r results_directory="${1:?results_directory not set}"
 
-	printf "Processing Server HTTP Results: "
+	printf "Processing Server HTTP Results: \n"
+
+	num_of_lines=$(wc -l < "$results_directory/$SERVER_HTTP_LOG_FILE")
+	if [ "$num_of_lines" == 1 ]; then
+		printf "No results to process! Exiting the script."
+		return 1
+	fi
 
 	for metric in "${HTTP_METRICS[@]}"; do
 		percentiles_table_header "$results_directory/$metric.csv" "workload"
@@ -400,6 +456,7 @@ experiment_server_post() {
 		if [[ -f "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" ]]; then
 			mv "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" "$results_directory/$SERVER_LOG_FILE"
 			process_server_results "$results_directory" || return 1
+			rm "$results_directory/$SLEDGE_SANDBOX_PERF_LOG"
 		else
 			echo "Sandbox Perf Log was set, but $SERVER_LOG_FILE not found!"
 		fi
@@ -409,6 +466,7 @@ experiment_server_post() {
 		if [[ -f "$__run_sh__base_path/$SLEDGE_HTTP_SESSION_PERF_LOG" ]]; then
 			mv "$__run_sh__base_path/$SLEDGE_HTTP_SESSION_PERF_LOG" "$results_directory/$SERVER_HTTP_LOG_FILE"
 			process_server_http_results "$results_directory" || return 1
+			rm "$results_directory/$SERVER_HTTP_LOG_FILE"
 		else
 			echo "HTTP Perf Log was set, but $SERVER_HTTP_LOG_FILE not found!"
 		fi
