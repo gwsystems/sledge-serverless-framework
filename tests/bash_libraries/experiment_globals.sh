@@ -29,6 +29,7 @@ declare  -gA SANDBOX_METRICS_FIELDS=(
 declare -gr SANDBOX_TENANT_NAME_FIELD=2
 declare -gr SANDBOX_ROUTE_FIELD=3
 declare -gr SANDBOX_CPU_FREQ_FIELD=20
+declare -gr SANDBOX_RESPONSE_CODE_FIELD=21
 
 # HTTP Session Perf Log Globals:
 declare  -ga HTTP_METRICS=(http_receive http_sent http_total)
