@@ -59,7 +59,7 @@ tcp_session_send(int client_socket, const char *buffer, size_t buffer_len, void_
 }
 
 /**
- * Writes buffer to the client socket
+ * Reads client socket into memstream
  * @param client_socket - the client
  * @param buffer - buffer to reach the socket into
  * @param buffer_len - buffer to reach the socket into
@@ -67,20 +67,31 @@ tcp_session_send(int client_socket, const char *buffer, size_t buffer_len, void_
  * @returns nwritten on success, -errno on error, -eagain on block
  */
 static inline ssize_t
-tcp_session_recv(int client_socket, char *buffer, size_t buffer_len, void_star_cb on_eagain, void *dataptr)
+tcp_session_recv(int client_socket, FILE *handle, void_star_cb on_eagain, void *dataptr)
 {
-	assert(buffer != NULL);
-	assert(buffer_len > 0);
+	assert(handle != NULL);
 
-	ssize_t received = read(client_socket, buffer, buffer_len);
-	if (received < 0) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK) {
-			if (on_eagain != NULL) on_eagain(dataptr);
-			return -EAGAIN;
-		} else {
-			return -errno;
+	char    buf[BUFSIZ];
+	ssize_t received = 0;
+	do {
+		received = read(client_socket, buf, BUFSIZ);
+		if (received < 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				if (on_eagain != NULL) on_eagain(dataptr);
+				return -EAGAIN;
+			} else {
+				return -errno;
+			}
 		}
-	}
+
+		/* TODO: Validate memory stream error handling  */
+		size_t written = fwrite(buf, 1, received, handle);
+		assert(written == received);
+
+	} while (received != 0);
+
+	int rc = fflush(handle);
+	if (rc < 0) { return -errno; };
 
 	return received;
 }
