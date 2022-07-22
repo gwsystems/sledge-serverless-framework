@@ -226,6 +226,7 @@ runtime_configure()
 	pretty_print_key_value("Quantum", "%u us\n", runtime_quantum_us);
 
 	sandbox_perf_log_init();
+	http_session_perf_log_init();
 }
 
 void

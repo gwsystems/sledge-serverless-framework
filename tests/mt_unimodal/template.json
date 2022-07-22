@@ -1,0 +1,17 @@
+{
+	"name": "tenant",
+	"port": 0,
+	"replenishment-period-us": 0,
+	"max-budget-us": 0,
+	"routes": [
+		{
+			"route": "/route",
+			"path": "fibonacci.wasm.so",
+			"admissions-percentile": 0,
+			"expected-execution-us": 0,
+			"relative-deadline-us": 0,
+			"http-resp-size": 1024,
+			"http-resp-content-type": "text/plain"
+		}
+	]
+}
