@@ -1,5 +1,7 @@
+#include "admissions_control.h"
 #include "admissions_info.h"
 #include "debuglog.h"
+#include "perf_window.h"
 
 /**
  * Initializes perf window

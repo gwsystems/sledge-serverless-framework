@@ -14,6 +14,7 @@
 #include "http_request.h"
 #include "http_parser.h"
 #include "http_parser_settings.h"
+#include "http_total.h"
 #include "tenant.h"
 #include "vec.h"
 #include "http_session_perf_log.h"
@@ -173,6 +174,7 @@ http_session_set_response_header(struct http_session *session, int status_code, 
 {
 	assert(session != NULL);
 	assert(status_code >= 200 && status_code <= 599);
+	http_total_increment(status_code);
 
 	if (status_code == 200) {
 		session->response_header_length = snprintf(session->response_header,

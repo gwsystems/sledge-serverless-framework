@@ -55,3 +55,19 @@ http_total_increment_5XX()
 {
 	atomic_fetch_add(&http_total_5XX, 1);
 }
+
+static inline void
+http_total_increment(int status_code)
+{
+#ifdef LOG_TOTAL_REQS_RESPS
+	if (status_code >= 200 && status_code <= 299) {
+		http_total_increment_2XX();
+	} else if (status_code >= 400 && status_code <= 499) {
+		http_total_increment_4XX();
+	} else if (status_code >= 500 && status_code <= 599) {
+		http_total_increment_5XX();
+	}
+#else
+	if (status_code >= 500 && status_code <= 599) { http_total_increment_5XX(); }
+#endif
+}

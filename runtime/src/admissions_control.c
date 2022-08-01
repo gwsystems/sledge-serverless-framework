@@ -1,8 +1,11 @@
+#include <assert.h>
 #include <stdatomic.h>
 #include <unistd.h>
 
 #include "admissions_control.h"
 #include "debuglog.h"
+#include "panic.h"
+#include "runtime.h"
 
 /*
  * Unitless estimate of the instantaneous fraction of system capacity required to complete all previously
