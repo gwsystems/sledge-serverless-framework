@@ -2,6 +2,7 @@
 
 #include <pthread.h>
 #include <sys/epoll.h> /* for epoll_create1(), epoll_ctl(), struct epoll_event */
+#include <sys/types.h> /* for pid_t */
 #include <stdatomic.h>
 #include <stdbool.h>
 
@@ -34,6 +35,7 @@ enum RUNTIME_SIGALRM_HANDLER
 	RUNTIME_SIGALRM_HANDLER_TRIAGED   = 1
 };
 
+extern pid_t                        runtime_pid;
 extern bool                         runtime_preemption_enabled;
 extern uint32_t                     runtime_processor_speed_MHz;
 extern uint32_t                     runtime_quantum_us;

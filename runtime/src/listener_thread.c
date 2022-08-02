@@ -354,15 +354,16 @@ on_metrics_server_epoll_event(struct epoll_event *evt)
 
 	/* Accept as many clients requests as possible, returning when we would have blocked */
 	while (true) {
+		/* We accept the client connection with blocking semantics because we spawn ephemeral worker threads */
 		int client_socket = accept4(metrics_server.socket_descriptor, (struct sockaddr *)&client_address,
-		                            &address_length, SOCK_NONBLOCK);
+		                            &address_length, 0);
 		if (unlikely(client_socket < 0)) {
 			if (errno == EWOULDBLOCK || errno == EAGAIN) return;
 
 			panic("accept4: %s", strerror(errno));
 		}
 
-		metrics_server_handler(client_socket);
+		metrics_server_thread_spawn(client_socket);
 	}
 }
 
@@ -412,7 +413,6 @@ listener_thread_main(void *dummy)
 	generic_thread_initialize();
 
 	metrics_server_init();
-	metrics_server_listen();
 	listener_thread_register_metrics_server();
 
 	/* Set my priority */

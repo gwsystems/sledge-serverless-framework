@@ -1,24 +1,39 @@
+#include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "admissions_control.h"
-#include "tcp_server.h"
+#include "debuglog.h"
+#include "http.h"
 #include "http_total.h"
+#include "proc_stat.h"
+#include "runtime.h"
 #include "sandbox_total.h"
 #include "sandbox_state.h"
+#include "tcp_server.h"
 
-struct tcp_server metrics_server;
+/* We run threads on the "reserved OS core" using blocking semantics */
+#define METRICS_SERVER_CORE_ID 0
+
+static pthread_attr_t metrics_server_thread_settings;
+struct tcp_server     metrics_server;
+static void          *metrics_server_handler(void *arg);
 
 void
 metrics_server_init()
 {
 	tcp_server_init(&metrics_server, 1776);
-}
+	int rc = tcp_server_listen(&metrics_server);
+	assert(rc == 0);
 
-int
-metrics_server_listen()
-{
-	return tcp_server_listen(&metrics_server);
+	/* Configure pthread attributes to pin metrics server threads to CPU 0 */
+	pthread_attr_init(&metrics_server_thread_settings);
+	cpu_set_t cs;
+	CPU_ZERO(&cs);
+	CPU_SET(METRICS_SERVER_CORE_ID, &cs);
+	pthread_attr_setaffinity_np(&metrics_server_thread_settings, sizeof(cpu_set_t), &cs);
 }
 
 int
@@ -28,8 +43,40 @@ metrics_server_close()
 }
 
 void
-metrics_server_handler(int client_socket)
+metrics_server_thread_spawn(int client_socket)
 {
+	/* Duplicate fd so fclose doesn't close the actual client_socket */
+	int   temp_fd  = dup(client_socket);
+	FILE *req_body = fdopen(temp_fd, "r");
+
+	/* Basic L7 routing to filter out favicon requests */
+	char http_status_code_buf[256];
+	fgets(http_status_code_buf, 256, req_body);
+	fclose(req_body);
+
+	if (strncmp(http_status_code_buf, "GET / HTTP", 10) != 0) {
+		write(client_socket, http_header_build(404), http_header_len(404));
+		close(client_socket);
+		return;
+	}
+
+	/* Fire and forget, so we don't save the thread handles */
+	pthread_t metrics_server_thread;
+	int       rc = pthread_create(&metrics_server_thread, &metrics_server_thread_settings, metrics_server_handler,
+	                              (void *)(long)client_socket);
+
+	if (rc != 0) {
+		debuglog("Metrics Server failed to spawn pthread with %s\n", strerror(rc));
+		close(client_socket);
+	}
+}
+
+static void *
+metrics_server_handler(void *arg)
+{
+	/* Intermediate cast to integral value of 64-bit width to silence compiler nits */
+	int client_socket = (int)(long)arg;
+
 	int rc = 0;
 
 	char  *ostream_base = NULL;
@@ -130,14 +177,43 @@ metrics_server_handler(int client_socket)
 	fprintf(ostream, "total_sandboxes_error: %d\n", total_sandboxes_error);
 #endif
 
-	fflush(ostream);
-	write(client_socket, ostream_base, ostream_size);
+	struct proc_stat_metrics stat;
+	proc_stat_metrics_init(&stat);
 
+	fprintf(ostream, "# TYPE os_proc_major_page_faults counter\n");
+	fprintf(ostream, "os_proc_major_page_faults: %lu\n", stat.major_page_faults);
+
+	fprintf(ostream, "# TYPE os_proc_minor_page_faults counter\n");
+	fprintf(ostream, "os_proc_minor_page_faults: %lu\n", stat.minor_page_faults);
+
+	fprintf(ostream, "# TYPE os_proc_child_major_page_faults counter\n");
+	fprintf(ostream, "os_proc_child_major_page_faults: %lu\n", stat.child_major_page_faults);
+
+	fprintf(ostream, "# TYPE os_proc_child_minor_page_faults counter\n");
+	fprintf(ostream, "os_proc_child_minor_page_faults: %lu\n", stat.child_minor_page_faults);
+
+	fprintf(ostream, "# TYPE os_proc_user_time counter\n");
+	fprintf(ostream, "os_proc_user_time: %lu\n", stat.user_time);
+
+	fprintf(ostream, "# TYPE os_proc_sys_time counter\n");
+	fprintf(ostream, "os_proc_sys_time: %lu\n", stat.system_time);
+
+	fprintf(ostream, "# TYPE os_proc_guest_time counter\n");
+	fprintf(ostream, "os_proc_guest_time: %lu\n", stat.guest_time);
+
+	fflush(ostream);
+	assert(ostream_size > 0);
 	rc = fclose(ostream);
 	assert(rc == 0);
+
+	/* Closing the memstream does not close the generated buffer */
+	ssize_t nwritten = write(client_socket, ostream_base, ostream_size);
+	assert(nwritten == ostream_size);
 
 	free(ostream_base);
 	ostream_size = 0;
 
 	close(client_socket);
+
+	pthread_exit(NULL);
 }

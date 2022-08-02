@@ -5,6 +5,5 @@
 extern struct tcp_server metrics_server;
 
 void metrics_server_init();
-int  metrics_server_listen();
+void metrics_server_thread_spawn(int client_socket);
 int  metrics_server_close();
-void metrics_server_handler(int client_socket);
