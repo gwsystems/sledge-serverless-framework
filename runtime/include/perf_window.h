@@ -149,7 +149,8 @@ perf_window_get_percentile(struct perf_window *perf_window, uint8_t percentile, 
 {
 	assert(perf_window != NULL);
 	assert(percentile >= 50 && percentile <= 99);
-	assert(perf_window->count > 0);
+
+	if (unlikely(perf_window->count == 0)) return 0;
 
 	if (likely(perf_window->count >= PERF_WINDOW_BUFFER_SIZE))
 		return perf_window->by_duration[precomputed_index].execution_time;

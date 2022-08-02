@@ -15,6 +15,8 @@
 #include "http_parser.h"
 #include "http_parser_settings.h"
 #include "http_total.h"
+#include "route.h"
+#include "route_metrics.h"
 #include "tenant.h"
 #include "vec.h"
 #include "http_session_perf_log.h"
@@ -54,6 +56,7 @@ struct http_session {
 	struct vec_u8           response_buffer;
 	size_t                  response_buffer_written;
 	struct tenant          *tenant; /* Backlink required when read blocks on listener core */
+	struct route           *route;  /* Backlink required to handle http metrics */
 	uint64_t                request_arrival_timestamp;
 	uint64_t                request_downloaded_timestamp;
 	uint64_t                response_takeoff_timestamp;
@@ -90,6 +93,7 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
 	assert(socket_address != NULL);
 
 	session->tenant                    = tenant;
+	session->route                     = NULL;
 	session->socket                    = socket_descriptor;
 	session->request_arrival_timestamp = request_arrival_timestamp;
 	memcpy(&session->client_address, socket_address, sizeof(struct sockaddr));
@@ -175,6 +179,7 @@ http_session_set_response_header(struct http_session *session, int status_code, 
 	assert(session != NULL);
 	assert(status_code >= 200 && status_code <= 599);
 	http_total_increment(status_code);
+	route_metrics_increment(&session->route->metrics, status_code);
 
 	if (status_code == 200) {
 		session->response_header_length = snprintf(session->response_header,

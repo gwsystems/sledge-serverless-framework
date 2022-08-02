@@ -21,6 +21,8 @@ static pthread_attr_t metrics_server_thread_settings;
 struct tcp_server     metrics_server;
 static void          *metrics_server_handler(void *arg);
 
+extern void metrics_server_route_level_metrics_render(FILE *ostream);
+
 void
 metrics_server_init()
 {
@@ -200,6 +202,8 @@ metrics_server_handler(void *arg)
 
 	fprintf(ostream, "# TYPE os_proc_guest_time counter\n");
 	fprintf(ostream, "os_proc_guest_time: %lu\n", stat.guest_time);
+
+	metrics_server_route_level_metrics_render(ostream);
 
 	fflush(ostream);
 	assert(ostream_size > 0);

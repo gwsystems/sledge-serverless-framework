@@ -37,6 +37,8 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 		               .response_size         = config->http_resp_size,
 		               .response_content_type = config->http_resp_content_type };
 
+	route_metrics_init(&route.metrics);
+
 	/* Admissions Control */
 	uint64_t expected_execution = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz;
 	admissions_info_initialize(&route.admissions_info, config->admissions_percentile, expected_execution,
@@ -58,4 +60,10 @@ http_router_match_route(http_router_t *router, char *route)
 	}
 
 	return NULL;
+}
+
+static inline void
+http_router_foreach(http_router_t *router, void (*cb)(route_t *, void *, void *), void *arg_one, void *arg_two)
+{
+	for (int i = 0; i < router->length; i++) { cb(&router->buffer[i], arg_one, arg_two); }
 }

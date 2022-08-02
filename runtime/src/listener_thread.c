@@ -233,6 +233,8 @@ on_client_request_received(struct http_session *session)
 		return;
 	}
 
+	session->route = route;
+
 	/*
 	 * Perform admissions control.
 	 * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
