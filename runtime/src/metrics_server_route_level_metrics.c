@@ -25,17 +25,20 @@ render_routes(struct route *route, void *arg_one, void *arg_two)
 	uint64_t total_4XX      = atomic_load(&route->metrics.total_4XX);
 	uint64_t total_5XX      = atomic_load(&route->metrics.total_5XX);
 
-	fprintf(ostream, "# TYPE %s_%s_total_requests counter\n", tenant->name, route->route);
-	fprintf(ostream, "%s_%s_total_requests: %lu\n", tenant->name, route->route, total_requests);
+	// Strip leading /
+	const char *route_label = &route->route[1];
 
-	fprintf(ostream, "# TYPE %s_%s_total_2XX counter\n", tenant->name, route->route);
-	fprintf(ostream, "%s_%s_total_2XX: %lu\n", tenant->name, route->route, total_2XX);
+	fprintf(ostream, "# TYPE %s_%s_total_requests counter\n", tenant->name, route_label);
+	fprintf(ostream, "%s_%s_total_requests: %lu\n", tenant->name, route_label, total_requests);
 
-	fprintf(ostream, "# TYPE %s_%s_total_4XX counter\n", tenant->name, route->route);
-	fprintf(ostream, "%s_%s_total_4XX: %lu\n", tenant->name, route->route, total_4XX);
+	fprintf(ostream, "# TYPE %s_%s_total_2XX counter\n", tenant->name, route_label);
+	fprintf(ostream, "%s_%s_total_2XX: %lu\n", tenant->name, route_label, total_2XX);
 
-	fprintf(ostream, "# TYPE %s_%s_total_5XX counter\n", tenant->name, route->route);
-	fprintf(ostream, "%s_%s_total_5XX: %lu\n", tenant->name, route->route, total_5XX);
+	fprintf(ostream, "# TYPE %s_%s_total_4XX counter\n", tenant->name, route_label);
+	fprintf(ostream, "%s_%s_total_4XX: %lu\n", tenant->name, route_label, total_4XX);
+
+	fprintf(ostream, "# TYPE %s_%s_total_5XX counter\n", tenant->name, route_label);
+	fprintf(ostream, "%s_%s_total_5XX: %lu\n", tenant->name, route_label, total_5XX);
 
 #ifdef ADMISSIONS_CONTROL
 	fprintf(ostream, "# TYPE %s_%s_latency_p50 gauge\n", tenant->name, route->route);

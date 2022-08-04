@@ -56,7 +56,7 @@ metrics_server_thread_spawn(int client_socket)
 	fgets(http_status_code_buf, 256, req_body);
 	fclose(req_body);
 
-	if (strncmp(http_status_code_buf, "GET / HTTP", 10) != 0) {
+	if (strncmp(http_status_code_buf, "GET /metrics HTTP", 10) != 0) {
 		write(client_socket, http_header_build(404), http_header_len(404));
 		close(client_socket);
 		return;
