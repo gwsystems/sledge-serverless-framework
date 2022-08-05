@@ -179,7 +179,9 @@ http_session_set_response_header(struct http_session *session, int status_code, 
 	assert(session != NULL);
 	assert(status_code >= 200 && status_code <= 599);
 	http_total_increment(status_code);
-	route_metrics_increment(&session->route->metrics, status_code);
+
+	/* We might not have actually matched a route */
+	if (likely(session->route != NULL)) { route_metrics_increment(&session->route->metrics, status_code); }
 
 	if (status_code == 200) {
 		session->response_header_length = snprintf(session->response_header,
