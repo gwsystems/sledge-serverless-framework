@@ -41,11 +41,11 @@ render_routes(struct route *route, void *arg_one, void *arg_two)
 	fprintf(ostream, "%s_%s_total_5XX: %lu\n", tenant->name, route_label, total_5XX);
 
 #ifdef ADMISSIONS_CONTROL
-	fprintf(ostream, "# TYPE %s_%s_latency_p50 gauge\n", tenant->name, route->route);
-	fprintf(ostream, "%s_%s_latency_p50: %lu\n", tenant->name, route->route, latency_p50);
+	fprintf(ostream, "# TYPE %s_%s_latency_p50 gauge\n", tenant->name, route_label);
+	fprintf(ostream, "%s_%s_latency_p50: %lu\n", tenant->name, route_label, latency_p50);
 
-	fprintf(ostream, "# TYPE %s_%s_latency_p90 gauge\n", tenant->name, route->route);
-	fprintf(ostream, "%s_%s_latency_p90: %lu\n", tenant->name, route->route, latency_p90);
+	fprintf(ostream, "# TYPE %s_%s_latency_p90 gauge\n", tenant->name, route_label);
+	fprintf(ostream, "%s_%s_latency_p90: %lu\n", tenant->name, route_label, latency_p90);
 #endif
 }
 
