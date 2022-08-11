@@ -396,7 +396,6 @@ listener_thread_main(void *dummy)
 				on_client_socket_epoll_event(&epoll_events[i]);
 			}
 		}
-		generic_thread_dump_lock_overhead();
 	}
 
 	panic("Listener thread unexpectedly broke loop\n");

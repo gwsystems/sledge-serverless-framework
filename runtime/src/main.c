@@ -287,12 +287,6 @@ log_compiletime_config()
 	pretty_print_key_disabled("Log HTTP Parser");
 #endif
 
-#ifdef LOG_LOCK_OVERHEAD
-	pretty_print_key_enabled("Log Lock Overhead");
-#else
-	pretty_print_key_disabled("Log Lock Overhead");
-#endif
-
 #ifdef LOG_TENANT_LOADING
 	pretty_print_key_enabled("Log Tenant Loading");
 #else
