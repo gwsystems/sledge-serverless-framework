@@ -9,9 +9,10 @@ extern uint32_t runtime_quantum_us;
 
 /* Implemented by listener and workers */
 
-thread_local uint64_t generic_thread_lock_duration   = 0;
-thread_local uint64_t generic_thread_lock_longest    = 0;
-thread_local uint64_t generic_thread_start_timestamp = 0;
+thread_local uint64_t    generic_thread_lock_duration   = 0;
+thread_local uint64_t    generic_thread_lock_longest    = 0;
+thread_local uint64_t    generic_thread_start_timestamp = 0;
+thread_local const char *generic_thread_lock_longest_fn = NULL;
 
 void
 generic_thread_initialize()

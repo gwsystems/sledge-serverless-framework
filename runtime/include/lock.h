@@ -29,23 +29,24 @@ typedef ck_spinlock_mcs_t lock_t;
  * @param unique_variable_name - a unique prefix to hygienically namespace an associated lock/unlock pair
  */
 
-#define LOCK_LOCK_WITH_BOOKKEEPING(lock, unique_variable_name)                                                         \
-	struct ck_spinlock_mcs _hygiene_##unique_variable_name##_node;                                                 \
-	uint64_t               _hygiene_##unique_variable_name##_pre = __getcycles();                                  \
-	ck_spinlock_mcs_lock((lock), &(_hygiene_##unique_variable_name##_node));                                       \
-	uint64_t _hygiene_##unique_variable_name##_duration = (__getcycles() - _hygiene_##unique_variable_name##_pre); \
-	if (_hygiene_##unique_variable_name##_duration > generic_thread_lock_longest) {                                \
-		generic_thread_lock_longest = _hygiene_##unique_variable_name##_duration;                              \
-	}                                                                                                              \
-	generic_thread_lock_duration += _hygiene_##unique_variable_name##_duration;
+#define LOCK_LOCK_WITH_BOOKKEEPING(lock, unique_variable_name)                        \
+	struct ck_spinlock_mcs _hygiene_##unique_variable_name##_node;                \
+	uint64_t               _hygiene_##unique_variable_name##_pre = __getcycles(); \
+	ck_spinlock_mcs_lock((lock), &(_hygiene_##unique_variable_name##_node));
 
 /**
  * Unlocks a lock
  * @param lock - the address of the lock
  * @param unique_variable_name - a unique prefix to hygienically namespace an associated lock/unlock pair
  */
-#define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, unique_variable_name) \
-	ck_spinlock_mcs_unlock(lock, &(_hygiene_##unique_variable_name##_node));
+#define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, unique_variable_name)                                                       \
+	ck_spinlock_mcs_unlock(lock, &(_hygiene_##unique_variable_name##_node));                                       \
+	uint64_t _hygiene_##unique_variable_name##_duration = (__getcycles() - _hygiene_##unique_variable_name##_pre); \
+	if (_hygiene_##unique_variable_name##_duration > generic_thread_lock_longest) {                                \
+		generic_thread_lock_longest    = _hygiene_##unique_variable_name##_duration;                           \
+		generic_thread_lock_longest_fn = __func__;                                                             \
+	}                                                                                                              \
+	generic_thread_lock_duration += _hygiene_##unique_variable_name##_duration;
 
 /**
  * Locks a lock, keeping track of overhead
