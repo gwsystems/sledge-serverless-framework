@@ -122,3 +122,6 @@ scratch_storage_delete.install: ../runtime/bin/scratch_storage_delete.wasm.so
 
 .PHONY: scratch_storage_upsert.install
 scratch_storage_upsert.install: ../runtime/bin/scratch_storage_upsert.wasm.so
+
+.PHONY: depth_to_xyz.install
+depth_to_xyz.install: ../runtime/bin/depth_to_xyz.wasm.so
