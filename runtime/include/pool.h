@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "generic_thread.h"
 #include "lock.h"
 #include "ps_list.h"
 
@@ -26,7 +25,7 @@
 	{                                                                                                          \
 		ps_list_head_init(&self->list);                                                                    \
 		self->use_lock = use_lock;                                                                         \
-		if (use_lock) LOCK_INIT(&self->lock);                                                              \
+		if (use_lock) lock_init(&self->lock);                                                              \
 	}                                                                                                          \
                                                                                                                    \
 	static inline void STRUCT_NAME##_pool_deinit(struct STRUCT_NAME##_pool *self)                              \
@@ -44,7 +43,7 @@
 	static inline struct STRUCT_NAME *STRUCT_NAME##_pool_remove_nolock(struct STRUCT_NAME##_pool *self)        \
 	{                                                                                                          \
 		assert(self != NULL);                                                                              \
-		assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));                                            \
+		assert(!self->use_lock || lock_is_locked(&self->lock));                                            \
                                                                                                                    \
 		struct STRUCT_NAME *obj = NULL;                                                                    \
                                                                                                                    \
@@ -66,9 +65,10 @@
 		bool                is_empty = STRUCT_NAME##_pool_is_empty(self);                                  \
 		if (is_empty) return obj;                                                                          \
                                                                                                                    \
-		LOCK_LOCK(&self->lock);                                                                            \
+		lock_node_t node = {};                                                                             \
+		lock_lock(&self->lock, &node);                                                                     \
 		obj = STRUCT_NAME##_pool_remove_nolock(self);                                                      \
-		LOCK_UNLOCK(&self->lock);                                                                          \
+		lock_unlock(&self->lock, &node);                                                                   \
 		return obj;                                                                                        \
 	}                                                                                                          \
                                                                                                                    \
@@ -76,7 +76,7 @@
 	{                                                                                                          \
 		assert(self != NULL);                                                                              \
 		assert(obj != NULL);                                                                               \
-		assert(!self->use_lock || LOCK_IS_LOCKED(&self->lock));                                            \
+		assert(!self->use_lock || lock_is_locked(&self->lock));                                            \
                                                                                                                    \
 		ps_list_head_add_d(&self->list, obj);                                                              \
 	}                                                                                                          \
@@ -87,7 +87,8 @@
 		assert(obj != NULL);                                                                               \
 		assert(self->use_lock);                                                                            \
                                                                                                                    \
-		LOCK_LOCK(&self->lock);                                                                            \
+		lock_node_t node = {};                                                                             \
+		lock_lock(&self->lock, &node);                                                                     \
 		STRUCT_NAME##_pool_add_nolock(self, obj);                                                          \
-		LOCK_UNLOCK(&self->lock);                                                                          \
+		lock_unlock(&self->lock, &node);                                                                   \
 	}
