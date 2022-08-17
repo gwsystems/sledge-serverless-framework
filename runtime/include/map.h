@@ -37,7 +37,7 @@ map_init(struct map *restrict map)
 {
 	for (int i = 0; i < MAP_BUCKET_COUNT; i++) {
 		map->buckets[i].head = NULL;
-		LOCK_INIT(&map->buckets[i].lock);
+		lock_init(&map->buckets[i].lock);
 	}
 };
 
@@ -67,7 +67,8 @@ map_get(struct map *map, uint8_t *key, uint32_t key_len, uint32_t *ret_value_len
 
 	struct map_bucket *bucket = &map->buckets[hash % MAP_BUCKET_COUNT];
 
-	LOCK_LOCK(&bucket->lock);
+	lock_node_t node = {};
+	lock_lock(&bucket->lock, &node);
 	for (struct map_node *node = bucket->head; node != NULL; node = node->next) {
 		if (node->hash == hash) {
 			value          = node->value;
@@ -79,7 +80,7 @@ map_get(struct map *map, uint8_t *key, uint32_t key_len, uint32_t *ret_value_len
 	if (value == NULL) *ret_value_len = 0;
 
 DONE:
-	LOCK_UNLOCK(&bucket->lock);
+	lock_unlock(&bucket->lock, &node);
 	return value;
 }
 
@@ -90,7 +91,8 @@ map_set(struct map *map, uint8_t *key, uint32_t key_len, uint8_t *value, uint32_
 
 	uint32_t           hash   = MAP_HASH(key, key_len);
 	struct map_bucket *bucket = &map->buckets[hash % MAP_BUCKET_COUNT];
-	LOCK_LOCK(&bucket->lock);
+	lock_node_t        node;
+	lock_lock(&bucket->lock, &node);
 	for (struct map_node *node = bucket->head; node != NULL; node = node->next) {
 		if (node->hash == hash) goto DONE;
 	}
@@ -111,7 +113,7 @@ map_set(struct map *map, uint8_t *key, uint32_t key_len, uint8_t *value, uint32_
 	did_set      = true;
 
 DONE:
-	LOCK_UNLOCK(&bucket->lock);
+	lock_unlock(&bucket->lock, &node);
 	return did_set;
 }
 
@@ -125,7 +127,8 @@ map_delete(struct map *map, uint8_t *key, uint32_t key_len)
 
 	uint32_t           hash   = MAP_HASH(key, key_len);
 	struct map_bucket *bucket = &map->buckets[hash % MAP_BUCKET_COUNT];
-	LOCK_LOCK(&bucket->lock);
+	lock_node_t        node;
+	lock_lock(&bucket->lock, &node);
 
 	struct map_node *prev = bucket->head;
 	if (prev != NULL && prev->hash == hash) {
@@ -147,7 +150,7 @@ map_delete(struct map *map, uint8_t *key, uint32_t key_len)
 	}
 
 DONE:
-	LOCK_UNLOCK(&bucket->lock);
+	lock_unlock(&bucket->lock, &node);
 	return did_delete;
 }
 
@@ -156,7 +159,8 @@ map_upsert(struct map *map, uint8_t *key, uint32_t key_len, uint8_t *value, uint
 {
 	uint32_t           hash   = MAP_HASH(key, key_len);
 	struct map_bucket *bucket = &map->buckets[hash % MAP_BUCKET_COUNT];
-	LOCK_LOCK(&bucket->lock);
+	lock_node_t        node;
+	lock_lock(&bucket->lock, &node);
 
 	for (struct map_node *node = bucket->head; node != NULL; node = node->next) {
 		if (node->hash == hash) {
@@ -187,5 +191,5 @@ map_upsert(struct map *map, uint8_t *key, uint32_t key_len, uint8_t *value, uint
 	bucket->head = new_node;
 
 DONE:
-	LOCK_UNLOCK(&bucket->lock);
+	lock_unlock(&bucket->lock, &node);
 }

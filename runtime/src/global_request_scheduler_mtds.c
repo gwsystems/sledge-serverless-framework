@@ -60,7 +60,8 @@ global_request_scheduler_mtds_add(struct sandbox *sandbox)
 
 	struct tenant_global_request_queue *tgrq = sandbox->tenant->tgrq_requests;
 
-	LOCK_LOCK(&global_lock);
+	lock_node_t node = {};
+	lock_lock(&global_lock, &node);
 
 	struct priority_queue *destination_queue = global_request_scheduler_mtds_default;
 	if (sandbox->tenant->tgrq_requests->mt_class == MT_GUARANTEED) {
@@ -84,7 +85,7 @@ global_request_scheduler_mtds_add(struct sandbox *sandbox)
 		// debuglog("Added the TGRQ back to the Global runqueue - %s to Heapify", QUEUE_NAME);
 	}
 
-	LOCK_UNLOCK(&global_lock);
+	lock_unlock(&global_lock, &node);
 
 	return sandbox;
 }
@@ -124,9 +125,9 @@ global_request_scheduler_mtds_remove_with_mt_class(struct sandbox **removed_sand
                                                    enum MULTI_TENANCY_CLASS target_mt_class)
 {
 	int rc = -ENOENT;
-	;
 
-	LOCK_LOCK(&global_lock);
+	lock_node_t node = {};
+	lock_lock(&global_lock, &node);
 
 	/* Avoid unnessary locks when the target_deadline is tighter than the head of the Global runqueue */
 	uint64_t global_guaranteed_deadline = priority_queue_peek(global_request_scheduler_mtds_guaranteed);
@@ -180,7 +181,7 @@ global_request_scheduler_mtds_remove_with_mt_class(struct sandbox **removed_sand
 	}
 
 done:
-	LOCK_UNLOCK(&global_lock);
+	lock_unlock(&global_lock, &node);
 	return rc;
 }
 
@@ -227,7 +228,7 @@ global_request_scheduler_mtds_initialize()
 	global_tenant_timeout_queue = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
 	                                                        tenant_timeout_get_priority);
 
-	LOCK_INIT(&global_lock);
+	lock_init(&global_lock);
 
 	struct global_request_scheduler_config config = {
 		.add_fn               = global_request_scheduler_mtds_add,
@@ -265,7 +266,8 @@ global_request_scheduler_mtds_promote_lock(struct tenant_global_request_queue *t
 	assert(tgrq != NULL);
 	// assert(priority_queue_length_nolock(tgrq->sandbox_requests) == 0);
 
-	LOCK_LOCK(&global_lock);
+	lock_node_t node = {};
+	lock_lock(&global_lock, &node);
 
 	if (tgrq->mt_class == MT_GUARANTEED) goto done;
 	if (priority_queue_length_nolock(tgrq->sandbox_requests) == 0) goto done;
@@ -283,7 +285,7 @@ global_request_scheduler_mtds_promote_lock(struct tenant_global_request_queue *t
 	if (rc == -ENOSPC) panic("Global Guaranteed queue is full!\n");
 
 done:
-	LOCK_UNLOCK(&global_lock);
+	lock_unlock(&global_lock, &node);
 }
 
 /*

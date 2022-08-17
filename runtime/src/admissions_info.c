@@ -42,12 +42,13 @@ admissions_info_update(struct admissions_info *admissions_info, uint64_t executi
 #ifdef ADMISSIONS_CONTROL
 	struct perf_window *perf_window = &admissions_info->perf_window;
 
-	LOCK_LOCK(&admissions_info->perf_window.lock);
+	lock_node_t node = {};
+	lock_lock(&admissions_info->perf_window.lock, &node);
 	perf_window_add(perf_window, execution_duration);
 	uint64_t estimated_execution = perf_window_get_percentile(perf_window, admissions_info->percentile,
 	                                                          admissions_info->control_index);
 	admissions_info->estimate    = admissions_control_calculate_estimate(estimated_execution,
 	                                                                     admissions_info->relative_deadline);
-	LOCK_UNLOCK(&admissions_info->perf_window.lock);
+	lock_unlock(&admissions_info->perf_window.lock, &node);
 #endif
 }

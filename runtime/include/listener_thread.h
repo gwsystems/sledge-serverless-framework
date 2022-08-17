@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdnoreturn.h>
 
-#include "generic_thread.h"
 #include "http_session.h"
 #include "module.h"
 

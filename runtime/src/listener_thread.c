@@ -3,7 +3,6 @@
 
 #include "arch/getcycles.h"
 #include "global_request_scheduler.h"
-#include "generic_thread.h"
 #include "listener_thread.h"
 #include "module.h"
 #include "runtime.h"
@@ -368,8 +367,6 @@ listener_thread_main(void *dummy)
 {
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
-	generic_thread_initialize();
-
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 2);
 	pthread_setschedprio(pthread_self(), -20);
@@ -396,7 +393,6 @@ listener_thread_main(void *dummy)
 				on_client_socket_epoll_event(&epoll_events[i]);
 			}
 		}
-		generic_thread_dump_lock_overhead();
 	}
 
 	panic("Listener thread unexpectedly broke loop\n");
