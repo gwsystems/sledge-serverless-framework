@@ -84,9 +84,9 @@ listener_thread_register_http_session(struct http_session *http)
 		accept_evt.events = EPOLLOUT;
 		http->state       = HTTP_SESSION_SEND_RESPONSE_HEADER_BLOCKED;
 		break;
-	case HTTP_SESSION_SENDING_RESPONSE:
+	case HTTP_SESSION_SENDING_RESPONSE_BODY:
 		accept_evt.events = EPOLLOUT;
-		http->state       = HTTP_SESSION_SEND_RESPONSE_BLOCKED;
+		http->state       = HTTP_SESSION_SEND_RESPONSE_BODY_BLOCKED;
 		break;
 	default:
 		panic("Invalid HTTP Session State: %d\n", http->state);
@@ -252,8 +252,7 @@ on_client_request_received(struct http_session *session)
 static void
 on_client_response_header_sending(struct http_session *session)
 {
-	assert(session->state = HTTP_SESSION_EXECUTION_COMPLETE);
-	session->state = HTTP_SESSION_SENDING_RESPONSE_HEADER;
+	assert(session->state = HTTP_SESSION_SEND_RESPONSE_HEADER_BLOCKED);
 
 	int rc = http_session_send_response_header(session, (void_star_cb)listener_thread_register_http_session);
 	if (likely(rc == 0)) {
@@ -272,6 +271,8 @@ on_client_response_header_sending(struct http_session *session)
 static void
 on_client_response_body_sending(struct http_session *session)
 {
+	assert(session->state = HTTP_SESSION_SEND_RESPONSE_BODY_BLOCKED);
+
 	/* Read HTTP request */
 	int rc = http_session_send_response_body(session, (void_star_cb)listener_thread_register_http_session);
 	if (likely(rc == 0)) {
@@ -290,6 +291,8 @@ on_client_response_body_sending(struct http_session *session)
 static void
 on_client_response_sent(struct http_session *session)
 {
+	assert(session->state = HTTP_SESSION_SENT_RESPONSE_BODY);
+
 	/* Terminal State Logging for Http Session */
 	session->response_sent_timestamp = __getcycles();
 	http_session_perf_log_print_entry(session);
@@ -344,7 +347,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
 		assert((evt->events & EPOLLOUT) == EPOLLOUT);
 		on_client_response_header_sending(session);
 		break;
-	case HTTP_SESSION_SEND_RESPONSE_BLOCKED:
+	case HTTP_SESSION_SEND_RESPONSE_BODY_BLOCKED:
 		assert((evt->events & EPOLLOUT) == EPOLLOUT);
 		on_client_response_body_sending(session);
 		break;
