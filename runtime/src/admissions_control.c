@@ -3,6 +3,9 @@
 
 #include "admissions_control.h"
 #include "debuglog.h"
+#include "likely.h"
+#include "panic.h"
+#include "runtime.h"
 
 /*
  * Unitless estimate of the instantaneous fraction of system capacity required to complete all previously
