@@ -28,4 +28,4 @@ valgrind:
 
 .PHONY: client
 client:
-	cat ./0_rgb.png ./0_depth.png | http "${HOSTNAME}:10000/depth_to_xyz?3011515&620608" > ./out.png
+	cat ./0_depth.png | http "${HOSTNAME}:10000/depth_to_xyz" > ./out.png
