@@ -251,9 +251,6 @@ on_client_request_received(struct http_session *session)
 static void
 on_client_response_header_sending(struct http_session *session)
 {
-	assert(session->state = HTTP_SESSION_EXECUTION_COMPLETE);
-	session->state = HTTP_SESSION_SENDING_RESPONSE_HEADER;
-
 	int rc = http_session_send_response_header(session, (void_star_cb)listener_thread_register_http_session);
 	if (likely(rc == 0)) {
 		on_client_response_body_sending(session);
@@ -271,8 +268,6 @@ on_client_response_header_sending(struct http_session *session)
 static void
 on_client_response_body_sending(struct http_session *session)
 {
-	assert(session->state = HTTP_SESSION_SEND_RESPONSE_BODY_BLOCKED);
-
 	/* Read HTTP request */
 	int rc = http_session_send_response_body(session, (void_star_cb)listener_thread_register_http_session);
 	if (likely(rc == 0)) {
