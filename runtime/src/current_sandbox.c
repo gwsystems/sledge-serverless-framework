@@ -28,8 +28,6 @@ current_sandbox_sleep()
 	struct sandbox *sleeping_sandbox = current_sandbox_get();
 	assert(sleeping_sandbox != NULL);
 
-	generic_thread_dump_lock_overhead();
-
 	switch (sleeping_sandbox->state) {
 	case SANDBOX_RUNNING_SYS: {
 		sandbox_sleep(sleeping_sandbox);
@@ -53,8 +51,6 @@ current_sandbox_exit()
 {
 	struct sandbox *exiting_sandbox = current_sandbox_get();
 	assert(exiting_sandbox != NULL);
-
-	generic_thread_dump_lock_overhead();
 
 	switch (exiting_sandbox->state) {
 	case SANDBOX_RETURNED:
@@ -107,7 +103,6 @@ current_sandbox_wasm_trap_handler(int trapno)
 
 	debuglog("%s", error_message);
 	worker_thread_epoll_remove_sandbox(sandbox);
-	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
 	assert(0);
 }
@@ -155,7 +150,6 @@ current_sandbox_init()
 err:
 	debuglog("%s", error_message);
 	worker_thread_epoll_remove_sandbox(sandbox);
-	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
 	return NULL;
 }
@@ -179,7 +173,6 @@ done:
 	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING_SYS);
 
 	/* Cleanup connection and exit sandbox */
-	generic_thread_dump_lock_overhead();
 	current_sandbox_exit();
 	assert(0);
 err:

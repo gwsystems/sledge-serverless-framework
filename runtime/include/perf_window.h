@@ -19,7 +19,7 @@ perf_window_initialize(struct perf_window *perf_window)
 {
 	assert(perf_window != NULL);
 
-	LOCK_INIT(&perf_window->lock);
+	lock_init(&perf_window->lock);
 	perf_window->count = 0;
 	memset(perf_window->by_duration, 0, sizeof(struct execution_node) * PERF_WINDOW_BUFFER_SIZE);
 	memset(perf_window->by_termination, 0, sizeof(uint16_t) * PERF_WINDOW_BUFFER_SIZE);
@@ -36,7 +36,7 @@ perf_window_initialize(struct perf_window *perf_window)
 static inline void
 perf_window_swap(struct perf_window *perf_window, uint16_t first_by_duration_idx, uint16_t second_by_duration_idx)
 {
-	assert(LOCK_IS_LOCKED(&perf_window->lock));
+	assert(lock_is_locked(&perf_window->lock));
 	assert(perf_window != NULL);
 	assert(first_by_duration_idx >= 0 && first_by_duration_idx < PERF_WINDOW_BUFFER_SIZE);
 	assert(second_by_duration_idx >= 0 && second_by_duration_idx < PERF_WINDOW_BUFFER_SIZE);
@@ -81,7 +81,7 @@ perf_window_add(struct perf_window *perf_window, uint64_t value)
 	uint16_t idx_of_oldest;
 	bool     check_up;
 
-	if (unlikely(!LOCK_IS_LOCKED(&perf_window->lock))) panic("lock not held when calling perf_window_add\n");
+	if (unlikely(!lock_is_locked(&perf_window->lock))) panic("lock not held when calling perf_window_add\n");
 
 	/* A successful invocation should run for a non-zero amount of time */
 	assert(value > 0);

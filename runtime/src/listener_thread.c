@@ -3,7 +3,6 @@
 
 #include "arch/getcycles.h"
 #include "global_request_scheduler.h"
-#include "generic_thread.h"
 #include "listener_thread.h"
 #include "module.h"
 #include "runtime.h"
@@ -252,7 +251,8 @@ on_client_request_received(struct http_session *session)
 static void
 on_client_response_header_sending(struct http_session *session)
 {
-	assert(session->state = HTTP_SESSION_SEND_RESPONSE_HEADER_BLOCKED);
+	assert(session->state = HTTP_SESSION_EXECUTION_COMPLETE);
+	session->state = HTTP_SESSION_SENDING_RESPONSE_HEADER;
 
 	int rc = http_session_send_response_header(session, (void_star_cb)listener_thread_register_http_session);
 	if (likely(rc == 0)) {
@@ -371,8 +371,6 @@ listener_thread_main(void *dummy)
 {
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
-	generic_thread_initialize();
-
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 2);
 	pthread_setschedprio(pthread_self(), -20);
@@ -399,7 +397,6 @@ listener_thread_main(void *dummy)
 				on_client_socket_epoll_event(&epoll_events[i]);
 			}
 		}
-		generic_thread_dump_lock_overhead();
 	}
 
 	panic("Listener thread unexpectedly broke loop\n");
