@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "admissions_control.h"
 #include "runtime.h"
 #include "scheduler_options.h"
 
@@ -100,12 +101,12 @@ route_config_validate(struct route_config *config, bool *did_set)
 
 		if (config->admissions_percentile > 99 || config->admissions_percentile < 50) {
 			fprintf(stderr, "admissions-percentile must be > 50 and <= 99 but was %u\n",
-			        route_config->admissions_percentile);
+			        config->admissions_percentile);
 			return -1;
 		}
 
 		/* If the ratio is too big, admissions control is too coarse */
-		uint32_t ratio = route_config->relative_deadline_us / route_config->expected_execution_us;
+		uint32_t ratio = config->relative_deadline_us / config->expected_execution_us;
 		if (ratio > ADMISSIONS_CONTROL_GRANULARITY) {
 			fprintf(stderr,
 			        "Ratio of Deadline to Execution time cannot exceed admissions control "

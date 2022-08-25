@@ -1,5 +1,7 @@
+#include "admissions_control.h"
 #include "admissions_info.h"
 #include "debuglog.h"
+#include "perf_window.h"
 
 /**
  * Initializes perf window
@@ -22,7 +24,7 @@ admissions_info_initialize(struct admissions_info *admissions_info, uint8_t perc
 	if (unlikely(percentile < 50 || percentile > 99)) panic("Invalid admissions percentile");
 	admissions_info->percentile = percentile;
 
-	admissions_info->control_index = PERF_WINDOW_BUFFER_SIZE * percentile / 100;
+	admissions_info->control_index = perf_window_capacity * percentile / 100;
 #ifdef LOG_ADMISSIONS_CONTROL
 	debuglog("Percentile: %u\n", admissions_info->percentile);
 	debuglog("Control Index: %d\n", admissions_info->control_index);
