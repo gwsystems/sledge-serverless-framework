@@ -38,16 +38,16 @@ run_samples() {
 	# Scrape the perf window size from the source if possible
 	# TODO: Make a util function
 	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../../runtime/include/perf_window_t.h)"
-	local -i perf_window_buffer_size
-	if ! perf_window_buffer_size=$(grep "#define PERF_WINDOW_BUFFER_SIZE" < "$perf_window_path" | cut -d\  -f3); then
-		printf "Failed to scrape PERF_WINDOW_BUFFER_SIZE from ../../include/perf_window.h\n"
+	local -i perf_window_capacity
+	if ! perf_window_capacity=$(grep "perf_window_capacity =" < "$perf_window_path" | cut -d\  -f3); then
+		printf "Failed to scrape perf_window_capacity from ../../include/perf_window.h\n"
 		printf "Defaulting to 16\n"
-		perf_window_buffer_size=16
+		perf_window_capacity=16
 	fi
-	local -ir perf_window_buffer_size
+	local -ir perf_window_capacity
 
 	printf "Running Samples: "
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_buffer_size" -c "$perf_window_buffer_size" -q 200 -cpus 3 -o csv -m GET "http://${hostname}:10000" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_capacity" -c "$perf_window_capacity" -q 200 -cpus 3 -o csv -m GET "http://${hostname}:10000/empty" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "samples failed"
 		return 1
@@ -79,7 +79,7 @@ run_experiments() {
 	printf "Running Experiments:\n"
 	for conn in ${concurrency[*]}; do
 		printf "\t%d Concurrency: " "$conn"
-		hey -disable-compression -disable-keepalive -disable-redirects -n "$iterations" -c "$conn" -cpus 2 -o csv -m GET "http://$hostname:10000" > "$results_directory/con$conn.csv" 2> /dev/null || {
+		hey -disable-compression -disable-keepalive -disable-redirects -n "$iterations" -c "$conn" -cpus 2 -o csv -m GET "http://$hostname:10000/empty" > "$results_directory/con$conn.csv" 2> /dev/null || {
 			printf "[ERR]\n"
 			panic "experiment failed"
 			return 1

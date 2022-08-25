@@ -1,68 +1,81 @@
 #pragma once
 
+#include <assert.h>
 #include <spinlock/mcs.h>
 #include <stdint.h>
 
 #include "arch/getcycles.h"
 #include "runtime.h"
-#include "generic_thread.h"
 
-typedef ck_spinlock_mcs_t lock_t;
+
+/* A linked list of nodes */
+struct lock_wrapper {
+	uint64_t          longest_held;
+	uint64_t          total_held;
+	ck_spinlock_mcs_t lock;
+};
+
+/* A node on the linked list */
+struct lock_node {
+	struct ck_spinlock_mcs node;
+	uint64_t               time_locked;
+};
+
+typedef struct lock_wrapper lock_t;
+typedef struct lock_node    lock_node_t;
 
 /**
- * Initializes a lock of type lock_t
+ * Initializes a lock
  * @param lock - the address of the lock
  */
-#define LOCK_INIT(lock) ck_spinlock_mcs_init((lock))
+static inline void
+lock_init(lock_t *self)
+{
+	self->total_held   = 0;
+	self->longest_held = 0;
+	ck_spinlock_mcs_init(&self->lock);
+}
 
 /**
  * Checks if a lock is locked
  * @param lock - the address of the lock
  * @returns bool if lock is locked
  */
-
-#define LOCK_IS_LOCKED(lock) ck_spinlock_mcs_locked((lock))
+static inline bool
+lock_is_locked(lock_t *self)
+{
+	return ck_spinlock_mcs_locked(&self->lock);
+}
 
 /**
  * Locks a lock, keeping track of overhead
  * @param lock - the address of the lock
- * @param unique_variable_name - a unique prefix to hygienically namespace an associated lock/unlock pair
+ * @param node - node to add to lock
  */
+static inline void
+lock_lock(lock_t *self, lock_node_t *node)
+{
+	assert(node->time_locked == 0);
 
-#define LOCK_LOCK_WITH_BOOKKEEPING(lock, unique_variable_name)                                                         \
-	struct ck_spinlock_mcs _hygiene_##unique_variable_name##_node;                                                 \
-	uint64_t               _hygiene_##unique_variable_name##_pre = __getcycles();                                  \
-	ck_spinlock_mcs_lock((lock), &(_hygiene_##unique_variable_name##_node));                                       \
-	uint64_t _hygiene_##unique_variable_name##_duration = (__getcycles() - _hygiene_##unique_variable_name##_pre); \
-	if (_hygiene_##unique_variable_name##_duration > generic_thread_lock_longest) {                                \
-		generic_thread_lock_longest = _hygiene_##unique_variable_name##_duration;                              \
-	}                                                                                                              \
-	generic_thread_lock_duration += _hygiene_##unique_variable_name##_duration;
+	node->time_locked = __getcycles();
+	ck_spinlock_mcs_lock(&self->lock, &node->node);
+}
 
 /**
  * Unlocks a lock
  * @param lock - the address of the lock
- * @param unique_variable_name - a unique prefix to hygienically namespace an associated lock/unlock pair
+ * @param node - node used when calling lock_lock
  */
-#define LOCK_UNLOCK_WITH_BOOKKEEPING(lock, unique_variable_name) \
-	ck_spinlock_mcs_unlock(lock, &(_hygiene_##unique_variable_name##_node));
+static inline void
+lock_unlock(lock_t *self, lock_node_t *node)
+{
+	assert(node->time_locked > 0);
 
-/**
- * Locks a lock, keeping track of overhead
- * Assumes the availability of DEFAULT as a hygienic prefix for DEFAULT_node and DEFAULT_pre
- *
- * As such, this API can only be used once in a lexical scope.
- *
- * Use LOCK_LOCK_WITH_BOOKKEEPING and LOCK_UNLOCK_WITH_BOOKKEEPING if multiple locks are required
- * @param lock - the address of the lock
- */
-#define LOCK_LOCK(lock) LOCK_LOCK_WITH_BOOKKEEPING(lock, DEFAULT)
-
-/**
- * Unlocks a lock
- * Uses lock node NODE_DEFAULT and timestamp PRE_DEFAULT, so this assumes use of LOCK_LOCK
- * This API can only be used once in a lexical scope. If this isn't true, use LOCK_LOCK_WITH_BOOKKEEPING and
- * LOCK_UNLOCK_WITH_BOOKKEEPING
- * @param lock - the address of the lock
- */
-#define LOCK_UNLOCK(lock) LOCK_UNLOCK_WITH_BOOKKEEPING(lock, DEFAULT)
+	ck_spinlock_mcs_unlock(&self->lock, &node->node);
+	uint64_t now = __getcycles();
+	assert(node->time_locked < now);
+	uint64_t duration = now - node->time_locked;
+	node->time_locked = 0;
+	if (unlikely(duration > self->longest_held)) { self->longest_held = duration; }
+	self->total_held += duration;
+}

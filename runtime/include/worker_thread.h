@@ -2,7 +2,6 @@
 
 #include <threads.h>
 
-#include "generic_thread.h"
 #include "runtime.h"
 
 extern thread_local struct arch_context worker_thread_base_context;

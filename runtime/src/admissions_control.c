@@ -4,6 +4,7 @@
 
 #include "admissions_control.h"
 #include "debuglog.h"
+#include "likely.h"
 #include "panic.h"
 #include "runtime.h"
 

@@ -38,9 +38,10 @@ enum http_session_state
 	HTTP_SESSION_EXECUTION_COMPLETE,
 	HTTP_SESSION_SENDING_RESPONSE_HEADER,
 	HTTP_SESSION_SEND_RESPONSE_HEADER_BLOCKED,
-	HTTP_SESSION_SENDING_RESPONSE,
-	HTTP_SESSION_SEND_RESPONSE_BLOCKED,
-	HTTP_SESSION_SENT_RESPONSE
+	HTTP_SESSION_SENT_RESPONSE_HEADER,
+	HTTP_SESSION_SENDING_RESPONSE_BODY,
+	HTTP_SESSION_SEND_RESPONSE_BODY_BLOCKED,
+	HTTP_SESSION_SENT_RESPONSE_BODY
 };
 
 struct http_session {
@@ -218,6 +219,9 @@ static inline int
 http_session_send_response_header(struct http_session *session, void_star_cb on_eagain)
 {
 	assert(session != NULL);
+	assert(session->state == HTTP_SESSION_EXECUTION_COMPLETE
+	       || session->state == HTTP_SESSION_SEND_RESPONSE_HEADER_BLOCKED);
+	session->state = HTTP_SESSION_SENDING_RESPONSE_HEADER;
 
 	while (session->response_header_length > session->response_header_written) {
 		ssize_t sent =
@@ -231,6 +235,8 @@ http_session_send_response_header(struct http_session *session, void_star_cb on_
 			session->response_header_written += (size_t)sent;
 		}
 	}
+
+	session->state = HTTP_SESSION_SENT_RESPONSE_HEADER;
 
 	return 0;
 }
@@ -246,6 +252,10 @@ http_session_send_response_body(struct http_session *session, void_star_cb on_ea
 {
 	assert(session != NULL);
 
+	assert(session->state == HTTP_SESSION_SENT_RESPONSE_HEADER
+	       || session->state == HTTP_SESSION_SEND_RESPONSE_BODY_BLOCKED);
+	session->state = HTTP_SESSION_SENDING_RESPONSE_BODY;
+
 	while (session->response_buffer_written < session->response_buffer.length) {
 		ssize_t sent =
 		  tcp_session_send(session->socket,
@@ -259,6 +269,7 @@ http_session_send_response_body(struct http_session *session, void_star_cb on_ea
 		}
 	}
 
+	session->state = HTTP_SESSION_SENT_RESPONSE_BODY;
 	return 0;
 }
 
@@ -467,6 +478,8 @@ DONE:
 static inline void
 http_session_send_response(struct http_session *session, void_star_cb on_eagain)
 {
+	assert(session->state == HTTP_SESSION_EXECUTION_COMPLETE);
+
 	int rc = http_session_send_response_header(session, on_eagain);
 	/* session blocked and registered to epoll so continue to next handle */
 	if (unlikely(rc == -EAGAIN)) {
@@ -475,6 +488,8 @@ http_session_send_response(struct http_session *session, void_star_cb on_eagain)
 		goto CLOSE;
 	}
 
+	assert(session->state == HTTP_SESSION_SENT_RESPONSE_HEADER);
+
 	rc = http_session_send_response_body(session, on_eagain);
 	/* session blocked and registered to epoll so continue to next handle */
 	if (unlikely(rc == -EAGAIN)) {
@@ -482,6 +497,8 @@ http_session_send_response(struct http_session *session, void_star_cb on_eagain)
 	} else if (unlikely(rc < 0)) {
 		goto CLOSE;
 	}
+
+	assert(session->state == HTTP_SESSION_SENT_RESPONSE_BODY);
 
 	/* Terminal State Logging for Http Session */
 	session->response_sent_timestamp = __getcycles();

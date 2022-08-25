@@ -24,7 +24,7 @@ admissions_info_initialize(struct admissions_info *admissions_info, uint8_t perc
 	if (unlikely(percentile < 50 || percentile > 99)) panic("Invalid admissions percentile");
 	admissions_info->percentile = percentile;
 
-	admissions_info->control_index = PERF_WINDOW_BUFFER_SIZE * percentile / 100;
+	admissions_info->control_index = perf_window_capacity * percentile / 100;
 #ifdef LOG_ADMISSIONS_CONTROL
 	debuglog("Percentile: %u\n", admissions_info->percentile);
 	debuglog("Control Index: %d\n", admissions_info->control_index);
@@ -44,12 +44,13 @@ admissions_info_update(struct admissions_info *admissions_info, uint64_t executi
 #ifdef ADMISSIONS_CONTROL
 	struct perf_window *perf_window = &admissions_info->perf_window;
 
-	LOCK_LOCK(&admissions_info->perf_window.lock);
+	lock_node_t node = {};
+	lock_lock(&admissions_info->perf_window.lock, &node);
 	perf_window_add(perf_window, execution_duration);
 	uint64_t estimated_execution = perf_window_get_percentile(perf_window, admissions_info->percentile,
 	                                                          admissions_info->control_index);
 	admissions_info->estimate    = admissions_control_calculate_estimate(estimated_execution,
 	                                                                     admissions_info->relative_deadline);
-	LOCK_UNLOCK(&admissions_info->perf_window.lock);
+	lock_unlock(&admissions_info->perf_window.lock, &node);
 #endif
 }
