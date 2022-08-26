@@ -16,7 +16,7 @@
 #include "http_parser_settings.h"
 #include "http_total.h"
 #include "route.h"
-#include "route_metrics.h"
+#include "http_route_total.h"
 #include "tenant.h"
 #include "vec.h"
 #include "http_session_perf_log.h"
@@ -182,7 +182,7 @@ http_session_set_response_header(struct http_session *session, int status_code, 
 	http_total_increment_response(status_code);
 
 	/* We might not have actually matched a route */
-	if (likely(session->route != NULL)) { route_metrics_increment(&session->route->metrics, status_code); }
+	if (likely(session->route != NULL)) { http_route_total_increment(&session->route->metrics, status_code); }
 
 	if (status_code == 200) {
 		session->response_header_length = snprintf(session->response_header,

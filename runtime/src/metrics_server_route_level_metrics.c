@@ -12,6 +12,7 @@ static const int p90_idx = perf_window_capacity * 90 / 100;
 void
 render_routes(struct route *route, void *arg_one, void *arg_two)
 {
+#ifdef HTTP_ROUTE_TOTAL_COUNTERS
 	FILE          *ostream = (FILE *)arg_one;
 	struct tenant *tenant  = (struct tenant *)arg_two;
 
@@ -47,6 +48,8 @@ render_routes(struct route *route, void *arg_one, void *arg_two)
 	fprintf(ostream, "# TYPE %s_%s_latency_p90 gauge\n", tenant->name, route_label);
 	fprintf(ostream, "%s_%s_latency_p90: %lu\n", tenant->name, route_label, latency_p90);
 #endif
+
+#endif /* HTTP_ROUTE_TOTAL_COUNTERS */
 }
 
 void
@@ -61,5 +64,7 @@ render_tenant_routers(struct tenant *tenant, void *arg_one, void *arg_two)
 void
 metrics_server_route_level_metrics_render(FILE *ostream)
 {
+#ifdef HTTP_ROUTE_TOTAL_COUNTERS
 	tenant_database_foreach(render_tenant_routers, ostream, NULL);
+#endif
 }

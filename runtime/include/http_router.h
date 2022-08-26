@@ -37,7 +37,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 		               .response_size         = config->http_resp_size,
 		               .response_content_type = config->http_resp_content_type };
 
-	route_metrics_init(&route.metrics);
+	http_route_total_init(&route.metrics);
 
 	/* Admissions Control */
 	uint64_t expected_execution = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz;
