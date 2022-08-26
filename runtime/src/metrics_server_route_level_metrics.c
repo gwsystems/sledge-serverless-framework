@@ -4,8 +4,6 @@
 #include "perf_window.h"
 #include "tenant_functions.h"
 
-// tenant_database_foreach_cb_t
-
 static const int p50_idx = PERF_WINDOW_CAPACITY * 50 / 100;
 static const int p90_idx = PERF_WINDOW_CAPACITY * 90 / 100;
 
