@@ -33,41 +33,31 @@
 #define HTTP_RESPONSE_404_NOT_FOUND  \
 	"HTTP/1.1 404 Not Found\r\n" \
 	"Server: SLEdge\r\n"         \
-	"Content-Length: 0\r\n"      \
 	"Connection: close\r\n"      \
-	"\r\n"                       \
 	"\r\n"
 
 #define HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE  \
 	"HTTP/1.1 413 Payload Too Large\r\n" \
 	"Server: SLEdge\r\n"                 \
-	"Content-Length: 0\r\n"              \
 	"Connection: close\r\n"              \
-	"\r\n"                               \
 	"\r\n"
 
 #define HTTP_RESPONSE_429_TOO_MANY_REQUESTS  \
 	"HTTP/1.1 429 Too Many Requests\r\n" \
 	"Server: SLEdge\r\n"                 \
-	"Content-Length: 0\r\n"              \
 	"Connection: close\r\n"              \
-	"\r\n"                               \
 	"\r\n"
 
 #define HTTP_RESPONSE_500_INTERNAL_SERVER_ERROR  \
 	"HTTP/1.1 500 Internal Server Error\r\n" \
 	"Server: SLEdge\r\n"                     \
-	"Content-Length: 0\r\n"                  \
 	"Connection: close\r\n"                  \
-	"\r\n"                                   \
 	"\r\n"
 
 #define HTTP_RESPONSE_503_SERVICE_UNAVAILABLE  \
 	"HTTP/1.1 503 Service Unavailable\r\n" \
 	"Server: SLEdge\r\n"                   \
-	"Content-Length: 0\r\n"                \
 	"Connection: close\r\n"                \
-	"\r\n"                                 \
 	"\r\n"
 
 static inline const char *

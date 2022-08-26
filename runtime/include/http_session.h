@@ -194,7 +194,7 @@ http_session_set_response_header(struct http_session *session, int status_code, 
 		                      ? HTTP_SESSION_RESPONSE_HEADER_CAPACITY
 		                      : header_len;
 
-		strncpy(session->response_header, http_header_build(status_code), to_copy - 1);
+		strncpy(session->response_header, http_header_build(status_code), to_copy);
 		session->response_header_length = to_copy;
 	}
 
