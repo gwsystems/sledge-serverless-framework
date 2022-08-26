@@ -38,22 +38,22 @@ run_samples() {
 	# Scrape the perf window size from the source if possible
 	# TODO: Make a util function
 	local -r perf_window_path="$(path_join "$__run_sh__base_path" ../../runtime/include/perf_window_t.h)"
-	local -i perf_window_capacity
-	if ! perf_window_capacity=$(grep "perf_window_capacity =" < "$perf_window_path" | cut -d\  -f3); then
-		printf "Failed to scrape perf_window_capacity from ../../runtime/include/perf_window.h\n"
+	local -i PERF_WINDOW_CAPACITY
+	if ! PERF_WINDOW_CAPACITY=$(grep "PERF_WINDOW_CAPACITY =" < "$perf_window_path" | cut -d\  -f3); then
+		printf "Failed to scrape PERF_WINDOW_CAPACITY from ../../runtime/include/perf_window.h\n"
 		printf "Defaulting to 16\n"
-		perf_window_capacity=16
+		PERF_WINDOW_CAPACITY=16
 	fi
-	local -ir perf_window_capacity
+	local -ir PERF_WINDOW_CAPACITY
 
 	printf "Running Samples: "
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_capacity" -c "$perf_window_capacity" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$PERF_WINDOW_CAPACITY" -c "$PERF_WINDOW_CAPACITY" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fibonacci_40 samples failed with $?"
 		return 1
 	}
 
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$perf_window_capacity" -c "$perf_window_capacity" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$PERF_WINDOW_CAPACITY" -c "$PERF_WINDOW_CAPACITY" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fibonacci_10 samples failed with $?"
 		return 1
