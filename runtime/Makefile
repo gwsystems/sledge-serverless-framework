@@ -78,7 +78,7 @@ BINARY_NAME=sledgert
 # This flag dumps totals of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX. It is useful to debug clients hanging waiting for a response.
 # To log, run `call http_total_log()` while in GDB
-CFLAGS += -DHTTP_TOTAL_COUNTERS
+# CFLAGS += -DHTTP_TOTAL_COUNTERS
 
 # This flag tracks the total number of sandboxes in the various states
 # It is useful to debug if sandboxes are "getting caught" in a particular state
