@@ -331,6 +331,12 @@ log_compiletime_config()
 	pretty_print_key_disabled("HTTP Route Total Counters");
 #endif
 
+#ifdef PROC_STAT_METRICS
+	pretty_print_key_enabled("procfs Metrics");
+#else
+	pretty_print_key_disabled("procfs Metrics");
+#endif
+
 #ifdef SANDBOX_STATE_TOTALS
 	pretty_print_key_enabled("Log Sandbox State Count");
 #else
