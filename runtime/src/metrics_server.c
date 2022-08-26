@@ -116,14 +116,40 @@ metrics_server_handler(void *arg)
 	double   work_admitted_percentile = (double)work_admitted / admissions_control_capacity * 100;
 #endif
 
+#ifdef PROC_STAT_METRICS
+	struct proc_stat_metrics stat;
+	proc_stat_metrics_init(&stat);
+#endif
+
 	fprintf(ostream, "HTTP/1.1 200 OK\r\n\r\n");
 
+#ifdef PROC_STAT_METRICS
+	fprintf(ostream, "# TYPE os_proc_major_page_faults counter\n");
+	fprintf(ostream, "os_proc_major_page_faults: %lu\n", stat.major_page_faults);
+
+	fprintf(ostream, "# TYPE os_proc_minor_page_faults counter\n");
+	fprintf(ostream, "os_proc_minor_page_faults: %lu\n", stat.minor_page_faults);
+
+	fprintf(ostream, "# TYPE os_proc_child_major_page_faults counter\n");
+	fprintf(ostream, "os_proc_child_major_page_faults: %lu\n", stat.child_major_page_faults);
+
+	fprintf(ostream, "# TYPE os_proc_child_minor_page_faults counter\n");
+	fprintf(ostream, "os_proc_child_minor_page_faults: %lu\n", stat.child_minor_page_faults);
+
+	fprintf(ostream, "# TYPE os_proc_user_time counter\n");
+	fprintf(ostream, "os_proc_user_time: %lu\n", stat.user_time);
+
+	fprintf(ostream, "# TYPE os_proc_sys_time counter\n");
+	fprintf(ostream, "os_proc_sys_time: %lu\n", stat.system_time);
+
+	fprintf(ostream, "# TYPE os_proc_guest_time counter\n");
+	fprintf(ostream, "os_proc_guest_time: %lu\n", stat.guest_time);
+#endif /* PROC_STAT_METRICS */
 
 #ifdef ADMISSIONS_CONTROL
 	fprintf(ostream, "# TYPE work_admitted_percentile gauge\n");
 	fprintf(ostream, "work_admitted_percentile: %f\n", work_admitted_percentile);
 #endif
-
 
 #ifdef HTTP_TOTAL_COUNTERS
 	fprintf(ostream, "# TYPE total_requests counter\n");
@@ -138,6 +164,8 @@ metrics_server_handler(void *arg)
 	fprintf(ostream, "# TYPE total_5XX counter\n");
 	fprintf(ostream, "total_5XX: %d\n", total_5XX);
 #endif
+
+	metrics_server_route_level_metrics_render(ostream);
 
 	// This global is padded by 1 for error handling, so decrement here for true value
 	fprintf(ostream, "# TYPE total_sandboxes counter\n");
@@ -180,32 +208,6 @@ metrics_server_handler(void *arg)
 	fprintf(ostream, "# TYPE total_sandboxes_error gauge\n");
 	fprintf(ostream, "total_sandboxes_error: %d\n", total_sandboxes_error);
 #endif
-
-	struct proc_stat_metrics stat;
-	proc_stat_metrics_init(&stat);
-
-	fprintf(ostream, "# TYPE os_proc_major_page_faults counter\n");
-	fprintf(ostream, "os_proc_major_page_faults: %lu\n", stat.major_page_faults);
-
-	fprintf(ostream, "# TYPE os_proc_minor_page_faults counter\n");
-	fprintf(ostream, "os_proc_minor_page_faults: %lu\n", stat.minor_page_faults);
-
-	fprintf(ostream, "# TYPE os_proc_child_major_page_faults counter\n");
-	fprintf(ostream, "os_proc_child_major_page_faults: %lu\n", stat.child_major_page_faults);
-
-	fprintf(ostream, "# TYPE os_proc_child_minor_page_faults counter\n");
-	fprintf(ostream, "os_proc_child_minor_page_faults: %lu\n", stat.child_minor_page_faults);
-
-	fprintf(ostream, "# TYPE os_proc_user_time counter\n");
-	fprintf(ostream, "os_proc_user_time: %lu\n", stat.user_time);
-
-	fprintf(ostream, "# TYPE os_proc_sys_time counter\n");
-	fprintf(ostream, "os_proc_sys_time: %lu\n", stat.system_time);
-
-	fprintf(ostream, "# TYPE os_proc_guest_time counter\n");
-	fprintf(ostream, "os_proc_guest_time: %lu\n", stat.guest_time);
-
-	metrics_server_route_level_metrics_render(ostream);
 
 	fflush(ostream);
 	assert(ostream_size > 0);
