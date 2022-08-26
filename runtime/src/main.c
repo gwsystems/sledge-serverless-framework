@@ -319,10 +319,10 @@ log_compiletime_config()
 	pretty_print_key_disabled("Log State Changes");
 #endif
 
-#ifdef LOG_TOTAL_REQS_RESPS
-	pretty_print_key_enabled("Log Total Reqs/Resps");
+#ifdef HTTP_TOTAL_COUNTERS
+	pretty_print_key_enabled("HTTP Total Counters");
 #else
-	pretty_print_key_disabled("Log Total Reqs/Resps");
+	pretty_print_key_disabled("HTTP Total Counters");
 #endif
 
 #ifdef SANDBOX_STATE_TOTALS

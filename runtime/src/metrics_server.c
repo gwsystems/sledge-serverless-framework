@@ -86,12 +86,11 @@ metrics_server_handler(void *arg)
 	FILE  *ostream      = open_memstream(&ostream_base, &ostream_size);
 	assert(ostream != NULL);
 
+#ifdef HTTP_TOTAL_COUNTERS
 	uint32_t total_reqs = atomic_load(&http_total_requests);
 	uint32_t total_5XX  = atomic_load(&http_total_5XX);
-
-#ifdef LOG_TOTAL_REQS_RESPS
-	uint32_t total_2XX = atomic_load(&http_total_2XX);
-	uint32_t total_4XX = atomic_load(&http_total_4XX);
+	uint32_t total_2XX  = atomic_load(&http_total_2XX);
+	uint32_t total_4XX  = atomic_load(&http_total_4XX);
 #endif
 
 	uint32_t total_sandboxes = atomic_load(&sandbox_total);
@@ -118,23 +117,25 @@ metrics_server_handler(void *arg)
 
 	fprintf(ostream, "HTTP/1.1 200 OK\r\n\r\n");
 
-	fprintf(ostream, "# TYPE total_requests counter\n");
-	fprintf(ostream, "total_requests: %d\n", total_reqs);
 
 #ifdef ADMISSIONS_CONTROL
 	fprintf(ostream, "# TYPE work_admitted_percentile gauge\n");
 	fprintf(ostream, "work_admitted_percentile: %f\n", work_admitted_percentile);
 #endif
 
-	fprintf(ostream, "# TYPE total_5XX counter\n");
-	fprintf(ostream, "total_5XX: %d\n", total_5XX);
 
-#ifdef LOG_TOTAL_REQS_RESPS
+#ifdef HTTP_TOTAL_COUNTERS
+	fprintf(ostream, "# TYPE total_requests counter\n");
+	fprintf(ostream, "total_requests: %d\n", total_reqs);
+
 	fprintf(ostream, "# TYPE total_2XX counter\n");
 	fprintf(ostream, "total_2XX: %d\n", total_2XX);
 
 	fprintf(ostream, "# TYPE total_4XX counter\n");
 	fprintf(ostream, "total_4XX: %d\n", total_4XX);
+
+	fprintf(ostream, "# TYPE total_5XX counter\n");
+	fprintf(ostream, "total_5XX: %d\n", total_5XX);
 #endif
 
 	// This global is padded by 1 for error handling, so decrement here for true value

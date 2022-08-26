@@ -9,10 +9,9 @@
  * behind a compiler flag. 2XX and 4XX can be incremented by worker cores, so they are behind a flag because
  * of concerns about contention
  */
+#ifdef HTTP_TOTAL_COUNTERS
 extern _Atomic uint32_t http_total_requests;
 extern _Atomic uint32_t http_total_5XX;
-
-#ifdef LOG_TOTAL_REQS_RESPS
 extern _Atomic uint32_t http_total_2XX;
 extern _Atomic uint32_t http_total_4XX;
 #endif
@@ -20,54 +19,32 @@ extern _Atomic uint32_t http_total_4XX;
 static inline void
 http_total_init()
 {
+#ifdef HTTP_TOTAL_COUNTERS
 	atomic_init(&http_total_requests, 0);
-	atomic_init(&http_total_5XX, 0);
-#ifdef LOG_TOTAL_REQS_RESPS
 	atomic_init(&http_total_2XX, 0);
 	atomic_init(&http_total_4XX, 0);
+	atomic_init(&http_total_5XX, 0);
 #endif
 }
 
 static inline void
 http_total_increment_request()
 {
+#ifdef HTTP_TOTAL_COUNTERS
 	atomic_fetch_add(&http_total_requests, 1);
-}
-
-static inline void
-http_total_increment_2XX()
-{
-#ifdef LOG_TOTAL_REQS_RESPS
-	atomic_fetch_add(&http_total_2XX, 1);
 #endif
 }
 
 static inline void
-http_total_increment_4XX()
+http_total_increment_response(int status_code)
 {
-#ifdef LOG_TOTAL_REQS_RESPS
-	atomic_fetch_add(&http_total_4XX, 1);
-#endif
-}
-
-static inline void
-http_total_increment_5XX()
-{
-	atomic_fetch_add(&http_total_5XX, 1);
-}
-
-static inline void
-http_total_increment(int status_code)
-{
-#ifdef LOG_TOTAL_REQS_RESPS
+#ifdef HTTP_TOTAL_COUNTERS
 	if (status_code >= 200 && status_code <= 299) {
-		http_total_increment_2XX();
+		atomic_fetch_add(&http_total_2XX, 1);
 	} else if (status_code >= 400 && status_code <= 499) {
-		http_total_increment_4XX();
+		atomic_fetch_add(&http_total_4XX, 1);
 	} else if (status_code >= 500 && status_code <= 599) {
-		http_total_increment_5XX();
+		atomic_fetch_add(&http_total_5XX, 1);
 	}
-#else
-	if (status_code >= 500 && status_code <= 599) { http_total_increment_5XX(); }
 #endif
 }

@@ -63,38 +63,22 @@
 static inline const char *
 http_header_build(int status_code)
 {
-	const char *response;
-	int         rc;
 	switch (status_code) {
 	case 400:
-		response = HTTP_RESPONSE_400_BAD_REQUEST;
-		http_total_increment_4XX();
-		break;
+		return HTTP_RESPONSE_400_BAD_REQUEST;
 	case 404:
-		response = HTTP_RESPONSE_404_NOT_FOUND;
-		http_total_increment_4XX();
-		break;
+		return HTTP_RESPONSE_404_NOT_FOUND;
 	case 413:
-		response = HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE;
-		http_total_increment_4XX();
-		break;
+		return HTTP_RESPONSE_413_PAYLOAD_TOO_LARGE;
 	case 429:
-		response = HTTP_RESPONSE_429_TOO_MANY_REQUESTS;
-		http_total_increment_4XX();
-		break;
+		return HTTP_RESPONSE_429_TOO_MANY_REQUESTS;
 	case 500:
-		response = HTTP_RESPONSE_500_INTERNAL_SERVER_ERROR;
-		http_total_increment_5XX();
-		break;
+		return HTTP_RESPONSE_500_INTERNAL_SERVER_ERROR;
 	case 503:
-		response = HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
-		http_total_increment_5XX();
-		break;
+		return HTTP_RESPONSE_503_SERVICE_UNAVAILABLE;
 	default:
 		panic("%d is not a valid status code\n", status_code);
 	}
-
-	return response;
 }
 
 static inline size_t
