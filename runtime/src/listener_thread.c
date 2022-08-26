@@ -433,9 +433,9 @@ listener_thread_main(void *dummy)
 		for (int i = 0; i < descriptor_count; i++) {
 			panic_on_epoll_error(&epoll_events[i]);
 
-			enum epoll_tag *tag = (enum epoll_tag *)epoll_events[i].data.ptr;
+			enum epoll_tag tag = *(enum epoll_tag *)epoll_events[i].data.ptr;
 
-			switch (*tag) {
+			switch (tag) {
 			case EPOLL_TAG_TENANT_SERVER_SOCKET:
 				on_tenant_socket_epoll_event(&epoll_events[i]);
 				break;
