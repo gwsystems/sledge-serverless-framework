@@ -145,7 +145,7 @@ listener_thread_register_metrics_server()
 	struct epoll_event accept_evt;
 	accept_evt.data.ptr = (void *)&metrics_server;
 	accept_evt.events   = EPOLLIN;
-	rc = epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_ADD, metrics_server.socket_descriptor,
+	rc = epoll_ctl(listener_thread_epoll_file_descriptor, EPOLL_CTL_ADD, metrics_server.tcp.socket_descriptor,
 	               &accept_evt);
 
 	return rc;
@@ -355,7 +355,7 @@ on_metrics_server_epoll_event(struct epoll_event *evt)
 	/* Accept as many clients requests as possible, returning when we would have blocked */
 	while (true) {
 		/* We accept the client connection with blocking semantics because we spawn ephemeral worker threads */
-		int client_socket = accept4(metrics_server.socket_descriptor, (struct sockaddr *)&client_address,
+		int client_socket = accept4(metrics_server.tcp.socket_descriptor, (struct sockaddr *)&client_address,
 		                            &address_length, 0);
 		if (unlikely(client_socket < 0)) {
 			if (errno == EWOULDBLOCK || errno == EAGAIN) return;
@@ -433,12 +433,20 @@ listener_thread_main(void *dummy)
 		for (int i = 0; i < descriptor_count; i++) {
 			panic_on_epoll_error(&epoll_events[i]);
 
-			if (epoll_events[i].data.ptr == &metrics_server) {
-				on_metrics_server_epoll_event(&epoll_events[i]);
-			} else if (tenant_database_find_by_ptr(epoll_events[i].data.ptr) != NULL) {
+			enum epoll_tag *tag = (enum epoll_tag *)epoll_events[i].data.ptr;
+
+			switch (*tag) {
+			case EPOLL_TAG_TENANT_SERVER_SOCKET:
 				on_tenant_socket_epoll_event(&epoll_events[i]);
-			} else {
+				break;
+			case EPOLL_TAG_HTTP_SESSION_CLIENT_SOCKET:
 				on_client_socket_epoll_event(&epoll_events[i]);
+				break;
+			case EPOLL_TAG_METRICS_SERVER_SOCKET:
+				on_metrics_server_epoll_event(&epoll_events[i]);
+				break;
+			default:
+				panic("Unknown epoll type!");
 			}
 		}
 	}

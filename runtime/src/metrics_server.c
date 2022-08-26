@@ -8,6 +8,7 @@
 #include "debuglog.h"
 #include "http.h"
 #include "http_total.h"
+#include "metrics_server.h"
 #include "proc_stat.h"
 #include "runtime.h"
 #include "sandbox_total.h"
@@ -18,8 +19,7 @@
 #define METRICS_SERVER_CORE_ID 0
 #define METRICS_SERVER_PORT    1776
 
-static pthread_attr_t metrics_server_thread_settings;
-struct tcp_server     metrics_server;
+struct metrics_server metrics_server;
 static void          *metrics_server_handler(void *arg);
 
 extern void metrics_server_route_level_metrics_render(FILE *ostream);
@@ -27,22 +27,23 @@ extern void metrics_server_route_level_metrics_render(FILE *ostream);
 void
 metrics_server_init()
 {
-	tcp_server_init(&metrics_server, METRICS_SERVER_PORT);
-	int rc = tcp_server_listen(&metrics_server);
+	metrics_server.tag = EPOLL_TAG_METRICS_SERVER_SOCKET;
+	tcp_server_init(&metrics_server.tcp, METRICS_SERVER_PORT);
+	int rc = tcp_server_listen(&metrics_server.tcp);
 	assert(rc == 0);
 
 	/* Configure pthread attributes to pin metrics server threads to CPU 0 */
-	pthread_attr_init(&metrics_server_thread_settings);
+	pthread_attr_init(&metrics_server.thread_settings);
 	cpu_set_t cs;
 	CPU_ZERO(&cs);
 	CPU_SET(METRICS_SERVER_CORE_ID, &cs);
-	pthread_attr_setaffinity_np(&metrics_server_thread_settings, sizeof(cpu_set_t), &cs);
+	pthread_attr_setaffinity_np(&metrics_server.thread_settings, sizeof(cpu_set_t), &cs);
 }
 
 int
 metrics_server_close()
 {
-	return tcp_server_close(&metrics_server);
+	return tcp_server_close(&metrics_server.tcp);
 }
 
 void
@@ -65,7 +66,7 @@ metrics_server_thread_spawn(int client_socket)
 
 	/* Fire and forget, so we don't save the thread handles */
 	pthread_t metrics_server_thread;
-	int       rc = pthread_create(&metrics_server_thread, &metrics_server_thread_settings, metrics_server_handler,
+	int       rc = pthread_create(&metrics_server_thread, &metrics_server.thread_settings, metrics_server_handler,
 	                              (void *)(long)client_socket);
 
 	if (rc != 0) {

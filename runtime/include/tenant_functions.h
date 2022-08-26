@@ -87,6 +87,7 @@ tenant_alloc(struct tenant_config *config)
 	struct tenant *tenant = (struct tenant *)calloc(1, sizeof(struct tenant));
 
 	/* Move name */
+	tenant->tag  = EPOLL_TAG_TENANT_SERVER_SOCKET;
 	tenant->name = config->name;
 	config->name = NULL;
 

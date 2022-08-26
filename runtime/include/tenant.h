@@ -1,5 +1,6 @@
 #pragma once
 
+#include "epoll_tag.h"
 #include "http_router.h"
 #include "map.h"
 #include "module_database.h"
@@ -32,6 +33,7 @@ struct tenant_global_request_queue {
 };
 
 struct tenant {
+	enum epoll_tag         tag; /* Tag must be first member */
 	char                  *name;
 	struct tcp_server      tcp_server;
 	http_router_t          router;

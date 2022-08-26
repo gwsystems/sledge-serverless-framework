@@ -9,17 +9,18 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "tcp_session.h"
 #include "debuglog.h"
-#include "http_request.h"
+#include "epoll_tag.h"
 #include "http_parser.h"
 #include "http_parser_settings.h"
+#include "http_request.h"
+#include "http_route_total.h"
+#include "http_session_perf_log.h"
 #include "http_total.h"
 #include "route.h"
-#include "http_route_total.h"
+#include "tcp_session.h"
 #include "tenant.h"
 #include "vec.h"
-#include "http_session_perf_log.h"
 
 #define HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 #define HTTP_SESSION_RESPONSE_HEADER_CAPACITY      256
@@ -45,6 +46,7 @@ enum http_session_state
 };
 
 struct http_session {
+	enum epoll_tag          tag;
 	enum http_session_state state;
 	struct sockaddr         client_address; /* client requesting connection! */
 	int                     socket;
@@ -93,6 +95,7 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
 	assert(socket_descriptor >= 0);
 	assert(socket_address != NULL);
 
+	session->tag                       = EPOLL_TAG_HTTP_SESSION_CLIENT_SOCKET;
 	session->tenant                    = tenant;
 	session->route                     = NULL;
 	session->socket                    = socket_descriptor;
