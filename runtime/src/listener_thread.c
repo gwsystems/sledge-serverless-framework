@@ -410,8 +410,6 @@ listener_thread_main(void *dummy)
 {
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
-	generic_thread_initialize();
-
 	metrics_server_init();
 	listener_thread_register_metrics_server();
 

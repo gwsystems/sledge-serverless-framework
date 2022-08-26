@@ -6,8 +6,8 @@
 
 // tenant_database_foreach_cb_t
 
-static const int p50_idx = PERF_WINDOW_BUFFER_SIZE * 50 / 100;
-static const int p90_idx = PERF_WINDOW_BUFFER_SIZE * 90 / 100;
+static const int p50_idx = perf_window_capacity * 50 / 100;
+static const int p90_idx = perf_window_capacity * 90 / 100;
 
 void
 render_routes(struct route *route, void *arg_one, void *arg_two)
