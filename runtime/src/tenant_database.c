@@ -93,3 +93,12 @@ tenant_database_find_by_ptr(void *ptr)
 	}
 	return NULL;
 }
+
+void
+tenant_database_foreach(void (*cb)(struct tenant *, void *), void *arg)
+{
+	for (size_t i = 0; i < tenant_database_count; i++) {
+		assert(tenant_database[i]);
+		cb(tenant_database[i], arg);
+	}
+}

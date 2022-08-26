@@ -9,14 +9,18 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "tcp_session.h"
 #include "debuglog.h"
-#include "http_request.h"
+#include "epoll_tag.h"
 #include "http_parser.h"
 #include "http_parser_settings.h"
+#include "http_request.h"
+#include "http_route_total.h"
+#include "http_session_perf_log.h"
+#include "http_total.h"
+#include "route.h"
+#include "tcp_session.h"
 #include "tenant.h"
 #include "vec.h"
-#include "http_session_perf_log.h"
 
 #define HTTP_SESSION_DEFAULT_REQUEST_RESPONSE_SIZE (PAGE_SIZE)
 #define HTTP_SESSION_RESPONSE_HEADER_CAPACITY      256
@@ -42,6 +46,7 @@ enum http_session_state
 };
 
 struct http_session {
+	enum epoll_tag          tag;
 	enum http_session_state state;
 	struct sockaddr         client_address; /* client requesting connection! */
 	int                     socket;
@@ -54,6 +59,7 @@ struct http_session {
 	struct vec_u8           response_buffer;
 	size_t                  response_buffer_written;
 	struct tenant          *tenant; /* Backlink required when read blocks on listener core */
+	struct route           *route;  /* Backlink required to handle http metrics */
 	uint64_t                request_arrival_timestamp;
 	uint64_t                request_downloaded_timestamp;
 	uint64_t                response_takeoff_timestamp;
@@ -89,7 +95,9 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
 	assert(socket_descriptor >= 0);
 	assert(socket_address != NULL);
 
+	session->tag                       = EPOLL_TAG_HTTP_SESSION_CLIENT_SOCKET;
 	session->tenant                    = tenant;
+	session->route                     = NULL;
 	session->socket                    = socket_descriptor;
 	session->request_arrival_timestamp = request_arrival_timestamp;
 	memcpy(&session->client_address, socket_address, sizeof(struct sockaddr));
@@ -174,6 +182,10 @@ http_session_set_response_header(struct http_session *session, int status_code, 
 {
 	assert(session != NULL);
 	assert(status_code >= 200 && status_code <= 599);
+	http_total_increment_response(status_code);
+
+	/* We might not have actually matched a route */
+	if (likely(session->route != NULL)) { http_route_total_increment(&session->route->metrics, status_code); }
 
 	if (status_code == 200) {
 		session->response_header_length = snprintf(session->response_header,
@@ -185,7 +197,7 @@ http_session_set_response_header(struct http_session *session, int status_code, 
 		                      ? HTTP_SESSION_RESPONSE_HEADER_CAPACITY
 		                      : header_len;
 
-		strncpy(session->response_header, http_header_build(status_code), to_copy - 1);
+		strncpy(session->response_header, http_header_build(status_code), to_copy);
 		session->response_header_length = to_copy;
 	}
 

@@ -7,13 +7,13 @@
 
 enum
 {
-	perf_window_capacity = 32
+	PERF_WINDOW_CAPACITY = 32
 };
 
-static_assert(perf_window_capacity && !(perf_window_capacity & (perf_window_capacity - 1)),
-              "perf_window_capacity must be power of 2!");
+static_assert(PERF_WINDOW_CAPACITY && !(PERF_WINDOW_CAPACITY & (PERF_WINDOW_CAPACITY - 1)),
+              "PERF_WINDOW_CAPACITY must be power of 2!");
 
-static_assert(perf_window_capacity <= UINT16_MAX, "perf_window_capacity must be indexable by a 16-bit unsigned int");
+static_assert(PERF_WINDOW_CAPACITY <= UINT16_MAX, "PERF_WINDOW_CAPACITY must be indexable by a 16-bit unsigned int");
 
 /*
  * The by_duration array sorts the last N executions by execution time
@@ -28,8 +28,8 @@ struct execution_node {
 };
 
 struct perf_window {
-	struct execution_node by_duration[perf_window_capacity];
-	uint16_t              by_termination[perf_window_capacity];
+	struct execution_node by_duration[PERF_WINDOW_CAPACITY];
+	uint16_t              by_termination[PERF_WINDOW_CAPACITY];
 	uint64_t              count;
 	lock_t                lock;
 };

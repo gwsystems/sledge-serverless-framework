@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdatomic.h>
 #include <unistd.h>
 
@@ -17,10 +18,12 @@
  * These estimates are incremented on request acceptance and decremented on request completion (either
  * success or failure)
  */
+
+#ifdef ADMISSIONS_CONTROL
 _Atomic uint64_t admissions_control_admitted;
 uint64_t         admissions_control_capacity;
-
-const double admissions_control_overhead = 0.2;
+const double     admissions_control_overhead = 0.2;
+#endif
 
 void
 admissions_control_initialize()
@@ -92,10 +95,12 @@ admissions_control_calculate_estimate_us(uint32_t estimated_execution_us, uint32
 void
 admissions_control_log_decision(uint64_t admissions_estimate, bool admitted)
 {
+#ifdef ADMISSIONS_CONTROL
 #ifdef LOG_ADMISSIONS_CONTROL
 	debuglog("Admitted: %lu, Capacity: %lu, Estimate: %lu, Admitted? %s\n", admissions_control_admitted,
 	         admissions_control_capacity, admissions_estimate, admitted ? "yes" : "no");
 #endif /* LOG_ADMISSIONS_CONTROL */
+#endif /* ADMISSIONS_CONTROL */
 }
 
 uint64_t
