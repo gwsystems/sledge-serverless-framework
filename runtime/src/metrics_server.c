@@ -16,6 +16,7 @@
 
 /* We run threads on the "reserved OS core" using blocking semantics */
 #define METRICS_SERVER_CORE_ID 0
+#define METRICS_SERVER_PORT    1776
 
 static pthread_attr_t metrics_server_thread_settings;
 struct tcp_server     metrics_server;
@@ -26,7 +27,7 @@ extern void metrics_server_route_level_metrics_render(FILE *ostream);
 void
 metrics_server_init()
 {
-	tcp_server_init(&metrics_server, 1776);
+	tcp_server_init(&metrics_server, METRICS_SERVER_PORT);
 	int rc = tcp_server_listen(&metrics_server);
 	assert(rc == 0);
 
