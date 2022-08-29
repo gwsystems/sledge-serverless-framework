@@ -60,6 +60,7 @@ metrics_server_thread_spawn(int client_socket)
 
 	if (strncmp(http_status_code_buf, "GET /metrics HTTP", 10) != 0) {
 		write(client_socket, http_header_build(404), http_header_len(404));
+		write(client_socket, HTTP_RESPONSE_TERMINATOR, HTTP_RESPONSE_TERMINATOR_LENGTH);
 		close(client_socket);
 		return;
 	}
@@ -122,7 +123,7 @@ metrics_server_handler(void *arg)
 	proc_stat_metrics_init(&stat);
 #endif
 
-	fprintf(ostream, "HTTP/1.1 200 OK\r\n\r\n");
+	fprintf(ostream, HTTP_RESPONSE_200_OK HTTP_RESPONSE_TERMINATOR);
 
 #ifdef PROC_STAT_METRICS
 	fprintf(ostream, "# TYPE os_proc_major_page_faults counter\n");

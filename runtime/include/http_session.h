@@ -23,8 +23,7 @@
 #include "tenant.h"
 #include "vec.h"
 
-#define HTTP_SESSION_DEFAULT_REQUEST_SIZE     (PAGE_SIZE)
-#define HTTP_SESSION_RESPONSE_HEADER_CAPACITY 256
+#define HTTP_SESSION_DEFAULT_REQUEST_SIZE (PAGE_SIZE)
 
 #define u8 uint8_t
 VEC(u8)
@@ -54,11 +53,10 @@ struct http_session {
 	struct http_parser      http_parser;
 	struct http_request     http_request;
 	struct vec_u8           request_buffer;
-	char                    response_header[HTTP_SESSION_RESPONSE_HEADER_CAPACITY];
-	size_t                  response_header_length;
+	struct auto_buf         response_header;
 	size_t                  response_header_written;
-	struct auto_buf         response_buffer;
-	size_t                  response_buffer_written;
+	struct auto_buf         response_body;
+	size_t                  response_body_written;
 	struct tenant          *tenant; /* Backlink required when read blocks on listener core */
 	struct route           *route;  /* Backlink required to handle http metrics */
 	uint64_t                request_arrival_timestamp;
@@ -108,7 +106,8 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
 	int rc = vec_u8_init(&session->request_buffer, HTTP_SESSION_DEFAULT_REQUEST_SIZE);
 	if (rc < 0) return -1;
 
-	/* Defer initializing response_buffer until we've matched a route */
+	/* Defer initializing response_body until we've matched a route */
+	auto_buf_init(&session->response_header);
 
 	session->state = HTTP_SESSION_INITIALIZED;
 
@@ -116,14 +115,14 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
 }
 
 static inline int
-http_session_init_response_buffer(struct http_session *session)
+http_session_init_response_body(struct http_session *session)
 {
 	assert(session != NULL);
-	assert(session->response_buffer.data == NULL);
-	assert(session->response_buffer.size == 0);
-	assert(session->response_buffer_written == 0);
+	assert(session->response_body.data == NULL);
+	assert(session->response_body.size == 0);
+	assert(session->response_body_written == 0);
 
-	int rc = auto_buf_init(&session->response_buffer);
+	int rc = auto_buf_init(&session->response_body);
 	if (rc < 0) {
 		vec_u8_deinit(&session->request_buffer);
 		return -1;
@@ -161,7 +160,8 @@ http_session_deinit(struct http_session *session)
 	assert(session);
 
 	vec_u8_deinit(&session->request_buffer);
-	auto_buf_deinit(&session->response_buffer);
+	auto_buf_deinit(&session->response_header);
+	auto_buf_deinit(&session->response_body);
 }
 
 static inline void
@@ -188,24 +188,29 @@ http_session_set_response_header(struct http_session *session, int status_code)
 	/* We might not have actually matched a route */
 	if (likely(session->route != NULL)) { http_route_total_increment(&session->route->metrics, status_code); }
 
+	int rc = fputs(http_header_build(status_code), session->response_header.handle);
+	assert(rc != EOF);
+
 	if (status_code == 200) {
-		int rc = auto_buf_flush(&session->response_buffer);
-		if (unlikely(rc != 0)) { panic("auto_buf failed to flush: %s\n", strerror(errno)); };
+		int rc = auto_buf_flush(&session->response_body);
+		if (unlikely(rc != 0)) { panic("response_header auto_buf failed to flush: %s\n", strerror(errno)); };
 
-		session->response_header_length = snprintf(session->response_header,
-		                                           HTTP_SESSION_RESPONSE_HEADER_CAPACITY,
-		                                           HTTP_RESPONSE_200_TEMPLATE,
-		                                           session->route->response_content_type,
-		                                           session->response_buffer.size);
-	} else {
-		size_t header_len = http_header_len(status_code);
-		size_t to_copy    = HTTP_SESSION_RESPONSE_HEADER_CAPACITY < header_len
-		                      ? HTTP_SESSION_RESPONSE_HEADER_CAPACITY
-		                      : header_len;
-
-		strncpy(session->response_header, http_header_build(status_code), to_copy);
-		session->response_header_length = to_copy;
+		/* Technically fprintf can truncate, but I assume this won't happen with a memstream */
+		rc = fprintf(session->response_header.handle, HTTP_RESPONSE_CONTENT_TYPE,
+		             session->route->response_content_type);
+		assert(rc > 0);
+		rc = fprintf(session->response_header.handle, HTTP_RESPONSE_CONTENT_LENGTH,
+		             session->response_body.size);
+		assert(rc > 0);
+		rc = fputs(HTTP_RESPONSE_200_OK, session->response_header.handle);
+		assert(rc != EOF);
 	}
+
+	rc = fputs(HTTP_RESPONSE_TERMINATOR, session->response_header.handle);
+	assert(rc != EOF);
+
+	rc = auto_buf_flush(&session->response_header);
+	if (unlikely(rc != 0)) { panic("response_header auto_buf failed to flush: %s\n", strerror(errno)); };
 
 	session->response_takeoff_timestamp = __getcycles();
 }
@@ -232,11 +237,11 @@ http_session_send_response_header(struct http_session *session, void_star_cb on_
 	       || session->state == HTTP_SESSION_SEND_RESPONSE_HEADER_BLOCKED);
 	session->state = HTTP_SESSION_SENDING_RESPONSE_HEADER;
 
-	while (session->response_header_length > session->response_header_written) {
+	while (session->response_header.size > session->response_header_written) {
 		ssize_t sent =
 		  tcp_session_send(session->socket,
-		                   (const char *)&session->response_header[session->response_header_written],
-		                   session->response_header_length - session->response_header_written, on_eagain,
+		                   (const char *)&session->response_header.data[session->response_header_written],
+		                   session->response_header.size - session->response_header_written, on_eagain,
 		                   session);
 		if (sent < 0) {
 			return (int)sent;
@@ -268,16 +273,15 @@ http_session_send_response_body(struct http_session *session, void_star_cb on_ea
 	/* Assumption: Already flushed in order to write content-length to header */
 	// TODO: Test if body is empty
 
-	while (session->response_buffer_written < session->response_buffer.size) {
+	while (session->response_body_written < session->response_body.size) {
 		ssize_t sent =
 		  tcp_session_send(session->socket,
-		                   (const char *)&session->response_buffer.data[session->response_buffer_written],
-		                   session->response_buffer.size - session->response_buffer_written, on_eagain,
-		                   session);
+		                   (const char *)&session->response_body.data[session->response_body_written],
+		                   session->response_body.size - session->response_body_written, on_eagain, session);
 		if (sent < 0) {
 			return (int)sent;
 		} else {
-			session->response_buffer_written += (size_t)sent;
+			session->response_body_written += (size_t)sent;
 		}
 	}
 
@@ -465,10 +469,10 @@ static inline int
 http_session_write_response(struct http_session *session, const uint8_t *source, size_t n)
 {
 	assert(session);
-	assert(session->response_buffer.handle != NULL);
+	assert(session->response_body.handle != NULL);
 	assert(source);
 
-	return fwrite(source, 1, n, session->response_buffer.handle);
+	return fwrite(source, 1, n, session->response_body.handle);
 }
 
 static inline void

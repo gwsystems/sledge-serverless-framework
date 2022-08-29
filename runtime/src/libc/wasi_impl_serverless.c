@@ -786,9 +786,9 @@ wasi_snapshot_preview1_backing_fd_write(wasi_context_t *context, __wasi_fd_t fd,
                                         size_t iovs_len, __wasi_size_t *nwritten_retptr)
 {
 	if (fd == STDOUT_FILENO || fd == STDERR_FILENO) {
-		struct sandbox *s                = current_sandbox_get();
-		__wasi_size_t   nwritten         = 0;
-		int             rc               = 0;
+		struct sandbox *s        = current_sandbox_get();
+		__wasi_size_t   nwritten = 0;
+		int             rc       = 0;
 
 		for (size_t i = 0; i < iovs_len; i++) {
 #ifdef LOG_SANDBOX_STDERR
@@ -796,7 +796,7 @@ wasi_snapshot_preview1_backing_fd_write(wasi_context_t *context, __wasi_fd_t fd,
 				debuglog("STDERR from Sandbox: %.*s", iovs[i].buf_len, iovs[i].buf);
 			}
 #endif
-			rc = fwrite(iovs[i].buf, 1, iovs[i].buf_len, s->http->response_buffer.handle);
+			rc = fwrite(iovs[i].buf, 1, iovs[i].buf_len, s->http->response_body.handle);
 			if (rc != iovs[i].buf_len) return __WASI_ERRNO_FBIG;
 
 			nwritten += rc;
