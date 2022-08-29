@@ -87,7 +87,6 @@ An SLEdge serverless function consists of a shared library (\*.so) and a JSON co
   "expected-execution-us": 600,
   "relative-deadline-us": 2000,
   "http-req-size": 1024,
-  "http-resp-size": 1024,
   "http-resp-content-type": "text/plain"
 }
 ```

@@ -182,7 +182,7 @@ on_client_request_arrival(int client_socket, const struct sockaddr *client_addre
 		/* Failed to allocate memory */
 		debuglog("Failed to allocate http session\n");
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-		http_session_set_response_header(session, 500, NULL, 0);
+		http_session_set_response_header(session, 500);
 		on_client_response_header_sending(session);
 		return;
 	}
@@ -203,13 +203,13 @@ on_client_request_receiving(struct http_session *session)
 		/* Failed to grow request buffer */
 		debuglog("Failed to grow http request buffer\n");
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-		http_session_set_response_header(session, 500, NULL, 0);
+		http_session_set_response_header(session, 500);
 		on_client_response_header_sending(session);
 		return;
 	} else if (rc < 0) {
 		debuglog("Failed to receive or parse request\n");
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-		http_session_set_response_header(session, 400, NULL, 0);
+		http_session_set_response_header(session, 400);
 		on_client_response_header_sending(session);
 		return;
 	}
@@ -227,7 +227,7 @@ on_client_request_received(struct http_session *session)
 	if (route == NULL) {
 		debuglog("Did not match any routes\n");
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-		http_session_set_response_header(session, 404, NULL, 0);
+		http_session_set_response_header(session, 404);
 		on_client_response_header_sending(session);
 		return;
 	}
@@ -242,7 +242,7 @@ on_client_request_received(struct http_session *session)
 	uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
 	if (work_admitted == 0) {
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-		http_session_set_response_header(session, 429, NULL, 0);
+		http_session_set_response_header(session, 429);
 		on_client_response_header_sending(session);
 		return;
 	}
@@ -253,7 +253,7 @@ on_client_request_received(struct http_session *session)
 	if (unlikely(sandbox == NULL)) {
 		debuglog("Failed to allocate sandbox\n");
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-		http_session_set_response_header(session, 500, NULL, 0);
+		http_session_set_response_header(session, 500);
 		on_client_response_header_sending(session);
 		return;
 	}
@@ -263,7 +263,7 @@ on_client_request_received(struct http_session *session)
 		debuglog("Failed to add sandbox to global queue\n");
 		sandbox_free(sandbox);
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-		http_session_set_response_header(session, 429, NULL, 0);
+		http_session_set_response_header(session, 429);
 		on_client_response_header_sending(session);
 	}
 }

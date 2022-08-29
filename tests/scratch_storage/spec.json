@@ -11,8 +11,7 @@
 				"expected-execution-us": 10000000,
 				"admissions-percentile": 70,
 				"relative-deadline-us": 20000000,
-				"http-resp-content-type": "text/plain",
-				"http-resp-size": 1024
+				"http-resp-content-type": "text/plain"
 			},
 			{
 				"route": "/get",
@@ -20,8 +19,7 @@
 				"expected-execution-us": 10000000,
 				"admissions-percentile": 70,
 				"relative-deadline-us": 20000000,
-				"http-resp-content-type": "text/plain",
-				"http-resp-size": 1024
+				"http-resp-content-type": "text/plain"
 			},
 			{
 				"route": "/delete",
@@ -29,8 +27,7 @@
 				"expected-execution-us": 10000000,
 				"admissions-percentile": 70,
 				"relative-deadline-us": 20000000,
-				"http-resp-content-type": "text/plain",
-				"http-resp-size": 1024
+				"http-resp-content-type": "text/plain"
 			},
 			{
 				"route": "/upsert",
@@ -38,8 +35,7 @@
 				"expected-execution-us": 10000000,
 				"admissions-percentile": 70,
 				"relative-deadline-us": 20000000,
-				"http-resp-content-type": "text/plain",
-				"http-resp-size": 1024
+				"http-resp-content-type": "text/plain"
 			}
 		]
 	}

@@ -5,6 +5,5 @@
 	"expected-execution-us": 5000,
 	"relative-deadline-us": 360000,
 	"http-req-size": 5335057,
-	"http-resp-size": 5335057,
 	"http-resp-content-type": "text/plain"
 }
