@@ -14,10 +14,10 @@ CFLAGS=-std=c18 -pthread
 CFLAGS+=-D_GNU_SOURCE
 
 # Release Flags
-# CFLAGS+=-O3 -flto
+CFLAGS+=-O3 -flto
 
 # Debugging Flags
-CFLAGS+=-O0 -g3
+# CFLAGS+=-O0 -g3
 
 # CFI Sanitizer
 # CFLAGS+=-fvisibility=default -fsanitize=cfi
@@ -85,7 +85,10 @@ BINARY_NAME=sledgert
 
 # This flag enables per-route counters of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX.
-CFLAGS += -DHTTP_ROUTE_TOTAL_COUNTERS
+# CFLAGS += -DHTTP_ROUTE_TOTAL_COUNTERS
+
+# This flag enables per-route latency perf-logs. This has a perf impact due to the use of locks
+# CFLAGS += -DROUTE_LATENCY
 
 # This flag tracks the total number of sandboxes in the various states
 # It is useful to debug if sandboxes are "getting caught" in a particular state
@@ -94,9 +97,6 @@ CFLAGS += -DHTTP_ROUTE_TOTAL_COUNTERS
 # This flag enables an per-worker atomic count of sandbox's local runqueue count in thread local storage
 # Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue
 # CFLAGS += -DLOG_LOCAL_RUNQUEUE
-
-# This flag enables per-route latency perf-logs
-CFLAGS += -DROUTE_LATENCY
 
 # System Configuration Flags
 
