@@ -15,8 +15,8 @@ render_routes(struct route *route, void *arg_one, void *arg_two)
 	struct tenant *tenant  = (struct tenant *)arg_two;
 
 #ifdef ROUTE_LATENCY
-	uint64_t latency_p50 = route_latency_get(&route->latency, 50, 0);
-	uint64_t latency_p90 = route_latency_get(&route->latency, 90, 0);
+	uint64_t latency_p50 = route_latency_get(&route->latency, 50, p50_idx);
+	uint64_t latency_p90 = route_latency_get(&route->latency, 90, p90_idx);
 #endif /* ROUTE_LATENCY */
 
 	uint64_t total_requests = atomic_load(&route->metrics.total_requests);

@@ -21,6 +21,8 @@ route_latency_get(struct perf_window *route_latency, uint8_t percentile, int pre
 	uint64_t res = perf_window_get_percentile(route_latency, percentile, precomputed_index);
 	lock_unlock(&route_latency->lock, &node);
 	return res;
+#else
+	return 0;
 #endif
 }
 
