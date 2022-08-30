@@ -3,7 +3,7 @@
 #include "perf_window_t.h"
 
 struct admissions_info {
-	struct perf_window perf_window;
+	struct perf_window execution_time;
 	uint8_t            percentile;        /* 50 - 99 */
 	int                control_index;     /* Precomputed Lookup index when perf_window is full */
 	uint64_t           estimate;          /* cycles */

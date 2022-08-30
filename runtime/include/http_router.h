@@ -5,6 +5,7 @@
 
 #include "http.h"
 #include "module.h"
+#include "route_latency.h"
 #include "route.h"
 #include "route_config.h"
 #include "vec.h"
@@ -37,6 +38,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 		               .response_size         = config->http_resp_size,
 		               .response_content_type = config->http_resp_content_type };
 
+	route_latency_init(&route.latency);
 	http_route_total_init(&route.metrics);
 
 	/* Admissions Control */
