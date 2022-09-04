@@ -186,8 +186,9 @@ http_session_set_response_header(struct http_session *session, int status_code)
 	assert(rc != EOF);
 
 	if (status_code == 200) {
+		/* Make sure the response_body is flushed */
 		int rc = auto_buf_flush(&session->response_body);
-		if (unlikely(rc != 0)) { panic("response_header auto_buf failed to flush: %s\n", strerror(errno)); };
+		if (unlikely(rc != 0)) { panic("response_body auto_buf failed to flush: %s\n", strerror(errno)); };
 
 		/* Technically fprintf can truncate, but I assume this won't happen with a memstream */
 		rc = fprintf(session->response_header.handle, HTTP_RESPONSE_CONTENT_TYPE,
