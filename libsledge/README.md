@@ -132,7 +132,6 @@ The `sledgert` runtime is invoked with an argument containing the path to a JSON
 "relative-deadline-us"
 "expected-execution-us"
 "admissions-percentile"
-"http-req-size"
 "http-resp-content-type"
 
 The path to the JSON file is passed to `module_alloc_from_json`, which uses the Jasmine library to parse the JSON, performs validation, and passes the resulting specification to `module_alloc` for each module definition found. `module_alloc` allocated heap memory for a `struct module` and then calls `module_init`. `module_init` calls `sledge_abi_symbols_init`, which calls `dlopen` on the _.so file at the path specified in the JSON and then calls `dlsym` to resolve symbols within the _.so module.
