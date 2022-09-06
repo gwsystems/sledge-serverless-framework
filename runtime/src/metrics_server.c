@@ -49,22 +49,6 @@ metrics_server_close()
 void
 metrics_server_thread_spawn(int client_socket)
 {
-	/* Duplicate fd so fclose doesn't close the actual client_socket */
-	int   temp_fd  = dup(client_socket);
-	FILE *req_body = fdopen(temp_fd, "r");
-
-	/* Basic L7 routing to filter out favicon requests */
-	char http_status_code_buf[256];
-	fgets(http_status_code_buf, 256, req_body);
-	fclose(req_body);
-
-	if (strncmp(http_status_code_buf, "GET /metrics HTTP", 10) != 0) {
-		write(client_socket, http_header_build(404), http_header_len(404));
-		write(client_socket, HTTP_RESPONSE_TERMINATOR, HTTP_RESPONSE_TERMINATOR_LENGTH);
-		close(client_socket);
-		return;
-	}
-
 	/* Fire and forget, so we don't save the thread handles */
 	pthread_t metrics_server_thread;
 	int       rc = pthread_create(&metrics_server_thread, &metrics_server.thread_settings, metrics_server_handler,
@@ -82,6 +66,21 @@ metrics_server_handler(void *arg)
 	/* Intermediate cast to integral value of 64-bit width to silence compiler nits */
 	int client_socket = (int)(long)arg;
 
+	/* Duplicate fd so fclose doesn't close the actual client_socket */
+	int   temp_fd  = dup(client_socket);
+	FILE *req_body = fdopen(temp_fd, "r");
+
+	/* Basic L7 routing to filter out favicon requests */
+	char http_status_code_buf[256];
+	fgets(http_status_code_buf, 256, req_body);
+	fclose(req_body);
+
+	if (strncmp(http_status_code_buf, "GET /metrics HTTP", 10) != 0) {
+		write(client_socket, http_header_build(404), http_header_len(404));
+		close(client_socket);
+		pthread_exit(NULL);
+	}
+
 	int rc = 0;
 
 	char  *ostream_base = NULL;
@@ -96,7 +95,7 @@ metrics_server_handler(void *arg)
 	uint32_t total_4XX  = atomic_load(&http_total_4XX);
 #endif
 
-	uint32_t total_sandboxes = atomic_load(&sandbox_total);
+	uint64_t total_sandboxes = atomic_load(&sandbox_total);
 
 #ifdef SANDBOX_STATE_TOTALS
 	uint32_t total_sandboxes_uninitialized = atomic_load(&sandbox_state_totals[SANDBOX_UNINITIALIZED]);
@@ -169,9 +168,8 @@ metrics_server_handler(void *arg)
 
 	metrics_server_route_level_metrics_render(ostream);
 
-	// This global is padded by 1 for error handling, so decrement here for true value
 	fprintf(ostream, "# TYPE total_sandboxes counter\n");
-	fprintf(ostream, "total_sandboxes: %d\n", total_sandboxes - 1);
+	fprintf(ostream, "total_sandboxes: %lu\n", total_sandboxes);
 
 #ifdef SANDBOX_STATE_TOTALS
 	fprintf(ostream, "# TYPE total_sandboxes_uninitialized gauge\n");

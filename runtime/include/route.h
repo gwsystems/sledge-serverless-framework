@@ -6,6 +6,7 @@
 #include "admissions_info.h"
 #include "module.h"
 #include "http_route_total.h"
+#include "perf_window.h"
 
 /* Assumption: entrypoint is always _start. This should be enhanced later */
 struct route {
@@ -17,4 +18,5 @@ struct route {
 	uint64_t               relative_deadline; /* cycles */
 	char                  *response_content_type;
 	struct admissions_info admissions_info;
+	struct perf_window     latency;
 };

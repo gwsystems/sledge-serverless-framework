@@ -159,8 +159,13 @@ perf_window_get_percentile(struct perf_window *perf_window, uint8_t percentile, 
 
 	if (unlikely(perf_window->count == 0)) return 0;
 
+	uint64_t perf_window_size = PERF_WINDOW_CAPACITY;
+	if (unlikely(perf_window->count < PERF_WINDOW_CAPACITY)) perf_window_size = perf_window->count;
+
 	int idx = precomputed_index;
-	if (unlikely(perf_window->count < PERF_WINDOW_CAPACITY)) idx = perf_window->count * percentile / 100;
+	if (precomputed_index == 0 || perf_window->count < PERF_WINDOW_CAPACITY) {
+		idx = perf_window_size * percentile / 100;
+	}
 
 	return perf_window->by_duration[idx].execution_time;
 }
