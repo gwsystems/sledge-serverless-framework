@@ -301,7 +301,7 @@ http_session_parse(struct http_session *session, ssize_t bytes_received)
 	size_t bytes_parsed =
 	  http_parser_execute(&session->http_parser, settings,
 	                      (const char *)&session->request_buffer.data[session->http_request.length_parsed],
-	                      (size_t)session->request_buffer.size - session->http_request.length_parsed);
+	                      bytes_received);
 
 	if (session->http_parser.http_errno != HPE_OK) {
 		debuglog("Error: %s, Description: %s\n",
@@ -358,8 +358,7 @@ http_session_receive_request(struct http_session *session, void_star_cb on_eagai
 
 	int rc = 0;
 
-	char  temp[BUFSIZ];
-	char *old_buffer = session->request_buffer.data;
+	char temp[BUFSIZ];
 
 	while (!session->http_request.message_end) {
 		ssize_t bytes_received = tcp_session_recv(session->socket, temp, BUFSIZ, on_eagain, session);
@@ -373,21 +372,22 @@ http_session_receive_request(struct http_session *session, void_star_cb on_eagai
 
 		assert(bytes_received > 0);
 
+		const char   *old_buffer    = session->request_buffer.data;
+		const ssize_t header_length = session->request_buffer.size - session->http_request.body_length_read;
+		assert(!session->http_request.header_end || header_length > 0);
+
 		/* Write temp buffer to memstream */
 		fwrite(temp, 1, bytes_received, session->request_buffer.handle);
 
 		/* fflush memstream managed buffer */
 		fflush(session->request_buffer.handle);
 
-		/* Invalidate parser structure if buffer moved */
-		ssize_t bytes_parsed;
+		/* Update parser structure if buffer moved */
 		if (old_buffer != session->request_buffer.data) {
-			http_session_parser_init(session);
-			bytes_parsed = http_session_parse(session, session->request_buffer.size);
-		} else {
-			bytes_parsed = http_session_parse(session, bytes_received);
+			session->http_request.body = session->request_buffer.data + header_length;
 		}
-		if (bytes_parsed == -1) goto err;
+
+		if (http_session_parse(session, bytes_received) == -1) goto err;
 	}
 
 	assert(session->http_request.message_end == true);
