@@ -94,9 +94,9 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 
 	int rc;
 
-	rc = http_session_init_response_buffer(sandbox->http, sandbox->route->response_size);
+	rc = http_session_init_response_body(sandbox->http);
 	if (rc < 0) {
-		error_message = "failed to allocate response buffer";
+		error_message = "failed to allocate response body";
 		goto err_globals_allocation_failed;
 	}
 
