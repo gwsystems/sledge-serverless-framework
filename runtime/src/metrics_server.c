@@ -95,7 +95,7 @@ metrics_server_handler(void *arg)
 	uint32_t total_4XX  = atomic_load(&http_total_4XX);
 #endif
 
-	uint32_t total_sandboxes = atomic_load(&sandbox_total);
+	uint64_t total_sandboxes = atomic_load(&sandbox_total);
 
 #ifdef SANDBOX_STATE_TOTALS
 	uint32_t total_sandboxes_uninitialized = atomic_load(&sandbox_state_totals[SANDBOX_UNINITIALIZED]);
@@ -168,9 +168,8 @@ metrics_server_handler(void *arg)
 
 	metrics_server_route_level_metrics_render(ostream);
 
-	// This global is padded by 1 for error handling, so decrement here for true value
 	fprintf(ostream, "# TYPE total_sandboxes counter\n");
-	fprintf(ostream, "total_sandboxes: %d\n", total_sandboxes - 1);
+	fprintf(ostream, "total_sandboxes: %lu\n", total_sandboxes);
 
 #ifdef SANDBOX_STATE_TOTALS
 	fprintf(ostream, "# TYPE total_sandboxes_uninitialized gauge\n");

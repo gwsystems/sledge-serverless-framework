@@ -15,7 +15,7 @@
 #include "wasm_memory.h"
 #include "wasm_stack.h"
 
-_Atomic uint32_t sandbox_total = 0;
+_Atomic uint64_t sandbox_total = 0;
 
 static inline void
 sandbox_log_allocation(struct sandbox *sandbox)
