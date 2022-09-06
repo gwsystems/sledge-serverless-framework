@@ -122,7 +122,7 @@ metrics_server_handler(void *arg)
 	proc_stat_metrics_init(&stat);
 #endif
 
-	fprintf(ostream, "HTTP/1.1 200 OK\r\n\r\n");
+	fprintf(ostream, HTTP_RESPONSE_200_OK HTTP_RESPONSE_TERMINATOR);
 
 #ifdef PROC_STAT_METRICS
 	fprintf(ostream, "# TYPE os_proc_major_page_faults counter\n");

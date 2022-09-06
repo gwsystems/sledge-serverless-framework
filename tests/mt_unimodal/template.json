@@ -10,7 +10,6 @@
 			"admissions-percentile": 0,
 			"expected-execution-us": 0,
 			"relative-deadline-us": 0,
-			"http-resp-size": 1024,
 			"http-resp-content-type": "text/plain"
 		}
 	]

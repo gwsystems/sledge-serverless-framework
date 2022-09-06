@@ -11,7 +11,6 @@
 				"expected-execution-us": 500,
 				"admissions-percentile": 70,
 				"relative-deadline-us": 50000,
-				"http-resp-size": 0,
 				"http-resp-content-type": "text/plain"
 			}
 		]

@@ -16,7 +16,6 @@ struct route {
 	/* HTTP State */
 	uint32_t               relative_deadline_us;
 	uint64_t               relative_deadline; /* cycles */
-	size_t                 response_size;
 	char                  *response_content_type;
 	struct admissions_info admissions_info;
 	struct perf_window     latency;
