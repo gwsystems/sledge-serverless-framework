@@ -87,7 +87,9 @@ BINARY_NAME=sledgert
 # family, such as 2XX, 4XX, 5XX.
 # CFLAGS += -DHTTP_ROUTE_TOTAL_COUNTERS
 
-# This flag enables per-route latency perf-logs. This has a perf impact due to the use of locks
+# This flag enables per-route latency perf-logs. 
+# This has a perf impact due to the use of locks.
+# This flag has a dependency on the flag HTTP_ROUTE_TOTAL_COUNTERS
 # CFLAGS += -DROUTE_LATENCY
 
 # This flag tracks the total number of sandboxes in the various states
