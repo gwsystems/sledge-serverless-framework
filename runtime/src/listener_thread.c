@@ -161,8 +161,8 @@ panic_on_epoll_error(struct epoll_event *evt)
 		if (getsockopt(evt->data.fd, SOL_SOCKET, SO_ERROR, (void *)&error, &errlen) == 0) {
 			panic("epoll_wait: %s\n", strerror(error));
 		}
-		panic("epoll_wait");
-	};
+		debuglog("epoll_error: Most likely client disconnected. Closing session.");
+	}
 }
 
 static void
