@@ -199,13 +199,6 @@ on_client_request_receiving(struct http_session *session)
 	} else if (unlikely(rc == -EAGAIN)) {
 		/* session blocked and registered to epoll so continue to next handle */
 		return;
-	} else if (unlikely(rc == -ENOMEM)) {
-		/* Failed to grow request buffer */
-		debuglog("Failed to grow http request buffer\n");
-		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-		http_session_set_response_header(session, 500);
-		on_client_response_header_sending(session);
-		return;
 	} else if (rc < 0) {
 		debuglog("Failed to receive or parse request\n");
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;

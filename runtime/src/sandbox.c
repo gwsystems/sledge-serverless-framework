@@ -21,7 +21,7 @@ static inline void
 sandbox_log_allocation(struct sandbox *sandbox)
 {
 #ifdef LOG_SANDBOX_ALLOCATION
-	debuglog("Sandbox %lu: of %s:%d\n", sandbox->id, sandbox->module->name, sandbox->module->port);
+	debuglog("Sandbox %lu: of %s %s\n", sandbox->id, sandbox->tenant->name, sandbox->route->route);
 #endif
 }
 

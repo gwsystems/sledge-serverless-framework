@@ -345,7 +345,7 @@ http_session_log_malformed_request(struct http_session *session)
 
 /**
  * Receive and Parse the Request for the current sandbox
- * @return 0 if message parsing complete, -1 on error, -ENOMEM if buffers run out of space, -3 EAGAIN if would block
+ * @return 0 if message parsing complete, -1 on error, -EAGAIN if would block
  */
 static inline int
 http_session_receive_request(struct http_session *session, void_star_cb on_eagain)
@@ -400,10 +400,6 @@ done:
 	return rc;
 err_eagain:
 	rc = -EAGAIN;
-	goto done;
-err_nobufs:
-	http_session_log_malformed_request(session);
-	rc = -ENOMEM;
 	goto done;
 err:
 	http_session_log_malformed_request(session);
