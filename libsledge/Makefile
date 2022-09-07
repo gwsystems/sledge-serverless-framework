@@ -1,6 +1,7 @@
 CFILES := src/*.c
 INCLUDES := -Iinclude/
 
+# fPIC = Position Independent Code, necessary for linking to relative addresses.
 CFLAGS := -fPIC -O3
 
 # CFI Sanitizer

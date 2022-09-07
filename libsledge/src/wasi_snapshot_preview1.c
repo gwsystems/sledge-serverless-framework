@@ -1,8 +1,6 @@
 #include <stdint.h>
 #include "sledge_abi.h"
 
-// TODO: Validate uint32_t as return value;
-
 uint32_t
 wasi_snapshot_preview1_args_get(__wasi_size_t argv_retoffset, __wasi_size_t argv_buf_retoffset)
 {
