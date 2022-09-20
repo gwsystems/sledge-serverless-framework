@@ -11,6 +11,9 @@ CFLAGS=-O3 -flto
 LDFLAGS=-shared -fPIC -Wl,--export-dynamic,--whole-archive -L../libsledge/dist/ -lsledge -Wl,--no-whole-archive
 # LDFLAGS=-flto -fvisibility=hidden
 
+# Strips out calls to assert() and disables debuglog
+CFLAGS+=-DNDEBUG
+
 dist:
 	mkdir -p dist
 

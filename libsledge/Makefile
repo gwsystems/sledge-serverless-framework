@@ -2,7 +2,10 @@ CFILES := src/*.c
 INCLUDES := -Iinclude/
 
 # fPIC = Position Independent Code, necessary for linking to relative addresses.
-CFLAGS := -fPIC -O3
+CFLAGS := -fPIC -O3 -flto
+
+# Strips out calls to assert() and disables debuglog
+CFLAGS+=-DNDEBUG
 
 # CFI Sanitizer
 # CFLAGS+=-fvisibility=default -fsanitize=cfi

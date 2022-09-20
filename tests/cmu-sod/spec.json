@@ -6,6 +6,14 @@
 		"max-budget-us": 0,
 		"routes": [
 			{
+				"route": "/fib",
+				"path": "fibonacci.wasm.so",
+				"admissions-percentile": 50,
+				"expected-execution-us": 6000,
+				"relative-deadline-us": 20000,
+				"http-resp-content-type": "text/plain"
+			},
+			{
 				"route": "/depth_to_xyz",
 				"path": "depth_to_xyz.wasm.so",
 				"expected-execution-us": 5000,

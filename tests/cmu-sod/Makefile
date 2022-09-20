@@ -1,5 +1,6 @@
 SLEDGE_BINARY_DIR=../../runtime/bin
 HOSTNAME=localhost
+PORT=10000
 
 default: run
 
@@ -17,4 +18,13 @@ valgrind:
 
 .PHONY: client
 client:
-	cat ./0_depth.png | http "${HOSTNAME}:10000/depth_to_xyz" > ./out.png
+	cat ./0_depth.png | http "${HOSTNAME}:${PORT}/depth_to_xyz" > ./out.png
+
+client-cloudlab:
+	cat ./0_depth.png | http "c220g2-011017.wisc.cloudlab.us:${PORT}/depth_to_xyz" > ./out.png
+
+client-cmu:
+	cat ./0_depth.png | http "arena0.andrew.cmu.edu:${PORT}/depth_to_xyz" > ./out.png
+
+multi:
+	hey -n 180 -c 180 -t 0 -o csv -m POST -D "./0_depth.png" "http://${HOSTNAME}:${PORT}/depth_to_xyz"
