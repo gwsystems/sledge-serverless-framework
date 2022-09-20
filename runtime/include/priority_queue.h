@@ -60,7 +60,7 @@ priority_queue_append(struct priority_queue *priority_queue, void *new_item)
 {
 	assert(priority_queue != NULL);
 	assert(new_item != NULL);
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	int rc;
 
@@ -85,7 +85,7 @@ static inline bool
 priority_queue_is_empty(struct priority_queue *priority_queue)
 {
 	assert(priority_queue != NULL);
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	return priority_queue->size == 0;
 }
@@ -99,7 +99,7 @@ priority_queue_percolate_up(struct priority_queue *priority_queue)
 {
 	assert(priority_queue != NULL);
 	assert(priority_queue->get_priority_fn != NULL);
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	/* If there's only one element, set memoized lookup and early out */
 	if (priority_queue->size == 1) {
@@ -135,7 +135,7 @@ priority_queue_find_smallest_child(struct priority_queue *priority_queue, const 
 	assert(priority_queue != NULL);
 	assert(parent_index >= 1 && parent_index <= priority_queue->size);
 	assert(priority_queue->get_priority_fn != NULL);
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	int left_child_index  = 2 * parent_index;
 	int right_child_index = 2 * parent_index + 1;
@@ -167,7 +167,7 @@ priority_queue_percolate_down(struct priority_queue *priority_queue, int parent_
 {
 	assert(priority_queue != NULL);
 	assert(priority_queue->get_priority_fn != NULL);
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 	assert(!listener_thread_is_running());
 
 	bool update_highest_value = parent_index == 1;
@@ -217,7 +217,7 @@ priority_queue_dequeue_if_earlier_nolock(struct priority_queue *priority_queue, 
 	assert(dequeued_element != NULL);
 	assert(priority_queue->get_priority_fn != NULL);
 	assert(!listener_thread_is_running());
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	int return_code;
 
@@ -251,9 +251,10 @@ priority_queue_dequeue_if_earlier(struct priority_queue *priority_queue, void **
 {
 	int return_code;
 
-	LOCK_LOCK(&priority_queue->lock);
+	lock_node_t node = {};
+	lock_lock(&priority_queue->lock, &node);
 	return_code = priority_queue_dequeue_if_earlier_nolock(priority_queue, dequeued_element, target_deadline);
-	LOCK_UNLOCK(&priority_queue->lock);
+	lock_unlock(&priority_queue->lock, &node);
 
 	return return_code;
 }
@@ -281,7 +282,7 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
 	priority_queue->get_priority_fn = get_priority_fn;
 	priority_queue->use_lock        = use_lock;
 
-	if (use_lock) LOCK_INIT(&priority_queue->lock);
+	if (use_lock) lock_init(&priority_queue->lock);
 
 	return priority_queue;
 }
@@ -332,7 +333,7 @@ static inline int
 priority_queue_length_nolock(struct priority_queue *priority_queue)
 {
 	assert(priority_queue != NULL);
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	return priority_queue->size;
 }
@@ -344,9 +345,10 @@ priority_queue_length_nolock(struct priority_queue *priority_queue)
 static inline int
 priority_queue_length(struct priority_queue *priority_queue)
 {
-	LOCK_LOCK(&priority_queue->lock);
+	lock_node_t node = {};
+	lock_lock(&priority_queue->lock, &node);
 	int size = priority_queue_length_nolock(priority_queue);
-	LOCK_UNLOCK(&priority_queue->lock);
+	lock_unlock(&priority_queue->lock, &node);
 	return size;
 }
 
@@ -360,7 +362,7 @@ priority_queue_enqueue_nolock(struct priority_queue *priority_queue, void *value
 {
 	assert(priority_queue != NULL);
 	assert(value != NULL);
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	int rc;
 
@@ -386,9 +388,10 @@ priority_queue_enqueue(struct priority_queue *priority_queue, void *value)
 {
 	int rc;
 
-	LOCK_LOCK(&priority_queue->lock);
+	lock_node_t node = {};
+	lock_lock(&priority_queue->lock, &node);
 	rc = priority_queue_enqueue_nolock(priority_queue, value);
-	LOCK_UNLOCK(&priority_queue->lock);
+	lock_unlock(&priority_queue->lock, &node);
 
 	return rc;
 }
@@ -403,7 +406,7 @@ priority_queue_delete_nolock(struct priority_queue *priority_queue, void *value)
 {
 	assert(priority_queue != NULL);
 	assert(value != NULL);
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	for (int i = 1; i <= priority_queue->size; i++) {
 		if (priority_queue->items[i] == value) {
@@ -427,9 +430,10 @@ priority_queue_delete(struct priority_queue *priority_queue, void *value)
 {
 	int rc;
 
-	LOCK_LOCK(&priority_queue->lock);
+	lock_node_t node = {};
+	lock_lock(&priority_queue->lock, &node);
 	rc = priority_queue_delete_nolock(priority_queue, value);
-	LOCK_UNLOCK(&priority_queue->lock);
+	lock_unlock(&priority_queue->lock, &node);
 
 	return rc;
 }
@@ -468,7 +472,7 @@ priority_queue_top_nolock(struct priority_queue *priority_queue, void **dequeued
 	assert(priority_queue != NULL);
 	assert(dequeued_element != NULL);
 	assert(priority_queue->get_priority_fn != NULL);
-	assert(!priority_queue->use_lock || LOCK_IS_LOCKED(&priority_queue->lock));
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	int return_code;
 
@@ -495,9 +499,10 @@ priority_queue_top(struct priority_queue *priority_queue, void **dequeued_elemen
 {
 	int return_code;
 
-	LOCK_LOCK(&priority_queue->lock);
+	lock_node_t node = {};
+	lock_lock(&priority_queue->lock, &node);
 	return_code = priority_queue_top_nolock(priority_queue, dequeued_element);
-	LOCK_UNLOCK(&priority_queue->lock);
+	lock_unlock(&priority_queue->lock, &node);
 
 	return return_code;
 }

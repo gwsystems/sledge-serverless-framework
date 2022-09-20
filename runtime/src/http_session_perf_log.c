@@ -20,6 +20,6 @@ http_session_perf_log_print_entry(struct http_session *http_session)
 
 	fprintf(http_session_perf_log, "%s,%s,%u,%lu,%lu,%lu,%lu,%lu,%u\n", http_session->tenant->name,
 	        http_session->http_request.full_url, http_session->state, http_session->response_header_written,
-	        http_session->response_buffer_written, receive_duration, sent_duration, total_lifetime,
+	        http_session->response_body_written, receive_duration, sent_duration, total_lifetime,
 	        runtime_processor_speed_MHz);
 }

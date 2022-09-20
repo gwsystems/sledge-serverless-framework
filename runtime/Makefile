@@ -59,7 +59,6 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_HTTP_PARSER
-# CFLAGS += -DLOG_LOCK_OVERHEAD
 # CFLAGS += -DLOG_TENANT_LOADING
 # CFLAGS += -DLOG_PREEMPTION
 # CFLAGS += -DLOG_SANDBOX_ALLOCATION
@@ -76,10 +75,22 @@ BINARY_NAME=sledgert
 # page is allocated. This helps understand the relationship to memory allocation and execution time.
 # CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE
 
-# This flag dumps totals of incoming requests and outgoing responses, broken out by status code
-# family, such as 2XX, 4XX, 5XX. It is useful to debug clients hanging waiting for a response.
+# This flag enables runtime-level metrics from procfs
+# CFLAGS += -DPROC_STAT_METRICS
+
+# This flag enables HTTP-level counters of incoming requests and outgoing responses, broken out by status code
+# family, such as 2XX, 4XX, 5XX.
 # To log, run `call http_total_log()` while in GDB
-# CFLAGS += -DLOG_TOTAL_REQS_RESPS
+# CFLAGS += -DHTTP_TOTAL_COUNTERS
+
+# This flag enables per-route counters of incoming requests and outgoing responses, broken out by status code
+# family, such as 2XX, 4XX, 5XX.
+# CFLAGS += -DHTTP_ROUTE_TOTAL_COUNTERS
+
+# This flag enables per-route latency perf-logs. 
+# This has a perf impact due to the use of locks.
+# This flag has a dependency on the flag HTTP_ROUTE_TOTAL_COUNTERS
+# CFLAGS += -DROUTE_LATENCY
 
 # This flag tracks the total number of sandboxes in the various states
 # It is useful to debug if sandboxes are "getting caught" in a particular state

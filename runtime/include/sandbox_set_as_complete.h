@@ -54,6 +54,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* Terminal State Logging for Sandbox */
 	sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
+	route_latency_add(&sandbox->route->latency, sandbox->total_time);
 
 	/* State Change Hooks */
 	sandbox_state_transition_from_hook(sandbox, last_state);

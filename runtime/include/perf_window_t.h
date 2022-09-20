@@ -1,15 +1,19 @@
 #pragma once
 
+#include <assert.h>
 #include <stdint.h>
 
 #include "lock.h"
 
-/* Should be Power of 2! */
-#define PERF_WINDOW_BUFFER_SIZE 16
+enum
+{
+	PERF_WINDOW_CAPACITY = 256
+};
 
-#if ((PERF_WINDOW_BUFFER_SIZE == 0) || (PERF_WINDOW_BUFFER_SIZE & (PERF_WINDOW_BUFFER_SIZE - 1)) != 0)
-#error "PERF_WINDOW_BUFFER_SIZE must be power of 2!"
-#endif
+static_assert(PERF_WINDOW_CAPACITY && !(PERF_WINDOW_CAPACITY & (PERF_WINDOW_CAPACITY - 1)),
+              "PERF_WINDOW_CAPACITY must be power of 2!");
+
+static_assert(PERF_WINDOW_CAPACITY <= UINT16_MAX, "PERF_WINDOW_CAPACITY must be indexable by a 16-bit unsigned int");
 
 /*
  * The by_duration array sorts the last N executions by execution time
@@ -24,8 +28,8 @@ struct execution_node {
 };
 
 struct perf_window {
-	struct execution_node by_duration[PERF_WINDOW_BUFFER_SIZE];
-	uint16_t              by_termination[PERF_WINDOW_BUFFER_SIZE];
+	struct execution_node by_duration[PERF_WINDOW_CAPACITY];
+	uint16_t              by_termination[PERF_WINDOW_CAPACITY];
 	uint64_t              count;
 	lock_t                lock;
 };

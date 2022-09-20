@@ -20,6 +20,9 @@ struct tenant *tenant_database_find_by_socket_descriptor(int socket_descriptor);
 struct tenant *tenant_database_find_by_port(uint16_t port);
 struct tenant *tenant_database_find_by_ptr(void *ptr);
 
+typedef void (*tenant_database_foreach_cb_t)(struct tenant *, void *, void *);
+void tenant_database_foreach(tenant_database_foreach_cb_t, void *, void *);
+
 static inline int
 tenant_policy_specific_init(struct tenant *tenant, struct tenant_config *config)
 {
@@ -84,6 +87,7 @@ tenant_alloc(struct tenant_config *config)
 	struct tenant *tenant = (struct tenant *)calloc(1, sizeof(struct tenant));
 
 	/* Move name */
+	tenant->tag  = EPOLL_TAG_TENANT_SERVER_SOCKET;
 	tenant->name = config->name;
 	config->name = NULL;
 

@@ -10,7 +10,6 @@
 				"path": "gps_ekf.wasm.so",
 				"expected-execution-us": 5000,
 				"relative-deadline-us": 50000,
-				"http-resp-size": 1024000,
 				"http-resp-content-type": "application/octet-stream"
 			},
 			{
@@ -18,7 +17,6 @@
 				"path": "gps_ekf.wasm.so",
 				"expected-execution-us": 5000,
 				"relative-deadline-us": 50000,
-				"http-resp-size": 1024000,
 				"http-resp-content-type": "application/octet-stream"
 			},
 			{
@@ -26,7 +24,6 @@
 				"path": "gps_ekf.wasm.so",
 				"expected-execution-us": 5000,
 				"relative-deadline-us": 50000,
-				"http-resp-size": 1024000,
 				"http-resp-content-type": "application/octet-stream"
 			}
 		]

@@ -15,13 +15,13 @@
 #include "wasm_memory.h"
 #include "wasm_stack.h"
 
-_Atomic uint32_t sandbox_total = 0;
+_Atomic uint64_t sandbox_total = 0;
 
 static inline void
 sandbox_log_allocation(struct sandbox *sandbox)
 {
 #ifdef LOG_SANDBOX_ALLOCATION
-	debuglog("Sandbox %lu: of %s:%d\n", sandbox->id, sandbox->module->name, sandbox->module->port);
+	debuglog("Sandbox %lu: of %s %s\n", sandbox->id, sandbox->tenant->name, sandbox->route->route);
 #endif
 }
 
@@ -94,9 +94,9 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 
 	int rc;
 
-	rc = http_session_init_response_buffer(sandbox->http, sandbox->route->response_size);
+	rc = http_session_init_response_body(sandbox->http);
 	if (rc < 0) {
-		error_message = "failed to allocate response buffer";
+		error_message = "failed to allocate response body";
 		goto err_globals_allocation_failed;
 	}
 

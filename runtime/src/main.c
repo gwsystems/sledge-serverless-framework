@@ -7,6 +7,7 @@
 #include <sched.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #ifdef LOG_TO_FILE
@@ -39,6 +40,7 @@ enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_B
 bool     runtime_preemption_enabled = true;
 uint32_t runtime_quantum_us         = 5000; /* 5ms */
 uint64_t runtime_boot_timestamp;
+pid_t    runtime_pid = 0;
 
 /**
  * Returns instructions on use of CLI if used incorrectly
@@ -287,12 +289,6 @@ log_compiletime_config()
 	pretty_print_key_disabled("Log HTTP Parser");
 #endif
 
-#ifdef LOG_LOCK_OVERHEAD
-	pretty_print_key_enabled("Log Lock Overhead");
-#else
-	pretty_print_key_disabled("Log Lock Overhead");
-#endif
-
 #ifdef LOG_TENANT_LOADING
 	pretty_print_key_enabled("Log Tenant Loading");
 #else
@@ -323,10 +319,22 @@ log_compiletime_config()
 	pretty_print_key_disabled("Log State Changes");
 #endif
 
-#ifdef LOG_TOTAL_REQS_RESPS
-	pretty_print_key_enabled("Log Total Reqs/Resps");
+#ifdef HTTP_TOTAL_COUNTERS
+	pretty_print_key_enabled("HTTP Total Counters");
 #else
-	pretty_print_key_disabled("Log Total Reqs/Resps");
+	pretty_print_key_disabled("HTTP Total Counters");
+#endif
+
+#ifdef HTTP_ROUTE_TOTAL_COUNTERS
+	pretty_print_key_enabled("HTTP Route Total Counters");
+#else
+	pretty_print_key_disabled("HTTP Route Total Counters");
+#endif
+
+#ifdef PROC_STAT_METRICS
+	pretty_print_key_enabled("procfs Metrics");
+#else
+	pretty_print_key_disabled("procfs Metrics");
 #endif
 
 #ifdef SANDBOX_STATE_TOTALS
@@ -429,6 +437,8 @@ main(int argc, char **argv)
 		runtime_usage(argv[0]);
 		exit(-1);
 	}
+
+	runtime_pid = getpid();
 
 	printf("Starting the Sledge runtime\n");
 

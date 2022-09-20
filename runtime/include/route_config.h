@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "admissions_control.h"
 #include "runtime.h"
 #include "scheduler_options.h"
 
@@ -14,7 +15,6 @@ enum route_config_member
 	route_config_member_admissions_percentile,
 	route_config_member_expected_execution_us,
 	route_config_member_relative_deadline_us,
-	route_config_member_http_resp_size,
 	route_config_member_http_resp_content_type,
 	route_config_member_len
 };
@@ -25,7 +25,6 @@ struct route_config {
 	uint8_t  admissions_percentile;
 	uint32_t expected_execution_us;
 	uint32_t relative_deadline_us;
-	uint32_t http_resp_size;
 	char    *http_resp_content_type;
 };
 
@@ -48,7 +47,6 @@ route_config_print(struct route_config *config)
 	printf("[Route] Admissions Percentile: %hhu\n", config->admissions_percentile);
 	printf("[Route] Expected Execution (us): %u\n", config->expected_execution_us);
 	printf("[Route] Relative Deadline (us): %u\n", config->relative_deadline_us);
-	printf("[Route] HTTP Response Size: %u\n", config->http_resp_size);
 	printf("[Route] HTTP Response Content Type: %s\n", config->http_resp_content_type);
 }
 
@@ -100,12 +98,12 @@ route_config_validate(struct route_config *config, bool *did_set)
 
 		if (config->admissions_percentile > 99 || config->admissions_percentile < 50) {
 			fprintf(stderr, "admissions-percentile must be > 50 and <= 99 but was %u\n",
-			        route_config->admissions_percentile);
+			        config->admissions_percentile);
 			return -1;
 		}
 
 		/* If the ratio is too big, admissions control is too coarse */
-		uint32_t ratio = route_config->relative_deadline_us / route_config->expected_execution_us;
+		uint32_t ratio = config->relative_deadline_us / config->expected_execution_us;
 		if (ratio > ADMISSIONS_CONTROL_GRANULARITY) {
 			fprintf(stderr,
 			        "Ratio of Deadline to Execution time cannot exceed admissions control "

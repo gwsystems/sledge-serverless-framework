@@ -3,7 +3,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef ADMISSIONS_CONTROL
 #define ADMISSIONS_CONTROL_GRANULARITY 1000000
+extern _Atomic uint64_t admissions_control_admitted;
+extern uint64_t         admissions_control_capacity;
+#endif
 
 void     admissions_control_initialize(void);
 void     admissions_control_add(uint64_t admissions_estimate);

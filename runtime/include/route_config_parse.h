@@ -11,7 +11,6 @@ static const char *route_config_json_keys[route_config_member_len] = { "route",
 	                                                               "admissions-percentile",
 	                                                               "expected-execution-us",
 	                                                               "relative-deadline-us",
-	                                                               "http-resp-size",
 	                                                               "http-resp-content-type" };
 
 static inline int
@@ -88,14 +87,6 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			int rc = parse_uint32_t(tokens[i], json_buf,
 			                        route_config_json_keys[route_config_member_relative_deadline_us],
 			                        &config->relative_deadline_us);
-			if (rc < 0) return -1;
-		} else if (strcmp(key, route_config_json_keys[route_config_member_http_resp_size]) == 0) {
-			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
-			if (route_config_set_key_once(did_set, route_config_member_http_resp_size) == -1) return -1;
-
-			int rc = parse_uint32_t(tokens[i], json_buf,
-			                        route_config_json_keys[route_config_member_http_resp_size],
-			                        &config->http_resp_size);
 			if (rc < 0) return -1;
 		} else if (strcmp(key, route_config_json_keys[route_config_member_http_resp_content_type]) == 0) {
 			if (!is_nonempty_string(tokens[i], key)) return -1;

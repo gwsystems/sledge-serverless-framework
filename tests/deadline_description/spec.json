@@ -10,7 +10,6 @@
 				"path": "gps_ekf.wasm.so",
 				"expected-execution-us": 5000,
 				"relative-deadline-us": 50000,
-				"http-resp-size": 1024000,
 				"http-resp-content-type": "application/octet-stream"
 			},
 			{
@@ -18,7 +17,6 @@
 				"path": "resize_image.wasm.so",
 				"expected-execution-us": 5000,
 				"relative-deadline-us": 50000,
-				"http-resp-size": 1024000,
 				"http-resp-content-type": "image/png"
 			},
 			{
@@ -26,7 +24,6 @@
 				"path": "license_plate_detection.wasm.so",
 				"expected-execution-us": 5000,
 				"relative-deadline-us": 50000,
-				"http-resp-size": 1048576,
 				"http-resp-content-type": "text/plain"
 			},
 			{
@@ -34,7 +31,6 @@
 				"path": "gocr.wasm.so",
 				"expected-execution-us": 5000,
 				"relative-deadline-us": 360000,
-				"http-resp-size": 5335057,
 				"http-resp-content-type": "text/plain"
 			},
 			{
@@ -42,7 +38,6 @@
 				"path": "cifar10.wasm.so",
 				"expected-execution-us": 5000,
 				"relative-deadline-us": 50000,
-				"http-resp-size": 128,
 				"http-resp-content-type": "text/plain"
 			}
 		]
