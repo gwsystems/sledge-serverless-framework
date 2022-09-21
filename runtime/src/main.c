@@ -22,6 +22,7 @@
 #include "listener_thread.h"
 #include "panic.h"
 #include "runtime.h"
+#include "sandbox_perf_log.h"
 #include "sandbox_types.h"
 #include "scheduler.h"
 #include "software_interrupt.h"

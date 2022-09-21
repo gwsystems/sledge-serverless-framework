@@ -25,8 +25,6 @@
 /* context of the runtime thread before running sandboxes or to resume its "main". */
 thread_local struct arch_context worker_thread_base_context;
 
-thread_local int worker_thread_epoll_file_descriptor;
-
 /* Used to index into global arguments and deadlines arrays */
 thread_local int worker_thread_idx;
 
@@ -63,10 +61,6 @@ worker_thread_main(void *argument)
 		worker_thread_timeout_queue = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
 		                                                        tenant_timeout_get_priority);
 	}
-
-	/* Initialize epoll */
-	worker_thread_epoll_file_descriptor = epoll_create1(0);
-	if (unlikely(worker_thread_epoll_file_descriptor < 0)) panic_err();
 
 	software_interrupt_unmask_signal(SIGFPE);
 	software_interrupt_unmask_signal(SIGSEGV);

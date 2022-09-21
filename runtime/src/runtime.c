@@ -22,6 +22,7 @@
 #include "sandbox_total.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
+#include "sandbox_perf_log.h"
 
 /***************************
  * Shared Process State    *
