@@ -13,7 +13,6 @@
 #include "scheduler.h"
 #include "software_interrupt.h"
 #include "wasi.h"
-#include "worker_thread_epoll.h"
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
@@ -102,7 +101,6 @@ current_sandbox_wasm_trap_handler(int trapno)
 	}
 
 	debuglog("%s", error_message);
-	worker_thread_epoll_remove_sandbox(sandbox);
 	current_sandbox_exit();
 	assert(0);
 }
@@ -117,8 +115,6 @@ current_sandbox_init()
 
 	int   rc            = 0;
 	char *error_message = NULL;
-
-	worker_thread_epoll_add_sandbox(sandbox);
 
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
@@ -149,7 +145,6 @@ current_sandbox_init()
 
 err:
 	debuglog("%s", error_message);
-	worker_thread_epoll_remove_sandbox(sandbox);
 	current_sandbox_exit();
 	return NULL;
 }
@@ -167,7 +162,6 @@ current_sandbox_fini()
 	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation;
 
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
-	worker_thread_epoll_remove_sandbox(sandbox);
 
 done:
 	sandbox_set_as_returned(sandbox, SANDBOX_RUNNING_SYS);

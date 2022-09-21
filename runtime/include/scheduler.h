@@ -22,7 +22,6 @@
 #include "sandbox_set_as_running_sys.h"
 #include "sandbox_set_as_interrupted.h"
 #include "sandbox_set_as_running_user.h"
-#include "scheduler_execute_epoll_loop.h"
 #include "scheduler_options.h"
 
 
@@ -313,7 +312,6 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	assert(interrupted_context != NULL);
 
 	/* Process epoll to make sure that all runnable jobs are considered for execution */
-	scheduler_execute_epoll_loop();
 
 	struct sandbox *interrupted_sandbox = current_sandbox_get();
 	assert(interrupted_sandbox != NULL);
@@ -401,9 +399,6 @@ scheduler_idle_loop()
 		/* Deferred signals should have been cleared by this point */
 		assert(deferred_sigalrm == 0);
 
-		/* Try to wakeup sleeping sandboxes */
-		scheduler_execute_epoll_loop();
-
 		/* Switch to a sandbox if one is ready to run */
 		struct sandbox *next_sandbox = scheduler_get_next();
 		if (next_sandbox != NULL) {
@@ -440,9 +435,6 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 
 	/* Deferred signals should have been cleared by this point */
 	assert(deferred_sigalrm == 0);
-
-	/* Try to wakeup sleeping sandboxes */
-	scheduler_execute_epoll_loop();
 
 	/* We have not added ourself to the cleanup queue, so we can free */
 	local_cleanup_queue_free();
