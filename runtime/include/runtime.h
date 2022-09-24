@@ -37,6 +37,7 @@ enum RUNTIME_SIGALRM_HANDLER
 
 extern pid_t                        runtime_pid;
 extern bool                         runtime_preemption_enabled;
+extern bool                         runtime_worker_spinloop_pause_enabled;
 extern uint32_t                     runtime_processor_speed_MHz;
 extern uint32_t                     runtime_quantum_us;
 extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;

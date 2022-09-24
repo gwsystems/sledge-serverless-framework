@@ -38,8 +38,9 @@ uint32_t runtime_worker_threads_count    = 0;
 
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 
-bool     runtime_preemption_enabled = true;
-uint32_t runtime_quantum_us         = 5000; /* 5ms */
+bool     runtime_preemption_enabled            = true;
+bool     runtime_worker_spinloop_pause_enabled = false;
+uint32_t runtime_quantum_us                    = 5000; /* 5ms */
 uint64_t runtime_boot_timestamp;
 pid_t    runtime_pid = 0;
 
@@ -101,32 +102,48 @@ runtime_allocate_available_cores()
  * We are also assuming this value is static
  * @return proceccor speed in MHz
  */
-static inline uint32_t
+static inline void
 runtime_get_processor_speed_MHz(void)
 {
-	uint32_t return_value;
+	char *proc_mhz_raw = getenv("PROC_MHZ");
+	FILE *cmd          = NULL;
 
-	FILE *cmd = popen("grep '^cpu MHz' /proc/cpuinfo | head -n 1 | awk '{print $4}'", "r");
-	if (unlikely(cmd == NULL)) goto err;
+	if (proc_mhz_raw != NULL) {
+		/* The case with manual override for the CPU freq */
+		runtime_processor_speed_MHz = atoi(proc_mhz_raw);
+	} else {
+		/* The case when we have to get CPU freq from */
+		usleep(200000); /* wait a bit for the workers to launch  for more accuracy */
 
-	char   buff[16];
-	size_t n = fread(buff, 1, sizeof(buff) - 1, cmd);
-	if (unlikely(n <= 0)) goto err;
-	buff[n] = '\0';
+		/* Get the average of the cpufreqs only for worker cores (no event core and reserved) */
+		char command[128] = { 0 };
+		sprintf(command, "grep '^cpu MHz' /proc/cpuinfo | sed -n '%u,%up' | \
+					awk '{ total += $4; count++ } END { print total/count }'",
+		        runtime_first_worker_processor + 1,
+		        runtime_first_worker_processor + runtime_worker_threads_count);
+		cmd = popen(command, "r");
+		if (unlikely(cmd == NULL)) goto err;
 
-	float processor_speed_MHz;
-	n = sscanf(buff, "%f", &processor_speed_MHz);
-	if (unlikely(n != 1)) goto err;
-	if (unlikely(processor_speed_MHz < 0)) goto err;
+		char   buff[16];
+		size_t n = fread(buff, 1, sizeof(buff) - 1, cmd);
+		buff[n]  = '\0';
 
-	return_value = (uint32_t)nearbyintf(processor_speed_MHz);
+		float processor_speed_MHz;
+		n = sscanf(buff, "%f", &processor_speed_MHz);
+		if (unlikely(n != 1)) goto err;
+		if (unlikely(processor_speed_MHz < 0)) goto err;
+
+		runtime_processor_speed_MHz = (uint32_t)nearbyintf(processor_speed_MHz);
+	}
+
+	pretty_print_key_value("Worker CPU Freq", "%u MHz\n", runtime_processor_speed_MHz);
 
 done:
 	pclose(cmd);
-	return return_value;
+	return;
 err:
-	return_value = 0;
 	goto done;
+	panic("Failed to detect processor frequency");
 }
 
 /**
@@ -230,6 +247,17 @@ runtime_configure()
 
 	sandbox_perf_log_init();
 	http_session_perf_log_init();
+}
+
+void
+runtime_configure_worker_spinloop_pause()
+{
+	/* Runtime Worker-Spinloop-Pause Toggle */
+	char *pause_enable = getenv("SLEDGE_SPINLOOP_PAUSE_ENABLED");
+	if (pause_enable != NULL && strcmp(pause_enable, "true") == 0) runtime_worker_spinloop_pause_enabled = true;
+	pretty_print_key_value("Worker-Spinloop-Pause", "%s\n",
+	                       runtime_worker_spinloop_pause_enabled ? PRETTY_PRINT_GREEN_ENABLED
+	                                                             : PRETTY_PRINT_RED_DISABLED);
 }
 
 void
@@ -448,13 +476,6 @@ main(int argc, char **argv)
 
 	printf("Runtime Environment:\n");
 
-	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
-	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
-
-	int heading_length = 30;
-
-	pretty_print_key_value("Processor Speed", "%u MHz\n", runtime_processor_speed_MHz);
-
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();
 	runtime_configure();
@@ -463,6 +484,8 @@ main(int argc, char **argv)
 
 	listener_thread_initialize();
 	runtime_start_runtime_worker_threads();
+	runtime_get_processor_speed_MHz();
+	runtime_configure_worker_spinloop_pause();
 	software_interrupt_arm_timer();
 
 #ifdef LOG_TENANT_LOADING
