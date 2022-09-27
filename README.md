@@ -80,23 +80,33 @@ And then simply delete this repository.
 An SLEdge serverless function consists of a shared library (\*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:
 
 ```json
-{
-  "name": "fibonacci",
-  "path": "fibonacci.wasm.so",
-  "port": 10000,
-  "expected-execution-us": 600,
-  "relative-deadline-us": 2000,
-  "http-resp-content-type": "text/plain"
-}
+[
+	{
+		"name": "GWU",
+		"port": 10010,
+		"routes": [
+			{
+				"route": "/fib",
+				"path": "fibonacci.wasm.so",
+				"expected-execution-us": 6000,
+				"relative-deadline-us": 20000,
+				"http-resp-content-type": "text/plain"
+			}
+		]
+	}
+]
+
 ```
 
-The `port` and `name` fields are used to determine the path where our serverless function will be served served.
+The `port` and `route` fields are used to determine the path where our serverless function will be served served.
 
-In our case, we are running the SLEdge runtime on localhost, so our function is available at `http://localhost:10000/fibonacci`
+In our case, we are running the SLEdge runtime on localhost, so our function is available at `localhost:10010/fib`.
 
-Our fibonacci function will parse a single argument from the HTTP POST body that we send. The expected Content-Type is "text/plain" and the buffer is sized to 1024 bytes for both the request and response. This is sufficient for our simple Fibonacci function, but this must be changed and sized for other functions, such as image processing.
+Our fibonacci function will parse a single argument from the HTTP POST body that we send. The expected Content-Type is "text/plain".
 
 Now that we understand roughly how the SLEdge runtime interacts with serverless function, let's run Fibonacci!
+
+The fastest way to check it out is just to click on the following URL on your Web browser: [http://localhost:10010/fib?10](http://localhost:10010/fib?10)
 
 From the root project directory of the host environment (not the Docker container!), navigate to the binary directory
 
@@ -107,25 +117,33 @@ cd runtime/bin/
 Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `applications/` directory to LD_LIBRARY_PATH.
 
 ```bash
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_fibonacci.json
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../../tests/fibonacci/bimodal/spec.json
 ```
 
 While you don't see any output to the console, the runtime is running in the foreground.
 
-Let's now invoke our serverless function to compute the 10th fibonacci number. I'll use [HTTPie](https://httpie.org/) to send a POST request with a body containing the parameter I want to pass to my serverless function. Feel free to use cURL or whatever network client you prefer!
+Let's now invoke our serverless function to compute the 10th fibonacci number. We'll use `cURL` and [HTTPie](https://httpie.org/) to send a HTTP  GET and POST requests with the parameter we want to pass to my serverless function. Feel free to use whatever other network client you prefer! 
 
-Open a new terminal session and execute the following
+Open a **new** terminal session and execute the following
 
 ```bash
-echo "10" | http :10000
+# HTTP GET method:
+http localhost:10010/fib?10
+curl localhost:10010/fib?10
+
+# HTTP POST method:
+echo "10" | http POST localhost:10010/fib
+curl -i -d 10 localhost:10010/fib
 ```
 
 You should receive the following in response. The serverless function says that the 10th fibonacci number is 55, which seems to be correct!
 
 ```bash
 HTTP/1.1 200 OK
-Content-length: 3
-Content-type: text/plain
+Server: SLEdge
+Connection: close
+Content-Type: text/plain
+Content-Length: 3
 
 55
 ```
