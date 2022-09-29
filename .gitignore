@@ -52,6 +52,7 @@ dkms.conf
 
 runtime/tags
 runtime/bin
+applications/wasm_apps
 applications/tmp/
 applications/**/*.csv
 applications/**/*.txt
