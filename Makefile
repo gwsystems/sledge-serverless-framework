@@ -11,7 +11,7 @@ submodules:
 	git submodule update --init --recursive
 
 .PHONY: install
-install: submodules all
+install: submodules wasm_apps all
 
 # aWsm: the WebAssembly to LLVM bitcode compiler
 .PHONY: awsm
@@ -49,6 +49,10 @@ applications:
 .PHONY: applications.clean
 applications.clean:
 	make -C applications clean
+
+# Instead of having two copies of wasm_apps, just link to the awsm repo's copy
+wasm_apps:
+	ln -sr awsm/applications/wasm_apps/ applications/
 
 # Tests
 .PHONY: test

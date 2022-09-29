@@ -94,6 +94,9 @@ jobs:
       - name: Compile SLEdge
         run: |
           make runtime
+      - name: Install wasm_apps link
+        run: |
+          make wasm_apps
       # TODO:Cache assets before being copied to ./runtime/bin
       - name: Cache gocr
         uses: actions/cache@v2
