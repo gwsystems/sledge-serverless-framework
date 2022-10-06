@@ -28,5 +28,4 @@ def get_img():
 thread = threading.Thread(target=get_img)
 thread.daemon = True
 thread.start()
-
-
+thread.join()
