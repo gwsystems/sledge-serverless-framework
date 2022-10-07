@@ -197,8 +197,6 @@ http_session_set_response_header(struct http_session *session, int status_code)
 		rc = fprintf(session->response_header.handle, HTTP_RESPONSE_CONTENT_LENGTH,
 		             session->response_body.size);
 		assert(rc > 0);
-		rc = fputs(HTTP_RESPONSE_200_OK, session->response_header.handle);
-		assert(rc != EOF);
 	}
 
 	rc = fputs(HTTP_RESPONSE_TERMINATOR, session->response_header.handle);

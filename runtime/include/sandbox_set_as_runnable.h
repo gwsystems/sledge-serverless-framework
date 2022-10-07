@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "arch/getcycles.h"
 #include "local_runqueue.h"
@@ -31,7 +32,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
 		sandbox->timestamp_of.dispatched = now;
-		local_runqueue_add(sandbox);
+		//local_runqueue_add(sandbox);
 		break;
 	}
 	case SANDBOX_ASLEEP: {
@@ -45,7 +46,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 
 	/* State Change Bookkeeping */
-	assert(now > sandbox->timestamp_of.last_state_change);
+	assert(now >= sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
@@ -57,7 +58,6 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_transition_from_hook(sandbox, last_state);
 	sandbox_state_transition_to_hook(sandbox, SANDBOX_RUNNABLE);
 }
-
 
 static inline void
 sandbox_wakeup(struct sandbox *sandbox)

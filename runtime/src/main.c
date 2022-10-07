@@ -448,7 +448,8 @@ main(int argc, char **argv)
 
 	printf("Runtime Environment:\n");
 
-	runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
+	//runtime_processor_speed_MHz = runtime_get_processor_speed_MHz();
+	runtime_processor_speed_MHz = 1500;
 	if (unlikely(runtime_processor_speed_MHz == 0)) panic("Failed to detect processor speed\n");
 
 	int heading_length = 30;

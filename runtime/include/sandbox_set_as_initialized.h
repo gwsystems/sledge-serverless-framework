@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "arch/context.h"
 #include "current_sandbox.h"
@@ -34,7 +35,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 
 	/* State Change Bookkeeping */
-	assert(now > sandbox->timestamp_of.last_state_change);
+	assert(now >= sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
