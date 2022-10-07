@@ -65,6 +65,9 @@ worker_thread_main(void *argument)
 	software_interrupt_unmask_signal(SIGFPE);
 	software_interrupt_unmask_signal(SIGSEGV);
 
+	/* Unmask SIGINT signals */
+	software_interrupt_unmask_signal(SIGINT);
+
 	/* Unmask signals, unless the runtime has disabled preemption */
 	if (runtime_preemption_enabled) {
 		software_interrupt_unmask_signal(SIGALRM);

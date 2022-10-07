@@ -60,7 +60,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* Return HTTP session to listener core to be written back to client */
 	http_session_set_response_header(sandbox->http, 500);
 	sandbox->http->state = HTTP_SESSION_EXECUTION_COMPLETE;
-	http_session_send_response(sandbox->http, (void_star_cb)listener_thread_register_http_session);
+	//http_session_send_response(sandbox->http, (void_star_cb)listener_thread_register_http_session);
 	sandbox->http = NULL;
 
 	/* Terminal State Logging */

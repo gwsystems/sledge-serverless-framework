@@ -35,6 +35,7 @@ uint32_t runtime_first_worker_processor  = 1;
 uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
+time_t t_start;
 
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 
@@ -476,6 +477,8 @@ main(int argc, char **argv)
 
 	printf("Runtime Environment:\n");
 
+	runtime_processor_speed_MHz = 1500;
+
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();
 	runtime_configure();
@@ -484,7 +487,7 @@ main(int argc, char **argv)
 
 	listener_thread_initialize();
 	runtime_start_runtime_worker_threads();
-	runtime_get_processor_speed_MHz();
+	//runtime_get_processor_speed_MHz();
 	runtime_configure_worker_spinloop_pause();
 	software_interrupt_arm_timer();
 
@@ -516,6 +519,7 @@ main(int argc, char **argv)
 	}
 
 	runtime_boot_timestamp = __getcycles();
+	t_start = time(NULL);
 
 	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
 		tenant_config_deinit(&tenant_config_vec[tenant_idx]);

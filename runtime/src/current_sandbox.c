@@ -11,8 +11,14 @@
 #include "sandbox_set_as_running_user.h"
 #include "sandbox_set_as_running_sys.h"
 #include "scheduler.h"
+#include "http_session.h"
 #include "software_interrupt.h"
 #include "wasi.h"
+
+extern struct http_session *g_session;
+extern struct tenant *g_tenant;
+extern int g_client_socket;
+extern struct sockaddr *g_client_address;
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
@@ -63,6 +69,36 @@ current_sandbox_exit()
 		      sandbox_state_stringify(exiting_sandbox->state));
 	}
 
+	/* generate a new request and enqueue it to the global queue */
+	assert(g_tenant != NULL);
+	struct tenant *tenant = g_tenant;
+
+	uint64_t request_arrival_timestamp = __getcycles();
+	http_total_increment_request();
+
+	/* Allocate http session */
+	struct http_session *session = http_session_alloc(g_client_socket, (const struct sockaddr *)&g_client_address, tenant, request_arrival_timestamp);
+
+	assert(session != NULL);
+	http_session_copy(session, g_session);
+	assert(session->route != NULL);
+	struct sandbox *sandbox = sandbox_alloc(session->route->module, session, session->route, session->tenant, 1);
+        if (unlikely(sandbox == NULL)) {
+                printf("Failed to allocate sandbox\n"); 
+                exit(-1);
+        }
+
+        /* If the global request scheduler is full, return a 429 to the client */
+        //if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
+        //        printf("Failed to add sandbox to global queue\n");
+	//	exit(-1);
+                
+        //}
+	sandbox_prepare_execution_environment(sandbox);
+        assert(sandbox->state == SANDBOX_INITIALIZED);
+        sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
+
+	/****************************end**************************/
 	scheduler_cooperative_sched(true);
 
 	/* The scheduler should never switch back to completed sandboxes */

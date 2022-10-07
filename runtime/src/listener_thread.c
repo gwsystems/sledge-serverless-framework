@@ -13,6 +13,14 @@
 #include "tenant_functions.h"
 #include "http_session_perf_log.h"
 
+extern void http_session_copy(struct http_session *dest, struct http_session *source);
+/////////////////xiaosu for test//////////////////
+struct http_session *g_session = NULL;
+struct tenant *g_tenant = NULL;
+int g_client_socket = -1;
+struct sockaddr *g_client_address = NULL;
+////////////////xiaosu end for test///////////////
+
 static void listener_thread_unregister_http_session(struct http_session *http);
 static void panic_on_epoll_error(struct epoll_event *evt);
 
@@ -168,6 +176,14 @@ panic_on_epoll_error(struct epoll_event *evt)
 static void
 on_client_request_arrival(int client_socket, const struct sockaddr *client_address, struct tenant *tenant)
 {
+	if (g_client_socket == -1) {
+		g_client_socket = client_socket;
+	}
+
+	if (g_client_address == NULL) {
+		g_client_address = client_address;
+	}
+
 	uint64_t request_arrival_timestamp = __getcycles();
 
 	http_total_increment_request();
@@ -242,6 +258,13 @@ on_client_request_received(struct http_session *session)
 
 	/* Allocate a Sandbox */
 	session->state          = HTTP_SESSION_EXECUTING;
+	if (g_session == NULL) {
+		/* Allocate HTTP Session */
+        	g_session = http_session_alloc(session->socket, (const struct sockaddr *)&(session->client_address),
+                                                          session->tenant, session->request_arrival_timestamp);
+
+		http_session_copy(g_session, session);
+	}
 	struct sandbox *sandbox = sandbox_alloc(route->module, session, route, session->tenant, work_admitted);
 	if (unlikely(sandbox == NULL)) {
 		debuglog("Failed to allocate sandbox\n");
@@ -317,6 +340,9 @@ on_tenant_socket_epoll_event(struct epoll_event *evt)
 
 	struct tenant *tenant = evt->data.ptr;
 	assert(tenant);
+	if (g_tenant == NULL) {
+		g_tenant = tenant;
+	}
 
 	/* Accept Client Request as a nonblocking socket, saving address information */
 	struct sockaddr_in client_address;

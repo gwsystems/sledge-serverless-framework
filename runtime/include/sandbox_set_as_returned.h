@@ -43,7 +43,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	}
 
 	/* State Change Bookkeeping */
-	assert(now > sandbox->timestamp_of.last_state_change);
+	assert(now >= sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
@@ -53,7 +53,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	http_session_set_response_header(sandbox->http, 200);
 	sandbox->http->state = HTTP_SESSION_EXECUTION_COMPLETE;
-	http_session_send_response(sandbox->http, (void_star_cb)listener_thread_register_http_session);
+	//http_session_send_response(sandbox->http, (void_star_cb)listener_thread_register_http_session);
 	sandbox->http = NULL;
 
 	/* State Change Hooks */
