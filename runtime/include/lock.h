@@ -73,7 +73,7 @@ lock_unlock(lock_t *self, lock_node_t *node)
 
 	ck_spinlock_mcs_unlock(&self->lock, &node->node);
 	uint64_t now = __getcycles();
-	assert(node->time_locked < now);
+	assert(node->time_locked <= now);
 	uint64_t duration = now - node->time_locked;
 	node->time_locked = 0;
 	if (unlikely(duration > self->longest_held)) { self->longest_held = duration; }

@@ -48,6 +48,7 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 	        runtime_processor_speed_MHz);
 }
 
+
 static inline void
 sandbox_perf_log_init()
 {

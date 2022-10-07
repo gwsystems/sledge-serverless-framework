@@ -10,6 +10,12 @@ struct auto_buf {
 	size_t size;
 };
 
+static inline void auto_buf_copy(struct auto_buf *dest, struct auto_buf *source) {
+	if (dest == NULL || source == NULL) return;
+	fwrite(source->data, 1, source->size, dest->handle);
+	fflush(dest->handle);
+}
+
 static inline int
 auto_buf_init(struct auto_buf *buf)
 {

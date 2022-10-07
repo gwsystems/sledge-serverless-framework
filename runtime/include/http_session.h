@@ -22,6 +22,7 @@
 #include "tcp_session.h"
 #include "tenant.h"
 
+
 enum http_session_state
 {
 	HTTP_SESSION_UNINITIALIZED = 0,
@@ -59,7 +60,21 @@ struct http_session {
 	uint64_t                response_sent_timestamp;
 };
 
+static inline void http_session_copy(struct http_session *dest, struct http_session *source) {
+	if (dest == NULL || source == NULL) return;
+
+	dest->tag = source->tag;
+	http_request_copy(&dest->http_request, &source->http_request);
+	auto_buf_copy(&dest->request_buffer, &source->request_buffer);
+	auto_buf_copy(&dest->response_header, &source->response_header);
+	dest->response_header_written = source->response_header_written;
+	auto_buf_copy(&dest->response_body, &source->response_body);
+	dest->response_body_written = source->response_body_written;
+	dest->route = source->route;
+
+}
 extern void http_session_perf_log_print_entry(struct http_session *http_session);
+
 
 /**
  * Initalize state associated with an http parser
@@ -102,6 +117,7 @@ http_session_init(struct http_session *session, int socket_descriptor, const str
 
 	/* Defer initializing response_body until we've matched a route */
 	auto_buf_init(&session->response_header);
+	
 
 	session->state = HTTP_SESSION_INITIALIZED;
 
@@ -265,7 +281,7 @@ http_session_send_response_body(struct http_session *session, void_star_cb on_ea
 
 	/* Assumption: Already flushed in order to write content-length to header */
 	// TODO: Test if body is empty
-
+        printf("body is %s\n", session->response_body.data);
 	while (session->response_body_written < session->response_body.size) {
 		ssize_t sent =
 		  tcp_session_send(session->socket,
@@ -384,7 +400,6 @@ http_session_receive_request(struct http_session *session, void_star_cb on_eagai
 		if (old_buffer != session->request_buffer.data) {
 			http_request->body = header_length ? session->request_buffer.data + header_length : NULL;
 		}
-
 		if (http_session_parse(session, bytes_received) == -1) goto err;
 	}
 

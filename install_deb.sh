@@ -10,7 +10,6 @@ if [[ $ARCH = "x86_64" ]]; then
 elif [[ $ARCH = "aarch64" ]]; then
 	SHFMT_URL=https://github.com/patrickvane/shfmt/releases/download/master/shfmt_linux_arm
 	echo "ARM64 support is still a work in progress!"
-	exit 1
 else
 	echo "This script only supports x86_64 and aarch64"
 	exit 1
@@ -63,8 +62,6 @@ sudo apt-get update && sudo apt-get install -y --no-install-recommends \
 wget $SHFMT_URL -O shfmt && chmod +x shfmt && sudo mv shfmt /usr/local/bin/shfmt
 
 sudo ./install_llvm.sh $LLVM_VERSION
-
-curl -sS -L -O $WASI_SDK_URL && sudo dpkg -i wasi-sdk_12.0_amd64.deb && rm -f wasi-sdk_12.0_amd64.deb
 
 if [ -z "${WASI_SDK_PATH}" ]; then
 	export WASI_SDK_PATH=/opt/wasi-sdk
