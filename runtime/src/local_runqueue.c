@@ -6,6 +6,7 @@
 
 #include "local_runqueue.h"
 
+thread_local uint32_t total_local_requests = 0;
 static struct local_runqueue_config local_runqueue;
 
 #ifdef LOG_LOCAL_RUNQUEUE
@@ -27,6 +28,7 @@ void
 local_runqueue_add(struct sandbox *sandbox)
 {
 	assert(local_runqueue.add_fn != NULL);
+	total_local_requests++;
 #ifdef LOG_LOCAL_RUNQUEUE
 	local_runqueue_count++;
 #endif

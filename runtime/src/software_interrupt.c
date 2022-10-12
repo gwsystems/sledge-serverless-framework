@@ -35,6 +35,8 @@ thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
 extern pthread_t *runtime_worker_threads;
 extern time_t t_start;
 extern pthread_t listener_thread_id;
+extern thread_local uint32_t total_local_requests;
+extern thread_local int worker_thread_idx;
 
 #ifdef SANDBOX_STATE_TOTALS
 extern _Atomic uint32_t sandbox_state_totals[SANDBOX_STATE_COUNT];
@@ -224,8 +226,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		double seconds = difftime(t_end, t_start);	
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 	        uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]); 	
-		printf("throughput is %f, error request is %u\n", throughput, total_sandboxes_error);
-		exit(0);		
+		printf("throughput is %f, error request is %u global total request %d time is %f worker %d total requests is %u\n", throughput, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), seconds, worker_thread_idx, total_local_requests);
+		fflush(stdout);
+		pthread_exit(0);		
 	}
 	default: {
 		const char *signal_name = strsignal(signal_type);
