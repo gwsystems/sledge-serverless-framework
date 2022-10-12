@@ -75,7 +75,7 @@ sandbox_get_priority_fn(void *element)
 void
 global_request_scheduler_minheap_initialize()
 {
-	global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_get_priority_fn);
+	global_request_scheduler_minheap = priority_queue_initialize(4096000, true, sandbox_get_priority_fn);
 
 	struct global_request_scheduler_config config = {
 		.add_fn               = global_request_scheduler_minheap_add,
