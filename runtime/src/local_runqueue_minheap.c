@@ -12,6 +12,10 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
+extern thread_local int thread_id;
+uint64_t total_held[1024] = {0};
+uint64_t longest_held[1024] = {0};
+
 thread_local static struct priority_queue *local_runqueue_minheap;
 
 /**

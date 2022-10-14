@@ -94,7 +94,7 @@ BINARY_NAME=sledgert
 
 # This flag tracks the total number of sandboxes in the various states
 # It is useful to debug if sandboxes are "getting caught" in a particular state
-# CFLAGS += -DSANDBOX_STATE_TOTALS
+ CFLAGS += -DSANDBOX_STATE_TOTALS
 
 # This flag enables an per-worker atomic count of sandbox's local runqueue count in thread local storage
 # Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue

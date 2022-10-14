@@ -13,6 +13,7 @@
 #include "tenant_functions.h"
 #include "http_session_perf_log.h"
 
+extern thread_local int thread_id;
 static void listener_thread_unregister_http_session(struct http_session *http);
 static void panic_on_epoll_error(struct epoll_event *evt);
 
@@ -251,6 +252,8 @@ on_client_request_received(struct http_session *session)
 		return;
 	}
 
+	//struct timeval t_start,t_end;
+        //gettimeofday(&t_start, NULL);
 	/* If the global request scheduler is full, return a 429 to the client */
 	if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
 		debuglog("Failed to add sandbox to global queue\n");
@@ -259,6 +262,11 @@ on_client_request_received(struct http_session *session)
 		http_session_set_response_header(session, 429);
 		on_client_response_header_sending(session);
 	}
+	//gettimeofday(&t_end, NULL);
+	//long cost = t_end.tv_sec * 1000000 + t_end.tv_usec - t_start.tv_sec * 1000000 - t_start.tv_usec;
+        //printf("%ld ", cost);
+
+
 }
 
 static void
@@ -401,6 +409,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
 noreturn void *
 listener_thread_main(void *dummy)
 {
+	thread_id = 200;
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
 	metrics_server_init();

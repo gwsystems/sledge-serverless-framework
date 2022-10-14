@@ -22,6 +22,7 @@
  * Worker Thread State     *
  **************************/
 
+extern thread_local int thread_id;
 /* context of the runtime thread before running sandboxes or to resume its "main". */
 thread_local struct arch_context worker_thread_base_context;
 
@@ -47,6 +48,7 @@ worker_thread_main(void *argument)
 
 	/* Index was passed via argument */
 	worker_thread_idx = *(int *)argument;
+	thread_id = worker_thread_idx;
 
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 2);
@@ -64,6 +66,9 @@ worker_thread_main(void *argument)
 
 	software_interrupt_unmask_signal(SIGFPE);
 	software_interrupt_unmask_signal(SIGSEGV);
+
+	/* Unmask SIGINT signals */
+        software_interrupt_unmask_signal(SIGINT);
 
 	/* Unmask signals, unless the runtime has disabled preemption */
 	if (runtime_preemption_enabled) {
