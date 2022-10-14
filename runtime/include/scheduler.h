@@ -24,7 +24,7 @@
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_options.h"
 
-
+extern thread_local bool get_first_request;
 /**
  * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
  *
@@ -109,25 +109,27 @@ done:
 static inline struct sandbox *
 scheduler_edf_get_next()
 {
-	/* Get the deadline of the sandbox at the head of the local queue */
-	struct sandbox *local          = local_runqueue_get_next();
-	uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
-	struct sandbox *global         = NULL;
+	//if (get_first_request == false) {
+		/* Get the deadline of the sandbox at the head of the local queue */
+		struct sandbox *local          = local_runqueue_get_next();
+		uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
+		struct sandbox *global         = NULL;
 
-	uint64_t global_deadline = global_request_scheduler_peek();
+		uint64_t global_deadline = global_request_scheduler_peek();
 
-	/* Try to pull and allocate from the global queue if earlier
-	 * This will be placed at the head of the local runqueue */
-	if (global_deadline < local_deadline) {
-		if (global_request_scheduler_remove_if_earlier(&global, local_deadline) == 0) {
-			assert(global != NULL);
-			assert(global->absolute_deadline < local_deadline);
-			sandbox_prepare_execution_environment(global);
-			assert(global->state == SANDBOX_INITIALIZED);
-			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+		/* Try to pull and allocate from the global queue if earlier
+	 	* This will be placed at the head of the local runqueue */
+		if (global_deadline < local_deadline) {
+			if (global_request_scheduler_remove_if_earlier(&global, local_deadline) == 0) {
+				assert(global != NULL);
+				assert(global->absolute_deadline < local_deadline);
+				sandbox_prepare_execution_environment(global);
+				assert(global->state == SANDBOX_INITIALIZED);
+				sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+				get_first_request = true;
+			}
 		}
-	}
-
+	//}
 	/* Return what is at the head of the local runqueue or NULL if empty */
 	return local_runqueue_get_next();
 }

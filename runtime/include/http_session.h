@@ -128,16 +128,19 @@ static inline int
 http_session_init_response_body(struct http_session *session)
 {
 	assert(session != NULL);
-	assert(session->response_body.data == NULL);
-	assert(session->response_body.size == 0);
-	assert(session->response_body_written == 0);
+	//assert(session->response_body.data == NULL);
+	//assert(session->response_body.size == 0);
+	//assert(session->response_body_written == 0);
+	session->response_body.size = 0;
+	session->response_body_written = 0;
 
-	int rc = auto_buf_init(&session->response_body);
-	if (rc < 0) {
-		auto_buf_deinit(&session->request_buffer);
-		return -1;
+	if (session->response_body.data == NULL) {
+		int rc = auto_buf_init(&session->response_body);
+		if (rc < 0) {
+			auto_buf_deinit(&session->request_buffer);
+			return -1;
+		}
 	}
-
 	return 0;
 }
 
@@ -169,9 +172,9 @@ http_session_deinit(struct http_session *session)
 {
 	assert(session);
 
-	auto_buf_deinit(&session->request_buffer);
-	auto_buf_deinit(&session->response_header);
-	auto_buf_deinit(&session->response_body);
+	//auto_buf_deinit(&session->request_buffer);
+	//auto_buf_deinit(&session->response_header);
+	//auto_buf_deinit(&session->response_body);
 }
 
 static inline void
@@ -179,8 +182,8 @@ http_session_free(struct http_session *session)
 {
 	assert(session);
 
-	http_session_deinit(session);
-	free(session);
+	//http_session_deinit(session);
+	//free(session);
 }
 
 /**

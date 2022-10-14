@@ -24,9 +24,12 @@
 
 /* context of the runtime thread before running sandboxes or to resume its "main". */
 thread_local struct arch_context worker_thread_base_context;
+//thread_local bool get_first_request = false;
 
 /* Used to index into global arguments and deadlines arrays */
 thread_local int worker_thread_idx;
+
+thread_local bool get_first_request = false;
 
 /* Used to track tenants' timeouts */
 thread_local struct priority_queue *worker_thread_timeout_queue;

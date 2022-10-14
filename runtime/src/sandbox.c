@@ -148,7 +148,7 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 	ps_list_init_d(sandbox);
 
 	/* Allocate HTTP session structure */
-	assert(session);
+	//assert(session);
 	sandbox->http   = session;
 	sandbox->tenant = tenant;
 	sandbox->route  = route;
