@@ -13,6 +13,7 @@
 #include "tenant_functions.h"
 #include "http_session_perf_log.h"
 
+extern thread_local int thread_id;
 extern void http_session_copy(struct http_session *dest, struct http_session *source);
 /////////////////xiaosu for test//////////////////
 struct http_session *g_session = NULL;
@@ -427,6 +428,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
 noreturn void *
 listener_thread_main(void *dummy)
 {
+	thread_id = 200;
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
 	metrics_server_init();

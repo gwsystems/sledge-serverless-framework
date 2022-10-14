@@ -77,10 +77,11 @@ current_sandbox_exit()
 	http_total_increment_request();
 
 	/* Allocate http session */
-	struct http_session *session = http_session_alloc(g_client_socket, (const struct sockaddr *)&g_client_address, tenant, request_arrival_timestamp);
+	//struct http_session *session = http_session_alloc(g_client_socket, (const struct sockaddr *)&g_client_address, tenant, request_arrival_timestamp);
 
-	assert(session != NULL);
-	http_session_copy(session, g_session);
+	//assert(session != NULL);
+	//http_session_copy(session, g_session);
+	struct http_session *session = g_session;
 	assert(session->route != NULL);
 	struct sandbox *sandbox = sandbox_alloc(session->route->module, session, session->route, session->tenant, 1);
         if (unlikely(sandbox == NULL)) {
