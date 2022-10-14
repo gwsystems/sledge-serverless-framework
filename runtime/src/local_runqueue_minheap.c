@@ -12,6 +12,10 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
+extern thread_local int thread_id;
+uint64_t total_held[1024] = {0};
+uint64_t longest_held[1024] = {0};
+
 extern struct priority_queue* worker_queues[1024];
 extern thread_local int worker_thread_idx;
 thread_local static struct priority_queue *local_runqueue_minheap;
@@ -46,8 +50,12 @@ local_runqueue_minheap_add(struct sandbox *sandbox)
 
 	int return_code = priority_queue_enqueue(local_runqueue_minheap, sandbox);
 	if (return_code != 0) {
-		printf("add request to local queue failed, exit\n");
-		exit(0);
+		if (return_code == -ENOSPC) {
+			panic("Thread Runqueue is full!\n");
+		} else {
+			printf("add request to local queue failed, exit\n");
+			exit(0);
+		}
 	}
 }
 
@@ -56,8 +64,12 @@ local_runqueue_minheap_add_index(int index, struct sandbox *sandbox)
 {
 	int return_code = priority_queue_enqueue(worker_queues[index], sandbox);
         if (return_code != 0) {
-                printf("add request to local queue failed, exit\n");
-                exit(0);
+		if (return_code == -ENOSPC) {
+                        panic("Thread Runqueue is full!\n");
+                } else {
+                        printf("add request to local queue failed, exit\n");
+                        exit(0);
+                }
         } 
 }
 

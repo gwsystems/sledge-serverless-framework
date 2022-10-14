@@ -18,6 +18,7 @@
 #include "tenant_functions.h"
 #include "priority_queue.h"
 
+extern thread_local int thread_id;
 /***************************
  * Worker Thread State     *
  **************************/
@@ -47,7 +48,7 @@ worker_thread_main(void *argument)
 
 	/* Index was passed via argument */
 	worker_thread_idx = *(int *)argument;
-
+	thread_id = worker_thread_idx;
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 2);
 	pthread_setschedprio(pthread_self(), -20);
@@ -64,6 +65,9 @@ worker_thread_main(void *argument)
 
 	software_interrupt_unmask_signal(SIGFPE);
 	software_interrupt_unmask_signal(SIGSEGV);
+
+	/* Unmask SIGINT signals */
+        software_interrupt_unmask_signal(SIGINT);
 
 	/* Unmask signals, unless the runtime has disabled preemption */
 	if (runtime_preemption_enabled) {

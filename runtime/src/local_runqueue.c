@@ -8,6 +8,7 @@
 
 static struct local_runqueue_config local_runqueue;
 
+thread_local uint32_t total_local_requests = 0;
 #ifdef LOG_LOCAL_RUNQUEUE
 thread_local uint32_t local_runqueue_count = 0;
 #endif
@@ -51,6 +52,7 @@ void
 local_runqueue_delete(struct sandbox *sandbox)
 {
 	assert(local_runqueue.delete_fn != NULL);
+	total_local_requests++;
 #ifdef LOG_LOCAL_RUNQUEUE
 	local_runqueue_count--;
 #endif

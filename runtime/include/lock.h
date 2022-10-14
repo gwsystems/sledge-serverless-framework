@@ -7,7 +7,10 @@
 #include "arch/getcycles.h"
 #include "runtime.h"
 
+extern uint64_t total_held[1024];
+extern uint64_t longest_held[1024];
 
+extern thread_local int thread_id; 
 /* A linked list of nodes */
 struct lock_wrapper {
 	uint64_t          longest_held;
@@ -76,6 +79,12 @@ lock_unlock(lock_t *self, lock_node_t *node)
 	assert(node->time_locked <= now);
 	uint64_t duration = now - node->time_locked;
 	node->time_locked = 0;
-	if (unlikely(duration > self->longest_held)) { self->longest_held = duration; }
+	if (unlikely(duration > self->longest_held)) { 
+		self->longest_held = duration; 
+	}
 	self->total_held += duration;
+	if (unlikely(duration > longest_held[thread_id])) {
+                longest_held[thread_id] = duration;
+        }
+        total_held[thread_id] += duration;
 }

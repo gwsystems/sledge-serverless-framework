@@ -14,6 +14,7 @@
 #include "http_session_perf_log.h"
 #include "sandbox_set_as_runnable.h"
 
+extern thread_local int thread_id;
 struct priority_queue* worker_queues[1024];
 extern uint32_t runtime_worker_threads_count;
 int rr_index = 0;
@@ -59,7 +60,6 @@ listener_thread_initialize(void)
 	assert(ret == 0);
 	ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cs);
 	assert(ret == 0);
-
 	printf("\tListener core thread: %lx\n", listener_thread_id);
 }
 
@@ -267,7 +267,12 @@ on_client_request_received(struct http_session *session)
 	if (rr_index == runtime_worker_threads_count) {
 		rr_index = 0;
 	}
+	//struct timeval t_start,t_end;
+	//gettimeofday(&t_start, NULL);
         local_runqueue_add_index(rr_index, sandbox);
+	//gettimeofday(&t_end, NULL);
+	//long cost = t_end.tv_sec * 1000000 + t_end.tv_usec - t_start.tv_sec * 1000000 - t_start.tv_usec; 
+	//printf("%ld ", cost);
 	rr_index++;
 }
 
@@ -411,6 +416,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
 noreturn void *
 listener_thread_main(void *dummy)
 {
+	thread_id = 200;
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
 	metrics_server_init();
