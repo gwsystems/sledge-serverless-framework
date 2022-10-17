@@ -3,6 +3,7 @@
 #include "global_request_scheduler.h"
 #include "panic.h"
 
+uint32_t total_global_requests = 0;
 /* Default uninitialized implementations of the polymorphic interface */
 noreturn static struct sandbox *
 uninitialized_add(struct sandbox *arg)
@@ -49,6 +50,7 @@ struct sandbox *
 global_request_scheduler_add(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
+	total_global_requests++;
 	return global_request_scheduler.add_fn(sandbox);
 }
 

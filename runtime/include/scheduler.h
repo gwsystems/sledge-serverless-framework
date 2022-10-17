@@ -109,7 +109,7 @@ done:
 static inline struct sandbox *
 scheduler_edf_get_next()
 {
-	//if (get_first_request == false) {
+	if (get_first_request == false) {
 		/* Get the deadline of the sandbox at the head of the local queue */
 		struct sandbox *local          = local_runqueue_get_next();
 		uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
@@ -129,7 +129,7 @@ scheduler_edf_get_next()
 				get_first_request = true;
 			}
 		}
-	//}
+	}
 	/* Return what is at the head of the local runqueue or NULL if empty */
 	return local_runqueue_get_next();
 }

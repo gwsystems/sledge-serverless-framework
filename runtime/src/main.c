@@ -36,6 +36,7 @@ uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
 time_t t_start;
+thread_local int thread_id = -1;
 
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 

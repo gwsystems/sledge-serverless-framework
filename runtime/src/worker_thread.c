@@ -22,6 +22,7 @@
  * Worker Thread State     *
  **************************/
 
+extern thread_local int thread_id;
 /* context of the runtime thread before running sandboxes or to resume its "main". */
 thread_local struct arch_context worker_thread_base_context;
 //thread_local bool get_first_request = false;
@@ -51,6 +52,7 @@ worker_thread_main(void *argument)
 	/* Index was passed via argument */
 	worker_thread_idx = *(int *)argument;
 
+	thread_id = worker_thread_idx;
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 2);
 	pthread_setschedprio(pthread_self(), -20);

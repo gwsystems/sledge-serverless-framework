@@ -9,6 +9,7 @@
 #include <threads.h>
 #include <unistd.h>
 #include <ucontext.h>
+#include <inttypes.h>
 
 #include "arch/context.h"
 #include "current_sandbox.h"
@@ -24,6 +25,11 @@
 #include "scheduler.h"
 #include "software_interrupt.h"
 #include "software_interrupt_counts.h"
+
+
+extern uint64_t total_held[1024];
+extern uint64_t longest_held[1024];
+extern uint32_t total_global_requests;
 
 thread_local _Atomic volatile sig_atomic_t handler_depth    = 0;
 thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
@@ -226,7 +232,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		double seconds = difftime(t_end, t_start);	
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 	        uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]); 	
-		printf("throughput is %f, error request is %u global total request %d time is %f worker %d total requests is %u\n", throughput, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), seconds, worker_thread_idx, total_local_requests);
+		printf("throughput is %f, error request is %u global total request %d worker %d total requests is %u worker total_held %"PRIu64" longest_held %"PRIu64" listener total_held %"PRIu64" longest_held %"PRIu64" total gr %u\n", throughput, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), worker_thread_idx, total_local_requests, total_held[worker_thread_idx], longest_held[worker_thread_idx], total_held[200], longest_held[200], total_global_requests);
 		fflush(stdout);
 		pthread_exit(0);		
 	}
