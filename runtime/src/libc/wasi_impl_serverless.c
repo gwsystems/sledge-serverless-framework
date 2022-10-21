@@ -796,7 +796,8 @@ wasi_snapshot_preview1_backing_fd_write(wasi_context_t *context, __wasi_fd_t fd,
 				debuglog("STDERR from Sandbox: %.*s", iovs[i].buf_len, iovs[i].buf);
 			}
 #endif
-			rc = fwrite(iovs[i].buf, 1, iovs[i].buf_len, s->http->response_body.handle);
+			//rc = fwrite(iovs[i].buf, 1, iovs[i].buf_len, s->http->response_body.handle);
+			rc = fwrite(iovs[i].buf, 1, iovs[i].buf_len, s->response_body.handle);
 			if (rc != iovs[i].buf_len) return __WASI_ERRNO_FBIG;
 
 			nwritten += rc;
