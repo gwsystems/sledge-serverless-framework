@@ -80,6 +80,19 @@ sandbox_free_stack(struct sandbox *sandbox)
 	return module_free_stack(sandbox->module, sandbox->stack);
 }
 
+int
+init_response_body(struct sandbox *sandbox)
+{
+        if (sandbox->response_body.data == NULL) {
+                int rc = auto_buf_init(&sandbox->response_body);
+                if (rc < 0) {
+                        printf("failed to init http body autobuf, exit\n");
+                        exit(-1);
+                }
+        }
+
+        return 0;
+}
 /**
  * Allocates HTTP buffers and performs our approximation of "WebAssembly instantiation"
  * @param sandbox
@@ -94,7 +107,8 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 
 	int rc;
 
-	rc = http_session_init_response_body(sandbox->http);
+	//rc = http_session_init_response_body(sandbox->http);
+	rc = init_response_body(sandbox);
 	if (rc < 0) {
 		error_message = "failed to allocate response body";
 		goto err_globals_allocation_failed;
@@ -133,6 +147,13 @@ err_http_allocation_failed:
 	perror(error_message);
 	rc = -1;
 	goto done;
+}
+
+
+void
+deinit_response_body(struct sandbox *sandbox)
+{
+        auto_buf_deinit(&sandbox->response_body);
 }
 
 void
@@ -210,6 +231,8 @@ sandbox_deinit(struct sandbox *sandbox)
 
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
 	assert(sandbox->memory == NULL);
+
+	deinit_response_body(sandbox);
 
 	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
 	if (likely(sandbox->globals.buffer != NULL)) sandbox_free_globals(sandbox);

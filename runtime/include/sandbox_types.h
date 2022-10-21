@@ -46,6 +46,8 @@ struct sandbox {
 
 	/* HTTP State */
 	struct http_session *http;
+	struct auto_buf response_body;
+	struct auto_buf response_header;
 
 	/* WebAssembly Module State */
 	struct module *module; /* the module this is an instance of */
