@@ -15,6 +15,8 @@
 #include "sandbox_set_as_runnable.h"
 
 extern thread_local int thread_id;
+extern bool first_request_comming;
+time_t t_start;
 struct priority_queue* worker_queues[1024];
 extern uint32_t runtime_worker_threads_count;
 int rr_index = 0;
@@ -195,6 +197,11 @@ on_client_request_arrival(int client_socket, const struct sockaddr *client_addre
 static void
 on_client_request_receiving(struct http_session *session)
 {
+	if (first_request_comming == false){
+               t_start = time(NULL);
+                first_request_comming = true;
+        }
+
 	/* Read HTTP request */
 	int rc = http_session_receive_request(session, (void_star_cb)listener_thread_register_http_session);
 	if (likely(rc == 0)) {
