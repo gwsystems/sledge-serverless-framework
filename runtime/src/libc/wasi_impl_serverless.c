@@ -660,7 +660,7 @@ wasi_snapshot_preview1_backing_fd_read(wasi_context_t *context, __wasi_fd_t fd, 
 	if (fd == STDIN_FILENO) {
 		struct sandbox      *current_sandbox = current_sandbox_get();
 		struct http_request *current_request = &current_sandbox->http->http_request;
-		int                  old_read        = current_request->cursor;
+		int                  old_read        = current_sandbox->cursor;
 		int                  bytes_to_read   = current_request->body_length - old_read;
 
 		assert(current_request->body_length >= 0);
@@ -669,13 +669,13 @@ wasi_snapshot_preview1_backing_fd_read(wasi_context_t *context, __wasi_fd_t fd, 
 			if (bytes_to_read == 0) goto done;
 
 			int amount_to_copy = iovs[i].buf_len > bytes_to_read ? bytes_to_read : iovs[i].buf_len;
-			memcpy(iovs[i].buf, current_request->body + current_request->cursor, amount_to_copy);
-			current_request->cursor += amount_to_copy;
-			bytes_to_read = current_request->body_length - current_request->cursor;
+			memcpy(iovs[i].buf, current_request->body + current_sandbox->cursor, amount_to_copy);
+			current_sandbox->cursor += amount_to_copy;
+			bytes_to_read = current_request->body_length - current_sandbox->cursor;
 		}
 
 	done:
-		*nwritten_retptr = current_request->cursor - old_read;
+		*nwritten_retptr = current_sandbox->cursor - old_read;
 		return __WASI_ERRNO_SUCCESS;
 	}
 
