@@ -41,9 +41,9 @@ enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_B
 bool     runtime_preemption_enabled = true;
 uint32_t runtime_quantum_us         = 5000; /* 5ms */
 uint64_t runtime_boot_timestamp;
-time_t t_start;
 pid_t    runtime_pid = 0;
 thread_local int thread_id = -1;
+bool first_request_comming = false;
 
 /**
  * Returns instructions on use of CLI if used incorrectly
@@ -496,7 +496,6 @@ main(int argc, char **argv)
 	}
 
 	runtime_boot_timestamp = __getcycles();
-	t_start = time(NULL);
 
 	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
 		tenant_config_deinit(&tenant_config_vec[tenant_idx]);
