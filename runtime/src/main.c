@@ -35,8 +35,8 @@ uint32_t runtime_first_worker_processor  = 1;
 uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
-time_t t_start;
-thread_local int thread_id = -1;
+bool first_request_comming 		 = false;
+thread_local int thread_id 		 = -1;
 
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 
@@ -69,15 +69,20 @@ runtime_allocate_available_cores()
 
 	pretty_print_key_value("Core Count (Online)", "%u\n", runtime_total_online_processors);
 
-	/* If more than two cores are available, leave core 0 free to run OS tasks */
-	if (runtime_total_online_processors > 2) {
-		runtime_first_worker_processor = 2;
-		max_possible_workers           = runtime_total_online_processors - 2;
-	} else if (runtime_total_online_processors == 2) {
-		runtime_first_worker_processor = 1;
-		max_possible_workers           = runtime_total_online_processors - 1;
+	char* first_core_id = getenv("SLEDGE_FIRST_COREID");
+	if (first_core_id != NULL) {
+		runtime_first_worker_processor = atoi(first_core_id);
 	} else {
-		panic("Runtime requires at least two cores!");
+		/* If more than two cores are available, leave core 0 free to run OS tasks */
+		if (runtime_total_online_processors > 2) {
+                	runtime_first_worker_processor = 2;
+                        max_possible_workers           = runtime_total_online_processors - 2;
+                } else if (runtime_total_online_processors == 2) {
+                        runtime_first_worker_processor = 1;
+                        max_possible_workers           = runtime_total_online_processors - 1;
+                } else {
+			panic("Runtime requires at least two cores!");
+                }
 	}
 
 
@@ -520,7 +525,6 @@ main(int argc, char **argv)
 	}
 
 	runtime_boot_timestamp = __getcycles();
-	t_start = time(NULL);
 
 	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
 		tenant_config_deinit(&tenant_config_vec[tenant_idx]);
