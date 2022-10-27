@@ -48,7 +48,7 @@ static inline void
 sandbox_state_totals_increment(sandbox_state_t state)
 {
 #ifdef SANDBOX_STATE_TOTALS
-	atomic_fetch_add(&sandbox_state_totals[state], 1);
+	//atomic_fetch_add(&sandbox_state_totals[state], 1);
 #endif
 }
 
@@ -56,7 +56,7 @@ static inline void
 sandbox_state_totals_decrement(sandbox_state_t state)
 {
 #ifdef SANDBOX_STATE_TOTALS
-	if (atomic_load(&sandbox_state_totals[state]) == 0) panic("Underflow of %s\n", sandbox_state_stringify(state));
-	atomic_fetch_sub(&sandbox_state_totals[state], 1);
+	//if (atomic_load(&sandbox_state_totals[state]) == 0) panic("Underflow of %s\n", sandbox_state_stringify(state));
+	//atomic_fetch_sub(&sandbox_state_totals[state], 1);
 #endif
 }

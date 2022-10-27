@@ -60,7 +60,7 @@ static inline void
 module_acquire(struct module *module)
 {
 	assert(module->reference_count < UINT32_MAX);
-	atomic_fetch_add(&module->reference_count, 1);
+	//atomic_fetch_add(&module->reference_count, 1);
 	return;
 }
 
@@ -158,8 +158,8 @@ module_entrypoint(struct module *module)
 static inline void
 module_release(struct module *module)
 {
-	assert(module->reference_count > 0);
-	atomic_fetch_sub(&module->reference_count, 1);
+	//assert(module->reference_count > 0);
+	//atomic_fetch_sub(&module->reference_count, 1);
 	return;
 }
 

@@ -15,5 +15,6 @@ sandbox_total_initialize()
 static inline uint64_t
 sandbox_total_postfix_increment()
 {
-	return atomic_fetch_add(&sandbox_total, 1) + 1;
+	//return atomic_fetch_add(&sandbox_total, 1) + 1;
+	return 1;
 }

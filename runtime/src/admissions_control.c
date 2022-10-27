@@ -40,7 +40,7 @@ admissions_control_add(uint64_t admissions_estimate)
 {
 #ifdef ADMISSIONS_CONTROL
 	assert(admissions_estimate > 0);
-	atomic_fetch_add(&admissions_control_admitted, admissions_estimate);
+	//atomic_fetch_add(&admissions_control_admitted, admissions_estimate);
 
 #ifdef LOG_ADMISSIONS_CONTROL
 	debuglog("Runtime Admitted: %lu / %lu\n", admissions_control_admitted, admissions_control_capacity);
