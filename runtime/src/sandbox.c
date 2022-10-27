@@ -29,6 +29,7 @@ int
 init_response_body(struct sandbox *sandbox)
 {
         if (sandbox->response_body.data == NULL) {
+		sandbox->response_body.size = 0;
                 int rc = auto_buf_init(&sandbox->response_body);
                 if (rc < 0) {
                         printf("failed to init http body autobuf, exit\n");

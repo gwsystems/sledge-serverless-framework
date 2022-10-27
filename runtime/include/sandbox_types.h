@@ -68,6 +68,8 @@ struct sandbox {
 	                                 deadline (cycles) */
 	uint64_t total_time;          /* Total time from Request to Response */
 
+	int cursor;
+
 	/* System Interface State */
 	int32_t         return_value;
 	wasi_context_t *wasi_context;
