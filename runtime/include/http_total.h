@@ -39,12 +39,12 @@ static inline void
 http_total_increment_response(int status_code)
 {
 #ifdef HTTP_TOTAL_COUNTERS
-	if (status_code >= 200 && status_code <= 299) {
+	/*if (status_code >= 200 && status_code <= 299) {
 		atomic_fetch_add(&http_total_2XX, 1);
 	} else if (status_code >= 400 && status_code <= 499) {
 		atomic_fetch_add(&http_total_4XX, 1);
 	} else if (status_code >= 500 && status_code <= 599) {
 		atomic_fetch_add(&http_total_5XX, 1);
-	}
+	}*/
 #endif
 }
