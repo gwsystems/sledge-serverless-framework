@@ -19,6 +19,7 @@ extern struct http_session *g_session;
 extern struct tenant *g_tenant;
 extern int g_client_socket;
 extern struct sockaddr *g_client_address;
+extern thread_local uint32_t total_local_requests;
 
 thread_local struct sandbox *worker_thread_current_sandbox = NULL;
 
@@ -74,11 +75,12 @@ current_sandbox_exit()
 	struct tenant *tenant = g_tenant;
 
 	uint64_t request_arrival_timestamp = __getcycles();
-	http_total_increment_request();
+	//http_total_increment_request();
 
 	/* Allocate http session */
 	//struct http_session *session = http_session_alloc(g_client_socket, (const struct sockaddr *)&g_client_address, tenant, request_arrival_timestamp);
 	struct http_session *session = g_session;
+	//printf("received http data is %s\n", session->request_buffer.data);
 	//assert(session != NULL);
 	//http_session_copy(session, g_session);
 	assert(session->route != NULL);

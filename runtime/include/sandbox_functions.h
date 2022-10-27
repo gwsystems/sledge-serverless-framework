@@ -55,6 +55,6 @@ static inline void
 sandbox_process_scheduler_updates(struct sandbox *sandbox)
 {
 	if (tenant_is_paid(sandbox->tenant)) {
-		atomic_fetch_sub(&sandbox->tenant->remaining_budget, sandbox->last_state_duration);
+		//atomic_fetch_sub(&sandbox->tenant->remaining_budget, sandbox->last_state_duration);
 	}
 }
