@@ -29,7 +29,7 @@ static inline void
 http_route_total_increment_request(struct http_route_total *rm)
 {
 #ifdef HTTP_ROUTE_TOTAL_COUNTERS
-	atomic_fetch_add(&rm->total_requests, 1);
+	//atomic_fetch_add(&rm->total_requests, 1);
 #endif
 }
 
@@ -37,12 +37,12 @@ static inline void
 http_route_total_increment(struct http_route_total *rm, int status_code)
 {
 #ifdef HTTP_ROUTE_TOTAL_COUNTERS
-	if (status_code >= 200 && status_code <= 299) {
+	/*if (status_code >= 200 && status_code <= 299) {
 		atomic_fetch_add(&rm->total_2XX, 1);
 	} else if (status_code >= 400 && status_code <= 499) {
 		atomic_fetch_add(&rm->total_4XX, 1);
 	} else if (status_code >= 500 && status_code <= 599) {
 		atomic_fetch_add(&rm->total_5XX, 1);
-	}
+	}*/
 #endif
 }

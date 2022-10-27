@@ -74,7 +74,7 @@ current_sandbox_exit()
 	struct tenant *tenant = g_tenant;
 
 	uint64_t request_arrival_timestamp = __getcycles();
-	http_total_increment_request();
+	//http_total_increment_request();
 
 	/* Allocate http session */
 	//struct http_session *session = http_session_alloc(g_client_socket, (const struct sockaddr *)&g_client_address, tenant, request_arrival_timestamp);
