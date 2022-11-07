@@ -227,9 +227,10 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
    		/* calculate the throughput */
 		time_t t_end = time(NULL);
 		double seconds = difftime(t_end, t_start);	
-		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
+		//double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
+		double throughput = total_local_requests / seconds;
 	        uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]); 	
-		printf("throughput is %f, error request is %u global total request %d worker %d total requests is %u worker total_held %"PRIu64" longest_held %"PRIu64" listener total_held %"PRIu64" longest_held %"PRIu64"\n", throughput, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), worker_thread_idx, total_local_requests, total_held[worker_thread_idx], longest_held[worker_thread_idx], total_held[200], longest_held[200]);
+		printf("throughput is %f error request is %u global total request %d worker %d total requests is %u worker total_held %"PRIu64" longest_held %"PRIu64" listener total_held %"PRIu64" longest_held %"PRIu64"\n", throughput, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), worker_thread_idx, total_local_requests, total_held[worker_thread_idx], longest_held[worker_thread_idx], total_held[200], longest_held[200]);
 		fflush(stdout);
 		pthread_exit(0);		
 	}
