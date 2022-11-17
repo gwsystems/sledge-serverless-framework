@@ -96,9 +96,7 @@ current_sandbox_exit()
 	//	exit(-1);
                 
         //}
-	sandbox_prepare_execution_environment(sandbox);
-        assert(sandbox->state == SANDBOX_INITIALIZED);
-        sandbox_set_as_runnable(sandbox, SANDBOX_INITIALIZED);
+	local_runqueue_add(sandbox);
 
 	/****************************end**************************/
 	scheduler_cooperative_sched(true);

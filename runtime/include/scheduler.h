@@ -129,9 +129,16 @@ scheduler_edf_get_next()
 				get_first_request = true;
 			}
 		}
+
+		return local_runqueue_get_next();
+	} else {
+		struct sandbox *local          = local_runqueue_get_next();
+		if (local->state == SANDBOX_INITIALIZED) {
+			sandbox_prepare_execution_environment(local);
+			sandbox_set_as_init(local, SANDBOX_INITIALIZED);
+		}	
+		return local;
 	}
-	/* Return what is at the head of the local runqueue or NULL if empty */
-	return local_runqueue_get_next();
 }
 
 static inline struct sandbox *
