@@ -23,6 +23,7 @@
 #include "sandbox_set_as_interrupted.h"
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_options.h"
+#include "sandbox_set_as_init.h"
 
 extern thread_local bool get_first_request;
 /**
