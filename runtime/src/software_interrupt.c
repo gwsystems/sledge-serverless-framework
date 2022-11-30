@@ -28,6 +28,7 @@
 
 extern uint64_t total_held[1024];
 extern uint64_t longest_held[1024];
+extern thread_local bool pthread_stop;
 thread_local _Atomic volatile sig_atomic_t handler_depth    = 0;
 thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
 
@@ -232,19 +233,19 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	        uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]); 	
 		printf("throughput is %f error request is %u global total request %d worker %d total requests is %u worker total_held %"PRIu64" longest_held %"PRIu64" listener total_held %"PRIu64" longest_held %"PRIu64"\n", throughput, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), worker_thread_idx, total_local_requests, total_held[worker_thread_idx], longest_held[worker_thread_idx], total_held[200], longest_held[200]);
 		fflush(stdout);
-		pthread_exit(0);		
+		pthread_stop = true;
 	}
 	default: {
 		const char *signal_name = strsignal(signal_type);
 		switch (signal_info->si_code) {
 		case SI_TKILL:
-			panic("software_interrupt_handle_signals unexpectedly received signal %s from a thread kill\n",
+			printf("software_interrupt_handle_signals unexpectedly received signal %s from a thread kill\n",
 			      signal_name);
 		case SI_KERNEL:
-			panic("software_interrupt_handle_signals unexpectedly received signal %s from the kernel\n",
+			printf("software_interrupt_handle_signals unexpectedly received signal %s from the kernel\n",
 			      signal_name);
 		default:
-			panic("software_interrupt_handle_signals unexpectedly received signal %s with si_code %d\n",
+			printf("software_interrupt_handle_signals unexpectedly received signal %s with si_code %d\n",
 			      signal_name, signal_info->si_code);
 		}
 	}

@@ -24,6 +24,7 @@
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_options.h"
 
+extern thread_local bool pthread_stop;
 
 /**
  * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
