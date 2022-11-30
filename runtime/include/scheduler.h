@@ -24,6 +24,7 @@
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_options.h"
 
+extern thread_local bool pthread_stop;
 
 /**
  * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
@@ -392,7 +393,7 @@ scheduler_switch_to_base_context(struct arch_context *current_context)
 static inline void
 scheduler_idle_loop()
 {
-	while (true) {
+	while (!pthread_stop) {
 		/* Assumption: only called by the "base context" */
 		assert(current_sandbox_get() == NULL);
 

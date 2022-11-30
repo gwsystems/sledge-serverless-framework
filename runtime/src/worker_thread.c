@@ -29,6 +29,8 @@ thread_local struct arch_context worker_thread_base_context;
 /* Used to index into global arguments and deadlines arrays */
 thread_local int worker_thread_idx;
 
+thread_local bool pthread_stop = false;
+
 /* Used to track tenants' timeouts */
 thread_local struct priority_queue *worker_thread_timeout_queue;
 /***********************
