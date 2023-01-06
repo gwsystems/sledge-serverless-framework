@@ -7,7 +7,7 @@
 ### Native on Debian Host
 
 ```sh
-git clone https://github.com/gwsystems/sledge-serverless-framework.git
+git clone https://github.com/abhisheksharma1395/sledge-serverless-framework
 cd sledge-serverless-framework
 ./install_deb.sh
 source ~/.bashrc
