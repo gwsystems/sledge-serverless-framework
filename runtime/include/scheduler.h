@@ -409,7 +409,10 @@ scheduler_idle_loop()
 		local_cleanup_queue_free();
 
 		/* Improve the performance of spin-wait loops (works only if preemptions enabled) */
-		if (runtime_worker_spinloop_pause_enabled) pause();
+		if (runtime_worker_spinloop_pause_enabled) {
+		    debuglog("Inside scheduler idle loop, pause enabled");
+		    pause();
+		}
 	}
 }
 
