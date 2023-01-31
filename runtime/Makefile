@@ -17,7 +17,7 @@ CFLAGS+=-D_GNU_SOURCE
 CFLAGS+=-O3 -flto
 
 # Debugging Flags
-# CFLAGS+=-O0 -g3
+CFLAGS+=-O0 -g3
 
 # CFI Sanitizer
 # CFLAGS+=-fvisibility=default -fsanitize=cfi
@@ -43,25 +43,25 @@ BINARY_NAME=sledgert
 # Debugging Flags
 
 # Enables logs of WASI syscalls
-# CFLAGS += -DLOG_WASI
+CFLAGS += -DLOG_WASI
 
 # Sandbox writes to stdout and stderr are both written to the client socket
 # However, when set, stderr is also written to the host stderr to assist with debugging
 # CFLAGS += -DLOG_SANDBOX_STDERR
 
 # Strips out calls to assert() and disables debuglog
-# CFLAGS += -DNDEBUG
+CFLAGS += -DNDEBUG
 
 # Redirects debuglogs to /runtime/bin/sledge.log 
-# CFLAGS += -DLOG_TO_FILE
+CFLAGS += -DLOG_TO_FILE
 
 # Various Informational Logs for Debugging
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
-# CFLAGS += -DLOG_HTTP_PARSER
-# CFLAGS += -DLOG_TENANT_LOADING
+CFLAGS += -DLOG_HTTP_PARSER
+CFLAGS += -DLOG_TENANT_LOADING
 # CFLAGS += -DLOG_PREEMPTION
-# CFLAGS += -DLOG_SANDBOX_ALLOCATION
+CFLAGS += -DLOG_SANDBOX_ALLOCATION
 # CFLAGS += -DLOG_UNSUPPORTED_WASI
 
 # Stores and logs extended signal information for each worker
@@ -69,19 +69,19 @@ BINARY_NAME=sledgert
 
 # This adds an array of sandbox states to all sandbox structs and appends states at each transition
 # The history trucates when the number of elements equal SANDBOX_STATE_HISTORY_CAPACITY 
-# CFLAGS += -DLOG_STATE_CHANGES
+CFLAGS += -DLOG_STATE_CHANGES
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
 # page is allocated. This helps understand the relationship to memory allocation and execution time.
 # CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE
 
 # This flag enables runtime-level metrics from procfs
-# CFLAGS += -DPROC_STAT_METRICS
+CFLAGS += -DPROC_STAT_METRICS
 
 # This flag enables HTTP-level counters of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX.
 # To log, run `call http_total_log()` while in GDB
-# CFLAGS += -DHTTP_TOTAL_COUNTERS
+CFLAGS += -DHTTP_TOTAL_COUNTERS
 
 # This flag enables per-route counters of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX.
@@ -98,7 +98,7 @@ BINARY_NAME=sledgert
 
 # This flag enables an per-worker atomic count of sandbox's local runqueue count in thread local storage
 # Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue
-# CFLAGS += -DLOG_LOCAL_RUNQUEUE
+CFLAGS += -DLOG_LOCAL_RUNQUEUE
 
 # System Configuration Flags
 
