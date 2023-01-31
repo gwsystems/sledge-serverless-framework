@@ -5,7 +5,7 @@ INCLUDES := -Iinclude/
 CFLAGS := -fPIC -O3 -flto -ftls-model=initial-exec
 
 # Strips out calls to assert() and disables debuglog
-#CFLAGS+=-DNDEBUG
+CFLAGS+=-DNDEBUG
 
 # CFI Sanitizer
 # CFLAGS+=-fvisibility=default -fsanitize=cfi
