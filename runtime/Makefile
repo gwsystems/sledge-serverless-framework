@@ -58,7 +58,7 @@ CFLAGS += -DLOG_TO_FILE
 # Various Informational Logs for Debugging
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
-CFLAGS += -DLOG_HTTP_PARSER
+# CFLAGS += -DLOG_HTTP_PARSER
 CFLAGS += -DLOG_TENANT_LOADING
 # CFLAGS += -DLOG_PREEMPTION
 CFLAGS += -DLOG_SANDBOX_ALLOCATION
@@ -81,7 +81,7 @@ CFLAGS += -DPROC_STAT_METRICS
 # This flag enables HTTP-level counters of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX.
 # To log, run `call http_total_log()` while in GDB
-CFLAGS += -DHTTP_TOTAL_COUNTERS
+# CFLAGS += -DHTTP_TOTAL_COUNTERS
 
 # This flag enables per-route counters of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX.
