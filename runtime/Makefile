@@ -50,18 +50,18 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_SANDBOX_STDERR
 
 # Strips out calls to assert() and disables debuglog
-CFLAGS += -DNDEBUG
+# CFLAGS += -DNDEBUG
 
 # Redirects debuglogs to /runtime/bin/sledge.log 
-# CFLAGS += -DLOG_TO_FILE
+CFLAGS += -DLOG_TO_FILE
 
 # Various Informational Logs for Debugging
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
-# CFLAGS += -DLOG_HTTP_PARSER
-# CFLAGS += -DLOG_TENANT_LOADING
+CFLAGS += -DLOG_HTTP_PARSER
+CFLAGS += -DLOG_TENANT_LOADING
 # CFLAGS += -DLOG_PREEMPTION
-# CFLAGS += -DLOG_SANDBOX_ALLOCATION
+CFLAGS += -DLOG_SANDBOX_ALLOCATION
 # CFLAGS += -DLOG_UNSUPPORTED_WASI
 
 # Stores and logs extended signal information for each worker
@@ -76,7 +76,7 @@ CFLAGS += -DLOG_STATE_CHANGES
 # CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE
 
 # This flag enables runtime-level metrics from procfs
-# CFLAGS += -DPROC_STAT_METRICS
+CFLAGS += -DPROC_STAT_METRICS
 
 # This flag enables HTTP-level counters of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX.
@@ -90,7 +90,7 @@ CFLAGS += -DHTTP_TOTAL_COUNTERS
 # This flag enables per-route latency perf-logs. 
 # This has a perf impact due to the use of locks.
 # This flag has a dependency on the flag HTTP_ROUTE_TOTAL_COUNTERS
-# CFLAGS += -DROUTE_LATENCY
+CFLAGS += -DROUTE_LATENCY
 
 # This flag tracks the total number of sandboxes in the various states
 # It is useful to debug if sandboxes are "getting caught" in a particular state
@@ -98,7 +98,7 @@ CFLAGS += -DHTTP_TOTAL_COUNTERS
 
 # This flag enables an per-worker atomic count of sandbox's local runqueue count in thread local storage
 # Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue
-# CFLAGS += -DLOG_LOCAL_RUNQUEUE
+CFLAGS += -DLOG_LOCAL_RUNQUEUE
 
 # System Configuration Flags
 
