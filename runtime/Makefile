@@ -43,7 +43,7 @@ BINARY_NAME=sledgert
 # Debugging Flags
 
 # Enables logs of WASI syscalls
-CFLAGS += -DLOG_WASI
+# CFLAGS += -DLOG_WASI
 
 # Sandbox writes to stdout and stderr are both written to the client socket
 # However, when set, stderr is also written to the host stderr to assist with debugging
@@ -53,15 +53,15 @@ CFLAGS += -DLOG_WASI
 CFLAGS += -DNDEBUG
 
 # Redirects debuglogs to /runtime/bin/sledge.log 
-CFLAGS += -DLOG_TO_FILE
+# CFLAGS += -DLOG_TO_FILE
 
 # Various Informational Logs for Debugging
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
-CFLAGS += -DLOG_HTTP_PARSER
-CFLAGS += -DLOG_TENANT_LOADING
+# CFLAGS += -DLOG_HTTP_PARSER
+# CFLAGS += -DLOG_TENANT_LOADING
 # CFLAGS += -DLOG_PREEMPTION
-CFLAGS += -DLOG_SANDBOX_ALLOCATION
+# CFLAGS += -DLOG_SANDBOX_ALLOCATION
 # CFLAGS += -DLOG_UNSUPPORTED_WASI
 
 # Stores and logs extended signal information for each worker
@@ -76,7 +76,7 @@ CFLAGS += -DLOG_STATE_CHANGES
 # CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE
 
 # This flag enables runtime-level metrics from procfs
-CFLAGS += -DPROC_STAT_METRICS
+# CFLAGS += -DPROC_STAT_METRICS
 
 # This flag enables HTTP-level counters of incoming requests and outgoing responses, broken out by status code
 # family, such as 2XX, 4XX, 5XX.
@@ -98,7 +98,7 @@ CFLAGS += -DHTTP_TOTAL_COUNTERS
 
 # This flag enables an per-worker atomic count of sandbox's local runqueue count in thread local storage
 # Useful to debug if sandboxes are "getting caught" or "leaking" while in a local runqueue
-CFLAGS += -DLOG_LOCAL_RUNQUEUE
+# CFLAGS += -DLOG_LOCAL_RUNQUEUE
 
 # System Configuration Flags
 
