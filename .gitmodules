@@ -1,6 +1,6 @@
 [submodule "awsm"]
 	path = awsm
-	url = https://github.com/abhisheksharma1395/aWsm
+	url = https://github.com/abhisheksharma1395/aWsm.git
 	ignore = dirty
 	branch = master
 [submodule "http-parser"]
