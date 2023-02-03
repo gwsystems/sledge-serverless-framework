@@ -20,6 +20,7 @@ dist:
 .PHONY: all
 all: \
 	cifar10.install \
+	echo.install \
 	empty.install \
 	fibonacci.install \
 	gocr.install \
@@ -80,6 +81,8 @@ dist/%.wasm.so: dist/%.bc
 cifar10.install: ../runtime/bin/cifar10.wasm.so
 
 # Echo?
+.PHONY: echo.install
+echo.install: ../runtime/bin/echo.wasm.so
 
 .PHONY: empty.install
 empty.install: ../runtime/bin/empty.wasm.so

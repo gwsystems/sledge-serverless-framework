@@ -1,0 +1,18 @@
+[
+	{
+		"name": "gwu",
+		"port": 10050,
+		"replenishment-period-us": 0,
+		"max-budget-us": 0,
+		"routes": [
+			{
+				"route": "/echo",
+				"path": "fibonacci.wasm.so",
+				"admissions-percentile": 70,
+				"expected-execution-us": 6000,
+				"relative-deadline-us": 20000,
+				"http-resp-content-type": "text/plain"
+			}
+		]
+	}
+]

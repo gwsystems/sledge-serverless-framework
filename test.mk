@@ -107,6 +107,13 @@ PHONY: fibonacci__bimodal
 fibonacci__bimodal: ./runtime/bin/fibonacci.wasm.so
 	cd ./tests/fibonacci/bimodal/ && ./run.sh
 
+./runtime/bin/echo.wasm.so:
+	make echo.install -C ./applications
+
+#PHONY: echo
+#echo: ./runtime/bin/echo.wasm.so
+#	cd ./tests/echo && ./run.sh
+
 ./runtime/bin/empty.wasm.so:
 	make empty.install -C ./applications
 
