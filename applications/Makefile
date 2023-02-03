@@ -25,6 +25,7 @@ all: \
 	fibonacci.install \
 	gocr.install \
 	gps_ekf.install \
+	html.install \
 	license_plate_detection.install \
 	resize_image.install \
 	scratch_storage_get.install \

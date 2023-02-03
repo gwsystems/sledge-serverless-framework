@@ -110,6 +110,9 @@ fibonacci__bimodal: ./runtime/bin/fibonacci.wasm.so
 ./runtime/bin/echo.wasm.so:
 	make echo.install -C ./applications
 
+./runtime/bin/html.wasm.so:
+	make html.install -c ./applications
+
 #PHONY: echo
 #echo: ./runtime/bin/echo.wasm.so
 #	cd ./tests/echo && ./run.sh
