@@ -11,6 +11,7 @@
 /* Assumption: entrypoint is always _start. This should be enhanced later */
 struct route {
 	char                   *route;
+	uint8_t			request_type;
 	struct http_route_total metrics;
 	struct module          *module;
 	/* HTTP State */

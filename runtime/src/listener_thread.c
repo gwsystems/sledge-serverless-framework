@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#include "erpc_c_interface.h"
 #include "arch/getcycles.h"
 #include "global_request_scheduler.h"
 #include "listener_thread.h"
@@ -48,6 +49,10 @@ listener_thread_initialize(void)
 	/* Setup epoll */
 	listener_thread_epoll_file_descriptor = epoll_create1(0);
 	assert(listener_thread_epoll_file_descriptor >= 0);
+
+	/* erpc init */
+	char *server_uri = "128.110.219.3:31850";
+	erpc_init(server_uri, 0, 0);
 
 	int ret = pthread_create(&listener_thread_id, NULL, listener_thread_main, NULL);
 	assert(ret == 0);
@@ -389,6 +394,67 @@ on_client_socket_epoll_event(struct epoll_event *evt)
 }
 
 /**
+ * @brief Request routing function
+ * @param req_handle used by eRPC internal, it is used to send out the response packet
+ * @param req_type the type of the request. Each function has a unique reqest type id
+ * @param msg the payload of the rpc request. It is the input parameter fot the function
+ * @param size the size of the msg
+ */
+void (req_func) (void *req_handle, uint8_t req_type, uint8_t *msg, size_t size) {
+        printf("req_type is %d, msg %s size %zu\n", req_type, msg, size);
+	uint8_t kMsgSize = 16;
+	//TODO: rpc_id is hardcode now
+	assert(session->state == HTTP_SESSION_RECEIVED_REQUEST);
+        session->request_downloaded_timestamp = __getcycles();
+
+        struct route *route = http_router_match_route(&session->tenant->router, session->http_request.full_url);
+        if (route == NULL) {
+                debuglog("Did not match any routes\n");
+                session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+                http_session_set_response_header(session, 404);
+                on_client_response_header_sending(session);
+                return;
+        }
+
+        session->route = route;
+
+        /*
+         * Perform admissions control.
+         * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+         * TODO: Consider providing a Retry-After header
+         */
+        uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+        if (work_admitted == 0) {
+                session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+                http_session_set_response_header(session, 429);
+                on_client_response_header_sending(session);
+                return;
+        }
+
+        /* Allocate a Sandbox */
+        session->state          = HTTP_SESSION_EXECUTING;
+        struct sandbox *sandbox = sandbox_alloc(route->module, session, route, session->tenant, work_admitted);
+        if (unlikely(sandbox == NULL)) {
+                debuglog("Failed to allocate sandbox\n");
+                session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+                http_session_set_response_header(session, 500);
+                on_client_response_header_sending(session);
+                return;
+        }
+
+        /* If the global request scheduler is full, return a 429 to the client */
+        if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
+                debuglog("Failed to add sandbox to global queue\n");
+                sandbox_free(sandbox);
+                session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+                http_session_set_response_header(session, 429);
+                on_client_response_header_sending(session);
+        }
+	
+        erpc_req_response_enqueue(0, req_handle, "hello world", kMsgSize);
+}
+
+/**
  * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and
  * pushes the sandbox object to the global dequeue
  * @param dummy data pointer provided by pthreads API. Unused in this function
@@ -409,6 +475,12 @@ listener_thread_main(void *dummy)
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 2);
 	pthread_setschedprio(pthread_self(), -20);
+
+	uint8_t rpc_id = 0;
+	uint8_t kReqType = 2;
+	erpc_register_req_func(kReqType, req_func, 0);
+	erpc_start(NULL, rpc_id, NULL, 0);
+	erpc_run_event_loop(rpc_id, 100000);
 
 	while (true) {
 		/* Block indefinitely on the epoll file descriptor, waiting on up to a max number of events */

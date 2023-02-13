@@ -63,6 +63,18 @@ http_router_match_route(http_router_t *router, char *route)
 	return NULL;
 }
 
+static inline struct route *
+http_router_match_request_type(http_router_t *router, uint8_t request_type)
+{
+	for (int i = 0; i < router->length; i++) {
+		if (request_type == router->buffer[i].request_type) {
+			return &router->buffer[i];
+		}
+	}
+
+	return NULL;
+}
+
 static inline void
 http_router_foreach(http_router_t *router, void (*cb)(route_t *, void *, void *), void *arg_one, void *arg_two)
 {

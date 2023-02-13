@@ -7,6 +7,7 @@
 #include "route_config.h"
 
 static const char *route_config_json_keys[route_config_member_len] = { "route",
+								       "request-type",
 	                                                               "path",
 	                                                               "admissions-percentile",
 	                                                               "expected-execution-us",
@@ -56,6 +57,15 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			if (route_config_set_key_once(did_set, route_config_member_route) == -1) return -1;
 
 			config->route = strndup(json_buf + tokens[i].start, tokens[i].end - tokens[i].start);
+		} else if (strcmp(key, route_config_json_keys[route_config_member_request_type]) == 0) {
+                        if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+                        if (route_config_set_key_once(did_set, route_config_member_request_type) == -1)
+                                return -1;
+
+                        int rc = parse_uint8_t(tokens[i], json_buf,
+                                               route_config_json_keys[route_config_member_request_type],
+                                               &config->request_type);
+                        if (rc < 0) return -1;
 		} else if (strcmp(key, route_config_json_keys[route_config_member_path]) == 0) {
 			if (!is_nonempty_string(tokens[i], key)) return -1;
 			if (route_config_set_key_once(did_set, route_config_member_path) == -1) return -1;

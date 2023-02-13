@@ -11,6 +11,7 @@
 enum route_config_member
 {
 	route_config_member_route,
+	route_config_member_request_type,
 	route_config_member_path,
 	route_config_member_admissions_percentile,
 	route_config_member_expected_execution_us,
@@ -21,6 +22,7 @@ enum route_config_member
 
 struct route_config {
 	char    *route;
+	uint8_t  request_type;
 	char    *path;
 	uint8_t  admissions_percentile;
 	uint32_t expected_execution_us;
@@ -43,6 +45,8 @@ static inline void
 route_config_print(struct route_config *config)
 {
 	printf("[Route] Route: %s\n", config->route);
+	printf("[Route] Request type: %hhu\n", config->request_type);
+	printf("[Route] Request type: %hhu\n", config->request_type);
 	printf("[Route] Path: %s\n", config->path);
 	printf("[Route] Admissions Percentile: %hhu\n", config->admissions_percentile);
 	printf("[Route] Expected Execution (us): %u\n", config->expected_execution_us);
@@ -62,6 +66,12 @@ route_config_validate(struct route_config *config, bool *did_set)
 		fprintf(stderr, "path field is required\n");
 		return -1;
 	}
+
+	if (did_set[route_config_member_request_type] == false) {
+
+               fprintf(stderr, "request type field is required\n");
+                return -1;
+       }
 
 	if (did_set[route_config_member_path] == false) {
 		fprintf(stderr, "path field is required\n");
