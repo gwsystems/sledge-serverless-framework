@@ -404,53 +404,6 @@ void (req_func) (void *req_handle, uint8_t req_type, uint8_t *msg, size_t size) 
         printf("req_type is %d, msg %s size %zu\n", req_type, msg, size);
 	uint8_t kMsgSize = 16;
 	//TODO: rpc_id is hardcode now
-	assert(session->state == HTTP_SESSION_RECEIVED_REQUEST);
-        session->request_downloaded_timestamp = __getcycles();
-
-        struct route *route = http_router_match_route(&session->tenant->router, session->http_request.full_url);
-        if (route == NULL) {
-                debuglog("Did not match any routes\n");
-                session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-                http_session_set_response_header(session, 404);
-                on_client_response_header_sending(session);
-                return;
-        }
-
-        session->route = route;
-
-        /*
-         * Perform admissions control.
-         * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
-         * TODO: Consider providing a Retry-After header
-         */
-        uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
-        if (work_admitted == 0) {
-                session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-                http_session_set_response_header(session, 429);
-                on_client_response_header_sending(session);
-                return;
-        }
-
-        /* Allocate a Sandbox */
-        session->state          = HTTP_SESSION_EXECUTING;
-        struct sandbox *sandbox = sandbox_alloc(route->module, session, route, session->tenant, work_admitted);
-        if (unlikely(sandbox == NULL)) {
-                debuglog("Failed to allocate sandbox\n");
-                session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-                http_session_set_response_header(session, 500);
-                on_client_response_header_sending(session);
-                return;
-        }
-
-        /* If the global request scheduler is full, return a 429 to the client */
-        if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
-                debuglog("Failed to add sandbox to global queue\n");
-                sandbox_free(sandbox);
-                session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-                http_session_set_response_header(session, 429);
-                on_client_response_header_sending(session);
-        }
-	
         erpc_req_response_enqueue(0, req_handle, "hello world", kMsgSize);
 }
 
