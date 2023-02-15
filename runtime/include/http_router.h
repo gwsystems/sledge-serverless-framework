@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "erpc_handler.h"
+#include "erpc_c_interface.h"
 #include "http.h"
 #include "module.h"
 #include "route_latency.h"
@@ -10,6 +12,7 @@
 #include "route_config.h"
 #include "vec.h"
 
+//extern void (req_func) (void *req_handle, uint8_t req_type, uint8_t *msg, size_t size);
 typedef struct route route_t;
 VEC(route_t)
 
@@ -31,6 +34,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 	assert(config->http_resp_content_type != NULL);
 
 	struct route route = { .route                = config->route,
+			       .request_type         = config->request_type,
 		               .module               = module,
 		               .relative_deadline_us = config->relative_deadline_us,
 		               .relative_deadline    = (uint64_t)config->relative_deadline_us
@@ -39,6 +43,12 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 
 	route_latency_init(&route.latency);
 	http_route_total_init(&route.metrics);
+
+
+	/* Register RPC request handler */
+        if (erpc_register_req_func(config->request_type, req_func, 0) != 0) {
+		panic("register erpc function failed\n");
+	}
 
 	/* Admissions Control */
 	uint64_t expected_execution = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz;

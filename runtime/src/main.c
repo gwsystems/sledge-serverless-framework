@@ -16,6 +16,7 @@
 #include <sys/fcntl.h>
 #endif
 
+#include "erpc_c_interface.h"
 #include "json_parse.h"
 #include "pretty_print.h"
 #include "debuglog.h"
@@ -471,6 +472,10 @@ main(int argc, char **argv)
 
 	printf("Starting the Sledge runtime\n");
 
+	/* eRPC init */
+        char *server_uri = "128.110.219.3:31850";
+        erpc_init(server_uri, 0, 0);
+
 	log_compiletime_config();
 	runtime_process_debug_log_behavior();
 
@@ -482,12 +487,12 @@ main(int argc, char **argv)
 	runtime_initialize();
 	software_interrupt_initialize();
 
-	listener_thread_initialize();
 	runtime_start_runtime_worker_threads();
 	runtime_get_processor_speed_MHz();
 	runtime_configure_worker_spinloop_pause();
 	software_interrupt_arm_timer();
 
+	
 #ifdef LOG_TENANT_LOADING
 	debuglog("Parsing <spec.json> file [%s]\n", argv[1]);
 #endif
@@ -509,11 +514,9 @@ main(int argc, char **argv)
 			panic("Tenant database full!\n");
 			exit(-1);
 		}
-
-		/* Start listening for requests */
-		rc = tenant_listen(tenant);
-		if (rc < 0) exit(-1);
 	}
+
+	listener_thread_initialize();
 
 	runtime_boot_timestamp = __getcycles();
 

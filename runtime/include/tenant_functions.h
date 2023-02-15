@@ -77,10 +77,7 @@ tenant_policy_specific_init(struct tenant *tenant, struct tenant_config *config)
 static inline struct tenant *
 tenant_alloc(struct tenant_config *config)
 {
-	struct tenant *existing_tenant = tenant_database_find_by_name(config->name);
-	if (existing_tenant != NULL) panic("Tenant %s is already initialized\n", existing_tenant->name);
-
-	existing_tenant = tenant_database_find_by_port(config->port);
+	struct tenant *existing_tenant = tenant_database_find_by_port(config->port);
 	if (existing_tenant != NULL)
 		panic("Tenant %s is already configured with port %u\n", existing_tenant->name, config->port);
 
@@ -89,6 +86,7 @@ tenant_alloc(struct tenant_config *config)
 	/* Move name */
 	tenant->tag  = EPOLL_TAG_TENANT_SERVER_SOCKET;
 	tenant->name = config->name;
+	tenant->port = config->port;
 	config->name = NULL;
 
 	tcp_server_init(&tenant->tcp_server, config->port);

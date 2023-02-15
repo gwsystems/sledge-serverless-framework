@@ -24,7 +24,8 @@ tenant_database_add(struct tenant *tenant)
 	int rc;
 
 	if (tenant_database_count == RUNTIME_MAX_TENANT_COUNT) goto err_no_space;
-	tenant_database[tenant_database_count++] = tenant;
+	tenant_database[tenant->port] = tenant;
+	tenant_database_count++;
 
 	rc = 0;
 done:
@@ -74,11 +75,7 @@ tenant_database_find_by_socket_descriptor(int socket_descriptor)
 struct tenant *
 tenant_database_find_by_port(uint16_t port)
 {
-	for (size_t i = 0; i < tenant_database_count; i++) {
-		assert(tenant_database[i]);
-		if (tenant_database[i]->tcp_server.port == port) return tenant_database[i];
-	}
-	return NULL;
+	return tenant_database[port];
 }
 
 /**

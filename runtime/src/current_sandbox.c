@@ -127,10 +127,8 @@ current_sandbox_init()
 	/* Initialize Arguments. First arg is the module name. Subsequent args are query parameters */
 	char *args[HTTP_MAX_QUERY_PARAM_COUNT + 1];
 	args[0] = sandbox->module->path;
-	for (int i = 0; i < sandbox->http->http_request.query_params_count; i++)
-		args[i + 1] = (char *)sandbox->http->http_request.query_params[i].value;
 
-	options.argc                                          = sandbox->http->http_request.query_params_count + 1;
+	options.argc                                          = 1;
 	options.argv                                          = (const char **)&args;
 	sandbox->wasi_context                                 = wasi_context_init(&options);
 	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;

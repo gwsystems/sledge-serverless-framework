@@ -35,6 +35,7 @@ struct tenant_global_request_queue {
 struct tenant {
 	enum epoll_tag         tag; /* Tag must be first member */
 	char                  *name;
+	uint16_t	       port; 
 	struct tcp_server      tcp_server;
 	http_router_t          router;
 	struct module_database module_db;

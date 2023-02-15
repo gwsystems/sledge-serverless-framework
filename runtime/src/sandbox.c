@@ -80,6 +80,22 @@ sandbox_free_stack(struct sandbox *sandbox)
 	return module_free_stack(sandbox->module, sandbox->stack);
 }
 
+
+static inline int
+sandbox_init_response_body(struct sandbox *sandbox)
+{
+        assert(sandbox != NULL);
+        assert(sandbox->response_body.data == NULL);
+        assert(sandbox->response_body.size == 0);
+
+        int rc = auto_buf_init(&sandbox->response_body);
+        if (rc < 0) {
+                return -1;
+        }
+
+        return 0;
+}
+
 /**
  * Allocates HTTP buffers and performs our approximation of "WebAssembly instantiation"
  * @param sandbox
@@ -94,7 +110,7 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 
 	int rc;
 
-	rc = http_session_init_response_body(sandbox->http);
+	rc = sandbox_init_response_body(sandbox);
 	if (rc < 0) {
 		error_message = "failed to allocate response body";
 		goto err_globals_allocation_failed;
@@ -137,7 +153,7 @@ err_http_allocation_failed:
 
 void
 sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session *session, struct route *route,
-             struct tenant *tenant, uint64_t admissions_estimate)
+             struct tenant *tenant, uint64_t admissions_estimate, void *rpc_handler)
 {
 	/* Sets the ID to the value before the increment */
 	sandbox->id     = sandbox_total_postfix_increment();
@@ -148,10 +164,13 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 	ps_list_init_d(sandbox);
 
 	/* Allocate HTTP session structure */
-	assert(session);
 	sandbox->http   = session;
 	sandbox->tenant = tenant;
 	sandbox->route  = route;
+	sandbox->rpc_handler = rpc_handler;
+	sandbox->rpc_request_body = NULL;
+	sandbox->rpc_request_body_size = 0;
+	sandbox->cursor = 0;
 
 	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->route->relative_deadline;
 
@@ -176,7 +195,7 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
  */
 struct sandbox *
 sandbox_alloc(struct module *module, struct http_session *session, struct route *route, struct tenant *tenant,
-              uint64_t admissions_estimate)
+              uint64_t admissions_estimate, void *req_handle)
 {
 	size_t alignment     = (size_t)PAGE_SIZE;
 	size_t size_to_alloc = (size_t)round_up_to_page(sizeof(struct sandbox));
@@ -190,7 +209,7 @@ sandbox_alloc(struct module *module, struct http_session *session, struct route 
 	memset(sandbox, 0, size_to_alloc);
 
 	sandbox_set_as_allocated(sandbox);
-	sandbox_init(sandbox, module, session, route, tenant, admissions_estimate);
+	sandbox_init(sandbox, module, session, route, tenant, admissions_estimate, req_handle);
 
 
 	return sandbox;
@@ -203,6 +222,11 @@ sandbox_deinit(struct sandbox *sandbox)
 	assert(sandbox != current_sandbox_get());
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
 
+	auto_buf_deinit(&sandbox->response_body);
+	if (sandbox->rpc_request_body) {
+		free(sandbox->rpc_request_body);
+		sandbox->rpc_request_body = NULL;
+	}
 	/* Assumption: HTTP session was migrated to listener core */
 	assert(sandbox->http == NULL);
 
@@ -229,4 +253,9 @@ sandbox_free(struct sandbox *sandbox)
 
 	sandbox_deinit(sandbox);
 	free(sandbox);
+}
+
+void sandbox_send_response(struct sandbox *sandbox, uint8_t response_code) {
+	auto_buf_flush(&sandbox->response_body);
+	erpc_req_response_enqueue(0, sandbox->rpc_handler, sandbox->response_body.data, sandbox->response_body.size, response_code);
 }

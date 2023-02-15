@@ -66,6 +66,14 @@ struct sandbox {
 	                                 deadline (cycles) */
 	uint64_t total_time;          /* Total time from Request to Response */
 
+	void *rpc_handler;
+	uint8_t *rpc_request_body;
+	size_t rpc_request_body_size;
+	/* Runtime state used by WASI */
+        int cursor; /* Sandbox cursor (offset from body pointer) */
+	struct auto_buf         response_body;
+	//size_t                  response_body_written;
+
 	/* System Interface State */
 	int32_t         return_value;
 	wasi_context_t *wasi_context;
