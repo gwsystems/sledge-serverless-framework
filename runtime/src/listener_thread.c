@@ -33,6 +33,7 @@ static void on_client_response_sent(struct http_session *session);
  */
 int listener_thread_epoll_file_descriptor;
 
+//thread_local int dispatcher_thread_idx;
 pthread_t listener_thread_id;
 
 /**
@@ -407,10 +408,7 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
         struct route *route = http_router_match_request_type(&tenant->router, req_type);
         if (route == NULL) {
                 debuglog("Did not match any routes\n");
-		//TODO: send error response to client
-                //session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-                //http_session_set_response_header(session, 404);
-                //on_client_response_header_sending(session);
+		dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR)); 
                 return;
         }
 
@@ -421,10 +419,7 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
          */
         uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
         if (work_admitted == 0) {
-		//TODO: send error response to client
-                //session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-                //http_session_set_response_header(session, 429);
-                //on_client_response_header_sending(session);
+		dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
                 return;
         }
 
@@ -433,10 +428,7 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
         struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle);
         if (unlikely(sandbox == NULL)) {
                 debuglog("Failed to allocate sandbox\n");
-		//TODO: send error response to client
-                //session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-                //http_session_set_response_header(session, 500);
-                //on_client_response_header_sending(session);
+		dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
                 return;
         }
 
@@ -453,15 +445,15 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
         if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
                 debuglog("Failed to add sandbox to global queue\n");
                 sandbox_free(sandbox);
-		//TODO: send error response to client
-                //session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-                //http_session_set_response_header(session, 429);
-                //on_client_response_header_sending(session);
+		dispatcher_send_response(req_handle, GLOBAL_QUEUE_ERROR, strlen(GLOBAL_QUEUE_ERROR));
         }
 
-        //erpc_req_response_enqueue(0, req_handle, "hello world", kMsgSize);
 }
 
+
+void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
+	erpc_req_response_enqueue(0, req_handle, msg, msg_len, 1);   
+}
 /**
  * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and
  * pushes the sandbox object to the global dequeue
