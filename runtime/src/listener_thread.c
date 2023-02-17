@@ -407,7 +407,6 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
                 first_request_comming = true;
         }
 
-        printf("req_type is %d, msg %s size %zu port %d\n", req_type, msg, size, port);
 	uint8_t kMsgSize = 16;
 	//TODO: rpc_id is hardcode now
 
