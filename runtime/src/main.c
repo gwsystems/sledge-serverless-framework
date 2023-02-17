@@ -66,21 +66,27 @@ runtime_allocate_available_cores()
 
 	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
-
 	pretty_print_key_value("Core Count (Online)", "%u\n", runtime_total_online_processors);
 
-	/* If more than two cores are available, leave core 0 free to run OS tasks */
-	if (runtime_total_online_processors > 2) {
-		runtime_first_worker_processor = 2;
-		max_possible_workers           = runtime_total_online_processors - 2;
-	} else if (runtime_total_online_processors == 2) {
-		runtime_first_worker_processor = 1;
-		max_possible_workers           = runtime_total_online_processors - 1;
+	char* first_worker_core_id = getenv("SLEDGE_FIRST_WORKER_COREID");
+	if (first_worker_core_id != NULL) {
+		runtime_first_worker_processor = atoi(first_worker_core_id);
+		assert(runtime_first_worker_processor > 1);
+		max_possible_workers = runtime_total_online_processors > 2 ? runtime_total_online_processors - 2: 
+				       runtime_total_online_processors - 1;
 	} else {
-		panic("Runtime requires at least two cores!");
+		/* If more than two cores are available, leave core 0 free to run OS tasks */
+		if (runtime_total_online_processors > 2) {
+			runtime_first_worker_processor = 2;
+			max_possible_workers           = runtime_total_online_processors - 2;
+		} else if (runtime_total_online_processors == 2) {
+			runtime_first_worker_processor = 1;
+			max_possible_workers           = runtime_total_online_processors - 1;
+		} else {
+			panic("Runtime requires at least two cores!");
+		}
 	}
-
-
+	
 	/* Number of Workers */
 	char *worker_count_raw = getenv("SLEDGE_NWORKERS");
 	if (worker_count_raw != NULL) {
