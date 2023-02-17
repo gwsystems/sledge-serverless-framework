@@ -36,6 +36,7 @@ uint32_t runtime_first_worker_processor  = 1;
 uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
+bool first_request_comming 		 = false;
 
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 
@@ -472,6 +473,8 @@ main(int argc, char **argv)
 
 	printf("Starting the Sledge runtime\n");
 
+	software_interrupt_initialize();
+
 	/* eRPC init */
         char *server_uri = "128.110.219.3:31850";
         erpc_init(server_uri, 0, 0);
@@ -485,8 +488,6 @@ main(int argc, char **argv)
 	runtime_allocate_available_cores();
 	runtime_configure();
 	runtime_initialize();
-	software_interrupt_initialize();
-
 	runtime_start_runtime_worker_threads();
 	runtime_get_processor_speed_MHz();
 	runtime_configure_worker_spinloop_pause();

@@ -15,6 +15,8 @@
 #include "tenant_functions.h"
 #include "http_session_perf_log.h"
 
+time_t t_start;
+extern bool first_request_comming;
 static void listener_thread_unregister_http_session(struct http_session *http);
 static void panic_on_epoll_error(struct epoll_event *evt);
 
@@ -399,6 +401,12 @@ on_client_socket_epoll_event(struct epoll_event *evt)
  * @param size the size of the msg
  */
 void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+
+	if (first_request_comming == false){
+                t_start = time(NULL);
+                first_request_comming = true;
+        }
+
         printf("req_type is %d, msg %s size %zu port %d\n", req_type, msg, size, port);
 	uint8_t kMsgSize = 16;
 	//TODO: rpc_id is hardcode now

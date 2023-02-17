@@ -25,6 +25,8 @@
 #include "software_interrupt.h"
 #include "software_interrupt_counts.h"
 
+extern time_t t_start;
+extern thread_local bool pthread_stop;
 thread_local _Atomic volatile sig_atomic_t handler_depth    = 0;
 thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
 
@@ -33,6 +35,10 @@ thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
  **************************************/
 
 extern pthread_t *runtime_worker_threads;
+
+#ifdef SANDBOX_STATE_TOTALS
+extern _Atomic uint32_t sandbox_state_totals[SANDBOX_STATE_COUNT];
+#endif
 
 /**************************
  * Private Static Inlines *
@@ -73,6 +79,32 @@ propagate_sigalrm(siginfo_t *signal_info)
 		/* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
 		assert(signal_info->si_code == SI_TKILL);
 	}
+}
+
+/**
+ * A POSIX signal is delivered to only one thread.
+ * This function broadcasts the sigint signal to all other worker threads
+ */
+static inline void
+sigint_propagate_workers_listener(siginfo_t *signal_info)
+{
+        /* Signal was sent directly by the kernel user space, so forward to other threads */
+        if (signal_info->si_code == SI_KERNEL || signal_info->si_code == SI_USER) {
+                for (int i = 0; i < runtime_worker_threads_count; i++) {
+                        if (pthread_self() == runtime_worker_threads[i]) continue;
+
+                        /* All threads should have been initialized */
+                        assert(runtime_worker_threads[i] != 0);
+                        pthread_kill(runtime_worker_threads[i], SIGINT);
+                }
+                /* send to listener thread */
+                /*if (pthread_self() != listener_thread_id) {
+                        pthread_kill(listener_thread_id, SIGINT);
+                }*/
+        } else {
+                /* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
+                assert(signal_info->si_code == SI_TKILL);
+        }
 }
 
 static inline bool
@@ -184,6 +216,20 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		break;
 	}
+	case SIGINT: {
+		/* Stop the alarm timer first */
+		software_interrupt_disarm_timer();
+   		sigint_propagate_workers_listener(signal_info);
+		/* calculate the throughput */
+		time_t t_end = time(NULL);
+		double seconds = difftime(t_end, t_start);
+		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
+		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
+		printf("throughput is %f error request is %u\n", throughput, total_sandboxes_error);
+		fflush(stdout);
+		pthread_stop = true;		
+		break;
+	}
 	default: {
 		const char *signal_name = strsignal(signal_type);
 		switch (signal_info->si_code) {
@@ -268,9 +314,10 @@ software_interrupt_initialize(void)
 	sigaddset(&signal_action.sa_mask, SIGUSR1);
 	sigaddset(&signal_action.sa_mask, SIGFPE);
 	sigaddset(&signal_action.sa_mask, SIGSEGV);
+	sigaddset(&signal_action.sa_mask, SIGINT);
 
-	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGFPE, SIGSEGV };
-	const size_t supported_signals_len = 4;
+	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGFPE, SIGSEGV, SIGINT };
+	const size_t supported_signals_len = 5;
 
 	for (int i = 0; i < supported_signals_len; i++) {
 		int signal = supported_signals[i];
