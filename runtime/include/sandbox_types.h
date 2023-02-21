@@ -67,6 +67,7 @@ struct sandbox {
 	uint64_t total_time;          /* Total time from Request to Response */
 
 	void *rpc_handler;
+	uint8_t rpc_id;
 	uint8_t *rpc_request_body;
 	size_t rpc_request_body_size;
 	/* Runtime state used by WASI */

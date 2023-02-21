@@ -113,7 +113,7 @@ wasi_context_init(wasi_options_t *options)
 	}
 
 	/* Seed Random */
-	srandom(time(NULL));
+	//srandom(time(NULL));
 
 	/* TODO: Preopens */
 

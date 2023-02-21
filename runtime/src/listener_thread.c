@@ -17,6 +17,7 @@
 
 time_t t_start;
 extern bool first_request_comming;
+extern pthread_t *runtime_listener_threads;
 static void listener_thread_unregister_http_session(struct http_session *http);
 static void panic_on_epoll_error(struct epoll_event *evt);
 
@@ -35,26 +36,30 @@ static void on_client_response_sent(struct http_session *session);
  */
 int listener_thread_epoll_file_descriptor;
 
-//thread_local int dispatcher_thread_idx;
-pthread_t listener_thread_id;
+thread_local uint8_t dispatcher_thread_idx;
+thread_local pthread_t listener_thread_id;
 
 /**
  * Initializes the listener thread, pinned to core 0, and starts to listen for requests
  */
 void
-listener_thread_initialize(void)
+listener_thread_initialize(uint8_t thread_id)
 {
 	printf("Starting listener thread\n");
 	cpu_set_t cs;
 
 	CPU_ZERO(&cs);
-	CPU_SET(LISTENER_THREAD_CORE_ID, &cs);
+	CPU_SET(LISTENER_THREAD_CORE_ID + thread_id, &cs);
 
 	/* Setup epoll */
 	listener_thread_epoll_file_descriptor = epoll_create1(0);
 	assert(listener_thread_epoll_file_descriptor >= 0);
 
-	int ret = pthread_create(&listener_thread_id, NULL, listener_thread_main, NULL);
+	/* Pass the value we want the threads to use when indexing into global arrays of per-thread values */
+        runtime_listener_threads_argument[thread_id] = thread_id;
+
+	int ret = pthread_create(&runtime_listener_threads[thread_id], NULL, listener_thread_main, (void *)&runtime_listener_threads_argument[thread_id]);
+	listener_thread_id = runtime_listener_threads[thread_id];
 	assert(ret == 0);
 	ret = pthread_setaffinity_np(listener_thread_id, sizeof(cpu_set_t), &cs);
 	assert(ret == 0);
@@ -247,7 +252,7 @@ on_client_request_received(struct http_session *session)
 
 	/* Allocate a Sandbox */
 	session->state          = HTTP_SESSION_EXECUTING;
-	struct sandbox *sandbox = sandbox_alloc(route->module, session, route, session->tenant, work_admitted, NULL);
+	struct sandbox *sandbox = sandbox_alloc(route->module, session, route, session->tenant, work_admitted, NULL, 0);
 	if (unlikely(sandbox == NULL)) {
 		debuglog("Failed to allocate sandbox\n");
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
@@ -432,7 +437,7 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
 
         /* Allocate a Sandbox */
         //session->state          = HTTP_SESSION_EXECUTING;
-        struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle);
+        struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
         if (unlikely(sandbox == NULL)) {
                 debuglog("Failed to allocate sandbox\n");
 		dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
@@ -459,7 +464,7 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
 
 
 void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
-	erpc_req_response_enqueue(0, req_handle, msg, msg_len, 1);   
+	erpc_req_response_enqueue(dispatcher_thread_idx, req_handle, msg, msg_len, 1);   
 }
 /**
  * @brief Execution Loop of the listener core, io_handles HTTP requests, allocates sandbox request objects, and
@@ -474,6 +479,9 @@ void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
 noreturn void *
 listener_thread_main(void *dummy)
 {
+	/* Index was passed via argument */
+        dispatcher_thread_idx = *(int *)dummy;
+
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
 	metrics_server_init();
@@ -483,9 +491,9 @@ listener_thread_main(void *dummy)
 	// runtime_set_pthread_prio(pthread_self(), 2);
 	pthread_setschedprio(pthread_self(), -20);
 
-	uint8_t rpc_id = 0;
-	erpc_start(NULL, rpc_id, NULL, 0);
-	erpc_run_event_loop(rpc_id, 100000);
+	printf("dispatcher_thread_idx is %d\n", dispatcher_thread_idx);
+	erpc_start(NULL, dispatcher_thread_idx, NULL, 0);
+	erpc_run_event_loop(dispatcher_thread_idx, 100000);
 
 	while (true) {
 		/* Block indefinitely on the epoll file descriptor, waiting on up to a max number of events */

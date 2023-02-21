@@ -29,7 +29,9 @@
  **************************/
 
 pthread_t *runtime_worker_threads;
+pthread_t *runtime_listener_threads;
 int       *runtime_worker_threads_argument;
+int       *runtime_listener_threads_argument;
 /* The active deadline of the sandbox running on each worker thread */
 uint64_t *runtime_worker_threads_deadline;
 
@@ -45,7 +47,14 @@ runtime_cleanup()
 
 	if (runtime_worker_threads_deadline) free(runtime_worker_threads_deadline);
 	if (runtime_worker_threads_argument) free(runtime_worker_threads_argument);
-	if (runtime_worker_threads) free(runtime_worker_threads);
+	if (runtime_worker_threads) {
+		free(runtime_worker_threads);
+		runtime_worker_threads = NULL;
+	}
+	if (runtime_listener_threads) {
+		free(runtime_listener_threads);
+		runtime_listener_threads = NULL;
+	}
 
 	software_interrupt_cleanup();
 	exit(EXIT_SUCCESS);
@@ -103,6 +112,11 @@ runtime_initialize(void)
 	runtime_worker_threads_deadline = malloc(runtime_worker_threads_count * sizeof(uint64_t));
 	assert(runtime_worker_threads_deadline != NULL);
 	memset(runtime_worker_threads_deadline, UINT8_MAX, runtime_worker_threads_count * sizeof(uint64_t));
+
+	runtime_listener_threads = calloc(runtime_listener_threads_count, sizeof(pthread_t));
+        assert(runtime_listener_threads != NULL);
+	runtime_listener_threads_argument = calloc(runtime_listener_threads_count, sizeof(int));
+	assert(runtime_listener_threads_argument != NULL);
 
 	http_total_init();
 	sandbox_total_initialize();

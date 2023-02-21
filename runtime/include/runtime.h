@@ -42,8 +42,11 @@ extern uint32_t                     runtime_processor_speed_MHz;
 extern uint32_t                     runtime_quantum_us;
 extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
 extern pthread_t                   *runtime_worker_threads;
+extern pthread_t                   *runtime_listener_threads;
 extern uint32_t                     runtime_worker_threads_count;
+extern uint32_t                     runtime_listener_threads_count;
 extern int                         *runtime_worker_threads_argument;
+extern int                         *runtime_listener_threads_argument;
 extern uint64_t                    *runtime_worker_threads_deadline;
 extern uint64_t                     runtime_boot_timestamp;
 

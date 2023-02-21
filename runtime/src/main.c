@@ -36,6 +36,8 @@ uint32_t runtime_first_worker_processor  = 1;
 uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
+uint32_t runtime_listener_threads_count  = 0;
+uint32_t max_possible_workers		 = 0;
 bool first_request_comming 		 = false;
 
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
@@ -62,8 +64,6 @@ runtime_usage(char *cmd)
 void
 runtime_allocate_available_cores()
 {
-	uint32_t max_possible_workers;
-
 	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
 	pretty_print_key_value("Core Count (Online)", "%u\n", runtime_total_online_processors);
@@ -467,6 +467,28 @@ err:
 	return 0;
 }
 
+void listener_threads_initialize() {
+	/* Number of Listener */
+        char *listener_count_raw = getenv("SLEDGE_NLISTENERS");
+        if (listener_count_raw != NULL) {
+                int listener_count = atoi(listener_count_raw);
+		int max_possible_listeners = max_possible_workers - runtime_worker_threads_count; 
+                
+		if (listener_count <= 0 || listener_count > max_possible_listeners) {
+                        panic("Invalid Lisenter Count. Was %d. Must be {1..%d}\n", listener_count, max_possible_listeners);
+                }
+		
+		runtime_listener_threads_count = listener_count;
+	} else {
+		runtime_listener_threads_count = 1;
+	}
+
+	printf("Starting %d listener thread(s)\n", runtime_listener_threads_count);
+	for (int i = 0; i < runtime_listener_threads_count; i++) {
+        	listener_thread_initialize(i);
+        }
+}
+
 int
 main(int argc, char **argv)
 {
@@ -523,7 +545,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	listener_thread_initialize();
+	listener_threads_initialize();
 
 	runtime_boot_timestamp = __getcycles();
 
@@ -536,10 +558,18 @@ main(int argc, char **argv)
 		int ret = pthread_join(runtime_worker_threads[i], NULL);
 		if (ret) {
 			errno = ret;
-			perror("pthread_join");
+			perror("worker pthread_join");
 			exit(-1);
 		}
 	}
 
+	for (int i = 0; i < runtime_listener_threads_count; i++) {
+		int ret = pthread_join(runtime_listener_threads[i], NULL);		
+		if (ret) {
+                        errno = ret;
+                        perror("listener pthread_join");
+                        exit(-1);
+                }
+	} 
 	exit(-1);
 }

@@ -153,7 +153,7 @@ err_http_allocation_failed:
 
 void
 sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session *session, struct route *route,
-             struct tenant *tenant, uint64_t admissions_estimate, void *rpc_handler)
+             struct tenant *tenant, uint64_t admissions_estimate, void *rpc_handler, uint8_t rpc_id)
 {
 	/* Sets the ID to the value before the increment */
 	sandbox->id     = sandbox_total_postfix_increment();
@@ -168,6 +168,7 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 	sandbox->tenant = tenant;
 	sandbox->route  = route;
 	sandbox->rpc_handler = rpc_handler;
+	sandbox->rpc_id = rpc_id;
 	sandbox->rpc_request_body = NULL;
 	sandbox->rpc_request_body_size = 0;
 	sandbox->cursor = 0;
@@ -195,7 +196,7 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
  */
 struct sandbox *
 sandbox_alloc(struct module *module, struct http_session *session, struct route *route, struct tenant *tenant,
-              uint64_t admissions_estimate, void *req_handle)
+              uint64_t admissions_estimate, void *req_handle, uint8_t rpc_id)
 {
 	size_t alignment     = (size_t)PAGE_SIZE;
 	size_t size_to_alloc = (size_t)round_up_to_page(sizeof(struct sandbox));
@@ -209,7 +210,7 @@ sandbox_alloc(struct module *module, struct http_session *session, struct route 
 	memset(sandbox, 0, size_to_alloc);
 
 	sandbox_set_as_allocated(sandbox);
-	sandbox_init(sandbox, module, session, route, tenant, admissions_estimate, req_handle);
+	sandbox_init(sandbox, module, session, route, tenant, admissions_estimate, req_handle, rpc_id);
 
 
 	return sandbox;
@@ -257,5 +258,5 @@ sandbox_free(struct sandbox *sandbox)
 
 void sandbox_send_response(struct sandbox *sandbox, uint8_t response_code) {
 	auto_buf_flush(&sandbox->response_body);
-	erpc_req_response_enqueue(0, sandbox->rpc_handler, sandbox->response_body.data, sandbox->response_body.size, response_code);
+	erpc_req_response_enqueue(sandbox->rpc_id, sandbox->rpc_handler, sandbox->response_body.data, sandbox->response_body.size, response_code);
 }

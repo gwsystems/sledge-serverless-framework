@@ -13,7 +13,8 @@
  **************************/
 
 struct sandbox *sandbox_alloc(struct module *module, struct http_session *session, struct route *route,
-                              struct tenant *tenant, uint64_t admissions_estimate, void *req_handle);
+                              struct tenant *tenant, uint64_t admissions_estimate, void *req_handle,
+			      uint8_t rpc_id);
 int             sandbox_prepare_execution_environment(struct sandbox *sandbox);
 void            sandbox_free(struct sandbox *sandbox);
 void            sandbox_main(struct sandbox *sandbox);
