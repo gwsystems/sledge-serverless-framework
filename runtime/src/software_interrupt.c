@@ -97,10 +97,6 @@ sigint_propagate_workers_listener(siginfo_t *signal_info)
                         assert(runtime_worker_threads[i] != 0);
                         pthread_kill(runtime_worker_threads[i], SIGINT);
                 }
-                /* send to listener thread */
-                /*if (pthread_self() != listener_thread_id) {
-                        pthread_kill(listener_thread_id, SIGINT);
-                }*/
         } else {
                 /* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
                 assert(signal_info->si_code == SI_TKILL);
