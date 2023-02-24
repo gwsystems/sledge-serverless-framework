@@ -33,6 +33,16 @@ local_runqueue_add(struct sandbox *sandbox)
 	return local_runqueue.add_fn(sandbox);
 }
 
+void
+local_runqueue_add_index(int index, struct sandbox *sandbox)
+{
+        assert(local_runqueue.add_fn_idx != NULL);
+#ifdef LOG_LOCAL_RUNQUEUE
+        local_runqueue_count++;
+#endif
+        return local_runqueue.add_fn_idx(index, sandbox);
+}
+
 /**
  * Delete a sandbox from the run queue
  * @param sandbox to delete

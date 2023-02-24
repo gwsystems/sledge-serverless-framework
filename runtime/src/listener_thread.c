@@ -14,6 +14,11 @@
 #include "tenant.h"
 #include "tenant_functions.h"
 #include "http_session_perf_log.h"
+#include "sandbox_set_as_runnable.h"
+
+struct priority_queue* worker_queues[1024];
+extern uint32_t runtime_worker_threads_count;
+thread_local uint32_t rr_index = 0;
 
 time_t t_start;
 extern bool first_request_comming;
@@ -454,12 +459,18 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
 	sandbox->rpc_request_body_size = size;
 
         /* If the global request scheduler is full, return a 429 to the client */
-        if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
+        /*if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
                 debuglog("Failed to add sandbox to global queue\n");
                 sandbox_free(sandbox);
 		dispatcher_send_response(req_handle, GLOBAL_QUEUE_ERROR, strlen(GLOBAL_QUEUE_ERROR));
-        }
+        }*/
 
+	if (rr_index == runtime_worker_threads_count) {
+		rr_index = 0;
+	}
+
+	local_runqueue_add_index(rr_index, sandbox);
+	rr_index++;
 }
 
 
