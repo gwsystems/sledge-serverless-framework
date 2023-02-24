@@ -2,17 +2,18 @@
 ulimit -n 655350
 
 function usage {
-        echo "$0 [worker num] [listener num]"
+        echo "$0 [worker num] [listener num] [first worker core id]"
         exit 1
 }
 
-if [ $# != 2 ] ; then
+if [ $# != 3 ] ; then
         usage
         exit 1;
 fi
 
 worker_num=$1
 listener_num=$2
+first_worker_core_id=$3
 
 declare project_path="$(
         cd "$(dirname "$0")/../.."
@@ -22,7 +23,7 @@ echo $project_path
 path=`pwd`
 export SLEDGE_DISABLE_PREEMPTION=true
 #export SLEDGE_SIGALRM_HANDLER=TRIAGED
-export SLEDGE_FIRST_WORKER_COREID=3
+export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id
 export SLEDGE_NWORKERS=$worker_num
 export SLEDGE_NLISTENERS=$listener_num
 #export SLEDGE_SCHEDULER=EDF
