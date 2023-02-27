@@ -9,6 +9,7 @@
 static inline void
 sandbox_summarize_page_allocations(struct sandbox *sandbox)
 {
+char *mem_profile_log_enable = getenv("SLEDGE_SANDBOX_PERF_LOG");
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	// TODO: Handle interleavings
 	char sandbox_page_allocations_log_path[100] = {};
