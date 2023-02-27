@@ -8,6 +8,7 @@
 #include "admissions_control.h"
 #include "admissions_info.h"
 #include "current_wasm_module_instance.h"
+#include "debuglog.h"
 #include "panic.h"
 #include "pool.h"
 #include "sledge_abi_symbols.h"
@@ -211,6 +212,7 @@ module_allocate_linear_memory(struct module *module)
 static inline void
 module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 {
+    debuglog("Sandbox freeing %d memory\n", (int32_t)memory->size);
 	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
 	wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
 }

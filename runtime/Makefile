@@ -57,7 +57,7 @@ CFLAGS += -DLOG_TO_FILE
 
 # Various Informational Logs for Debugging
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
-# CFLAGS += -DLOG_CONTEXT_SWITCHES
+CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_HTTP_PARSER
 CFLAGS += -DLOG_TENANT_LOADING
 # CFLAGS += -DLOG_PREEMPTION
@@ -73,7 +73,7 @@ CFLAGS += -DLOG_STATE_CHANGES
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
 # page is allocated. This helps understand the relationship to memory allocation and execution time.
-CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE
+# CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE
 
 # This flag enables runtime-level metrics from procfs
 CFLAGS += -DPROC_STAT_METRICS
