@@ -65,7 +65,7 @@ CFLAGS += -DLOG_SANDBOX_ALLOCATION
 # CFLAGS += -DLOG_UNSUPPORTED_WASI
 
 # Stores and logs extended signal information for each worker
-# CFLAGS += -DLOG_SOFTWARE_INTERRUPT_COUNTS
+CFLAGS += -DLOG_SOFTWARE_INTERRUPT_COUNTS
 
 # This adds an array of sandbox states to all sandbox structs and appends states at each transition
 # The history trucates when the number of elements equal SANDBOX_STATE_HISTORY_CAPACITY 
@@ -73,7 +73,7 @@ CFLAGS += -DLOG_STATE_CHANGES
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
 # page is allocated. This helps understand the relationship to memory allocation and execution time.
-# CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE
+CFLAGS += -DLOG_SANDBOX_MEMORY_PROFILE
 
 # This flag enables runtime-level metrics from procfs
 CFLAGS += -DPROC_STAT_METRICS
