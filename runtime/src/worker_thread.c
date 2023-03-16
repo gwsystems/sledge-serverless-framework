@@ -59,7 +59,7 @@ worker_thread_main(void *argument)
 	scheduler_runqueue_initialize();
 
 	/* Initialize memory logging, set 100M memory for logging */
-        mem_log_init2(2*1024*1024*1024*1024, sandbox_perf_log);
+        mem_log_init2(1024*1024*1024, sandbox_perf_log);
 
 	/* Initialize Cleanup Queue */
 	local_cleanup_queue_initialize();
