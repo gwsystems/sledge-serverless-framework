@@ -7,6 +7,7 @@
 #include <threads.h>
 
 #include "current_sandbox.h"
+#include "memlogging.h"
 #include "local_cleanup_queue.h"
 #include "local_runqueue.h"
 #include "local_runqueue_list.h"
@@ -22,6 +23,7 @@
  * Worker Thread State     *
  **************************/
 
+extern FILE *sandbox_perf_log;
 thread_local bool pthread_stop = false;
 
 /* context of the runtime thread before running sandboxes or to resume its "main". */
@@ -55,6 +57,9 @@ worker_thread_main(void *argument)
 	pthread_setschedprio(pthread_self(), -20);
 
 	scheduler_runqueue_initialize();
+
+	/* Initialize memory logging, set 100M memory for logging */
+        mem_log_init2(2*1024*1024*1024*1024, sandbox_perf_log);
 
 	/* Initialize Cleanup Queue */
 	local_cleanup_queue_initialize();

@@ -113,7 +113,6 @@ scheduler_edf_get_next()
 	/* Get the deadline of the sandbox at the head of the local queue */
 	struct sandbox *local          = local_runqueue_get_next();
 	uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
-	struct sandbox *global         = NULL;
 
 	if (local != NULL) {
 		if (local->state == SANDBOX_INITIALIZED) {

@@ -24,6 +24,7 @@
 #include "scheduler.h"
 #include "software_interrupt.h"
 #include "software_interrupt_counts.h"
+#include "memlogging.h"
 
 extern time_t t_start;
 extern thread_local bool pthread_stop;
@@ -216,6 +217,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		/* Stop the alarm timer first */
 		software_interrupt_disarm_timer();
    		sigint_propagate_workers_listener(signal_info);
+		dump_log_to_file();
+
 		/* calculate the throughput */
 		time_t t_end = time(NULL);
 		double seconds = difftime(t_end, t_start);

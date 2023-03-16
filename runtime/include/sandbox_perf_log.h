@@ -3,6 +3,7 @@
 #include "pretty_print.h"
 #include "runtime.h"
 #include "sandbox_types.h"
+#include "memlogging.h"
 
 extern FILE *sandbox_perf_log;
 
@@ -29,23 +30,36 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 	/* If the log was not defined by an environment variable, early out */
 	if (sandbox_perf_log == NULL) return;
 
-	uint64_t queued_duration = sandbox->timestamp_of.dispatched - sandbox->timestamp_of.allocation;
+	uint64_t queued_duration = (sandbox->timestamp_of.dispatched - sandbox->timestamp_of.allocation) / runtime_processor_speed_MHz;
 
+	bool miss_deadline = sandbox->timestamp_of.completion > sandbox->absolute_deadline ? true : false;
+	uint64_t total_time = (sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation) / runtime_processor_speed_MHz;
+	uint64_t execution_time = (sandbox->duration_of_state[SANDBOX_RUNNING_SYS] + sandbox->duration_of_state[SANDBOX_RUNNING_USER])
+				   / runtime_processor_speed_MHz;
+	
+	if (miss_deadline) {
+		mem_log("%u miss deadline total time %lu execution time %lu queue %lu module name %s\n", sandbox->id, total_time, execution_time, 
+			queued_duration, sandbox->module->path);
+	} else {
+		mem_log("%u meet deadline total time %lu execution time %lu queue %lu module name %s\n", sandbox->id, total_time, execution_time, 
+			queued_duration, sandbox->module->path);
+	}
 	/*
 	 * Assumption: A sandbox is never able to free pages. If linear memory management
 	 * becomes more intelligent, then peak linear memory size needs to be tracked
 	 * seperately from current linear memory size.
 	 */
-	fprintf(sandbox_perf_log, "%lu,%s,%s,%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u\n",
+	/*mem_log("%lu,%s,%s,%s,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u\n",
 	        sandbox->id, sandbox->tenant->name, sandbox->route->route, sandbox_state_stringify(sandbox->state),
-	        sandbox->route->relative_deadline, sandbox->total_time, queued_duration,
-	        sandbox->duration_of_state[SANDBOX_UNINITIALIZED], sandbox->duration_of_state[SANDBOX_ALLOCATED],
-	        sandbox->duration_of_state[SANDBOX_INITIALIZED], sandbox->duration_of_state[SANDBOX_RUNNABLE],
-	        sandbox->duration_of_state[SANDBOX_INTERRUPTED], sandbox->duration_of_state[SANDBOX_PREEMPTED],
-	        sandbox->duration_of_state[SANDBOX_RUNNING_SYS], sandbox->duration_of_state[SANDBOX_RUNNING_USER],
-	        sandbox->duration_of_state[SANDBOX_ASLEEP], sandbox->duration_of_state[SANDBOX_RETURNED],
-	        sandbox->duration_of_state[SANDBOX_COMPLETE], sandbox->duration_of_state[SANDBOX_ERROR],
+	        sandbox->route->relative_deadline/runtime_processor_speed_MHz, sandbox->total_time/runtime_processor_speed_MHz, queued_duration,
+	        sandbox->duration_of_state[SANDBOX_UNINITIALIZED]/runtime_processor_speed_MHz, sandbox->duration_of_state[SANDBOX_ALLOCATED]/runtime_processor_speed_MHz,
+	        sandbox->duration_of_state[SANDBOX_INITIALIZED]/runtime_processor_speed_MHz, sandbox->duration_of_state[SANDBOX_RUNNABLE]/runtime_processor_speed_MHz,
+	        sandbox->duration_of_state[SANDBOX_INTERRUPTED]/runtime_processor_speed_MHz, sandbox->duration_of_state[SANDBOX_PREEMPTED]/runtime_processor_speed_MHz,
+	        sandbox->duration_of_state[SANDBOX_RUNNING_SYS]/runtime_processor_speed_MHz, sandbox->duration_of_state[SANDBOX_RUNNING_USER]/runtime_processor_speed_MHz,
+	        sandbox->duration_of_state[SANDBOX_ASLEEP]/runtime_processor_speed_MHz, sandbox->duration_of_state[SANDBOX_RETURNED]/runtime_processor_speed_MHz,
+	        sandbox->duration_of_state[SANDBOX_COMPLETE]/runtime_processor_speed_MHz, sandbox->duration_of_state[SANDBOX_ERROR]/runtime_processor_speed_MHz,
 	        runtime_processor_speed_MHz);
+	*/
 }
 
 static inline void
