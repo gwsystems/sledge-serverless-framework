@@ -224,7 +224,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		double seconds = difftime(t_end, t_start);
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
-		printf("throughput is %f error request is %u\n", throughput, total_sandboxes_error);
+		printf("throughput is %f error request %u is complete requests %u total request %u\n", throughput, 
+			total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
+			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]));
 		fflush(stdout);
 		pthread_stop = true;		
 		break;
