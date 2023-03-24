@@ -27,7 +27,7 @@ export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id
 export SLEDGE_NWORKERS=$worker_num
 export SLEDGE_NLISTENERS=$listener_num
 #export SLEDGE_SCHEDULER=EDF
-#export SLEDGE_SANDBOX_PERF_LOG=$path/$output
+export SLEDGE_SANDBOX_PERF_LOG=$path/server.log
 #echo $SLEDGE_SANDBOX_PERF_LOG
 cd $project_path/runtime/bin
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_fibonacci.json
