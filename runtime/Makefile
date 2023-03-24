@@ -94,6 +94,8 @@ BINARY_NAME=sledgert
 # This flag has a dependency on the flag HTTP_ROUTE_TOTAL_COUNTERS
 # CFLAGS += -DROUTE_LATENCY
 
+# This flag enables print any log into memory buffer
+ CFLAGS += -DLOG_RUNTIME_MEM_LOG
 # This flag tracks the total number of sandboxes in the various states
 # It is useful to debug if sandboxes are "getting caught" in a particular state
  CFLAGS += -DSANDBOX_STATE_TOTALS
