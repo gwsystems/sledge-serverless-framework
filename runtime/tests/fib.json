@@ -13,8 +13,18 @@
                                 "expected-execution-us": 4000,
                                 "relative-deadline-us": 16000,
                                 "http-resp-content-type": "text/plain"
+                        },
+			{
+                                "route": "/fib2",
+                                "request-type": 2,
+                                "path": "fibonacci.wasm.so",
+                                "admissions-percentile": 70,
+                                "expected-execution-us": 4000,
+                                "relative-deadline-us": 16000,
+                                "http-resp-content-type": "text/plain"
                         }
                 ]
         }
+
 ]
 
