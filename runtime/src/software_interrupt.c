@@ -28,6 +28,7 @@
 
 extern time_t t_start;
 extern thread_local bool pthread_stop;
+extern thread_local uint32_t total_local_requests;
 thread_local _Atomic volatile sig_atomic_t handler_depth    = 0;
 thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
 
@@ -217,17 +218,16 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		/* Stop the alarm timer first */
 		software_interrupt_disarm_timer();
    		sigint_propagate_workers_listener(signal_info);
-		dump_log_to_file();
 
 		/* calculate the throughput */
 		time_t t_end = time(NULL);
 		double seconds = difftime(t_end, t_start);
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
-		printf("throughput is %f error request %u is complete requests %u total request %u\n", throughput, 
-			total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
-			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]));
-		fflush(stdout);
+		mem_log("throughput %f error request %u complete requests %u total request %u total_local_requests %u\n", 
+			throughput, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
+			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests);
+                dump_log_to_file();
 		pthread_stop = true;		
 		break;
 	}

@@ -6,6 +6,7 @@
 #include "memlogging.h"
 
 extern FILE *sandbox_perf_log;
+extern thread_local int worker_thread_idx;
 
 /**
  * @brief Prints headers for the per-sandbox perf logs
@@ -38,11 +39,11 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 				   / runtime_processor_speed_MHz;
 	
 	if (miss_deadline) {
-		mem_log("%u miss deadline total time %lu execution time %lu queue %lu module name %s\n", sandbox->id, total_time, execution_time, 
-			queued_duration, sandbox->module->path);
+		mem_log("tid %d %u miss deadline total time %lu execution time %lu queue %lu module name %s\n", worker_thread_idx, 
+			sandbox->id, total_time, execution_time, queued_duration, sandbox->module->path);
 	} else {
-		mem_log("%u meet deadline total time %lu execution time %lu queue %lu module name %s\n", sandbox->id, total_time, execution_time, 
-			queued_duration, sandbox->module->path);
+		mem_log("tid %d %u meet deadline total time %lu execution time %lu queue %lu module name %s\n", worker_thread_idx, 
+			sandbox->id, total_time, execution_time, queued_duration, sandbox->module->path);
 	}
 	/*
 	 * Assumption: A sandbox is never able to free pages. If linear memory management

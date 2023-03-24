@@ -83,5 +83,6 @@ worker_thread_main(void *argument)
 
 	scheduler_idle_loop();
 
-	panic("Worker Thread unexpectedly completed idle loop.");
+	//panic("Worker Thread unexpectedly completed idle loop.");
+        return NULL;
 }
