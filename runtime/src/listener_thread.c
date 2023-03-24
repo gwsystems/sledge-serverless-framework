@@ -19,6 +19,7 @@
 struct priority_queue* worker_queues[1024];
 extern uint32_t runtime_worker_threads_count;
 thread_local uint32_t rr_index = 0;
+extern thread_local bool pthread_stop;
 
 time_t t_start;
 extern bool first_request_comming;
@@ -43,6 +44,7 @@ int listener_thread_epoll_file_descriptor;
 
 thread_local uint8_t dispatcher_thread_idx;
 thread_local pthread_t listener_thread_id;
+thread_local bool is_listener = false;
 
 /**
  * Initializes the listener thread, pinned to core 0, and starts to listen for requests
@@ -51,6 +53,7 @@ void
 listener_thread_initialize(uint8_t thread_id)
 {
 	printf("Starting listener thread\n");
+	
 	cpu_set_t cs;
 
 	CPU_ZERO(&cs);
@@ -487,9 +490,13 @@ void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
  * listener_thread_epoll_file_descriptor - the epoll file descriptor
  *
  */
-noreturn void *
+void *
 listener_thread_main(void *dummy)
 {
+	is_listener = true;
+	/* Unmask SIGINT signals */
+        software_interrupt_unmask_signal(SIGINT);
+
 	/* Index was passed via argument */
         dispatcher_thread_idx = *(int *)dummy;
 
@@ -504,9 +511,13 @@ listener_thread_main(void *dummy)
 
 	printf("dispatcher_thread_idx is %d\n", dispatcher_thread_idx);
 	erpc_start(NULL, dispatcher_thread_idx, NULL, 0);
-	erpc_run_event_loop(dispatcher_thread_idx, 100000);
+	
+	while (!pthread_stop) {
+		erpc_run_event_loop(dispatcher_thread_idx, 1000);
+	}
 
-	while (true) {
+	while (!pthread_stop) {
+		printf("pthread_stop is false\n");
 		/* Block indefinitely on the epoll file descriptor, waiting on up to a max number of events */
 		int descriptor_count = epoll_wait(listener_thread_epoll_file_descriptor, epoll_events,
 		                                  RUNTIME_MAX_EPOLL_EVENTS, -1);
@@ -539,6 +550,6 @@ listener_thread_main(void *dummy)
 			}
 		}
 	}
-
-	panic("Listener thread unexpectedly broke loop\n");
+	return NULL;
+	//panic("Listener thread unexpectedly broke loop\n");
 }

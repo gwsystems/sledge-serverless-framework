@@ -28,6 +28,7 @@
 
 extern time_t t_start;
 extern thread_local bool pthread_stop;
+extern thread_local bool is_listener;
 extern thread_local uint32_t total_local_requests;
 thread_local _Atomic volatile sig_atomic_t handler_depth    = 0;
 thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
@@ -37,6 +38,7 @@ thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
  **************************************/
 
 extern pthread_t *runtime_worker_threads;
+extern pthread_t *runtime_listener_threads;
 
 #ifdef SANDBOX_STATE_TOTALS
 extern _Atomic uint32_t sandbox_state_totals[SANDBOX_STATE_COUNT];
@@ -99,6 +101,12 @@ sigint_propagate_workers_listener(siginfo_t *signal_info)
                         assert(runtime_worker_threads[i] != 0);
                         pthread_kill(runtime_worker_threads[i], SIGINT);
                 }
+		for (int i = 0; i < runtime_listener_threads_count;i++) {
+			if (pthread_self() == runtime_listener_threads[i]) continue;
+
+			assert(runtime_listener_threads[i] != 0);
+			pthread_kill(runtime_listener_threads[i], SIGINT);
+		}	
         } else {
                 /* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
                 assert(signal_info->si_code == SI_TKILL);
@@ -214,11 +222,14 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		break;
 	}
-	case SIGINT: {
-		/* Stop the alarm timer first */
-		software_interrupt_disarm_timer();
+	case SIGINT: { /* Stop the alarm timer first */ software_interrupt_disarm_timer();
    		sigint_propagate_workers_listener(signal_info);
 
+		if (is_listener) {
+			pthread_stop = true;
+			break;
+		}
+ 
 		/* calculate the throughput */
 		time_t t_end = time(NULL);
 		double seconds = difftime(t_end, t_start);

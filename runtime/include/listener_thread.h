@@ -15,7 +15,7 @@
 extern thread_local pthread_t listener_thread_id;
 
 void           listener_thread_initialize(uint8_t thread_id);
-noreturn void *listener_thread_main(void *dummy);
+void  	       *listener_thread_main(void *dummy);
 void           listener_thread_register_http_session(struct http_session *http);
 void 	       dispatcher_send_response(void *req_handle, char* msg, size_t msg_len);
 
