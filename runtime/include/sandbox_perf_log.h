@@ -38,12 +38,13 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 	uint64_t execution_time = (sandbox->duration_of_state[SANDBOX_RUNNING_SYS] + sandbox->duration_of_state[SANDBOX_RUNNING_USER])
 				   / runtime_processor_speed_MHz;
 	
+	uint64_t init_time = sandbox->duration_of_state[SANDBOX_INITIALIZED] / runtime_processor_speed_MHz;
 	if (miss_deadline) {
-		mem_log("tid %d %u miss deadline total time %lu execution time %lu queue %lu module name %s\n", worker_thread_idx, 
-			sandbox->id, total_time, execution_time, queued_duration, sandbox->module->path);
+		mem_log("%u miss %lu  %lu %lu %s %lu\n", sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
+			init_time);
 	} else {
-		mem_log("tid %d %u meet deadline total time %lu execution time %lu queue %lu module name %s\n", worker_thread_idx, 
-			sandbox->id, total_time, execution_time, queued_duration, sandbox->module->path);
+		mem_log("%u meet %lu %lu %lu %s %lu\n", sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
+			init_time);
 	}
 	/*
 	 * Assumption: A sandbox is never able to free pages. If linear memory management

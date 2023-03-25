@@ -26,7 +26,7 @@
 #define RUNTIME_MAX_EPOLL_EVENTS         128
 #define RUNTIME_MAX_TENANT_COUNT         65535 /* Use UDP port to index tenent */ 
 #define RUNTIME_RELATIVE_DEADLINE_US_MAX 3600000000 /* One Hour. Fits in uint32_t */
-#define RUNTIME_RUNQUEUE_SIZE            256        /* Minimum guaranteed size. Might grow! */
+#define RUNTIME_RUNQUEUE_SIZE            2560000        /* Minimum guaranteed size. Might grow! */
 #define RUNTIME_TENANT_QUEUE_SIZE        4096
 
 enum RUNTIME_SIGALRM_HANDLER

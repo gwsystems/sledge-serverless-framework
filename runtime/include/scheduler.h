@@ -116,6 +116,10 @@ scheduler_edf_get_next()
 
 	if (local != NULL) {
 		if (local->state == SANDBOX_INITIALIZED) {
+			/* add by xiaosu */
+			//local->duration_of_state[SANDBOX_INITIALIZED] = 0;
+			//local->timestamp_of.last_state_change =  __getcycles();
+			/* end by xiaosu */
 			sandbox_prepare_execution_environment(local);
 			assert(local->state == SANDBOX_INITIALIZED);
 			sandbox_set_as_runnable(local, SANDBOX_INITIALIZED);
