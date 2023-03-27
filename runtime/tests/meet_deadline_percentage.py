@@ -56,6 +56,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		if "meet" in line:
 			meet_deadline += 1
 			name = line.split(" ")[5]
+			name = name[1:]
 			request_counter[name] += 1
 			total_time = int(line.split(" ")[2])
 			total_time_dist[name].append(total_time)
@@ -69,6 +70,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		if "miss" in line:
 			miss_deadline += 1
 			name = line.split(" ")[5]
+			name = name[1:]
 			total_time = int(line.split(" ")[2])
 			if total_time > max_latency_dist[name]:
                                 max_latency_dist[name] = total_time
@@ -89,7 +91,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	miss_deadline_percentage = (miss_deadline * 100) / (miss_deadline + meet_deadline)
 	print("meet deadline num:", meet_deadline)
 	print("miss deadline num:", miss_deadline)
-	print("total num:", meet_deadline + miss_deadline)
+	print("total requests:", meet_deadline + miss_deadline)
 	print("miss deadline percentage:", miss_deadline_percentage)
 	print("throughput:", throughput)
 #	func_name_dict = {
@@ -130,7 +132,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 
 	for key,value in running_times.items():
 		#print("function times:", func_name_with_id[key], np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.median(initializing_times[key]))
-		print("function :", key, "total:", np.median(total_time_dist[key]), "exec:", np.median(running_times[key]), "queue:", np.median(queuing_times[key]))
+		print("function :", key, "avg total:", np.median(total_time_dist[key]), "exec:", np.median(running_times[key]), "queue:", np.median(queuing_times[key]))
 		
 
 	js = json.dumps(total_time_dist)
