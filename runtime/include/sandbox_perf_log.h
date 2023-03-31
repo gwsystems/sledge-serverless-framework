@@ -37,14 +37,23 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 	uint64_t total_time = (sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation) / runtime_processor_speed_MHz;
 	uint64_t execution_time = (sandbox->duration_of_state[SANDBOX_RUNNING_SYS] + sandbox->duration_of_state[SANDBOX_RUNNING_USER])
 				   / runtime_processor_speed_MHz;
+ 	 
+	uint64_t cleanup = sandbox->timestamp_of.cleanup / runtime_processor_speed_MHz;
+	uint64_t other = sandbox->timestamp_of.other / runtime_processor_speed_MHz;
+	uint64_t t1 = sandbox->ret[0] / runtime_processor_speed_MHz;
+	uint64_t t2 = sandbox->ret[1] / runtime_processor_speed_MHz;
+	uint64_t t3 = sandbox->ret[2] / runtime_processor_speed_MHz;
+	uint64_t t4 = sandbox->ret[3] / runtime_processor_speed_MHz;
+	uint64_t t5 = sandbox->ret[4] / runtime_processor_speed_MHz;
 	
+
 	uint64_t init_time = sandbox->duration_of_state[SANDBOX_INITIALIZED] / runtime_processor_speed_MHz;
 	if (miss_deadline) {
-		mem_log("%u miss %lu  %lu %lu %s %lu\n", sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
-			init_time);
+		mem_log("tid %d %u miss %lu  %lu %lu %s %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
+			init_time, cleanup, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
 	} else {
-		mem_log("%u meet %lu %lu %lu %s %lu\n", sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
-			init_time);
+		mem_log("tid %d %u meet %lu %lu %lu %s %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
+			init_time, cleanup, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
 	}
 	/*
 	 * Assumption: A sandbox is never able to free pages. If linear memory management

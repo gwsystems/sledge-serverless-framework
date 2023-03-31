@@ -72,12 +72,14 @@ sandbox_free_globals(struct sandbox *sandbox)
 	wasm_globals_deinit(&sandbox->globals);
 }
 
-static inline void
+static inline uint64_t 
 sandbox_free_stack(struct sandbox *sandbox)
 {
 	assert(sandbox);
 
-	return module_free_stack(sandbox->module, sandbox->stack);
+	//return module_free_stack(sandbox->module, sandbox->stack);
+	uint64_t t = module_free_stack(sandbox->module, sandbox->stack);
+	return t;
 }
 
 
@@ -217,17 +219,22 @@ sandbox_alloc(struct module *module, struct http_session *session, struct route 
 }
 
 void
-sandbox_deinit(struct sandbox *sandbox)
+sandbox_deinit(struct sandbox *sandbox, uint64_t *ret)
 {
 	assert(sandbox != NULL);
 	assert(sandbox != current_sandbox_get());
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
 
+	uint64_t now = __getcycles();
 	auto_buf_deinit(&sandbox->response_body);
+	uint64_t d1 = __getcycles();
+	ret[0] = d1 - now;
 	if (sandbox->rpc_request_body) {
 		free(sandbox->rpc_request_body);
 		sandbox->rpc_request_body = NULL;
 	}
+	uint64_t d2 = __getcycles();
+	ret[1] = d2 - d1;
 	/* Assumption: HTTP session was migrated to listener core */
 	assert(sandbox->http == NULL);
 
@@ -236,24 +243,34 @@ sandbox_deinit(struct sandbox *sandbox)
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
 	assert(sandbox->memory == NULL);
 
-	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
+	if (likely(sandbox->stack != NULL)) ret[2] = sandbox_free_stack(sandbox);
+	uint64_t d3 = __getcycles();
+	//ret[2] = d3 - d2;
 	if (likely(sandbox->globals.buffer != NULL)) sandbox_free_globals(sandbox);
+	uint64_t d4 = __getcycles();
+	ret[3] = d4 - d3;
 	if (likely(sandbox->wasi_context != NULL)) wasi_context_destroy(sandbox->wasi_context);
+	uint64_t d5 = __getcycles();
+	ret[4] = d5 - d4;
 }
 
 /**
  * Free stack and heap resources.. also any I/O handles.
  * @param sandbox
  */
-void
-sandbox_free(struct sandbox *sandbox)
+uint64_t
+sandbox_free(struct sandbox *sandbox, uint64_t *ret)
 {
 	assert(sandbox != NULL);
 	assert(sandbox != current_sandbox_get());
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
-
-	sandbox_deinit(sandbox);
+	
+	uint64_t now = __getcycles();
+	sandbox_perf_log_print_entry(sandbox);
+	sandbox_deinit(sandbox, ret);
+	uint64_t d = __getcycles() - now;
 	free(sandbox);
+	return d;
 }
 
 void sandbox_send_response(struct sandbox *sandbox, uint8_t response_code) {

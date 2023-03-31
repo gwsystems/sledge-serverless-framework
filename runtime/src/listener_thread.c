@@ -272,7 +272,8 @@ on_client_request_received(struct http_session *session)
 	/* If the global request scheduler is full, return a 429 to the client */
 	if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
 		debuglog("Failed to add sandbox to global queue\n");
-		sandbox_free(sandbox);
+		uint64_t ret[5] = {0};
+		sandbox_free(sandbox, ret);
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
 		http_session_set_response_header(session, 429);
 		on_client_response_header_sending(session);

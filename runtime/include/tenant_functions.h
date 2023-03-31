@@ -160,3 +160,12 @@ get_next_timeout_of_tenant(uint64_t replenishment_period)
  */
 int tenant_listen(struct tenant *tenant);
 int listener_thread_register_tenant(struct tenant *tenant);
+
+static inline void
+tenant_preallocate_memory(struct tenant *tenant, void *arg1, void *arg2) {
+	struct module **modules = tenant->module_db.modules;
+	size_t count = tenant->module_db.count;	
+	for(int i = 0; i < count; i++) {
+		module_preallocate_memory(modules[i]);	
+	}
+}

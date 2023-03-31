@@ -28,7 +28,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	switch (last_state) {
 	case SANDBOX_RETURNED: {
-		sandbox->timestamp_of.completion = now;
+		//sandbox->timestamp_of.completion = now;
 		break;
 	}
 	default: {
@@ -52,7 +52,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	/* Terminal State Logging for Sandbox */
-	sandbox_perf_log_print_entry(sandbox);
+	//sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 	route_latency_add(&sandbox->route->latency, sandbox->total_time);
 

@@ -23,6 +23,7 @@
 #include "sandbox_set_as_interrupted.h"
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_options.h"
+#include "sandbox_perf_log.h"
 
 extern thread_local bool pthread_stop;
 
@@ -117,8 +118,10 @@ scheduler_edf_get_next()
 	if (local != NULL) {
 		if (local->state == SANDBOX_INITIALIZED) {
 			/* add by xiaosu */
-			//local->duration_of_state[SANDBOX_INITIALIZED] = 0;
-			//local->timestamp_of.last_state_change =  __getcycles();
+			uint64_t now = __getcycles();
+			local->timestamp_of.dispatched = now;
+			local->duration_of_state[SANDBOX_INITIALIZED] = 0;
+			local->timestamp_of.last_state_change =  now;
 			/* end by xiaosu */
 			sandbox_prepare_execution_environment(local);
 			assert(local->state == SANDBOX_INITIALIZED);
@@ -389,6 +392,10 @@ scheduler_switch_to_base_context(struct arch_context *current_context)
 static inline void
 scheduler_idle_loop()
 {
+	uint64_t cleanup_cost = 0;	
+	uint64_t other = 0;
+	int cleanup_count = 0;
+	uint64_t ret[5] = {0};
 	while (!pthread_stop) {
 		/* Assumption: only called by the "base context" */
 		assert(current_sandbox_get() == NULL);
@@ -399,12 +406,33 @@ scheduler_idle_loop()
 		/* Switch to a sandbox if one is ready to run */
 		struct sandbox *next_sandbox = scheduler_get_next();
 		if (next_sandbox != NULL) {
+			next_sandbox->timestamp_of.cleanup += cleanup_cost;
+			next_sandbox->timestamp_of.other += other;
+			next_sandbox->context_switch_to = 1;
+			next_sandbox->ret[0] += ret[0];
+			next_sandbox->ret[1] += ret[1];
+			next_sandbox->ret[2] += ret[2];
+			next_sandbox->ret[3] += ret[3];
+			next_sandbox->ret[4] += ret[4];
+			cleanup_cost = 0;
+			other = 0;
+			ret[0] = ret[1] = ret[2] = ret[3] = ret[4] = 0;
 			scheduler_cooperative_switch_to(&worker_thread_base_context, next_sandbox);
 		}
-
 		/* Clear the cleanup queue */
-		local_cleanup_queue_free();
-
+		uint64_t now = __getcycles();
+		uint64_t duration = 0;
+		uint64_t ret_inner[5] = {0};
+		cleanup_count = local_cleanup_queue_free(&duration, ret_inner);
+		if (cleanup_count != 0 && cleanup_cost == 0) {
+			cleanup_cost += __getcycles() - now;
+			other += duration;
+			ret[0] += ret_inner[0];
+			ret[1] += ret_inner[1];
+			ret[2] += ret_inner[2];
+			ret[3] += ret_inner[3];
+			ret[4] += ret_inner[4];
+		}
 		/* Improve the performance of spin-wait loops (works only if preemptions enabled) */
 		if (runtime_worker_spinloop_pause_enabled) pause();
 	}
@@ -420,6 +448,7 @@ scheduler_idle_loop()
 static inline void
 scheduler_cooperative_sched(bool add_to_cleanup_queue)
 {
+	//uint64_t now = __getcycles(); 
 	struct sandbox *exiting_sandbox = current_sandbox_get();
 	assert(exiting_sandbox != NULL);
 
@@ -436,9 +465,18 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 	/* Deferred signals should have been cleared by this point */
 	assert(deferred_sigalrm == 0);
 
+	uint64_t now = __getcycles(); 
+	uint64_t duration = 0;
+	uint64_t ret[5] = {0};
 	/* We have not added ourself to the cleanup queue, so we can free */
-	local_cleanup_queue_free();
-
+	local_cleanup_queue_free(&duration, ret);
+	exiting_sandbox->timestamp_of.cleanup += (__getcycles() - now);	
+	exiting_sandbox->timestamp_of.other += duration;
+	exiting_sandbox->ret[0] += ret[0];
+	exiting_sandbox->ret[1] += ret[1];
+	exiting_sandbox->ret[2] += ret[2];
+	exiting_sandbox->ret[3] += ret[3];
+	exiting_sandbox->ret[4] += ret[4];
 	/* Switch to a sandbox if one is ready to run */
 	struct sandbox *next_sandbox = scheduler_get_next();
 
@@ -458,6 +496,7 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 	/* Do not touch sandbox struct after this point! */
 
 	if (next_sandbox != NULL) {
+		next_sandbox->context_switch_to = 2;
 		scheduler_cooperative_switch_to(exiting_context, next_sandbox);
 	} else {
 		scheduler_switch_to_base_context(exiting_context);

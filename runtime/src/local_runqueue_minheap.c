@@ -92,7 +92,6 @@ local_runqueue_minheap_initialize()
 	local_runqueue_minheap = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, true, sandbox_get_priority);
 
 	worker_queues[worker_thread_idx] = local_runqueue_minheap;
-	printf("add local queue with index %d\n", worker_thread_idx);
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,
 						.add_fn_idx  = local_runqueue_minheap_add_index,

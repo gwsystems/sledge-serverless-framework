@@ -178,11 +178,14 @@ module_allocate_stack(struct module *module)
 	return stack;
 }
 
-static inline void
+static inline uint64_t
 module_free_stack(struct module *module, struct wasm_stack *stack)
 {
+	uint64_t now = __getcycles();	
 	wasm_stack_reinit(stack);
+	uint64_t d = __getcycles() - now;
 	wasm_stack_pool_add_nolock(&module->pools[worker_thread_idx].stack, stack);
+	return d;
 }
 
 static inline struct wasm_memory *
@@ -213,4 +216,20 @@ module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 {
 	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
 	wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
+}
+
+static inline void
+module_preallocate_memory(struct module *module) {
+	/* preallocate two pairs of linear and stack memory */
+	struct wasm_stack *stack1 = module_allocate_stack(module);
+        struct wasm_memory *memory1 = module_allocate_linear_memory(module);
+	
+	struct wasm_stack *stack2 = module_allocate_stack(module);
+        struct wasm_memory *memory2 = module_allocate_linear_memory(module);
+
+	module_free_linear_memory(module, memory1);
+	module_free_linear_memory(module, memory2);
+
+	module_free_stack(module, stack1);
+	module_free_stack(module, stack2);
 }

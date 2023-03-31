@@ -39,6 +39,12 @@ thread_local struct priority_queue *worker_thread_timeout_queue;
  **********************/
 
 /**
+ */
+
+void preallocate_memory() {
+	tenant_database_foreach(tenant_preallocate_memory, NULL, NULL);	
+}
+/**
  * The entry function for sandbox worker threads
  * Initializes thread-local state, unmasks signals, sets up epoll loop and
  * @param argument - argument provided by pthread API. We set to -1 on error
@@ -55,6 +61,8 @@ worker_thread_main(void *argument)
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 2);
 	pthread_setschedprio(pthread_self(), -20);
+
+	preallocate_memory();
 
 	scheduler_runqueue_initialize();
 

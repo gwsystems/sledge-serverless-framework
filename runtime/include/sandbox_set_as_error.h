@@ -64,7 +64,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox->http = NULL;
 
 	/* Terminal State Logging */
-	sandbox_perf_log_print_entry(sandbox);
+	//sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 
 	/* State Change Hooks */

@@ -8,7 +8,8 @@
  * Tenant Database *
  ******************/
 
-struct tenant *tenant_database[RUNTIME_MAX_TENANT_COUNT] = { NULL };
+struct tenant *tenant_database[RUNTIME_MAX_TENANT_COUNT] = { NULL }; // the index is UDP port
+struct tenant *tenant_index_database[RUNTIME_MAX_TENANT_COUNT] = { NULL }; // the index is index
 size_t         tenant_database_count                     = 0;
 
 /**
@@ -25,6 +26,7 @@ tenant_database_add(struct tenant *tenant)
 
 	if (tenant_database_count == RUNTIME_MAX_TENANT_COUNT) goto err_no_space;
 	tenant_database[tenant->port] = tenant;
+	tenant_index_database[tenant_database_count] = tenant;
 	tenant_database_count++;
 
 	rc = 0;
@@ -92,10 +94,10 @@ tenant_database_find_by_ptr(void *ptr)
 }
 
 void
-tenant_database_foreach(void (*cb)(struct tenant *, void *), void *arg)
+tenant_database_foreach(void (*cb)(struct tenant *, void *), void *arg, void *arg2)
 {
 	for (size_t i = 0; i < tenant_database_count; i++) {
-		assert(tenant_database[i]);
-		cb(tenant_database[i], arg);
+		assert(tenant_index_database[i]);
+		cb(tenant_index_database[i], arg);
 	}
 }

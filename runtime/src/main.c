@@ -516,10 +516,10 @@ main(int argc, char **argv)
 	runtime_allocate_available_cores();
 	runtime_configure();
 	runtime_initialize();
-	runtime_start_runtime_worker_threads();
+	//runtime_start_runtime_worker_threads();
 	runtime_get_processor_speed_MHz();
-	runtime_configure_worker_spinloop_pause();
-	software_interrupt_arm_timer();
+	//runtime_configure_worker_spinloop_pause();
+	//software_interrupt_arm_timer();
 
 	
 #ifdef LOG_TENANT_LOADING
@@ -544,6 +544,9 @@ main(int argc, char **argv)
 			exit(-1);
 		}
 	}
+
+	runtime_start_runtime_worker_threads();
+	software_interrupt_arm_timer();
 
 	listener_threads_initialize();
 

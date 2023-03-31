@@ -24,6 +24,8 @@ struct sandbox_timestamps {
 	uint64_t allocation;        /* Timestamp when sandbox is allocated */
 	uint64_t dispatched;        /* Timestamp when a sandbox is first added to a worker's runqueue */
 	uint64_t completion;        /* Timestamp when sandbox runs to completion */
+	uint64_t cleanup;	    /* Time duration of cleaning up the previous sandboxes */
+	uint64_t other;	    	    /* Time duration of only sandbox_free */
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	uint32_t page_allocations[SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT];
 	size_t   page_allocations_size;
@@ -78,5 +80,6 @@ struct sandbox {
 	/* System Interface State */
 	int32_t         return_value;
 	wasi_context_t *wasi_context;
-
+	int context_switch_to; /* 1 means context switch to base, 2 means context swtich to next sandbox */
+	uint64_t ret[5];
 } PAGE_ALIGNED;

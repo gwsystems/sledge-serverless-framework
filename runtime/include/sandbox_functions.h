@@ -16,7 +16,7 @@ struct sandbox *sandbox_alloc(struct module *module, struct http_session *sessio
                               struct tenant *tenant, uint64_t admissions_estimate, void *req_handle,
 			      uint8_t rpc_id);
 int             sandbox_prepare_execution_environment(struct sandbox *sandbox);
-void            sandbox_free(struct sandbox *sandbox);
+uint64_t        sandbox_free(struct sandbox *sandbox, uint64_t *ret);
 void            sandbox_main(struct sandbox *sandbox);
 void            sandbox_switch_to(struct sandbox *next_sandbox);
 void 		sandbox_send_response(struct sandbox *sandbox, uint8_t response_code);
