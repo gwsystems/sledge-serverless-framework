@@ -266,7 +266,6 @@ sandbox_free(struct sandbox *sandbox, uint64_t *ret)
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
 	
 	uint64_t now = __getcycles();
-	sandbox_perf_log_print_entry(sandbox);
 	sandbox_deinit(sandbox, ret);
 	uint64_t d = __getcycles() - now;
 	free(sandbox);

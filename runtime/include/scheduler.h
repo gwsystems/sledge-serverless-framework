@@ -494,7 +494,8 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 
 	if (add_to_cleanup_queue) local_cleanup_queue_add(exiting_sandbox);
 	/* Do not touch sandbox struct after this point! */
-
+ 	/* Logging this sandbox to memory */	
+	sandbox_perf_log_print_entry(exiting_sandbox);
 	if (next_sandbox != NULL) {
 		next_sandbox->context_switch_to = 2;
 		scheduler_cooperative_switch_to(exiting_context, next_sandbox);
