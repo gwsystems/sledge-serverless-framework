@@ -28,8 +28,9 @@ sandbox_perf_log_print_header()
 static inline void
 sandbox_perf_log_print_entry(struct sandbox *sandbox)
 {
-	if (sandbox->state == SANDBOX_COMPLETE || sandbox->state == SANDBOX_ERROR) {
+	if (sandbox->state != SANDBOX_COMPLETE && sandbox->state != SANDBOX_ERROR) {
 		/* only logging when the sandbox is complete or error */
+		printf("return state %d\n", sandbox->state);
 		return;
 	}	
 	/* If the log was not defined by an environment variable, early out */
