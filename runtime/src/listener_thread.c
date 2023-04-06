@@ -18,8 +18,8 @@
 
 struct priority_queue* worker_queues[1024];
 extern uint32_t runtime_worker_threads_count;
-thread_local uint32_t rr_index = 0;
 extern thread_local bool pthread_stop;
+extern _Atomic uint64_t request_index;
 
 time_t t_start;
 extern bool first_request_comming;
@@ -45,6 +45,7 @@ int listener_thread_epoll_file_descriptor;
 thread_local uint8_t dispatcher_thread_idx;
 thread_local pthread_t listener_thread_id;
 thread_local bool is_listener = false;
+
 
 /**
  * Initializes the listener thread, pinned to core 0, and starts to listen for requests
@@ -469,12 +470,7 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
 		dispatcher_send_response(req_handle, GLOBAL_QUEUE_ERROR, strlen(GLOBAL_QUEUE_ERROR));
         }*/
 
-	if (rr_index == runtime_worker_threads_count) {
-		rr_index = 0;
-	}
-
-	local_runqueue_add_index(rr_index, sandbox);
-	rr_index++;
+	local_runqueue_add_index(request_index_increment() % runtime_worker_threads_count, sandbox);
 }
 
 

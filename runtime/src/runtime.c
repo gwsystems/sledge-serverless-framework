@@ -28,6 +28,9 @@
  * Shared Process State    *
  **************************/
 
+/* Count of the total number of requests we've ever received. Never decrements as it is used to dispatch requests to workers with RR */
+_Atomic uint64_t request_index;
+
 pthread_t *runtime_worker_threads;
 pthread_t *runtime_listener_threads;
 int       *runtime_worker_threads_argument;
@@ -120,6 +123,7 @@ runtime_initialize(void)
 
 	http_total_init();
 	sandbox_total_initialize();
+	request_index_initialize();
 	sandbox_state_totals_initialize();
 
 	/* Setup Scheduler */

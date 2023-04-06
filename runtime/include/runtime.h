@@ -35,6 +35,7 @@ enum RUNTIME_SIGALRM_HANDLER
 	RUNTIME_SIGALRM_HANDLER_TRIAGED   = 1
 };
 
+extern _Atomic uint64_t request_index;
 extern pid_t                        runtime_pid;
 extern bool                         runtime_preemption_enabled;
 extern bool                         runtime_worker_spinloop_pause_enabled;
@@ -70,3 +71,16 @@ runtime_print_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)
 		return "TRIAGED";
 	}
 }
+
+inline void
+request_index_initialize()
+{
+        atomic_init(&request_index, 0);
+}
+
+inline uint64_t
+request_index_increment()
+{
+        return atomic_fetch_add(&request_index, 1);
+}
+
