@@ -21,12 +21,12 @@ declare project_path="$(
 )"
 echo $project_path
 path=`pwd`
-export SLEDGE_DISABLE_PREEMPTION=true
+#export SLEDGE_DISABLE_PREEMPTION=true
 #export SLEDGE_SIGALRM_HANDLER=TRIAGED
 export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id
 export SLEDGE_NWORKERS=$worker_num
 export SLEDGE_NLISTENERS=$listener_num
-#export SLEDGE_SCHEDULER=EDF
+export SLEDGE_SCHEDULER=EDF
 export SLEDGE_SANDBOX_PERF_LOG=$path/server.log
 #echo $SLEDGE_SANDBOX_PERF_LOG
 cd $project_path/runtime/bin

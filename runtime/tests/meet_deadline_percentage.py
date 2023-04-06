@@ -27,7 +27,11 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	###
 	running_times = defaultdict(list) 
 	queuing_times = defaultdict(list)
+	thread_running_times = defaultdict(list)
 	total_times = defaultdict(list)
+	thread_times = defaultdict(list)
+	thread_throughput = defaultdict(list)
+	t2_cleanup = defaultdict(list)
 	runnable_times = defaultdict(list)
 	blocked_times = defaultdict(list)
 	initializing_times = defaultdict(list)
@@ -55,38 +59,53 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		line = line.strip()
 		if "meet" in line:
 			meet_deadline += 1
-			name = line.split(" ")[5]
+			name = line.split(" ")[7]
+			cleanup = line.split(" ")[9]
 			name = name[1:]
+			tid = line.split(" ")[1]
 			request_counter[name] += 1
-			total_time = int(line.split(" ")[2])
+			total_time = int(line.split(" ")[4])
 			total_time_dist[name].append(total_time)
+			thread_times[tid].append(total_time)	
 			if total_time > max_latency_dist[name]:
 				max_latency_dist[name] = total_time
 			meet_deadline_dist[name] += 1
-			exe_time = int(line.split(" ")[3])
+			exe_time = int(line.split(" ")[5])
 			running_times[name].append(exe_time);
-			queue_time = int(line.split(" ")[4])
+			queue_time = int(line.split(" ")[6])
 			queuing_times[name].append(queue_time);	
+			thread_running_times[tid].append(exe_time);	
+			t2_cleanup[tid].append(cleanup)
 		if "miss" in line:
 			miss_deadline += 1
-			name = line.split(" ")[5]
+			name = line.split(" ")[7]
+			cleanup = line.split(" ")[9]
 			name = name[1:]
-			total_time = int(line.split(" ")[2])
+			tid = line.split(" ")[1]
+			total_time = int(line.split(" ")[4])
 			if total_time > max_latency_dist[name]:
                                 max_latency_dist[name] = total_time
 			request_counter[name] += 1
 			total_time_dist[name].append(total_time)
+			thread_times[tid].append(total_time)
 			miss_deadline_dist[name] += 1
-			exe_time = int(line.split(" ")[3])
+			exe_time = line.split(" ")[5]
+			exe_time = int(line.split(" ")[5])
 			running_times[name].append(exe_time);
-			queue_time = int(line.split(" ")[4])
+			queue_time = int(line.split(" ")[6])
 			queuing_times[name].append(queue_time);
+			thread_running_times[tid].append(exe_time);
+			t2_cleanup[tid].append(cleanup)
 			#print("name:", name)
 		if "throughput" in line:
 			throughput = line.split(" ")[1]
 		### calculate the execution time
 		#if "memory" in line or "total_time" in line or "min" in line or "miss" in line or "meet" in line or "time " in line or "scheduling count" in line or "thread id" in line:
                 #	continue
+		if "pthroughput" in line:
+			tid = line.split(" ")[2]
+			throughput = line.split(" ")[3]
+			thread_throughput[tid].append(throughput)
 
 	miss_deadline_percentage = (miss_deadline * 100) / (miss_deadline + meet_deadline)
 	print("meet deadline num:", meet_deadline)
@@ -94,23 +113,6 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	print("total requests:", meet_deadline + miss_deadline)
 	print("miss deadline percentage:", miss_deadline_percentage)
 	print("throughput:", throughput)
-#	func_name_dict = {
-#		"cifar10_1": "105k-2",
-#		"cifar10_2": "305k-2",
-#		"cifar10_3": "5k-2",
-#		"cifar10_4": "545k-2",
-#		"cifar10_5": "105k-4",
-#		"cifar10_6": "305k-4",
-#		"cifar10_7": "5k-4",
-#		"cifar10_8": "545k-4",
-#		"cifar10_9": "105k-8",
-#		"cifar10_10": "305k-8",
-#		"cifar10_11": "5k-8",
-#		"cifar10_12": "545k-8",
-#		"resize": "resize",
-#		"fibonacci": "fibonacci",
-#		"resize3": "resize3"
-#	}
 
 	for key,value in request_counter.items():
 		print(key, ":", str(value), "proportion:", (100*value)/(meet_deadline + miss_deadline))
@@ -132,18 +134,39 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 
 	for key,value in running_times.items():
 		#print("function times:", func_name_with_id[key], np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.median(initializing_times[key]))
-		print("function :", key, "avg total:", np.median(total_time_dist[key]), "exec:", np.median(running_times[key]), "queue:", np.median(queuing_times[key]))
-		
-
+		print("function :", key, "median total:", np.median(total_time_dist[key]), "exec:", np.median(running_times[key]), "queue:", np.median(queuing_times[key]))
+		print(len(value))
+		print(len(queuing_times[key]))
+		print(len(total_time_dist[key]))	
 	js = json.dumps(total_time_dist)
 	f = open("total_time.txt", 'w')
 	f.write(js)
 	f.close()
 
-	js5 = json.dumps(running_times)
+	js1 = json.dumps(queuing_times)
+	f1 = open("queuing_time.txt", 'w')
+	f1.write(js1)
+	f1.close()
+
+	js5 = json.dumps(thread_running_times)
 	f5 = open("running_time.txt", 'w')
 	f5.write(js5)
 	f5.close()
+
+	js2 = json.dumps(thread_times)
+	f2 = open("thread_time.txt", 'w')
+	f2.write(js2)
+	f2.close()
+
+	js3 = json.dumps(thread_throughput)
+	f3 = open("thread_throughput.txt", 'w')
+	f3.write(js3)
+	f3.close()
+
+	js4 = json.dumps(t2_cleanup)
+	f4 = open("cleanup.txt", 'w')
+	f4.write(js4)
+	f4.close()
 
 if __name__ == "__main__":
 	argv = sys.argv[1:]
