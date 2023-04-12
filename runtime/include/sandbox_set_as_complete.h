@@ -49,6 +49,8 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* Admissions Control Post Processing */
 	admissions_info_update(&sandbox->route->admissions_info, sandbox->duration_of_state[SANDBOX_RUNNING_USER]
 	                                                           + sandbox->duration_of_state[SANDBOX_RUNNING_SYS]);
+	perf_window_per_thread_update(&sandbox->route->admissions_info, sandbox->duration_of_state[SANDBOX_RUNNING_USER]
+	                                                           + sandbox->duration_of_state[SANDBOX_RUNNING_SYS]);
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	/* Terminal State Logging for Sandbox */

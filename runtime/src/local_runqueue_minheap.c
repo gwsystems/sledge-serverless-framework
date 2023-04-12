@@ -14,8 +14,12 @@
 
 extern struct priority_queue* worker_queues[1024];
 extern thread_local int worker_thread_idx;
+_Atomic uint64_t worker_queuing_cost[1024]; /* index is thread id, each queue's total execution cost of queuing requests */
+extern struct perf_window * worker_perf_windows[1024]; /* index is thread id, each queue's perf windows, each queue can 
+							  have multiple perf windows */
 
 thread_local static struct priority_queue *local_runqueue_minheap;
+
 
 /**
  * Checks if the run queue is empty
@@ -48,6 +52,14 @@ local_runqueue_minheap_add_index(int index, struct sandbox *sandbox)
 	if (return_code != 0) {
 		panic("add request to local queue failed, exit\n");
 	}
+
+	uint32_t uid = sandbox->route->admissions_info.uid;
+	uint64_t estimated_execute_cost = perf_window_get_percentile(&worker_perf_windows[index][uid], 
+								     sandbox->route->admissions_info.percentile,
+                                                                     sandbox->route->admissions_info.control_index);
+
+	worker_queuing_cost_increment(index, estimated_execute_cost);
+	sandbox->estimated_cost = estimated_execute_cost;
 }
 
 /**
@@ -61,6 +73,8 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 
 	int rc = priority_queue_delete(local_runqueue_minheap, sandbox);
 	if (rc == -1) panic("Tried to delete sandbox %lu from runqueue, but was not present\n", sandbox->id);
+
+	worker_queuing_cost_decrement(worker_thread_idx, sandbox->estimated_cost);
 }
 
 /**

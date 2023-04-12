@@ -25,8 +25,10 @@
 #include "software_interrupt.h"
 #include "software_interrupt_counts.h"
 #include "memlogging.h"
+#include "tenant_functions.h"
 
 extern time_t t_start;
+extern thread_local int worker_thread_idx;
 extern thread_local bool pthread_stop;
 extern thread_local bool is_listener;
 extern thread_local uint32_t total_local_requests;
@@ -47,6 +49,10 @@ extern _Atomic uint32_t sandbox_state_totals[SANDBOX_STATE_COUNT];
 /**************************
  * Private Static Inlines *
  *************************/
+void perf_window_print_mean() {
+        tenant_database_foreach(tenat_perf_window_print_mean, NULL, NULL);
+}
+
 
 /**
  * A POSIX signal is delivered to only one thread.

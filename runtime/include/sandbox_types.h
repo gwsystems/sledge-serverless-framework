@@ -82,4 +82,5 @@ struct sandbox {
 	wasi_context_t *wasi_context;
 	int context_switch_to; /* 1 means context switch to base, 2 means context swtich to next sandbox */
 	uint64_t ret[5];
+	uint64_t estimated_cost; /* estimated execution cost */
 } PAGE_ALIGNED;

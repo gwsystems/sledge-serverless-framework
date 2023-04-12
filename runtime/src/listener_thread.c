@@ -16,7 +16,10 @@
 #include "http_session_perf_log.h"
 #include "sandbox_set_as_runnable.h"
 
-struct priority_queue* worker_queues[1024];
+struct perf_window * worker_perf_windows[1024];
+struct priority_queue * worker_queues[1024];
+
+extern _Atomic uint64_t worker_queuing_cost[1024]; 
 extern uint32_t runtime_worker_threads_count;
 extern thread_local bool pthread_stop;
 extern _Atomic uint64_t request_index;
@@ -470,7 +473,20 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
 		dispatcher_send_response(req_handle, GLOBAL_QUEUE_ERROR, strlen(GLOBAL_QUEUE_ERROR));
         }*/
 
-	local_runqueue_add_index(request_index_increment() % runtime_worker_threads_count, sandbox);
+	/* Round robin to distribute requests */
+	//local_runqueue_add_index(request_index_increment() % runtime_worker_threads_count, sandbox);
+
+	/* Based on amount of work to distribute requests */
+	uint64_t min_cost = UINT64_MAX;
+	int thread_id = 0;
+	for (int i = 0; i < runtime_worker_threads_count; i++) {
+		if (worker_queuing_cost[i] < min_cost) {
+			thread_id = i;
+			min_cost = worker_queuing_cost[i];
+		}
+	} 
+
+	local_runqueue_add_index(thread_id, sandbox);
 }
 
 

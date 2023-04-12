@@ -23,6 +23,9 @@
  * Worker Thread State     *
  **************************/
 
+extern struct perf_window * worker_perf_windows[1024];
+thread_local struct perf_window perf_window_per_thread[1024];
+
 extern FILE *sandbox_perf_log;
 thread_local bool pthread_stop = false;
 
@@ -44,6 +47,12 @@ thread_local struct priority_queue *worker_thread_timeout_queue;
 void preallocate_memory() {
 	tenant_database_foreach(tenant_preallocate_memory, NULL, NULL);	
 }
+
+void perf_window_init() {
+	worker_perf_windows[worker_thread_idx] = perf_window_per_thread;
+	tenant_database_foreach(tenant_perf_window_init, NULL, NULL);
+}
+
 /**
  * The entry function for sandbox worker threads
  * Initializes thread-local state, unmasks signals, sets up epoll loop and
@@ -63,6 +72,7 @@ worker_thread_main(void *argument)
 	pthread_setschedprio(pthread_self(), -20);
 
 	preallocate_memory();
+	perf_window_init();
 
 	scheduler_runqueue_initialize();
 

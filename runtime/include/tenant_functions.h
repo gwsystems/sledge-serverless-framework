@@ -13,6 +13,10 @@
 #include "tenant_config.h"
 #include "priority_queue.h"
 #include "sandbox_functions.h"
+#include "memlogging.h"
+
+extern thread_local struct perf_window perf_window_per_thread[1024];
+extern thread_local int worker_thread_idx;
 
 int            tenant_database_add(struct tenant *tenant);
 struct tenant *tenant_database_find_by_name(char *name);
@@ -167,5 +171,20 @@ tenant_preallocate_memory(struct tenant *tenant, void *arg1, void *arg2) {
 	size_t count = tenant->module_db.count;	
 	for(int i = 0; i < count; i++) {
 		module_preallocate_memory(modules[i]);	
+	}
+}
+
+static inline void
+tenant_perf_window_init(struct tenant *tenant, void *arg1, void *arg2) {
+	for(int i = 0; i < tenant->router.length; i++) {
+		tenant->router.buffer[i].admissions_info.uid = i; 
+		perf_window_initialize(&perf_window_per_thread[i]);
+	} 	
+}
+
+static inline void
+tenat_perf_window_print_mean(struct tenant *tenant, void *arg1, void *arg2) {
+	for(int i = 0; i < tenant->router.length; i++) {
+		mem_log("tid %d admssion id %u exec mean %lu\n", worker_thread_idx, i, perf_window_get_mean(&perf_window_per_thread[i]));	
 	}
 }

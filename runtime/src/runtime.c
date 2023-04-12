@@ -125,6 +125,7 @@ runtime_initialize(void)
 	sandbox_total_initialize();
 	request_index_initialize();
 	sandbox_state_totals_initialize();
+	worker_queuing_cost_initialize();
 
 	/* Setup Scheduler */
 	scheduler_initialize();
