@@ -540,7 +540,8 @@ listener_thread_main(void *dummy)
 	/* calucate the worker start and end id for this listener */
 	worker_start_id = dispatcher_thread_idx * runtime_worker_group_size;
 	worker_end_id = worker_start_id + runtime_worker_group_size;
-
+	printf("listener %d worker_start_id %d worker_end_id %d\n", dispatcher_thread_idx, worker_start_id, worker_end_id - 1);
+	
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
 	metrics_server_init();
@@ -550,7 +551,6 @@ listener_thread_main(void *dummy)
 	// runtime_set_pthread_prio(pthread_self(), 2);
 	pthread_setschedprio(pthread_self(), -20);
 
-	printf("dispatcher_thread_idx is %d\n", dispatcher_thread_idx);
 	erpc_start(NULL, dispatcher_thread_idx, NULL, 0);
 	
 	while (!pthread_stop) {

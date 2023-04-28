@@ -257,7 +257,6 @@ struct TreeNode* findMaxValueLessThan(struct binary_tree *binary_tree, struct Tr
     assert(binary_tree != NULL);
 
     if (root == NULL) {
-	*sum = 0;
         return NULL; // Base case: empty node, return NULL
     }
 

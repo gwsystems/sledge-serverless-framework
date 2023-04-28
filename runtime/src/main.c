@@ -157,6 +157,24 @@ err:
 }
 
 static inline void
+runtime_get_listener_count() {
+	/* Number of Listener */
+        char *listener_count_raw = getenv("SLEDGE_NLISTENERS");
+        if (listener_count_raw != NULL) {
+                int listener_count = atoi(listener_count_raw);
+                int max_possible_listeners = max_possible_workers - runtime_worker_threads_count;
+
+                if (listener_count <= 0 || listener_count > max_possible_listeners) {
+                        panic("Invalid Lisenter Count. Was %d. Must be {1..%d}\n", listener_count, max_possible_listeners);
+                }
+
+                runtime_listener_threads_count = listener_count;
+        } else {
+                runtime_listener_threads_count = 1;
+        }
+}
+
+static inline void
 runtime_get_worker_group_size() {
 	char *worker_group_size_raw = getenv("SLEDGE_WORKER_GROUP_SIZE");
 	if (worker_group_size_raw != NULL) {
@@ -480,21 +498,6 @@ err:
 }
 
 void listener_threads_initialize() {
-	/* Number of Listener */
-        char *listener_count_raw = getenv("SLEDGE_NLISTENERS");
-        if (listener_count_raw != NULL) {
-                int listener_count = atoi(listener_count_raw);
-		int max_possible_listeners = max_possible_workers - runtime_worker_threads_count; 
-                
-		if (listener_count <= 0 || listener_count > max_possible_listeners) {
-                        panic("Invalid Lisenter Count. Was %d. Must be {1..%d}\n", listener_count, max_possible_listeners);
-                }
-		
-		runtime_listener_threads_count = listener_count;
-	} else {
-		runtime_listener_threads_count = 1;
-	}
-
 	printf("Starting %d listener thread(s)\n", runtime_listener_threads_count);
 	for (int i = 0; i < runtime_listener_threads_count; i++) {
         	listener_thread_initialize(i);
@@ -559,9 +562,10 @@ main(int argc, char **argv)
 
 	runtime_start_runtime_worker_threads();
 	software_interrupt_arm_timer();
-
-	listener_threads_initialize();
+	
+	runtime_get_listener_count();
 	runtime_get_worker_group_size();
+	listener_threads_initialize();
 
 	runtime_boot_timestamp = __getcycles();
 
