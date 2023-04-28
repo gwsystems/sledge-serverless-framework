@@ -483,7 +483,6 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
 		 * current one
 		 */
 		if (serving_time == 0 && need_interrupt == false) {
-			printf("case 1\n");
 			local_runqueue_add_index(i, sandbox);
 			return;
 		} else if (serving_time == 0 && need_interrupt == true) {//The worker can serve the request immediately
@@ -503,12 +502,10 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
 	} 
 	
 	if (candidate_thread_id != -1) {
-		printf("case 2\n");
 		//urgent_request[candidate_thread_id] = sandbox;
 		local_runqueue_add_index(candidate_thread_id, sandbox);
 		preempt_worker(candidate_thread_id);
 	} else {
-		printf("case 3\n");
 		local_runqueue_add_index(thread_id, sandbox);
 	}
 }
