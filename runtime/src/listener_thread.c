@@ -18,11 +18,17 @@
 
 struct perf_window * worker_perf_windows[1024];
 struct priority_queue * worker_queues[1024];
+struct binary_tree * worker_binary_trees[1024];
 
 extern _Atomic uint64_t worker_queuing_cost[1024]; 
+//struct sandbox *urgent_request[1024] = { NULL };
 extern uint32_t runtime_worker_threads_count;
 extern thread_local bool pthread_stop;
 extern _Atomic uint64_t request_index;
+extern uint32_t runtime_worker_group_size;
+
+thread_local uint32_t worker_start_id;
+thread_local uint32_t worker_end_id;
 
 time_t t_start;
 extern bool first_request_comming;
@@ -466,27 +472,45 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
 	memcpy(sandbox->rpc_request_body, msg, size);
 	sandbox->rpc_request_body_size = size;
 
-        /* If the global request scheduler is full, return a 429 to the client */
-        /*if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
-                debuglog("Failed to add sandbox to global queue\n");
-                sandbox_free(sandbox);
-		dispatcher_send_response(req_handle, GLOBAL_QUEUE_ERROR, strlen(GLOBAL_QUEUE_ERROR));
-        }*/
-
-	/* Round robin to distribute requests */
-	//local_runqueue_add_index(request_index_increment() % runtime_worker_threads_count, sandbox);
-
-	/* Based on amount of work to distribute requests */
-	uint64_t min_cost = UINT64_MAX;
+	uint64_t min_serving_time = UINT64_MAX;
 	int thread_id = 0;
-	for (int i = 0; i < runtime_worker_threads_count; i++) {
-		if (worker_queuing_cost[i] < min_cost) {
-			thread_id = i;
-			min_cost = worker_queuing_cost[i];
-		}
-	} 
+	int candidate_thread_id = -1;
 
-	local_runqueue_add_index(thread_id, sandbox);
+	for (uint32_t i = worker_start_id; i < worker_end_id; i++) {
+		bool need_interrupt;
+		uint64_t serving_time = local_runqueue_try_add_index(i, sandbox, &need_interrupt);
+		/* The local queue is empty, can be served this request immediately without interrupting 
+		 * current one
+		 */
+		if (serving_time == 0 && need_interrupt == false) {
+			printf("case 1\n");
+			local_runqueue_add_index(i, sandbox);
+			return;
+		} else if (serving_time == 0 && need_interrupt == true) {//The worker can serve the request immediately
+									// by interrupting the current one
+			/* We already have a candidate thread, continue to find a 
+			 * better thread without needing interrupt
+			 */
+			if (candidate_thread_id != -1) {
+				continue;
+			} else {
+				candidate_thread_id = i;
+			}
+		} else if (min_serving_time > serving_time) {
+			min_serving_time = serving_time;
+			thread_id = i;	
+		} 
+	} 
+	
+	if (candidate_thread_id != -1) {
+		printf("case 2\n");
+		//urgent_request[candidate_thread_id] = sandbox;
+		local_runqueue_add_index(candidate_thread_id, sandbox);
+		preempt_worker(candidate_thread_id);
+	} else {
+		printf("case 3\n");
+		local_runqueue_add_index(thread_id, sandbox);
+	}
 }
 
 
@@ -512,6 +536,10 @@ listener_thread_main(void *dummy)
 
 	/* Index was passed via argument */
         dispatcher_thread_idx = *(int *)dummy;
+
+	/* calucate the worker start and end id for this listener */
+	worker_start_id = dispatcher_thread_idx * runtime_worker_group_size;
+	worker_end_id = worker_start_id + runtime_worker_group_size;
 
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 

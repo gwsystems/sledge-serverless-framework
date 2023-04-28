@@ -11,6 +11,7 @@
 #include "global_request_scheduler_mtds.h"
 #include "local_runqueue.h"
 #include "local_runqueue_minheap.h"
+#include "local_runqueue_binary_tree.h"
 #include "local_runqueue_list.h"
 #include "local_cleanup_queue.h"
 #include "local_runqueue_mtds.h"
@@ -204,7 +205,8 @@ scheduler_runqueue_initialize()
 		local_runqueue_mtds_initialize();
 		break;
 	case SCHEDULER_EDF:
-		local_runqueue_minheap_initialize();
+		//local_runqueue_minheap_initialize();
+		local_runqueue_binary_tree_initialize();
 		break;
 	case SCHEDULER_FIFO:
 		local_runqueue_list_initialize();

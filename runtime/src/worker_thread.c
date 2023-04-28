@@ -25,6 +25,7 @@
 
 extern struct perf_window * worker_perf_windows[1024];
 thread_local struct perf_window perf_window_per_thread[1024];
+struct sandbox* current_sandboxes[1024] = { NULL };
 
 extern FILE *sandbox_perf_log;
 thread_local bool pthread_stop = false;

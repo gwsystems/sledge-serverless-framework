@@ -72,13 +72,12 @@ runtime_print_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)
 	}
 }
 
-inline void
+static inline void
 request_index_initialize()
 {
         atomic_init(&request_index, 0);
 }
-
-inline uint64_t
+static inline uint64_t
 request_index_increment()
 {
         return atomic_fetch_add(&request_index, 1);

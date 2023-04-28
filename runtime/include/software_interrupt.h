@@ -96,3 +96,5 @@ void software_interrupt_arm_timer(void);
 void software_interrupt_cleanup(void);
 void software_interrupt_disarm_timer(void);
 void software_interrupt_initialize(void);
+bool sandbox_is_preemptable(void *sandbox);
+void preempt_worker(int thread_id);

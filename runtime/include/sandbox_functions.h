@@ -12,6 +12,7 @@
  * Public API              *
  **************************/
 
+extern struct perf_window * worker_perf_windows[1024];
 struct sandbox *sandbox_alloc(struct module *module, struct http_session *session, struct route *route,
                               struct tenant *tenant, uint64_t admissions_estimate, void *req_handle,
 			      uint8_t rpc_id);
@@ -49,10 +50,23 @@ sandbox_get_module(struct sandbox *sandbox)
 static inline uint64_t
 sandbox_get_priority(void *element)
 {
+	assert(element != NULL);
 	struct sandbox *sandbox = (struct sandbox *)element;
 	return sandbox->absolute_deadline;
 }
 
+static inline uint64_t
+sandbox_get_execution_cost(void *element, int thread_id) 
+{
+	assert(element != NULL);
+	struct sandbox *sandbox = (struct sandbox *)element;
+	uint32_t uid = sandbox->route->admissions_info.uid;
+	return perf_window_get_percentile(&worker_perf_windows[thread_id][uid],
+                                          sandbox->route->admissions_info.percentile,
+                                          sandbox->route->admissions_info.control_index);
+
+	
+}
 static inline void
 sandbox_process_scheduler_updates(struct sandbox *sandbox)
 {

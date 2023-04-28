@@ -40,6 +40,8 @@ uint32_t runtime_listener_threads_count  = 0;
 uint32_t max_possible_workers		 = 0;
 bool first_request_comming 		 = false;
 
+uint32_t runtime_worker_group_size       = 1;
+
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 
 bool     runtime_preemption_enabled            = true;
@@ -154,6 +156,16 @@ err:
 	panic("Failed to detect processor frequency");
 }
 
+static inline void
+runtime_get_worker_group_size() {
+	char *worker_group_size_raw = getenv("SLEDGE_WORKER_GROUP_SIZE");
+	if (worker_group_size_raw != NULL) {
+		runtime_worker_group_size = atoi(worker_group_size_raw);
+		assert(runtime_listener_threads_count * runtime_worker_group_size == runtime_worker_threads_count);
+	} else {
+		printf("Not specify worker group size, default group size is 1\n");
+	}
+}
 /**
  * Controls the behavior of the debuglog macro defined in types.h
  * If LOG_TO_FILE is defined, close stdin, stdout, stderr, and debuglog writes to a logfile named awesome.log.
@@ -549,6 +561,7 @@ main(int argc, char **argv)
 	software_interrupt_arm_timer();
 
 	listener_threads_initialize();
+	runtime_get_worker_group_size();
 
 	runtime_boot_timestamp = __getcycles();
 

@@ -7,6 +7,7 @@
 
 /* current sandbox that is active.. */
 extern thread_local struct sandbox *worker_thread_current_sandbox;
+extern struct sandbox* current_sandboxes[1024];
 
 void current_sandbox_start(void);
 
@@ -47,6 +48,7 @@ current_sandbox_set(struct sandbox *sandbox)
 			.wasi_context = NULL,
 		};
 		worker_thread_current_sandbox                      = NULL;
+		current_sandboxes[worker_thread_idx]               = NULL;
 		runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	} else {
 		sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
@@ -56,6 +58,7 @@ current_sandbox_set(struct sandbox *sandbox)
 		wasm_globals_update_if_used(&sandbox->globals, 0,
 		                            &sledge_abi__current_wasm_module_instance.abi.wasmg_0);
 		worker_thread_current_sandbox                      = sandbox;
+		current_sandboxes[worker_thread_idx]               = sandbox;
 		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 	}
 }

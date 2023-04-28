@@ -27,6 +27,7 @@
 #include "memlogging.h"
 #include "tenant_functions.h"
 
+extern struct sandbox* current_sandboxes[1024];
 extern time_t t_start;
 extern thread_local int worker_thread_idx;
 extern thread_local bool pthread_stop;
@@ -52,7 +53,6 @@ extern _Atomic uint32_t sandbox_state_totals[SANDBOX_STATE_COUNT];
 void perf_window_print_mean() {
         tenant_database_foreach(tenat_perf_window_print_mean, NULL, NULL);
 }
-
 
 /**
  * A POSIX signal is delivered to only one thread.
@@ -126,11 +126,22 @@ worker_thread_is_running_cooperative_scheduler(void)
 }
 
 
-static inline bool
+bool
 current_sandbox_is_preemptable()
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	return sandbox != NULL && sandbox->state == SANDBOX_RUNNING_USER;
+}
+
+bool
+sandbox_is_preemptable(void *sandbox) {
+	return sandbox != NULL && ((struct sandbox *)sandbox)->state == SANDBOX_RUNNING_USER;
+}
+
+void preempt_worker(int thread_id) {
+	if (current_sandbox_is_preemptable()) {
+		pthread_kill(runtime_worker_threads[thread_id], SIGALRM);
+	}
 }
 
 /**
@@ -156,7 +167,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
-		assert(runtime_preemption_enabled);
+		//assert(runtime_preemption_enabled);
 
 		if (worker_thread_is_running_cooperative_scheduler()) {
 			/* There is no benefit to deferring SIGALRMs that occur when we are already in the cooperative
@@ -165,7 +176,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
-			propagate_sigalrm(signal_info);
 		} else if (current_sandbox_is_preemptable()) {
 			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
 			sandbox_interrupt(current_sandbox);
@@ -173,7 +183,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
-			propagate_sigalrm(signal_info);
 			scheduler_preemptive_sched(interrupted_context);
 		} else {
 			/* We transition the sandbox to an interrupted state to exclude time propagating signals and
@@ -182,7 +191,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
-			propagate_sigalrm(signal_info);
 			atomic_fetch_add(&deferred_sigalrm, 1);
 		}
 
@@ -241,8 +249,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		double seconds = difftime(t_end, t_start);
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
-		mem_log("throughput %f error request %u complete requests %u total request %u total_local_requests %u\n", 
-			throughput, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
+		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_local_requests %u\n", 
+			throughput, worker_thread_idx, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
 			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests);
                 dump_log_to_file();
 		pthread_stop = true;		
