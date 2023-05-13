@@ -10,8 +10,8 @@
                                 "request-type": 1,
                                 "path": "fibonacci.wasm.so",
                                 "admissions-percentile": 70,
-                                "expected-execution-us": 4000,
-                                "relative-deadline-us": 16000,
+                                "expected-execution-us": 6,
+                                "relative-deadline-us": 60,
                                 "http-resp-content-type": "text/plain"
                         },
 			{
@@ -19,8 +19,8 @@
                                 "request-type": 2,
                                 "path": "fibonacci.wasm.so",
                                 "admissions-percentile": 70,
-                                "expected-execution-us": 4000,
-                                "relative-deadline-us": 16000,
+                                "expected-execution-us": 785,
+                                "relative-deadline-us": 7850,
                                 "http-resp-content-type": "text/plain"
                         }
                 ]

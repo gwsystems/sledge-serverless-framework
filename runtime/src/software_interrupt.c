@@ -27,6 +27,7 @@
 #include "memlogging.h"
 #include "tenant_functions.h"
 
+thread_local uint32_t interrupts = 0;
 extern struct sandbox* current_sandboxes[1024];
 extern time_t t_start;
 extern thread_local int worker_thread_idx;
@@ -139,9 +140,7 @@ sandbox_is_preemptable(void *sandbox) {
 }
 
 void preempt_worker(int thread_id) {
-	if (current_sandbox_is_preemptable()) {
-		pthread_kill(runtime_worker_threads[thread_id], SIGALRM);
-	}
+	pthread_kill(runtime_worker_threads[thread_id], SIGALRM);
 }
 
 /**
@@ -183,6 +182,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
+			interrupts++;
 			scheduler_preemptive_sched(interrupted_context);
 		} else {
 			/* We transition the sandbox to an interrupted state to exclude time propagating signals and
@@ -197,7 +197,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		break;
 	}
 	case SIGUSR1: {
-		assert(runtime_preemption_enabled);
+		//assert(runtime_preemption_enabled);
 		assert(current_sandbox);
 		assert(current_sandbox->state == SANDBOX_PREEMPTED);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
@@ -249,9 +249,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		double seconds = difftime(t_end, t_start);
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
-		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_local_requests %u\n", 
+		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_local_requests %u interrupts %u\n", 
 			throughput, worker_thread_idx, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
-			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests);
+			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests, interrupts);
                 dump_log_to_file();
 		pthread_stop = true;		
 		break;
