@@ -26,6 +26,7 @@
 #include "sandbox_perf_log.h"
 #include "sandbox_types.h"
 #include "scheduler.h"
+#include "dispatcher.h"
 #include "software_interrupt.h"
 #include "tenant_functions.h"
 #include "worker_thread.h"
@@ -252,6 +253,18 @@ runtime_configure()
 		panic("Invalid scheduler policy: %s. Must be {MTDBF|MTDS|EDF|FIFO}\n", scheduler_policy);
 	}
 	pretty_print_key_value("Scheduler Policy", "%s\n", scheduler_print(scheduler));
+
+	/* Dispatcher Policy */
+	char *dispatcher_policy = getenv("SLEDGE_DISPATCHER");
+	if (dispatcher_policy == NULL) dispatcher_policy = "EDF_INTERRUPT";
+	if (strcmp(dispatcher_policy, "DARC") == 0) {
+		dispatcher = DISPATCHER_DARC;
+	} else if (strcmp(dispatcher_policy, "EDF_INTERRUPT") == 0) {
+		dispatcher = DISPATCHER_EDF_INTERRUPT;
+	} else {
+		panic("Invalid dispatcher policy: %s. Must be {EDF_INTERRUPT|DARC\n", dispatcher_policy);
+	}
+	pretty_print_key_value("Dispatcher Policy", "%s\n", dispatcher_print(dispatcher));
 
 	/* Sigalrm Handler Technique */
 	char *sigalrm_policy = getenv("SLEDGE_SIGALRM_HANDLER");

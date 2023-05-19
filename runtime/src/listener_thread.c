@@ -424,7 +424,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
  * @param msg the payload of the rpc request. It is the input parameter fot the function
  * @param size the size of the msg
  */
-void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
 
 	if (first_request_comming == false){
                 t_start = time(NULL);
@@ -510,7 +510,20 @@ void req_func(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uin
 	}
 }
 
+/**
+ * @brief Request routing function
+ * @param req_handle used by eRPC internal, it is used to send out the response packet
+ * @param req_type the type of the request. Each function has a unique reqest type id
+ * @param msg the payload of the rpc request. It is the input parameter fot the function
+ * @param size the size of the msg
+ */
+void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+}
 
+
+void darc_dispatch() {
+
+}
 void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
 	erpc_req_response_enqueue(dispatcher_thread_idx, req_handle, msg, msg_len, 1);   
 }
@@ -549,11 +562,17 @@ listener_thread_main(void *dummy)
 	pthread_setschedprio(pthread_self(), -20);
 
 	erpc_start(NULL, dispatcher_thread_idx, NULL, 0);
-	
-	while (!pthread_stop) {
-		erpc_run_event_loop(dispatcher_thread_idx, 1000);
-	}
 
+	if (dispatcher == DISPATCHER_EDF_INTERRUPT) {	
+		while (!pthread_stop) {
+			erpc_run_event_loop(dispatcher_thread_idx, 1000);
+		}
+	} else if (dispatcher == DISPATCHER_DARC) {
+		while (!pthread_stop) {
+			erpc_run_event_loop_once(dispatcher_thread_idx);
+			darc_dispatch();
+		}
+	}
 	while (!pthread_stop) {
 		printf("pthread_stop is false\n");
 		/* Block indefinitely on the epoll file descriptor, waiting on up to a max number of events */

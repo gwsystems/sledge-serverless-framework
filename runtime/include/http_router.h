@@ -11,8 +11,8 @@
 #include "route.h"
 #include "route_config.h"
 #include "vec.h"
+#include "dispatcher_options.h"
 
-//extern void (req_func) (void *req_handle, uint8_t req_type, uint8_t *msg, size_t size);
 typedef struct route route_t;
 VEC(route_t)
 
@@ -46,8 +46,14 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 
 
 	/* Register RPC request handler */
-        if (erpc_register_req_func(config->request_type, req_func, 0) != 0) {
-		panic("register erpc function failed\n");
+	if (dispatcher == DISPATCHER_EDF_INTERRUPT) {
+        	if (erpc_register_req_func(config->request_type, edf_interrupt_req_handler, 0) != 0) {
+			panic("register erpc function for EDF_INTERRUPT dispatcher failed\n");
+		}
+	} else if (dispatcher == DISPATCHER_DARC) {
+		if (erpc_register_req_func(config->request_type, darc_req_handler, 0) != 0) {
+                        panic("register erpc function for DARC dispatcher failed\n");
+                }
 	}
 
 	/* Admissions Control */
