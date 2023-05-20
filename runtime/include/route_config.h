@@ -12,6 +12,7 @@ enum route_config_member
 {
 	route_config_member_route,
 	route_config_member_request_type,
+	route_config_member_n_resas,
 	route_config_member_path,
 	route_config_member_admissions_percentile,
 	route_config_member_expected_execution_us,
@@ -23,6 +24,7 @@ enum route_config_member
 struct route_config {
 	char    *route;
 	uint8_t  request_type;
+	uint32_t n_resas;
 	char    *path;
 	uint8_t  admissions_percentile;
 	uint32_t expected_execution_us;

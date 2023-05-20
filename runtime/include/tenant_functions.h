@@ -13,8 +13,11 @@
 #include "tenant_config.h"
 #include "priority_queue.h"
 #include "sandbox_functions.h"
+#include "request_typed_queue.h"
 #include "memlogging.h"
 
+extern thread_local uint32_t n_rtypes;
+extern thread_local struct request_typed_queue *request_type_queue[10];
 extern thread_local struct perf_window perf_window_per_thread[1024];
 extern thread_local int worker_thread_idx;
 
@@ -88,10 +91,12 @@ tenant_alloc(struct tenant_config *config)
 	struct tenant *tenant = (struct tenant *)calloc(1, sizeof(struct tenant));
 
 	/* Move name */
-	tenant->tag  = EPOLL_TAG_TENANT_SERVER_SOCKET;
-	tenant->name = config->name;
-	tenant->port = config->port;
-	config->name = NULL;
+	tenant->tag  	      = EPOLL_TAG_TENANT_SERVER_SOCKET;
+	tenant->name          = config->name;
+	tenant->port          = config->port;
+	tenant->routes_config = config->routes;
+	tenant->routes_len    = config->routes_len;
+	config->name          = NULL;
 
 	tcp_server_init(&tenant->tcp_server, config->port);
 	http_router_init(&tenant->router, config->routes_len);
@@ -180,6 +185,15 @@ tenant_perf_window_init(struct tenant *tenant, void *arg1, void *arg2) {
 		tenant->router.buffer[i].admissions_info.uid = i; 
 		perf_window_initialize(&perf_window_per_thread[i]);
 	} 	
+}
+
+static inline void
+tenant_request_typed_queue_init(struct tenant *tenant, void *arg1, void *arg2) {
+	for(int i = 0; i < tenant->routes_len; i++) {
+		request_type_queue[tenant->routes_config[i].request_type - 1] = 
+		request_typed_queue_init(tenant->routes_config[i].request_type, tenant->routes_config[i].n_resas);		
+	}
+	n_rtypes = tenant->routes_len;
 }
 
 static inline void

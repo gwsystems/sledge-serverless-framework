@@ -27,7 +27,8 @@
 #include "sandbox_perf_log.h"
 
 extern thread_local bool pthread_stop;
-
+extern uint32_t runtime_worker_group_size;
+extern thread_local _Atomic uint32_t free_workers;
 /**
  * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
  *
@@ -408,6 +409,7 @@ scheduler_idle_loop()
 		/* Switch to a sandbox if one is ready to run */
 		struct sandbox *next_sandbox = scheduler_get_next();
 		if (next_sandbox != NULL) {
+			printf("poped a sandbox\n");
 			next_sandbox->timestamp_of.cleanup += cleanup_cost;
 			next_sandbox->timestamp_of.other += other;
 			next_sandbox->context_switch_to = 1;
@@ -452,7 +454,9 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 {
 	//uint64_t now = __getcycles(); 
 	struct sandbox *exiting_sandbox = current_sandbox_get();
+	
 	assert(exiting_sandbox != NULL);
+	uint8_t dispatcher_id = exiting_sandbox->rpc_id;
 
 	/* Clearing current sandbox indicates we are entering the cooperative scheduler */
 	current_sandbox_set(NULL);
@@ -498,6 +502,12 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 	/* Do not touch sandbox struct after this point! */
  	/* Logging this sandbox to memory */	
 	sandbox_perf_log_print_entry(exiting_sandbox);
+
+	if (dispatcher == DISPATCHER_DARC) {
+		int virtual_id = worker_thread_idx - dispatcher_id * runtime_worker_group_size;	
+		atomic_fetch_or(&free_workers, 1 << virtual_id);	
+	}
+
 	if (next_sandbox != NULL) {
 		next_sandbox->context_switch_to = 2;
 		scheduler_cooperative_switch_to(exiting_context, next_sandbox);

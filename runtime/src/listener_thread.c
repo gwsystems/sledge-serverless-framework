@@ -15,6 +15,7 @@
 #include "tenant_functions.h"
 #include "http_session_perf_log.h"
 #include "sandbox_set_as_runnable.h"
+#include "request_typed_queue.h"
 
 struct perf_window * worker_perf_windows[1024];
 struct priority_queue * worker_queues[1024];
@@ -29,6 +30,10 @@ extern uint32_t runtime_worker_group_size;
 
 thread_local uint32_t worker_start_id;
 thread_local uint32_t worker_end_id;
+thread_local uint32_t worker_list[MAX_WORKERS]; // record the worker's true index
+thread_local _Atomic uint32_t free_workers = 0;
+thread_local struct request_typed_queue *request_type_queue[10];
+thread_local uint32_t n_rtypes = 0;
 
 time_t t_start;
 extern bool first_request_comming;
@@ -55,6 +60,10 @@ thread_local uint8_t dispatcher_thread_idx;
 thread_local pthread_t listener_thread_id;
 thread_local bool is_listener = false;
 
+
+void typed_queue_init() {
+        tenant_database_foreach(tenant_request_typed_queue_init, NULL, NULL);
+}
 
 /**
  * Initializes the listener thread, pinned to core 0, and starts to listen for requests
@@ -518,12 +527,102 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
  * @param size the size of the msg
  */
 void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+	if (first_request_comming == false){
+                t_start = time(NULL);
+                first_request_comming = true;
+        }
+
+        uint8_t kMsgSize = 16;
+        //TODO: rpc_id is hardcode now
+
+        struct tenant *tenant = tenant_database_find_by_port(port);
+        assert(tenant != NULL);
+        struct route *route = http_router_match_request_type(&tenant->router, req_type);
+        if (route == NULL) {
+                debuglog("Did not match any routes\n");
+                dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR));
+                return;
+        }
+
+        /*
+         * Perform admissions control.
+         * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+         * TODO: Consider providing a Retry-After header
+         */
+        uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+        if (work_admitted == 0) {
+                dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+                return;
+        }
+
+        /* Allocate a Sandbox */
+        //session->state          = HTTP_SESSION_EXECUTING;
+        struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+        if (unlikely(sandbox == NULL)) {
+                debuglog("Failed to allocate sandbox\n");
+                dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
+                return;
+        }
+
+        /* copy the received data since it will be released by erpc */
+        sandbox->rpc_request_body = malloc(size);
+        if (!sandbox->rpc_request_body) {
+                panic("malloc request body failed\n");
+        }
+
+        memcpy(sandbox->rpc_request_body, msg, size);
+        sandbox->rpc_request_body_size = size;
+	push_to_rqueue(sandbox, request_type_queue[req_type - 1], 0);
 }
 
+
+void drain_queue(struct request_typed_queue *rtype) {
+    assert(rtype != NULL);
+    while (rtype->rqueue_head > rtype->rqueue_tail && free_workers > 0) {
+        uint32_t worker_id = MAX_WORKERS + 1;
+        // Lookup for a core reserved to this type's group
+        for (uint32_t i = 0; i < rtype->n_resas; ++i) {
+            uint32_t candidate = rtype->res_workers[i];
+            if ((1 << candidate) & free_workers) {
+                worker_id = candidate;
+                printf("Using reserved core %u\n", worker_list[worker_id]);
+                break;
+            }
+        }
+        // Otherwise attempt to steal worker
+        if (worker_id == MAX_WORKERS + 1) {
+            for (unsigned int i = 0; i < rtype->n_stealable; ++i) {
+                uint32_t candidate = rtype->stealable_workers[i];
+                if ((1 << candidate) & free_workers) {
+                    worker_id = candidate;
+                    printf("Stealing core %u\n", worker_list[worker_id]);
+                    break;
+                }
+            }
+        }
+        // No peer found
+        if (worker_id == MAX_WORKERS + 1) {
+            return; 
+        }
+
+        // Dispatch
+        struct sandbox *sandbox = rtype->rqueue[rtype->rqueue_tail & (RQUEUE_LEN - 1)];
+	//add sandbox to worker's local queue
+	local_runqueue_add_index(worker_list[worker_id], sandbox);
+	rtype->rqueue_tail++;
+	atomic_fetch_xor(&free_workers, 1 << worker_id);
+    }
+
+}
 
 void darc_dispatch() {
-
+	for (uint32_t i = 0; i < n_rtypes; ++i) {
+            if (request_type_queue[i]->rqueue_head > request_type_queue[i]->rqueue_tail) {
+            	drain_queue(request_type_queue[i]);
+            }
+        }
 }
+
 void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
 	erpc_req_response_enqueue(dispatcher_thread_idx, req_handle, msg, msg_len, 1);   
 }
@@ -540,6 +639,9 @@ void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
 void *
 listener_thread_main(void *dummy)
 {
+	/* init typed queue */
+	typed_queue_init();
+
 	is_listener = true;
 	/* Unmask SIGINT signals */
         software_interrupt_unmask_signal(SIGINT);
@@ -551,7 +653,17 @@ listener_thread_main(void *dummy)
 	worker_start_id = dispatcher_thread_idx * runtime_worker_group_size;
 	worker_end_id = worker_start_id + runtime_worker_group_size;
 	printf("listener %d worker_start_id %d worker_end_id %d\n", dispatcher_thread_idx, worker_start_id, worker_end_id - 1);
-	
+
+	int index = 0;
+	for (uint32_t i = worker_start_id; i < worker_end_id; i++) {
+		worker_list[index] = i;
+		index++;
+	}	
+
+	free_workers = __builtin_powi(2, runtime_worker_group_size) - 1;	
+
+	printf("free_workers is %u\n", free_workers);
+
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
 	metrics_server_init();

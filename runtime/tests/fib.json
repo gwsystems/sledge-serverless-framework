@@ -8,19 +8,21 @@
                         {
                                 "route": "/fib",
                                 "request-type": 1,
+				"n-resas": 2,
                                 "path": "fibonacci.wasm.so",
                                 "admissions-percentile": 70,
-                                "expected-execution-us": 6,
-                                "relative-deadline-us": 60,
+                                "expected-execution-us": 10,
+                                "relative-deadline-us": 100,
                                 "http-resp-content-type": "text/plain"
                         },
 			{
                                 "route": "/fib2",
                                 "request-type": 2,
+				"n-resas": 1,
                                 "path": "fibonacci.wasm.so",
                                 "admissions-percentile": 70,
-                                "expected-execution-us": 785,
-                                "relative-deadline-us": 7850,
+                                "expected-execution-us": 1376,
+                                "relative-deadline-us": 13760,
                                 "http-resp-content-type": "text/plain"
                         }
                 ]

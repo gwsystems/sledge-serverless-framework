@@ -28,7 +28,7 @@ export SLEDGE_NWORKERS=$worker_num
 export SLEDGE_NLISTENERS=$listener_num
 export SLEDGE_WORKER_GROUP_SIZE=3
 export SLEDGE_SCHEDULER=EDF
-#export SLEDGE_DISPATCHER=DARC
+export SLEDGE_DISPATCHER=DARC
 export SLEDGE_SANDBOX_PERF_LOG=$path/server.log
 #echo $SLEDGE_SANDBOX_PERF_LOG
 cd $project_path/runtime/bin
