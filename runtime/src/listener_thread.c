@@ -31,7 +31,7 @@ extern uint32_t runtime_worker_group_size;
 thread_local uint32_t worker_start_id;
 thread_local uint32_t worker_end_id;
 thread_local uint32_t worker_list[MAX_WORKERS]; // record the worker's true index
-thread_local _Atomic uint32_t free_workers = 0;
+_Atomic uint32_t free_workers[10] = {0};
 thread_local struct request_typed_queue *request_type_queue[10];
 thread_local uint32_t n_rtypes = 0;
 
@@ -578,14 +578,14 @@ void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t s
 
 void drain_queue(struct request_typed_queue *rtype) {
     assert(rtype != NULL);
-    while (rtype->rqueue_head > rtype->rqueue_tail && free_workers > 0) {
+    while (rtype->rqueue_head > rtype->rqueue_tail && free_workers[dispatcher_thread_idx] > 0) {
         uint32_t worker_id = MAX_WORKERS + 1;
         // Lookup for a core reserved to this type's group
         for (uint32_t i = 0; i < rtype->n_resas; ++i) {
             uint32_t candidate = rtype->res_workers[i];
-            if ((1 << candidate) & free_workers) {
+            if ((1 << candidate) & free_workers[dispatcher_thread_idx]) {
                 worker_id = candidate;
-                printf("Using reserved core %u\n", worker_list[worker_id]);
+                //printf("Using reserved core %u\n", worker_list[worker_id]);
                 break;
             }
         }
@@ -593,9 +593,9 @@ void drain_queue(struct request_typed_queue *rtype) {
         if (worker_id == MAX_WORKERS + 1) {
             for (unsigned int i = 0; i < rtype->n_stealable; ++i) {
                 uint32_t candidate = rtype->stealable_workers[i];
-                if ((1 << candidate) & free_workers) {
+                if ((1 << candidate) & free_workers[dispatcher_thread_idx]) {
                     worker_id = candidate;
-                    printf("Stealing core %u\n", worker_list[worker_id]);
+                    //printf("Stealing core %u\n", worker_list[worker_id]);
                     break;
                 }
             }
@@ -610,7 +610,7 @@ void drain_queue(struct request_typed_queue *rtype) {
 	//add sandbox to worker's local queue
 	local_runqueue_add_index(worker_list[worker_id], sandbox);
 	rtype->rqueue_tail++;
-	atomic_fetch_xor(&free_workers, 1 << worker_id);
+	atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << worker_id);
     }
 
 }
@@ -660,9 +660,9 @@ listener_thread_main(void *dummy)
 		index++;
 	}	
 
-	free_workers = __builtin_powi(2, runtime_worker_group_size) - 1;	
+	free_workers[dispatcher_thread_idx] = __builtin_powi(2, runtime_worker_group_size) - 1;	
 
-	printf("free_workers is %u\n", free_workers);
+	printf("free_workers is %u\n", free_workers[dispatcher_thread_idx]);
 
 	struct epoll_event epoll_events[RUNTIME_MAX_EPOLL_EVENTS];
 
