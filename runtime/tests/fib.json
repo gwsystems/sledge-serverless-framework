@@ -11,8 +11,8 @@
 				"n-resas": 2,
                                 "path": "fibonacci.wasm.so",
                                 "admissions-percentile": 70,
-                                "expected-execution-us": 10,
-                                "relative-deadline-us": 100,
+                                "expected-execution-us": 5,
+                                "relative-deadline-us": 50,
                                 "http-resp-content-type": "text/plain"
                         },
 			{
@@ -21,8 +21,8 @@
 				"n-resas": 1,
                                 "path": "fibonacci.wasm.so",
                                 "admissions-percentile": 70,
-                                "expected-execution-us": 1376,
-                                "relative-deadline-us": 13760,
+                                "expected-execution-us": 798,
+                                "relative-deadline-us": 7980,
                                 "http-resp-content-type": "text/plain"
                         }
                 ]
