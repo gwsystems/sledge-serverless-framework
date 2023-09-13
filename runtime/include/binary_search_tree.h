@@ -14,7 +14,7 @@ struct TreeNode {
     struct TreeNode *left;
     struct TreeNode *right;
     struct TreeNode *next;  // pointing to the next node
-    void            *data; 
+    void            *data;  // sandbox 
 };
 
 // Definition of TreeNode memory pool

@@ -31,8 +31,18 @@ extern uint32_t runtime_worker_group_size;
 thread_local uint32_t worker_start_id;
 thread_local uint32_t worker_end_id;
 thread_local uint32_t worker_list[MAX_WORKERS]; // record the worker's true index
-_Atomic uint32_t free_workers[10] = {0};
-thread_local struct request_typed_queue *request_type_queue[10];
+_Atomic uint32_t free_workers[10] = {0}; // the index is the dispatercher id, free_workers[dispatcher_id] 
+					 // is decimal value of the bitmap of avaliable workers.
+					 // For example, if there are 3 workers available, the bitmap 
+					 // will be 111, then the free_workers[dispatcher_id] is 7
+thread_local struct request_typed_queue *request_type_queue[10]; // the index is the request type
+								 // We implicitly represent the request 
+								 // execution time as long or short based 
+								 // on the value of the request type. 
+								 // For example, the execution time of 
+								 // request with type 1 is shorter than request
+								 // with type 2, that's reducing the sorting
+								 // cost of the typed queue
 thread_local uint32_t n_rtypes = 0;
 
 time_t t_start;
@@ -578,6 +588,7 @@ void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t s
 
 void drain_queue(struct request_typed_queue *rtype) {
     assert(rtype != NULL);
+    /* queue is not empty and there is free workers */
     while (rtype->rqueue_head > rtype->rqueue_tail && free_workers[dispatcher_thread_idx] > 0) {
         uint32_t worker_id = MAX_WORKERS + 1;
         // Lookup for a core reserved to this type's group
@@ -617,6 +628,8 @@ void drain_queue(struct request_typed_queue *rtype) {
 
 void darc_dispatch() {
 	for (uint32_t i = 0; i < n_rtypes; ++i) {
+	    // request_type_queue is a sorted queue, so the loop will dispatch packets from
+	    // the earliest deadline to least earliest deadline
             if (request_type_queue[i]->rqueue_head > request_type_queue[i]->rqueue_tail) {
             	drain_queue(request_type_queue[i]);
             }
@@ -681,10 +694,12 @@ listener_thread_main(void *dummy)
 		}
 	} else if (dispatcher == DISPATCHER_DARC) {
 		while (!pthread_stop) {
-			erpc_run_event_loop_once(dispatcher_thread_idx);
-			darc_dispatch();
+			erpc_run_event_loop_once(dispatcher_thread_idx); // get a group of packets from the NIC and enqueue them to the typed queue
+			darc_dispatch(); //dispatch packets
 		}
 	}
+
+	/* won't go to the following implementaion */
 	while (!pthread_stop) {
 		printf("pthread_stop is false\n");
 		/* Block indefinitely on the epoll file descriptor, waiting on up to a max number of events */

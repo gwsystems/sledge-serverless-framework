@@ -46,6 +46,9 @@ struct request_typed_queue {
     */
 };
 
+/*
+ * n_resas the number of reserved workers. Leaving the last n_resas workers as the reserved workers 
+ */
 static inline struct request_typed_queue *
 request_typed_queue_init(uint8_t type, uint32_t n_resas) {
 	struct request_typed_queue *queue = malloc(sizeof(struct request_typed_queue));
