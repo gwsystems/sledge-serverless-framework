@@ -97,7 +97,7 @@ local_runqueue_binary_tree_get_next()
  * Try but not real add a item to the local runqueue.
  * @param index The worker thread id
  * @param sandbox Try to add 
- * @returns The waiting serving time for this sandbox
+ * @returns The waiting serving time for this sandbox if adding it to the queue
  */
 uint64_t 
 local_runqueue_binary_tree_try_add_index(int index, struct sandbox *sandbox, bool *need_interrupt)

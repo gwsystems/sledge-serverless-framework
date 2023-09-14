@@ -491,39 +491,39 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
 	memcpy(sandbox->rpc_request_body, msg, size);
 	sandbox->rpc_request_body_size = size;
 
-	uint64_t min_serving_time = UINT64_MAX;
+	uint64_t min_waiting_serving_time = UINT64_MAX;
 	int thread_id = 0;
-	int candidate_thread_id = -1;
+	int candidate_thread_with_interrupt = -1;
 
 	for (uint32_t i = worker_start_id; i < worker_end_id; i++) {
 		bool need_interrupt;
-		uint64_t serving_time = local_runqueue_try_add_index(i, sandbox, &need_interrupt);
-		/* The local queue is empty, can be served this request immediately without interrupting 
-		 * current one
+		uint64_t waiting_serving_time = local_runqueue_try_add_index(i, sandbox, &need_interrupt);
+		/* The local queue is empty, the worker is idle, can be served this request immediately 
+		 * without interrupting 
 		 */
-		if (serving_time == 0 && need_interrupt == false) {
+		if (waiting_serving_time == 0 && need_interrupt == false) {
 			local_runqueue_add_index(i, sandbox);
 			return;
-		} else if (serving_time == 0 && need_interrupt == true) {//The worker can serve the request immediately
+		} else if (waiting_serving_time == 0 && need_interrupt == true) {//The worker can serve the request immediately
 									// by interrupting the current one
 			/* We already have a candidate thread, continue to find a 
 			 * better thread without needing interrupt
 			 */
-			if (candidate_thread_id != -1) {
+			if (candidate_thread_with_interrupt != -1) {
 				continue;
 			} else {
-				candidate_thread_id = i;
+				candidate_thread_with_interrupt = i;
 			}
-		} else if (min_serving_time > serving_time) {
-			min_serving_time = serving_time;
+		} else if (min_waiting_serving_time > waiting_serving_time) {
+			min_waiting_serving_time = waiting_serving_time;
 			thread_id = i;	
 		} 
 	} 
 	
-	if (candidate_thread_id != -1) {
-		//urgent_request[candidate_thread_id] = sandbox;
-		local_runqueue_add_index(candidate_thread_id, sandbox);
-		preempt_worker(candidate_thread_id);
+	if (candidate_thread_with_interrupt != -1) {
+		//urgent_request[candidate_thread_with_interrupt] = sandbox;
+		local_runqueue_add_index(candidate_thread_with_interrupt, sandbox);
+		preempt_worker(candidate_thread_with_interrupt);
 	} else {
 		local_runqueue_add_index(thread_id, sandbox);
 	}
