@@ -6,7 +6,7 @@
 #include "memlogging.h"
 
 extern FILE *sandbox_perf_log;
-extern thread_local int worker_thread_idx;
+extern thread_local int global_worker_thread_idx;
 
 /**
  * @brief Prints headers for the per-sandbox perf logs
@@ -54,10 +54,10 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 
 	uint64_t init_time = sandbox->duration_of_state[SANDBOX_INITIALIZED] / runtime_processor_speed_MHz;
 	if (miss_deadline) {
-		mem_log("tid %d %u miss %lu %lu %lu %s %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
+		mem_log("tid %d %u miss %lu %lu %lu %s %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
 			init_time, cleanup, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
 	} else {
-		mem_log("tid %d %u meet %lu %lu %lu %s %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
+		mem_log("tid %d %u meet %lu %lu %lu %s %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
 			init_time, cleanup, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
 	}
 	/*

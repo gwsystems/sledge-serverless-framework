@@ -21,7 +21,7 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_RUNNING_SYS: {
 		assert(sandbox == current_sandbox_get());
-		assert(runtime_worker_threads_deadline[worker_thread_idx] == sandbox->absolute_deadline);
+		assert(runtime_worker_threads_deadline[global_worker_thread_idx] == sandbox->absolute_deadline);
 		break;
 	}
 	case SANDBOX_PREEMPTED: {

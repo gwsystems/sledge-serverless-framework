@@ -6,11 +6,14 @@
 #include "http_session.h"
 #include "module.h"
 
-#define LISTENER_THREAD_CORE_ID 1
+#define LISTENER_THREAD_START_CORE_ID 1
 #define DIPATCH_ROUNTE_ERROR "Did not match any routes"
 #define WORK_ADMITTED_ERROR "Work is not admitted"
 #define SANDBOX_ALLOCATION_ERROR "Failed to allocate a sandbox"
 #define GLOBAL_QUEUE_ERROR "Failed to add sandbox to global queue" 
+
+#define MAX_DISPATCHER 10
+#define MAX_REQUEST_TYPE 10
 
 extern thread_local pthread_t listener_thread_id;
 

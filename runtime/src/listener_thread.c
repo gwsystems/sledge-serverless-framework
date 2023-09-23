@@ -27,15 +27,18 @@ extern uint32_t runtime_worker_threads_count;
 extern thread_local bool pthread_stop;
 extern _Atomic uint64_t request_index;
 extern uint32_t runtime_worker_group_size;
+extern struct sandbox* current_sandboxes[1024];
 
 thread_local uint32_t worker_start_id;
 thread_local uint32_t worker_end_id;
-thread_local uint32_t worker_list[MAX_WORKERS]; // record the worker's true index
-_Atomic uint32_t free_workers[10] = {0}; // the index is the dispatercher id, free_workers[dispatcher_id] 
+thread_local uint32_t worker_list[MAX_WORKERS]; // record the worker's true id(0 - N workers - 1). worker_list[0] - worker_list[2]
+_Atomic uint32_t free_workers[MAX_DISPATCHER] = {0}; // the index is the dispatercher id, free_workers[dispatcher_id] 
 					 // is decimal value of the bitmap of avaliable workers.
 					 // For example, if there are 3 workers available, the bitmap 
 					 // will be 111, then the free_workers[dispatcher_id] is 7
-thread_local struct request_typed_queue *request_type_queue[10]; // the index is the request type
+
+
+/*thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE]; // the index is the request type
 								 // We implicitly represent the request 
 								 // execution time as long or short based 
 								 // on the value of the request type. 
@@ -43,6 +46,9 @@ thread_local struct request_typed_queue *request_type_queue[10]; // the index is
 								 // request with type 1 is shorter than request
 								 // with type 2, that's reducing the sorting
 								 // cost of the typed queue
+*/
+struct request_typed_queue *request_type_queue[MAX_DISPATCHER][MAX_REQUEST_TYPE];
+
 thread_local uint32_t n_rtypes = 0;
 
 time_t t_start;
@@ -86,7 +92,7 @@ listener_thread_initialize(uint8_t thread_id)
 	cpu_set_t cs;
 
 	CPU_ZERO(&cs);
-	CPU_SET(LISTENER_THREAD_CORE_ID + thread_id, &cs);
+	CPU_SET(LISTENER_THREAD_START_CORE_ID + thread_id, &cs);
 
 	/* Setup epoll */
 	listener_thread_epoll_file_descriptor = epoll_create1(0);
@@ -446,41 +452,41 @@ on_client_socket_epoll_event(struct epoll_event *evt)
 void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
 
 	if (first_request_comming == false){
-                t_start = time(NULL);
-                first_request_comming = true;
-        }
+        t_start = time(NULL);
+        first_request_comming = true;
+    }
 
 	uint8_t kMsgSize = 16;
 	//TODO: rpc_id is hardcode now
 
 	struct tenant *tenant = tenant_database_find_by_port(port);
 	assert(tenant != NULL);
-        struct route *route = http_router_match_request_type(&tenant->router, req_type);
-        if (route == NULL) {
-                debuglog("Did not match any routes\n");
+    struct route *route = http_router_match_request_type(&tenant->router, req_type);
+    if (route == NULL) {
+        debuglog("Did not match any routes\n");
 		dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR)); 
-                return;
-        }
+        return;
+    }
 
-        /*
-         * Perform admissions control.
-         * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
-         * TODO: Consider providing a Retry-After header
-         */
-        uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
-        if (work_admitted == 0) {
-		dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
-                return;
-        }
+    /*
+     * Perform admissions control.
+     * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+     * TODO: Consider providing a Retry-After header
+     */
+    uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+    if (work_admitted == 0) {
+        dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+        return;
+    }
 
-        /* Allocate a Sandbox */
-        //session->state          = HTTP_SESSION_EXECUTING;
-        struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
-        if (unlikely(sandbox == NULL)) {
-                debuglog("Failed to allocate sandbox\n");
+    /* Allocate a Sandbox */
+    //session->state          = HTTP_SESSION_EXECUTING;
+    struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+    if (unlikely(sandbox == NULL)) {
+        debuglog("Failed to allocate sandbox\n");
 		dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
-                return;
-        }
+        return;
+    }
 
 	/* copy the received data since it will be released by erpc */
 	sandbox->rpc_request_body = malloc(size);
@@ -536,7 +542,7 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
  * @param msg the payload of the rpc request. It is the input parameter fot the function
  * @param size the size of the msg
  */
-void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+void darc_shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
 	if (first_request_comming == false){
                 t_start = time(NULL);
                 first_request_comming = true;
@@ -582,7 +588,7 @@ void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t s
 
         memcpy(sandbox->rpc_request_body, msg, size);
         sandbox->rpc_request_body_size = size;
-	push_to_rqueue(sandbox, request_type_queue[req_type - 1], 0);
+	    push_to_rqueue(sandbox, request_type_queue[dispatcher_thread_idx][req_type - 1], __getcycles());
 }
 
 
@@ -618,22 +624,156 @@ void drain_queue(struct request_typed_queue *rtype) {
 
         // Dispatch
         struct sandbox *sandbox = rtype->rqueue[rtype->rqueue_tail & (RQUEUE_LEN - 1)];
-	//add sandbox to worker's local queue
-	local_runqueue_add_index(worker_list[worker_id], sandbox);
-	rtype->rqueue_tail++;
-	atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << worker_id);
+	    //add sandbox to worker's local queue
+	    local_runqueue_add_index(worker_list[worker_id], sandbox);
+	    rtype->rqueue_tail++;
+	    atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << worker_id);
     }
 
+}
+
+/* Return selected sandbox and selected queue type */
+struct sandbox * shinjuku_peek_selected_sandbox(int *selected_queue_idx) {
+    float highest_priority = 0;
+    *selected_queue_idx = -1;
+    struct sandbox *selected_sandbox = NULL;
+
+    for (uint32_t i = 0; i < n_rtypes; ++i) {
+	    if (request_type_queue[dispatcher_thread_idx][i]->rqueue_head > request_type_queue[dispatcher_thread_idx][i]->rqueue_tail) {
+	        //get the tail sandbox of the queue
+            struct sandbox *sandbox = request_type_queue[dispatcher_thread_idx][i]->rqueue[request_type_queue[dispatcher_thread_idx][i]->rqueue_tail & (RQUEUE_LEN - 1)];	
+            uint64_t ts = request_type_queue[dispatcher_thread_idx][i]->tsqueue[request_type_queue[dispatcher_thread_idx][i]->rqueue_tail & (RQUEUE_LEN - 1)];
+            uint64_t dt = __getcycles() - ts;
+            float priority = (float)dt / (float)sandbox->route->relative_deadline;
+            if (priority > highest_priority) {
+                highest_priority = priority;
+                *selected_queue_idx = i;
+                selected_sandbox = sandbox;
+            }
+	    }
+    }
+
+    return selected_sandbox;
+
+}
+
+void shinjuku_dequeue_selected_sandbox(int selected_queue_type) {
+    assert(selected_queue_type >= 0 && selected_queue_type < MAX_REQUEST_TYPE);
+    request_type_queue[dispatcher_thread_idx][selected_queue_type]->rqueue_tail++;
 }
 
 void darc_dispatch() {
 	for (uint32_t i = 0; i < n_rtypes; ++i) {
 	    // request_type_queue is a sorted queue, so the loop will dispatch packets from
 	    // the earliest deadline to least earliest deadline
-            if (request_type_queue[i]->rqueue_head > request_type_queue[i]->rqueue_tail) {
-            	drain_queue(request_type_queue[i]);
+            if (request_type_queue[dispatcher_thread_idx][i]->rqueue_head > request_type_queue[dispatcher_thread_idx][i]->rqueue_tail) {
+            	drain_queue(request_type_queue[dispatcher_thread_idx][i]);
             }
         }
+}
+
+/*void shinjuku_dispatch() {
+	for (uint32_t i = 0; i < runtime_worker_group_size; ++i) {
+	    if ((1 << i) & free_workers[dispatcher_thread_idx]) { 
+	        struct sandbox *sandbox = shinjuku_select_sandbox();
+		    if (sandbox) {
+			    local_runqueue_add_index(worker_list[i], sandbox);
+			    atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
+		    } else {
+		        // queue is empty, exit loop
+		        break;
+		    }
+	    } else { // core is busy
+            //check if the current sandbox is running longer than the specified time duration 
+            struct sandbox *current = current_sandboxes[worker_list[i]];
+            if (!current) continue; // In case that worker thread hasn't call current_sandbox_set to set the current sandbox
+            uint64_t duration = (__getcycles() - current->timestamp_of.last_state_change) / runtime_processor_speed_MHz;
+            if (duration >= 10 && current->state == SANDBOX_RUNNING_USER) {
+                //preempt the current sandbox and put it back the typed queue, select a new one to send to it    
+                struct sandbox *sandbox = shinjuku_select_sandbox();
+                if (sandbox) {
+                    local_runqueue_add_index(worker_list[i], sandbox);
+                    //preempt worker
+                    preempt_worker(worker_list[i]);
+                    atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
+                } else {
+                    // queue is empty, exit loop
+                    break;
+                }   
+            }
+        }
+	}
+}*/
+
+void shinjuku_dispatch() {
+
+    while (true) {
+        int selected_queue_type;
+        struct sandbox *sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
+        
+        /* This sandbox was preempted by a worker thread, re-dispatch it to the same worker thread 
+         * no matter if it is free
+         */
+        if (sandbox && sandbox->global_worker_thread_idx != -1) {
+            assert(selected_queue_type != -1);
+            //printf("dispatch %p to worker %d\n", sandbox, sandbox->global_worker_thread_idx);
+            local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
+            shinjuku_dequeue_selected_sandbox(selected_queue_type); 
+        } else if (sandbox && sandbox->global_worker_thread_idx == -1) {
+            if (free_workers[dispatcher_thread_idx] == 0) {
+                /* No available workers, return */
+                return;
+            } else {
+	            for (uint32_t i = 0; i < runtime_worker_group_size; ++i) {
+	                if ((1 << i) & free_workers[dispatcher_thread_idx]) { 
+			            local_runqueue_add_index(worker_list[i], sandbox);
+			            atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
+                        shinjuku_dequeue_selected_sandbox(selected_queue_type);
+                        break;
+	                } else { // core is busy
+                        //check if the current sandbox is running longer than the specified time duration 
+                        struct sandbox *current = current_sandboxes[worker_list[i]];
+                        if (!current) continue; // TODO????? In case that worker thread hasn't call current_sandbox_set to set the current sandbox
+                        uint64_t duration = (__getcycles() - current->timestamp_of.last_state_change) / runtime_processor_speed_MHz;
+                        if (duration >= 100 && current->state == SANDBOX_RUNNING_USER) {
+                            //preempt the current sandbox and put it back the typed queue, select a new one to send to it    
+                            local_runqueue_add_index(worker_list[i], sandbox);
+                            //preempt worker
+                            preempt_worker(worker_list[i]);
+                            shinjuku_dequeue_selected_sandbox(selected_queue_type);
+                            break;
+                        }
+                    }
+	            }   
+            }
+        } else {
+            /* typed queues are empty, return */
+            return;
+        }
+    } 
+}
+
+void shinjuku_dispatch_test() {
+    while(true) {
+        int selected_queue_type = 0;
+        struct sandbox *sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
+        if (sandbox) {
+            assert(sandbox->state == SANDBOX_INITIALIZED);
+            if (free_workers[dispatcher_thread_idx] == 0) {
+                return;
+            }
+            for (uint32_t i = 0; i < runtime_worker_group_size; ++i) {
+                if ((1 << i) & free_workers[dispatcher_thread_idx]) {    
+                    local_runqueue_add_index(worker_list[i], sandbox);
+                    atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
+                    shinjuku_dequeue_selected_sandbox(selected_queue_type);
+                    break;
+                }
+            }
+        } else {
+            return;
+        }
+    }
 }
 
 void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
@@ -652,15 +792,16 @@ void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
 void *
 listener_thread_main(void *dummy)
 {
-	/* init typed queue */
-	typed_queue_init();
-
 	is_listener = true;
 	/* Unmask SIGINT signals */
-        software_interrupt_unmask_signal(SIGINT);
+    software_interrupt_unmask_signal(SIGINT);
 
 	/* Index was passed via argument */
-        dispatcher_thread_idx = *(int *)dummy;
+    dispatcher_thread_idx = *(int *)dummy;
+
+    printf("listener thread, id %d\n", dispatcher_thread_idx);
+	/* init typed queue */
+	typed_queue_init();
 
 	/* calucate the worker start and end id for this listener */
 	worker_start_id = dispatcher_thread_idx * runtime_worker_group_size;
@@ -688,15 +829,23 @@ listener_thread_main(void *dummy)
 
 	erpc_start(NULL, dispatcher_thread_idx, NULL, 0);
 
-	if (dispatcher == DISPATCHER_EDF_INTERRUPT) {	
+	if (dispatcher == DISPATCHER_EDF_INTERRUPT) {
+        printf("edf_interrupt....\n");	
 		while (!pthread_stop) {
 			erpc_run_event_loop(dispatcher_thread_idx, 1000);
 		}
 	} else if (dispatcher == DISPATCHER_DARC) {
+        printf("darc....\n");
 		while (!pthread_stop) {
 			erpc_run_event_loop_once(dispatcher_thread_idx); // get a group of packets from the NIC and enqueue them to the typed queue
 			darc_dispatch(); //dispatch packets
 		}
+	} else if (dispatcher == DISPATCHER_SHINJUKU) {
+        printf("shinjuku....\n");
+		while (!pthread_stop) {
+            erpc_run_event_loop_once(dispatcher_thread_idx); // get a group of packets from the NIC and enqueue them to the typed queue
+            shinjuku_dispatch(); //dispatch packets
+        }
 	}
 
 	/* won't go to the following implementaion */

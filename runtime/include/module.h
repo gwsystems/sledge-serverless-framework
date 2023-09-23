@@ -18,7 +18,7 @@
 #include "wasm_memory.h"
 #include "wasm_table.h"
 
-extern thread_local int worker_thread_idx;
+extern thread_local int global_worker_thread_idx;
 
 INIT_POOL(wasm_memory, wasm_memory_free)
 INIT_POOL(wasm_stack, wasm_stack_free)
@@ -168,7 +168,7 @@ module_allocate_stack(struct module *module)
 {
 	assert(module != NULL);
 
-	struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&module->pools[worker_thread_idx].stack);
+	struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&module->pools[global_worker_thread_idx].stack);
 
 	if (stack == NULL) {
 		stack = wasm_stack_alloc(module->stack_size);
@@ -184,7 +184,7 @@ module_free_stack(struct module *module, struct wasm_stack *stack)
 	uint64_t now = __getcycles();	
 	wasm_stack_reinit(stack);
 	uint64_t d = __getcycles() - now;
-	wasm_stack_pool_add_nolock(&module->pools[worker_thread_idx].stack, stack);
+	wasm_stack_pool_add_nolock(&module->pools[global_worker_thread_idx].stack, stack);
 	return d;
 }
 
@@ -202,7 +202,7 @@ module_allocate_linear_memory(struct module *module)
 	assert(starting_bytes <= (uint64_t)UINT32_MAX + 1);
 	assert(max_bytes <= (uint64_t)UINT32_MAX + 1);
 
-	struct wasm_memory *linear_memory = wasm_memory_pool_remove_nolock(&module->pools[worker_thread_idx].memory);
+	struct wasm_memory *linear_memory = wasm_memory_pool_remove_nolock(&module->pools[global_worker_thread_idx].memory);
 	if (linear_memory == NULL) {
 		linear_memory = wasm_memory_alloc(starting_bytes, max_bytes);
 		if (unlikely(linear_memory == NULL)) return NULL;
@@ -215,7 +215,7 @@ static inline void
 module_free_linear_memory(struct module *module, struct wasm_memory *memory)
 {
 	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
-	wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
+	wasm_memory_pool_add_nolock(&module->pools[global_worker_thread_idx].memory, memory);
 }
 
 static inline void

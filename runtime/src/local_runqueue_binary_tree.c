@@ -13,7 +13,7 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
-extern thread_local int worker_thread_idx;
+extern thread_local int global_worker_thread_idx;
 extern struct perf_window * worker_perf_windows[1024]; /* index is thread id, each queue's perf windows, each queue can 
 							  have multiple perf windows */
 extern struct sandbox* current_sandboxes[1024];
@@ -131,7 +131,7 @@ local_runqueue_binary_tree_initialize()
 	/* Initialize local state */
 	local_runqueue_binary_tree = init_binary_tree(true, sandbox_get_priority, sandbox_get_execution_cost);
 
-	worker_binary_trees[worker_thread_idx] = local_runqueue_binary_tree;
+	worker_binary_trees[global_worker_thread_idx] = local_runqueue_binary_tree;
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn         = local_runqueue_binary_tree_add,
 						.add_fn_idx     = local_runqueue_binary_tree_add_index,

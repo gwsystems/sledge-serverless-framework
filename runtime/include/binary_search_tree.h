@@ -13,7 +13,8 @@ typedef uint64_t (*binary_tree_get_execution_cost_fn_t)(void *data, int thread_i
 struct TreeNode {
     struct TreeNode *left;
     struct TreeNode *right;
-    struct TreeNode *next;  // pointing to the next node
+    struct TreeNode *next;  // pointing to the next node, this is used for nodePool 
+                            // to find next available node
     void            *data;  // sandbox 
 };
 

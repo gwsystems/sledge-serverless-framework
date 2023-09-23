@@ -26,15 +26,19 @@
 extern struct perf_window * worker_perf_windows[1024];
 thread_local struct perf_window perf_window_per_thread[1024];
 struct sandbox* current_sandboxes[1024] = { NULL };
+extern uint32_t runtime_worker_group_size;
 
 extern FILE *sandbox_perf_log;
 thread_local bool pthread_stop = false;
-
+thread_local int dispatcher_id;
 /* context of the runtime thread before running sandboxes or to resume its "main". */
 thread_local struct arch_context worker_thread_base_context;
 
 /* Used to index into global arguments and deadlines arrays */
-thread_local int worker_thread_idx;
+thread_local int global_worker_thread_idx;
+
+/* Mark the worker index within the group */
+thread_local int group_worker_thread_idx;
 
 /* Used to track tenants' timeouts */
 thread_local struct priority_queue *worker_thread_timeout_queue;
@@ -50,7 +54,7 @@ void preallocate_memory() {
 }
 
 void perf_window_init() {
-	worker_perf_windows[worker_thread_idx] = perf_window_per_thread;
+	worker_perf_windows[global_worker_thread_idx] = perf_window_per_thread;
 	tenant_database_foreach(tenant_perf_window_init, NULL, NULL);
 }
 
@@ -66,8 +70,15 @@ worker_thread_main(void *argument)
 	worker_thread_base_context.variant = ARCH_CONTEXT_VARIANT_RUNNING;
 
 	/* Index was passed via argument */
-	worker_thread_idx = *(int *)argument;
+	global_worker_thread_idx = *(int *)argument;
 
+    /* Set dispatcher id for this worker */
+    dispatcher_id = global_worker_thread_idx / runtime_worker_group_size;
+
+    group_worker_thread_idx = global_worker_thread_idx - dispatcher_id * runtime_worker_group_size;
+
+    printf("global thread %d's dispatcher id is %d group size is %d group id is %d\n", global_worker_thread_idx, 
+            dispatcher_id, runtime_worker_group_size, group_worker_thread_idx);
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 2);
 	pthread_setschedprio(pthread_self(), -20);

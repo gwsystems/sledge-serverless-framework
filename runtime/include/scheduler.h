@@ -25,10 +25,14 @@
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_options.h"
 #include "sandbox_perf_log.h"
+#include "request_typed_queue.h"
+#include "listener_thread.h"
 
 extern thread_local bool pthread_stop;
 extern uint32_t runtime_worker_group_size;
 extern _Atomic uint32_t free_workers[10];
+extern thread_local int dispatcher_id;
+extern struct request_typed_queue *request_type_queue[MAX_DISPATCHER][MAX_REQUEST_TYPE];
 /**
  * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
  *
@@ -82,7 +86,7 @@ scheduler_mtds_get_next()
 	enum MULTI_TENANCY_CLASS local_mt_class = MT_DEFAULT;
 	struct sandbox          *global         = NULL;
 
-	if (local) local_mt_class = local->tenant->pwt_sandboxes[worker_thread_idx].mt_class;
+	if (local) local_mt_class = local->tenant->pwt_sandboxes[global_worker_thread_idx].mt_class;
 
 	uint64_t global_guaranteed_deadline = global_request_scheduler_mtds_guaranteed_peek();
 	uint64_t global_default_deadline    = global_request_scheduler_mtds_default_peek();
@@ -126,6 +130,7 @@ scheduler_edf_get_next()
 			local->timestamp_of.last_state_change =  now;
 			/* end by xiaosu */
 			sandbox_prepare_execution_environment(local);
+            //printf("sandbox state %d\n", local->state);
 			assert(local->state == SANDBOX_INITIALIZED);
 			sandbox_set_as_runnable(local, SANDBOX_INITIALIZED);
 		}
@@ -319,9 +324,13 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	struct sandbox *interrupted_sandbox = current_sandbox_get();
 	assert(interrupted_sandbox != NULL);
 	assert(interrupted_sandbox->state == SANDBOX_INTERRUPTED);
-	// printf ("Worker #%d interrupted sandbox #%lu\n", worker_thread_idx, interrupted_sandbox->id);
+	// printf ("Worker #%d interrupted sandbox #%lu\n", global_worker_thread_idx, interrupted_sandbox->id);
 	scheduler_process_policy_specific_updates_on_interrupts(interrupted_sandbox);
 
+    /* Delete current sandbox from local queue if dispatcher is DISPATCHER_SHINJUKU */
+    if (dispatcher == DISPATCHER_SHINJUKU) {
+        local_runqueue_delete(interrupted_sandbox);       
+    }
 	struct sandbox *next = scheduler_get_next();
 	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
 	assert(next != NULL);
@@ -343,8 +352,12 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	// Write back global at idx 0
 	wasm_globals_set_i64(&interrupted_sandbox->globals, 0, sledge_abi__current_wasm_module_instance.abi.wasmg_0,
 	                     true);
-
 	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
+
+    if (dispatcher == DISPATCHER_SHINJUKU) {
+        int req_type = interrupted_sandbox->route->request_type;
+        push_to_rqueue(interrupted_sandbox, request_type_queue[dispatcher_id][req_type - 1], __getcycles());
+    }
 	scheduler_preemptive_switch_to(interrupted_context, next);
 }
 
@@ -456,7 +469,7 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 	struct sandbox *exiting_sandbox = current_sandbox_get();
 	
 	assert(exiting_sandbox != NULL);
-	uint8_t dispatcher_id = exiting_sandbox->rpc_id;
+	//uint8_t dispatcher_id = exiting_sandbox->rpc_id;
 
 	/* Clearing current sandbox indicates we are entering the cooperative scheduler */
 	current_sandbox_set(NULL);
@@ -503,15 +516,16 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
  	/* Logging this sandbox to memory */	
 	sandbox_perf_log_print_entry(exiting_sandbox);
 
-	if (dispatcher == DISPATCHER_DARC) {
-		int virtual_id = worker_thread_idx - dispatcher_id * runtime_worker_group_size;	
-		atomic_fetch_or(&free_workers[dispatcher_id], 1 << virtual_id);	
-	}
 
 	if (next_sandbox != NULL) {
 		next_sandbox->context_switch_to = 2;
 		scheduler_cooperative_switch_to(exiting_context, next_sandbox);
 	} else {
+	    if (dispatcher == DISPATCHER_DARC || dispatcher == DISPATCHER_SHINJUKU) {
+		    int virtual_id = global_worker_thread_idx - dispatcher_id * runtime_worker_group_size;	
+		    atomic_fetch_or(&free_workers[dispatcher_id], 1 << virtual_id);	
+	    }
+        //printf("finish one request\n");
 		scheduler_switch_to_base_context(exiting_context);
 	}
 }

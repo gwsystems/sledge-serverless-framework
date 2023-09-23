@@ -15,7 +15,7 @@
 #include "sandbox_types.h"
 
 extern struct sandbox* current_sandboxes[1024];
-extern thread_local int worker_thread_idx;
+extern thread_local int global_worker_thread_idx;
 /**
  * Transitions a sandbox to the SANDBOX_RETURNED state.
  * This occurs when a sandbox is executing and runs to completion.
@@ -35,7 +35,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_RUNNING_SYS: {
 		local_runqueue_delete(sandbox);
-		current_sandboxes[worker_thread_idx] = NULL;
+		current_sandboxes[global_worker_thread_idx] = NULL;
 		sandbox_free_linear_memory(sandbox);
 		break;
 	}

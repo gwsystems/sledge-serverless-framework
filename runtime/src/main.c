@@ -102,7 +102,7 @@ runtime_allocate_available_cores()
 		runtime_worker_threads_count = max_possible_workers;
 	}
 
-	pretty_print_key_value("Listener core ID", "%u\n", LISTENER_THREAD_CORE_ID);
+	pretty_print_key_value("Listener start core ID", "%u\n", LISTENER_THREAD_START_CORE_ID);
 	pretty_print_key_value("First Worker core ID", "%u\n", runtime_first_worker_processor);
 	pretty_print_key_value("Worker core count", "%u\n", runtime_worker_threads_count);
 }
@@ -261,8 +261,10 @@ runtime_configure()
 		dispatcher = DISPATCHER_DARC;
 	} else if (strcmp(dispatcher_policy, "EDF_INTERRUPT") == 0) {
 		dispatcher = DISPATCHER_EDF_INTERRUPT;
-	} else {
-		panic("Invalid dispatcher policy: %s. Must be {EDF_INTERRUPT|DARC\n", dispatcher_policy);
+	} else if (strcmp(dispatcher_policy, "SHINJUKU") == 0) {
+        dispatcher = DISPATCHER_SHINJUKU;
+    } else {
+		panic("Invalid dispatcher policy: %s. Must be {EDF_INTERRUPT|DARC|SHINJUKU\n", dispatcher_policy);
 	}
 	pretty_print_key_value("Dispatcher Policy", "%s\n", dispatcher_print(dispatcher));
 
@@ -573,19 +575,14 @@ main(int argc, char **argv)
 		}
 	}
 
+	runtime_get_listener_count();
+	runtime_get_worker_group_size();
 	runtime_start_runtime_worker_threads();
 	software_interrupt_arm_timer();
 	
-	runtime_get_listener_count();
-	runtime_get_worker_group_size();
 	listener_threads_initialize();
 
 	runtime_boot_timestamp = __getcycles();
-
-	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
-		tenant_config_deinit(&tenant_config_vec[tenant_idx]);
-	}
-	free(tenant_config_vec);
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);
@@ -604,5 +601,11 @@ main(int argc, char **argv)
                         exit(-1);
                 }
 	} 
+
+	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
+		tenant_config_deinit(&tenant_config_vec[tenant_idx]);
+	}
+	free(tenant_config_vec);
+
 	exit(-1);
 }

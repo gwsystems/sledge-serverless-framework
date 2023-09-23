@@ -15,6 +15,8 @@
 #include "wasm_memory.h"
 #include "wasm_stack.h"
 
+extern thread_local int group_worker_thread_idx;
+
 _Atomic uint64_t sandbox_total = 0;
 
 static inline void
@@ -108,6 +110,9 @@ sandbox_prepare_execution_environment(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
+    sandbox->global_worker_thread_idx = global_worker_thread_idx;
+    sandbox->group_worker_thread_idx = group_worker_thread_idx;
+
 	char *error_message = "";
 
 	int rc;
@@ -176,6 +181,8 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 	sandbox->cursor = 0;
 
 	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->route->relative_deadline;
+    sandbox->global_worker_thread_idx = -1;
+    sandbox->group_worker_thread_idx = -1;
 
 	/*
 	 * Admissions Control State

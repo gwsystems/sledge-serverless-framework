@@ -10,6 +10,8 @@ dispatcher_print(enum DISPATCHER variant)
                 return "EDF_INTERRUPT";
         case DISPATCHER_DARC:
                 return "DARC"; 
+        case DISPATCHER_SHINJUKU:
+                return "SHINJUKU";
         }
 }
 

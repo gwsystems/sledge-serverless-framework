@@ -53,7 +53,7 @@ local_runqueue_mtds_add(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
-	struct perworker_tenant_sandbox_queue *pwt = &sandbox->tenant->pwt_sandboxes[worker_thread_idx];
+	struct perworker_tenant_sandbox_queue *pwt = &sandbox->tenant->pwt_sandboxes[global_worker_thread_idx];
 	struct priority_queue *destination_queue   = pwt->mt_class == MT_GUARANTEED ? local_runqueue_mtds_guaranteed
 	                                                                            : local_runqueue_mtds_default;
 
@@ -96,7 +96,7 @@ static void
 local_runqueue_mtds_delete(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-	struct perworker_tenant_sandbox_queue *pwt = &sandbox->tenant->pwt_sandboxes[worker_thread_idx];
+	struct perworker_tenant_sandbox_queue *pwt = &sandbox->tenant->pwt_sandboxes[global_worker_thread_idx];
 
 	/* Delete the sandbox from the corresponding Per-Worker-Tenant queue */
 	if (priority_queue_delete_nolock(pwt->sandboxes, sandbox) == -1) {

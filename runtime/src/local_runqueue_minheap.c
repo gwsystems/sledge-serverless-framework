@@ -13,7 +13,7 @@
 #include "runtime.h"
 
 extern struct priority_queue* worker_queues[1024];
-extern thread_local int worker_thread_idx;
+extern thread_local int global_worker_thread_idx;
 _Atomic uint64_t worker_queuing_cost[1024]; /* index is thread id, each queue's total execution cost of queuing requests */
 extern struct perf_window * worker_perf_windows[1024]; /* index is thread id, each queue's perf windows, each queue can 
 							  have multiple perf windows */
@@ -74,7 +74,7 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 	int rc = priority_queue_delete(local_runqueue_minheap, sandbox);
 	if (rc == -1) panic("Tried to delete sandbox %lu from runqueue, but was not present\n", sandbox->id);
 
-	worker_queuing_cost_decrement(worker_thread_idx, sandbox->estimated_cost);
+	worker_queuing_cost_decrement(global_worker_thread_idx, sandbox->estimated_cost);
 }
 
 /**
@@ -105,7 +105,7 @@ local_runqueue_minheap_initialize()
 	/* Initialize local state */
 	local_runqueue_minheap = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, true, sandbox_get_priority);
 
-	worker_queues[worker_thread_idx] = local_runqueue_minheap;
+	worker_queues[global_worker_thread_idx] = local_runqueue_minheap;
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,
 						.add_fn_idx  = local_runqueue_minheap_add_index,

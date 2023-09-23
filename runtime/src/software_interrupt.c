@@ -30,7 +30,7 @@
 thread_local uint32_t interrupts = 0;
 extern struct sandbox* current_sandboxes[1024];
 extern time_t t_start;
-extern thread_local int worker_thread_idx;
+extern thread_local int global_worker_thread_idx;
 extern thread_local bool pthread_stop;
 extern thread_local bool is_listener;
 extern thread_local uint32_t total_local_requests;
@@ -183,6 +183,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				global_timeout_queue_process_promotions();
 			}
 			interrupts++;
+            //printf("preempt\n");
 			scheduler_preemptive_sched(interrupted_context);
 		} else {
 			/* We transition the sandbox to an interrupted state to exclude time propagating signals and
@@ -202,6 +203,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		assert(current_sandbox->state == SANDBOX_PREEMPTED);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
 
+        printf("sigusr1 received\n");
 		software_interrupt_counts_sigusr_increment();
 #ifdef LOG_PREEMPTION
 		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,
@@ -250,7 +252,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
 		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_local_requests %u interrupts %u\n", 
-			throughput, worker_thread_idx, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
+			throughput, global_worker_thread_idx, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
 			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests, interrupts);
                 dump_log_to_file();
 		pthread_stop = true;		

@@ -47,13 +47,13 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 
 	/* Register RPC request handler */
 	if (dispatcher == DISPATCHER_EDF_INTERRUPT) {
-        	if (erpc_register_req_func(config->request_type, edf_interrupt_req_handler, 0) != 0) {
-			panic("register erpc function for EDF_INTERRUPT dispatcher failed\n");
+        if (erpc_register_req_func(config->request_type, edf_interrupt_req_handler, 0) != 0) {
+            panic("register erpc function for EDF_INTERRUPT dispatcher failed\n");
 		}
-	} else if (dispatcher == DISPATCHER_DARC) {
-		if (erpc_register_req_func(config->request_type, darc_req_handler, 0) != 0) {
-                        panic("register erpc function for DARC dispatcher failed\n");
-                }
+	} else if (dispatcher == DISPATCHER_DARC || dispatcher == DISPATCHER_SHINJUKU) {
+		if (erpc_register_req_func(config->request_type, darc_shinjuku_req_handler, 0) != 0) {
+            panic("register erpc function for DARC dispatcher failed\n");
+        }
 	}
 
 	/* Admissions Control */
