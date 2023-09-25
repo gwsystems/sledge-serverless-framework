@@ -1,0 +1,25 @@
+reset
+
+set term jpeg 
+set output "latency.jpg"
+
+set xlabel "Rerervation Utilization %"
+set ylabel "Latency (us)"
+
+set key left top
+
+set xrange [-5:]
+set yrange [0:]
+
+set style histogram columnstacked
+set key horizontal
+
+plot \
+     for [t_id in tenant_ids] 'latency_'.t_id.'.dat' using 1:7 title 'latency_'.t_id.'.dat' lt 2 lc 2 w lp, \
+     for [t_id in tenant_ids] 'latency_'.t_id.'.dat' using 1:6 title 'latency_'.t_id.'.dat' lt 2 lc 2 w lp, \
+     for [t_id in tenant_ids] 'latency_'.t_id.'.dat' using 1:5 title 'latency_'.t_id.'.dat' lt 2 lc 2 w lp, \
+     for [t_id in tenant_ids] 'latency_'.t_id.'.dat' using 1:4 title 'latency_'.t_id.'.dat' lt 2 lc 2 w lp, \
+     for [t_id in tenant_ids] 'latency_'.t_id.'.dat' using 1:3 title 'latency_'.t_id.'.dat' lt 2 lc 2 w lp
+
+#    'latency_A.dat' using 1:8 title 'A p100' linetype 0 linecolor 1 with linespoints, \
+#    'latency_B.dat' using 1:8 title 'B p100' linetype 0 linecolor 2 with linespoints, \

@@ -33,11 +33,23 @@ if ! command -v loadtest > /dev/null; then
 		fi
 	fi
 
+	# Try pulling Emil's version of loadtest to support post binary files
+	# if [[ $(whoami) == "root" ]]; then
+	# 	npm install -y -g loadtest
+	# else
+	# 	sudo npm install -y -g loadtest
+	# fi
+
+	pushd ~
+	git clone https://github.com/emil916/loadtest.git
+	pushd loadtest
 	if [[ $(whoami) == "root" ]]; then
-		npm install -y -g loadtest
+		npm install -g
 	else
-		sudo npm install -y -g loadtest
+		sudo npm install -g
 	fi
+	popd
+	popd 
 fi
 
 if ! command -v gnuplot > /dev/null; then
@@ -61,18 +73,12 @@ if ! command -v jq > /dev/null; then
 	fi
 fi
 
-# For SOD:
-if ! command -v imagemagick > /dev/null; then
-	if [ "$(whoami)" == "root" ]; then
-		apt-get install -y imagemagick
+if ! command -v htop > /dev/null; then
+	if [[ $(whoami) == "root" ]]; then
+		apt update
+		apt install -y htop
 	else
-		sudo apt-get install -y imagemagick
+		sudo apt update
+		sudo apt install -y htop
 	fi
 fi
-
-# For GOCR, too many to check one-by-one, so uncomment below to install:
-# if [[ "$(whoami)" == "root" ]]; then
-# 	apt-get install -y netpbm pango1.0-tools wamerican fonts-roboto fonts-cascadia-code fonts-dejavu
-# else
-# 	sudo apt-get install -y netpbm pango1.0-tools wamerican fonts-roboto fonts-cascadia-code fonts-dejavu
-# fi

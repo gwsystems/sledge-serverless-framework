@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Admin",
+    "port": 55555,
+    "replenishment-period-us": 0,
+    "max-budget-us": 0,
+    "reservation-percentile": 0,
+    "routes": [
+      {
+        "route": "/admin",
+        "path": "fibonacci.wasm.so",
+        "admissions-percentile": 50,
+        "expected-execution-us": 1000,
+        "relative-deadline-us": 10000,
+        "http-resp-content-type": "text/plain"
+      },
+      {
+        "route": "/terminator",
+        "path": "fibonacci.wasm.so",
+        "admissions-percentile": 50,
+        "expected-execution-us": 1000,
+        "relative-deadline-us": 10000,
+        "http-resp-content-type": "text/plain"
+      }
+    ],
+    "extra-exec-percentile": 0
+  },
+  {
+    "name": "long-000",
+    "port": 10000,
+    "replenishment-period-us": 0,
+    "max-budget-us": 0,
+    "reservation-percentile": 0,
+    "routes": [
+      {
+        "route": "/fib1",
+        "path": "fibonacci.wasm.so",
+        "admissions-percentile": 60,
+        "expected-execution-us": 64500,
+        "relative-deadline-us": 322500,
+        "http-resp-content-type": "text/plain"
+      },
+      {
+        "route": "/fib2",
+        "path": "fibonacci.wasm.so",
+        "admissions-percentile": 60,
+        "expected-execution-us": 3600,
+        "relative-deadline-us": 18000,
+        "http-resp-content-type": "text/plain"
+      }
+    ],
+    "extra-exec-percentile": 0
+  },
+  {
+    "name": "short-000",
+    "port": 20000,
+    "replenishment-period-us": 0,
+    "max-budget-us": 0,
+    "reservation-percentile": 0,
+    "routes": [
+      {
+        "route": "/fib",
+        "path": "fibonacci.wasm.so",
+        "admissions-percentile": 60,
+        "expected-execution-us": 3600,
+        "relative-deadline-us": 18000,
+        "http-resp-content-type": "text/plain"
+      }
+    ],
+    "extra-exec-percentile": 0
+  }
+]

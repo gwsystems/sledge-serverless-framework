@@ -112,8 +112,10 @@ wasi_context_init(wasi_options_t *options)
 		}
 	}
 
-	/* Seed Random */
-	srandom(time(NULL));
+	/* Seed Random
+	 * Commented out as a temporary fix for the mutex blocking delay srandom causes in libc.
+	 */
+	// srandom(time(NULL));
 
 	/* TODO: Preopens */
 
