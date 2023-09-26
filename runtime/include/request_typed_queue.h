@@ -45,4 +45,8 @@ struct request_typed_queue {
  */
 struct request_typed_queue * request_typed_queue_init(uint8_t type, uint32_t n_resas);
 
-int push_to_rqueue(struct sandbox *sandbox, struct request_typed_queue *rtype, uint64_t tsc);
+/*
+ * flag indicates this function is called by worker thread or listener thread. 1 means listener thread
+ * 2 means worker thread, this is only for debugging
+ */
+int push_to_rqueue(uint8_t dispatcher_id, struct sandbox *sandbox, struct request_typed_queue *rtype, uint64_t tsc, int flag);

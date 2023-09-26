@@ -42,7 +42,7 @@ void
 local_runqueue_binary_tree_add(struct sandbox *sandbox)
 {
 	lock_node_t node_lock = {};
-        lock_lock(&local_runqueue_binary_tree->lock, &node_lock);
+    lock_lock(&local_runqueue_binary_tree->lock, &node_lock);
 	local_runqueue_binary_tree->root = insert(local_runqueue_binary_tree, local_runqueue_binary_tree->root, sandbox);
 	lock_unlock(&local_runqueue_binary_tree->lock, &node_lock);
 }
@@ -69,7 +69,7 @@ local_runqueue_binary_tree_delete(struct sandbox *sandbox)
 	lock_node_t node_lock = {};
 	lock_lock(&local_runqueue_binary_tree->lock, &node_lock);
 	bool deleted = false;
-	local_runqueue_binary_tree->root = delete(local_runqueue_binary_tree, local_runqueue_binary_tree->root, sandbox, &deleted);
+	local_runqueue_binary_tree->root = delete_i(local_runqueue_binary_tree, local_runqueue_binary_tree->root, sandbox, &deleted);
 	lock_unlock(&local_runqueue_binary_tree->lock, &node_lock);
 	if (deleted == false) panic("Tried to delete sandbox %lu from runqueue, but was not present\n", sandbox->id);
 }
@@ -107,14 +107,14 @@ local_runqueue_binary_tree_try_add_index(int index, struct sandbox *sandbox, boo
 		*need_interrupt = false;
 		return 0;
 	} else if (current_sandboxes[index] != NULL && sandbox_is_preemptable(current_sandboxes[index]) == true && 
-		   sandbox_get_priority(sandbox) < sandbox_get_priority(current_sandboxes[index])) {
+		sandbox_get_priority(sandbox) < sandbox_get_priority(current_sandboxes[index])) {
 		*need_interrupt = true;
 		return 0;
 	} else {
 		need_interrupt = false;
 		uint64_t waiting_serving_time = 0;
 		lock_node_t node_lock = {};
-    		lock_lock(&binary_tree->lock, &node_lock);
+    	lock_lock(&binary_tree->lock, &node_lock);
 		struct TreeNode* node = findMaxValueLessThan(binary_tree, binary_tree->root, sandbox, &waiting_serving_time, index);
 		lock_unlock(&binary_tree->lock, &node_lock);
 		return waiting_serving_time; 
@@ -134,11 +134,11 @@ local_runqueue_binary_tree_initialize()
 	worker_binary_trees[global_worker_thread_idx] = local_runqueue_binary_tree;
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn         = local_runqueue_binary_tree_add,
-						.add_fn_idx     = local_runqueue_binary_tree_add_index,
-						.try_add_fn_idx = local_runqueue_binary_tree_try_add_index,
-		                                .is_empty_fn    = local_runqueue_binary_tree_is_empty,
-		                                .delete_fn      = local_runqueue_binary_tree_delete,
-		                                .get_next_fn    = local_runqueue_binary_tree_get_next };
+						                    .add_fn_idx     = local_runqueue_binary_tree_add_index,
+						                    .try_add_fn_idx = local_runqueue_binary_tree_try_add_index,
+		                                    .is_empty_fn    = local_runqueue_binary_tree_is_empty,
+		                                    .delete_fn      = local_runqueue_binary_tree_delete,
+		                                    .get_next_fn    = local_runqueue_binary_tree_get_next };
 
 	local_runqueue_initialize(&config);
 }

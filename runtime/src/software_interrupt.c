@@ -203,7 +203,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		assert(current_sandbox->state == SANDBOX_PREEMPTED);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
 
-        printf("sigusr1 received\n");
 		software_interrupt_counts_sigusr_increment();
 #ifdef LOG_PREEMPTION
 		debuglog("Restoring sandbox: %lu, Stack %llu\n", current_sandbox->id,

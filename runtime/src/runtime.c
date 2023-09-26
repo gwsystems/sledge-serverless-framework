@@ -30,7 +30,7 @@
 
 /* Count of the total number of requests we've ever received. Never decrements as it is used to dispatch requests to workers with RR */
 _Atomic uint64_t request_index;
-
+extern struct request_typed_queue *request_type_queue[MAX_DISPATCHER][MAX_REQUEST_TYPE];
 pthread_t *runtime_worker_threads;
 pthread_t *runtime_listener_threads;
 int       *runtime_worker_threads_argument;
@@ -117,10 +117,16 @@ runtime_initialize(void)
 	memset(runtime_worker_threads_deadline, UINT8_MAX, runtime_worker_threads_count * sizeof(uint64_t));
 
 	runtime_listener_threads = calloc(runtime_listener_threads_count, sizeof(pthread_t));
-        assert(runtime_listener_threads != NULL);
+    assert(runtime_listener_threads != NULL);
 	runtime_listener_threads_argument = calloc(runtime_listener_threads_count, sizeof(int));
 	assert(runtime_listener_threads_argument != NULL);
 
+    /* Initialize request typed queue */
+    for (int i = 0; i < MAX_DISPATCHER; i++) {
+        for (int j = 0; j < MAX_REQUEST_TYPE; j++) {
+            request_type_queue[i][j] = NULL;
+        }
+    }
 	http_total_init();
 	sandbox_total_initialize();
 	request_index_initialize();

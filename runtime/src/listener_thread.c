@@ -20,6 +20,7 @@
 struct perf_window * worker_perf_windows[1024];
 struct priority_queue * worker_queues[1024];
 struct binary_tree * worker_binary_trees[1024];
+struct ps_list_head * worker_lists[1024];
 
 extern _Atomic uint64_t worker_queuing_cost[1024]; 
 //struct sandbox *urgent_request[1024] = { NULL };
@@ -588,7 +589,7 @@ void darc_shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
 
         memcpy(sandbox->rpc_request_body, msg, size);
         sandbox->rpc_request_body_size = size;
-	    push_to_rqueue(sandbox, request_type_queue[dispatcher_thread_idx][req_type - 1], __getcycles());
+	    push_to_rqueue(dispatcher_thread_idx, sandbox, request_type_queue[dispatcher_thread_idx][req_type - 1], __getcycles(), 1);
 }
 
 
@@ -642,6 +643,14 @@ struct sandbox * shinjuku_peek_selected_sandbox(int *selected_queue_idx) {
 	    if (request_type_queue[dispatcher_thread_idx][i]->rqueue_head > request_type_queue[dispatcher_thread_idx][i]->rqueue_tail) {
 	        //get the tail sandbox of the queue
             struct sandbox *sandbox = request_type_queue[dispatcher_thread_idx][i]->rqueue[request_type_queue[dispatcher_thread_idx][i]->rqueue_tail & (RQUEUE_LEN - 1)];	
+            /* When worker thread call push_to_rqueue(), it first increase head, but push sandbox
+               to rqueue a little bit, cause here if check success, but sandbox is NULL. In such
+               case, just continue to wait the sandbox is in the queue
+             */
+            if (sandbox == NULL) { 
+                continue;
+            } 
+
             uint64_t ts = request_type_queue[dispatcher_thread_idx][i]->tsqueue[request_type_queue[dispatcher_thread_idx][i]->rqueue_tail & (RQUEUE_LEN - 1)];
             uint64_t dt = __getcycles() - ts;
             float priority = (float)dt / (float)sandbox->route->relative_deadline;
@@ -659,6 +668,8 @@ struct sandbox * shinjuku_peek_selected_sandbox(int *selected_queue_idx) {
 
 void shinjuku_dequeue_selected_sandbox(int selected_queue_type) {
     assert(selected_queue_type >= 0 && selected_queue_type < MAX_REQUEST_TYPE);
+    /* set the array slot to NULL because the sandbox is popped out */
+    request_type_queue[dispatcher_thread_idx][selected_queue_type]->rqueue[request_type_queue[dispatcher_thread_idx][selected_queue_type]->rqueue_tail & (RQUEUE_LEN - 1)] = NULL;
     request_type_queue[dispatcher_thread_idx][selected_queue_type]->rqueue_tail++;
 }
 
@@ -708,18 +719,19 @@ void darc_dispatch() {
 void shinjuku_dispatch() {
 
     while (true) {
-        int selected_queue_type;
+        int selected_queue_type = -1;
         struct sandbox *sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
-        
+       
+        if (!sandbox) return; // empty
+ 
+        assert(selected_queue_type != -1);
         /* This sandbox was preempted by a worker thread, re-dispatch it to the same worker thread 
          * no matter if it is free
          */
-        if (sandbox && sandbox->global_worker_thread_idx != -1) {
-            assert(selected_queue_type != -1);
-            //printf("dispatch %p to worker %d\n", sandbox, sandbox->global_worker_thread_idx);
+        if (sandbox->global_worker_thread_idx != -1) {
             local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
             shinjuku_dequeue_selected_sandbox(selected_queue_type); 
-        } else if (sandbox && sandbox->global_worker_thread_idx == -1) {
+        } else {
             if (free_workers[dispatcher_thread_idx] == 0) {
                 /* No available workers, return */
                 return;
@@ -735,7 +747,7 @@ void shinjuku_dispatch() {
                         struct sandbox *current = current_sandboxes[worker_list[i]];
                         if (!current) continue; // TODO????? In case that worker thread hasn't call current_sandbox_set to set the current sandbox
                         uint64_t duration = (__getcycles() - current->timestamp_of.last_state_change) / runtime_processor_speed_MHz;
-                        if (duration >= 100 && current->state == SANDBOX_RUNNING_USER) {
+                        if (duration >= 10 && current->state == SANDBOX_RUNNING_USER) {
                             //preempt the current sandbox and put it back the typed queue, select a new one to send to it    
                             local_runqueue_add_index(worker_list[i], sandbox);
                             //preempt worker
@@ -746,10 +758,7 @@ void shinjuku_dispatch() {
                     }
 	            }   
             }
-        } else {
-            /* typed queues are empty, return */
-            return;
-        }
+        } 
     } 
 }
 
@@ -799,7 +808,6 @@ listener_thread_main(void *dummy)
 	/* Index was passed via argument */
     dispatcher_thread_idx = *(int *)dummy;
 
-    printf("listener thread, id %d\n", dispatcher_thread_idx);
 	/* init typed queue */
 	typed_queue_init();
 

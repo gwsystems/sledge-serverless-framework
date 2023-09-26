@@ -24,7 +24,7 @@ struct TreeNodePool {
 };
 
 struct binary_tree {
-	struct TreeNode 	            *root;
+	struct TreeNode 	                *root;
 	struct TreeNodePool                 nodePool;
 	binary_tree_get_priority_fn_t       get_priority_fn;
 	binary_tree_get_execution_cost_fn_t get_execution_cost_fn;
@@ -43,8 +43,8 @@ void initNodePool(struct TreeNodePool *nodePool) {
     for (int i = 0; i < MAX_NODES - 1; ++i) {
         nodes[i].next  = &nodes[i + 1];  // Set the next pointer of each node to the next node
         nodes[i].left  = NULL;
-	nodes[i].right = NULL;
-	nodes[i].data  = NULL;
+	    nodes[i].right = NULL;
+	    nodes[i].data  = NULL;
     }
     nodes[MAX_NODES - 1].next = NULL;
 }
@@ -85,19 +85,21 @@ struct TreeNode* newNode(struct binary_tree *binary_tree, void *data) {
         return new_node_t;
     }
 }
+
 void getAvailableCapacity(struct binary_tree *binary_tree) {
 	
 	assert(binary_tree != NULL);
         
-        int size = 0;
-        struct TreeNode* start = binary_tree->nodePool.head;
-        while(start) {
-                size++;
-                start = start->next;
-        }
+    int size = 0;
+    struct TreeNode* start = binary_tree->nodePool.head;
+    while(start) {
+        size++;
+        start = start->next;
+    }
 
-        printf("available capacity of the queue is %d\n", size);
+    printf("available capacity of the queue is %d\n", size);
 }
+
 // Return a node to the pool
 void deleteNode(struct binary_tree *binary_tree, struct TreeNode* node) {
 
@@ -107,8 +109,8 @@ void deleteNode(struct binary_tree *binary_tree, struct TreeNode* node) {
     // Insert the node back to the head of the memory pool
     node->left = NULL;
     node->right = NULL;
-    node->next = binary_tree->nodePool.head;
     node->data = NULL;
+    node->next = binary_tree->nodePool.head;
     binary_tree->nodePool.head = node;
 }
 
@@ -173,50 +175,50 @@ struct TreeNode* findMax(struct binary_tree *binary_tree, struct TreeNode *root)
 }
 
 // Function to delete a value from a binary search tree
-struct TreeNode* delete(struct binary_tree *binary_tree, struct TreeNode* root, void *data, bool *deleted) {
+struct TreeNode* delete_i(struct binary_tree *binary_tree, struct TreeNode* root, void *data, bool *deleted) {
 
     assert(binary_tree != NULL);
 
     if (root == NULL) {
-	*deleted = false;
+	    *deleted = false;
         return NULL;
     }
 
     int64_t cmp_result = binary_tree->get_priority_fn(data) - binary_tree->get_priority_fn(root->data);
     if (cmp_result < 0) {
-        root->left = delete(binary_tree, root->left, data, deleted);
+        root->left = delete_i(binary_tree, root->left, data, deleted);
     } else if (cmp_result > 0) {
-        root->right = delete(binary_tree, root->right, data, deleted);
+        root->right = delete_i(binary_tree, root->right, data, deleted);
     } else { // cmp_result == 0
         if (root->data == data) {
-                if (root->left == NULL) {
-                        struct TreeNode* temp = root->right;
-                        deleteNode(binary_tree, root);
-			*deleted = true;
-                        return temp;
-                } else if (root->right == NULL) {
-                        struct TreeNode* temp = root->left;
-                        deleteNode(binary_tree, root);
-			*deleted = true;
-                        return temp;
-                } else {
-                        struct TreeNode* successor = root->right;
-                        while (successor->left != NULL) {
-                                successor = successor->left;
-                        }
-                        root->data = successor->data;
-                        root->right = delete(binary_tree, root->right, successor->data, deleted);
-                        return root;
+            if (root->left == NULL) {
+                struct TreeNode* temp = root->right;
+                deleteNode(binary_tree, root);
+			    *deleted = true;
+                return temp;
+            } else if (root->right == NULL) {
+                struct TreeNode* temp = root->left;
+                deleteNode(binary_tree, root);
+			    *deleted = true;
+                return temp;
+            } else {
+                struct TreeNode* successor = root->right;
+                while (successor->left != NULL) {
+                    successor = successor->left;
                 }
+                root->data = successor->data;
+                root->right = delete_i(binary_tree, root->right, successor->data, deleted);
+                return root;
+            }
         } else {
-                // Continue searching for the node with the same data pointer
-                if (root->left != NULL) {
-                        root->left = delete(binary_tree, root->left, data, deleted);
-                }
+            // Continue searching for the node with the same data pointer
+            if (root->left != NULL) {
+                root->left = delete_i(binary_tree, root->left, data, deleted);
+            }
 
-		if (*deleted == false && root->right != NULL) {
-                        root->right = delete(binary_tree, root->right, data, deleted);
-                }
+		    if (*deleted == false && root->right != NULL) {
+                root->right = delete_i(binary_tree, root->right, data, deleted);
+            }
         }
    }
     return root;
@@ -242,6 +244,7 @@ bool is_empty(struct binary_tree *binary_tree) {
 
 	return binary_tree->root == NULL;
 }
+
 void inorder(struct binary_tree *binary_tree, struct TreeNode* root)
 {
     assert(binary_tree != NULL);

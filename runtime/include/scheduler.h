@@ -329,10 +329,26 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 
     /* Delete current sandbox from local queue if dispatcher is DISPATCHER_SHINJUKU */
     if (dispatcher == DISPATCHER_SHINJUKU) {
-        local_runqueue_delete(interrupted_sandbox);       
+        local_runqueue_delete(interrupted_sandbox);      
+        sandbox_preempt(interrupted_sandbox); 
+        // Write back global at idx 0
+        wasm_globals_set_i64(&interrupted_sandbox->globals, 0, sledge_abi__current_wasm_module_instance.abi.wasmg_0,
+                             true);
+        arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
+        int req_type = interrupted_sandbox->route->request_type;
+        push_to_rqueue(dispatcher_id, interrupted_sandbox, request_type_queue[dispatcher_id][req_type - 1], __getcycles(), 2);
+        
+        struct sandbox *next = scheduler_get_next();
+        /* next might be NULL because we delete the current sandbox from the runqueue */
+        if (next) {
+            scheduler_preemptive_switch_to(interrupted_context, next);
+        }
+        return;
     }
+
 	struct sandbox *next = scheduler_get_next();
-	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
+
+    /* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
 	assert(next != NULL);
 
 	/* If current equals next, no switch is necessary, so resume execution */
@@ -354,10 +370,6 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	                     true);
 	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
 
-    if (dispatcher == DISPATCHER_SHINJUKU) {
-        int req_type = interrupted_sandbox->route->request_type;
-        push_to_rqueue(interrupted_sandbox, request_type_queue[dispatcher_id][req_type - 1], __getcycles());
-    }
 	scheduler_preemptive_switch_to(interrupted_context, next);
 }
 
