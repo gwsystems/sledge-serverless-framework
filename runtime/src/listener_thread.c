@@ -633,7 +633,7 @@ void drain_queue(struct request_typed_queue *rtype) {
 
 }
 
-/* Return selected sandbox and selected queue type */
+/* Return selected sandbox and selected queue type, not pop it out */
 struct sandbox * shinjuku_peek_selected_sandbox(int *selected_queue_idx) {
     float highest_priority = 0;
     *selected_queue_idx = -1;
@@ -673,6 +673,45 @@ void shinjuku_dequeue_selected_sandbox(int selected_queue_type) {
     request_type_queue[dispatcher_thread_idx][selected_queue_type]->rqueue_tail++;
 }
 
+/* Return selected sandbox and pop it out */
+struct sandbox * shinjuku_select_sandbox() {
+    float highest_priority = 0;
+    int selected_queue_idx = -1;
+    struct sandbox *selected_sandbox = NULL;
+
+    for (uint32_t i = 0; i < n_rtypes; ++i) {
+	    if (request_type_queue[dispatcher_thread_idx][i]->rqueue_head > request_type_queue[dispatcher_thread_idx][i]->rqueue_tail) {
+	        //get the tail sandbox of the queue
+            struct sandbox *sandbox = request_type_queue[dispatcher_thread_idx][i]->rqueue[request_type_queue[dispatcher_thread_idx][i]->rqueue_tail & (RQUEUE_LEN - 1)];	
+            /* When worker thread call push_to_rqueue(), it first increase head, but push sandbox
+               to rqueue a little bit, cause here if check success, but sandbox is NULL. In such
+               case, just continue to wait the sandbox is in the queue
+             */
+            if (sandbox == NULL) { 
+                continue;
+            } 
+
+            uint64_t ts = request_type_queue[dispatcher_thread_idx][i]->tsqueue[request_type_queue[dispatcher_thread_idx][i]->rqueue_tail & (RQUEUE_LEN - 1)];
+            uint64_t dt = __getcycles() - ts;
+            float priority = (float)dt / (float)sandbox->route->relative_deadline;
+            if (priority > highest_priority) {
+                highest_priority = priority;
+                selected_queue_idx = i;
+                selected_sandbox = sandbox;
+            }
+	    }
+    }
+
+    if (selected_sandbox != NULL) {
+        /* set the array slot to NULL because the sandbox is popped out */
+        request_type_queue[dispatcher_thread_idx][selected_queue_idx]->rqueue[request_type_queue[dispatcher_thread_idx][selected_queue_idx]->rqueue_tail & (RQUEUE_LEN - 1)] = NULL;
+        request_type_queue[dispatcher_thread_idx][selected_queue_idx]->rqueue_tail++;
+    }
+
+    return selected_sandbox;
+
+}
+
 void darc_dispatch() {
 	for (uint32_t i = 0; i < n_rtypes; ++i) {
 	    // request_type_queue is a sorted queue, so the loop will dispatch packets from
@@ -683,17 +722,16 @@ void darc_dispatch() {
         }
 }
 
-/*void shinjuku_dispatch() {
+void shinjuku_dispatch_different_core() {
 	for (uint32_t i = 0; i < runtime_worker_group_size; ++i) {
 	    if ((1 << i) & free_workers[dispatcher_thread_idx]) { 
 	        struct sandbox *sandbox = shinjuku_select_sandbox();
-		    if (sandbox) {
-			    local_runqueue_add_index(worker_list[i], sandbox);
-			    atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
-		    } else {
-		        // queue is empty, exit loop
-		        break;
-		    }
+            if (sandbox == NULL) {
+                return; // queue empty
+            }
+
+			local_runqueue_add_index(worker_list[i], sandbox);
+			atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
 	    } else { // core is busy
             //check if the current sandbox is running longer than the specified time duration 
             struct sandbox *current = current_sandboxes[worker_list[i]];
@@ -702,19 +740,16 @@ void darc_dispatch() {
             if (duration >= 10 && current->state == SANDBOX_RUNNING_USER) {
                 //preempt the current sandbox and put it back the typed queue, select a new one to send to it    
                 struct sandbox *sandbox = shinjuku_select_sandbox();
-                if (sandbox) {
-                    local_runqueue_add_index(worker_list[i], sandbox);
-                    //preempt worker
-                    preempt_worker(worker_list[i]);
-                    atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
-                } else {
-                    // queue is empty, exit loop
-                    break;
-                }   
+                if (sandbox == NULL) {
+                    return; // queue empty
+                }
+                local_runqueue_add_index(worker_list[i], sandbox);
+                //preempt worker
+                preempt_worker(worker_list[i]);
             }
         }
 	}
-}*/
+}
 
 void shinjuku_dispatch() {
 
@@ -760,29 +795,6 @@ void shinjuku_dispatch() {
             }
         } 
     } 
-}
-
-void shinjuku_dispatch_test() {
-    while(true) {
-        int selected_queue_type = 0;
-        struct sandbox *sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
-        if (sandbox) {
-            assert(sandbox->state == SANDBOX_INITIALIZED);
-            if (free_workers[dispatcher_thread_idx] == 0) {
-                return;
-            }
-            for (uint32_t i = 0; i < runtime_worker_group_size; ++i) {
-                if ((1 << i) & free_workers[dispatcher_thread_idx]) {    
-                    local_runqueue_add_index(worker_list[i], sandbox);
-                    atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
-                    shinjuku_dequeue_selected_sandbox(selected_queue_type);
-                    break;
-                }
-            }
-        } else {
-            return;
-        }
-    }
 }
 
 void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
