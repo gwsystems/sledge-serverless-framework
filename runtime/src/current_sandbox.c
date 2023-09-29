@@ -57,8 +57,8 @@ current_sandbox_exit()
         sandbox_send_response(exiting_sandbox, 0);
 		break;
 	case SANDBOX_RUNNING_SYS:
-		sandbox_exit_error(exiting_sandbox);
         sandbox_send_response(exiting_sandbox, 1);
+		sandbox_exit_error(exiting_sandbox);
 		break;
 	default:
 		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",

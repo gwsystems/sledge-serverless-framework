@@ -26,5 +26,6 @@ export LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH"
 #	--eval-command="run ../tests/fib.json" 
 #	./sledgert
 
-gdb --eval-command="handle all nostop" \
+gdb --eval-command="handle SIGUSR1 nostop" \
+    --eval-command="handle SIGUSR1 noprint" \
     ./sledgert
