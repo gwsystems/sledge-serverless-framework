@@ -54,15 +54,16 @@ current_sandbox_exit()
 	switch (exiting_sandbox->state) {
 	case SANDBOX_RETURNED:
 		sandbox_exit_success(exiting_sandbox);
+        sandbox_send_response(exiting_sandbox, 0);
 		break;
 	case SANDBOX_RUNNING_SYS:
 		sandbox_exit_error(exiting_sandbox);
+        sandbox_send_response(exiting_sandbox, 1);
 		break;
 	default:
 		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
 		      sandbox_state_stringify(exiting_sandbox->state));
 	}
-
 	scheduler_cooperative_sched(true);
 
 	/* The scheduler should never switch back to completed sandboxes */

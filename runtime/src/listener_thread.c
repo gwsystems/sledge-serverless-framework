@@ -39,15 +39,6 @@ _Atomic uint32_t free_workers[MAX_DISPATCHER] = {0}; // the index is the dispate
 					 // will be 111, then the free_workers[dispatcher_id] is 7
 
 
-/*thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE]; // the index is the request type
-								 // We implicitly represent the request 
-								 // execution time as long or short based 
-								 // on the value of the request type. 
-								 // For example, the execution time of 
-								 // request with type 1 is shorter than request
-								 // with type 2, that's reducing the sorting
-								 // cost of the typed queue
-*/
 struct request_typed_queue *request_type_queue[MAX_DISPATCHER][MAX_REQUEST_TYPE];
 
 thread_local uint32_t n_rtypes = 0;
@@ -458,7 +449,6 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
     }
 
 	uint8_t kMsgSize = 16;
-	//TODO: rpc_id is hardcode now
 
 	struct tenant *tenant = tenant_database_find_by_port(port);
 	assert(tenant != NULL);
@@ -675,7 +665,7 @@ void shinjuku_dequeue_selected_sandbox(int selected_queue_type) {
 
 /* Return selected sandbox and pop it out */
 struct sandbox * shinjuku_select_sandbox() {
-    float highest_priority = 0;
+    float highest_priority = -1;
     int selected_queue_idx = -1;
     struct sandbox *selected_sandbox = NULL;
 
@@ -730,24 +720,24 @@ void shinjuku_dispatch_different_core() {
                 return; // queue empty
             }
 
-			local_runqueue_add_index(worker_list[i], sandbox);
-			atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
+	        local_runqueue_add_index(worker_list[i], sandbox);
+	        atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
 	    } else { // core is busy
-            //check if the current sandbox is running longer than the specified time duration 
-            struct sandbox *current = current_sandboxes[worker_list[i]];
-            if (!current) continue; // In case that worker thread hasn't call current_sandbox_set to set the current sandbox
-            uint64_t duration = (__getcycles() - current->timestamp_of.last_state_change) / runtime_processor_speed_MHz;
-            if (duration >= 10 && current->state == SANDBOX_RUNNING_USER) {
-                //preempt the current sandbox and put it back the typed queue, select a new one to send to it    
-                struct sandbox *sandbox = shinjuku_select_sandbox();
-                if (sandbox == NULL) {
-                    return; // queue empty
-                }
-                local_runqueue_add_index(worker_list[i], sandbox);
-                //preempt worker
-                preempt_worker(worker_list[i]);
-            }
-        }
+            	//check if the current sandbox is running longer than the specified time duration 
+            	struct sandbox *current = current_sandboxes[worker_list[i]];
+            	if (!current) continue; // In case that worker thread hasn't call current_sandbox_set to set the current sandbox
+            	uint64_t duration = (__getcycles() - current->timestamp_of.last_state_change) / runtime_processor_speed_MHz;
+            	if (duration >= 10 && current->state == SANDBOX_RUNNING_USER) {
+                	//preempt the current sandbox and put it back the typed queue, select a new one to send to it    
+                	struct sandbox *sandbox = shinjuku_select_sandbox();
+                	if (sandbox == NULL) {
+                    		return; // queue empty
+                	}
+                	local_runqueue_add_index(worker_list[i], sandbox);
+                	//preempt worker
+                	preempt_worker(worker_list[i]);
+            	}
+          }
 	}
 }
 
@@ -773,7 +763,7 @@ void shinjuku_dispatch() {
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
             uint64_t duration = (__getcycles() - current->timestamp_of.last_state_change) / runtime_processor_speed_MHz;
-            if (duration >= 10 && current->state == SANDBOX_RUNNING_USER) {
+            if (duration >= 50 && current->state == SANDBOX_RUNNING_USER) {
                 int selected_queue_type = -1;
                 struct sandbox *sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
                 if (!sandbox) return; // queue is empty

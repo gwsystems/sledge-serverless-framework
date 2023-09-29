@@ -54,8 +54,6 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_totals_increment(SANDBOX_RETURNED);
 	sandbox_state_totals_decrement(last_state);
 
-	sandbox_send_response(sandbox, 0);
-
 	/* State Change Hooks */
 	sandbox_state_transition_from_hook(sandbox, last_state);
 	sandbox_state_transition_to_hook(sandbox, SANDBOX_RETURNED);

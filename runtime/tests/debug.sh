@@ -11,7 +11,7 @@ declare project_path="$(
 path=`pwd`
 echo $project_path
 cd $project_path/runtime/bin
-#export SLEDGE_DISABLE_PREEMPTION=true
+export SLEDGE_DISABLE_PREEMPTION=true
 export SLEDGE_SANDBOX_PERF_LOG=$path/srsf.log
 export SLEDGE_NWORKERS=9
 export SLEDGE_FIRST_WORKER_COREID=4
@@ -26,4 +26,5 @@ export LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH"
 #	--eval-command="run ../tests/fib.json" 
 #	./sledgert
 
-gdb ./sledgert
+gdb --eval-command="handle all nostop" \
+    ./sledgert

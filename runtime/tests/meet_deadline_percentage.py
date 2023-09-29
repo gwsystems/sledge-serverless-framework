@@ -54,6 +54,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	meet_deadline = 0
 	miss_deadline = 0
 	max_sc = 0
+	total_interrupts = 0;
 	fo = open(file_dir, "r+")
 	for line in fo:
 		line = line.strip()
@@ -99,6 +100,8 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 			#print("name:", name)
 		if "throughput" in line:
 			throughput = line.split(" ")[1]
+			interrupt = line.split(" ")[15]
+			total_interrupts += int(interrupt);
 		### calculate the execution time
 		#if "memory" in line or "total_time" in line or "min" in line or "miss" in line or "meet" in line or "time " in line or "scheduling count" in line or "thread id" in line:
                 #	continue
@@ -113,6 +116,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	print("total requests:", meet_deadline + miss_deadline)
 	print("miss deadline percentage:", miss_deadline_percentage)
 	print("throughput:", throughput)
+	print("total interrupts:", total_interrupts)
 
 	for key,value in request_counter.items():
 		print(key, ":", str(value), "proportion:", (100*value)/(meet_deadline + miss_deadline))
