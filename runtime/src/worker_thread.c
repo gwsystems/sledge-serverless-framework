@@ -18,6 +18,7 @@
 #include "worker_thread.h"
 #include "tenant_functions.h"
 #include "priority_queue.h"
+#include "local_preempted_fifo_queue.h"
 
 /***************************
  * Worker Thread State     *
@@ -87,6 +88,7 @@ worker_thread_main(void *argument)
 	perf_window_init();
 
 	scheduler_runqueue_initialize();
+	local_preempted_fifo_queue_init();
 
 	/* Initialize memory logging, set 100M memory for logging */
         mem_log_init2(1024*1024*1024, sandbox_perf_log);

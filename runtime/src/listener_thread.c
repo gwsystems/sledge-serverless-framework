@@ -16,11 +16,13 @@
 #include "http_session_perf_log.h"
 #include "sandbox_set_as_runnable.h"
 #include "request_typed_queue.h"
+#include "local_preempted_fifo_queue.h"
 
 struct perf_window * worker_perf_windows[1024];
 struct priority_queue * worker_queues[1024];
 struct binary_tree * worker_binary_trees[1024];
 struct ps_list_head * worker_lists[1024];
+struct request_fifo_queue * worker_preempted_queue[1024];
 
 extern _Atomic uint64_t worker_queuing_cost[1024]; 
 //struct sandbox *urgent_request[1024] = { NULL };
@@ -743,6 +745,16 @@ void shinjuku_dispatch_different_core() {
 
 void shinjuku_dispatch() {
     for (uint32_t i = 0; i < runtime_worker_group_size; ++i) {
+        /* move all preempted sandboxes from worker to dispatcher's typed queue */
+        struct request_fifo_queue * preempted_queue = worker_preempted_queue[worker_list[i]];
+	assert(preempted_queue != NULL);
+	uint64_t tsc = 0;
+        struct sandbox * preempted_sandbox = pop_worker_preempted_queue(worker_list[i], preempted_queue, &tsc);
+	while(preempted_sandbox != NULL) {
+	    uint8_t req_type = preempted_sandbox->route->request_type; 
+	    push_to_rqueue(dispatcher_thread_idx, preempted_sandbox, request_type_queue[dispatcher_thread_idx][req_type - 1], tsc, 1);
+	    preempted_sandbox = pop_worker_preempted_queue(worker_list[i], preempted_queue, &tsc);     
+	} 
         /* core is idle */
         if ((1 << i) & free_workers[dispatcher_thread_idx]) {
             int selected_queue_type = -1;

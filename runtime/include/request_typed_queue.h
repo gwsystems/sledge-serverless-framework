@@ -19,7 +19,7 @@ struct request_typed_queue {
     double ratio;
     struct sandbox *rqueue[RQUEUE_LEN];
     unsigned int rqueue_tail;
-    _Atomic unsigned int rqueue_head;
+    unsigned int rqueue_head;
     uint64_t tsqueue[RQUEUE_LEN];
 
     // Profiling variables

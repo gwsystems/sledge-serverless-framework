@@ -1,5 +1,4 @@
 #include <malloc.h>
-#include <stdatomic.h>
 #include <string.h>
 
 #include "panic.h"
@@ -13,7 +12,7 @@ request_typed_queue_init(uint8_t type, uint32_t n_resas) {
     queue->mean_ns = 0;
     queue->deadline = 0;
     queue->rqueue_tail = 0;
-    atomic_init(&queue->rqueue_head, 0);
+    queue->rqueue_head = 0;
     queue->n_resas = n_resas;
     for (unsigned int i = 0; i < n_resas; ++i) {
         queue->res_workers[i] = i;
@@ -35,16 +34,15 @@ request_typed_queue_init(uint8_t type, uint32_t n_resas) {
 int push_to_rqueue(uint8_t dispatcher_id, struct sandbox *sandbox, struct request_typed_queue *rtype, uint64_t tsc, int flag) {
     assert(sandbox != NULL);
 
-    uint32_t head = atomic_load(&rtype->rqueue_head);
+    uint32_t head = rtype->rqueue_head;
 
     if (unlikely(head - rtype->rqueue_tail == RQUEUE_LEN)) {
         panic("Dispatcher dropped request as type %hhu because queue is full\n", rtype->type);
         return -1;
     } else {
-        //PSP_DEBUG("Pushed one request to queue " << req_type_str[static_cast<int>(rtype.type)]);
-        uint32_t previous_head = atomic_fetch_add(&rtype->rqueue_head, 1);
-        rtype->tsqueue[previous_head & (RQUEUE_LEN - 1)] = tsc;
-        rtype->rqueue[previous_head & (RQUEUE_LEN - 1)] = sandbox;
+        rtype->tsqueue[head & (RQUEUE_LEN - 1)] = tsc;
+        rtype->rqueue[head & (RQUEUE_LEN - 1)] = sandbox;
+	rtype->rqueue_head++;
         return 0;
     }
 }
