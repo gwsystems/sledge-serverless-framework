@@ -77,6 +77,13 @@ local_runqueue_is_empty()
 }
 
 /**
+ * Get height if run queue is a binary search tree
+ */
+
+int local_runqueue_get_height() {
+	return local_runqueue.get_height_fn();
+}
+/**
  * Get next sandbox from run queue, where next is defined by
  * @returns sandbox (or NULL?)
  */

@@ -182,8 +182,6 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
-			interrupts++;
-            //printf("preempt\n");
 			scheduler_preemptive_sched(interrupted_context);
 		} else {
 			/* We transition the sandbox to an interrupted state to exclude time propagating signals and

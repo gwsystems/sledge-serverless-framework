@@ -83,7 +83,9 @@ struct sandbox {
 	int context_switch_to; /* 1 means context switch to base, 2 means context swtich to next sandbox */
 	uint64_t ret[5];
 	uint64_t estimated_cost; /* estimated execution cost */
-    int global_worker_thread_idx; /* which thread in a global view processes this sandbox. 
+        int global_worker_thread_idx; /* which thread in a global view processes this sandbox. 
                                     pause and restore the sandbox must be done in the same thread */
-    int group_worker_thread_idx; /* what's the thread index in the group */
+        int group_worker_thread_idx; /* what's the thread index in the group */
+        uint64_t start_ts_running_user; /* the start timestamp to run user, it will be updated when resume to run user */
+	
 } PAGE_ALIGNED;

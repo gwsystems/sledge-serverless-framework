@@ -774,8 +774,8 @@ void shinjuku_dispatch() {
             //check if the current sandbox is running longer than the specified time duration
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
-            uint64_t duration = (__getcycles() - current->timestamp_of.last_state_change) / runtime_processor_speed_MHz;
-            if (duration >= 50 && current->state == SANDBOX_RUNNING_USER) {
+            uint64_t duration = (__getcycles() - current->start_ts_running_user) / runtime_processor_speed_MHz;
+            if (duration >= 50 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
                 int selected_queue_type = -1;
                 struct sandbox *sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
                 if (!sandbox) return; // queue is empty

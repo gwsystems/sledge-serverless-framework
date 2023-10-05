@@ -29,6 +29,7 @@
 #include "listener_thread.h"
 #include "local_preempted_fifo_queue.h"
 
+extern thread_local uint32_t interrupts;
 extern thread_local bool pthread_stop;
 extern uint32_t runtime_worker_group_size;
 extern _Atomic uint32_t free_workers[10];
@@ -330,21 +331,30 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 
         /* Delete current sandbox from local queue if dispatcher is DISPATCHER_SHINJUKU */
         if (dispatcher == DISPATCHER_SHINJUKU) {
-            local_runqueue_delete(interrupted_sandbox);      
-            sandbox_preempt(interrupted_sandbox); 
-            // Write back global at idx 0
-            wasm_globals_set_i64(&interrupted_sandbox->globals, 0, sledge_abi__current_wasm_module_instance.abi.wasmg_0,
+            uint64_t duration = (__getcycles() - interrupted_sandbox->start_ts_running_user) / runtime_processor_speed_MHz;
+            if (duration >= 50 && local_runqueue_get_height() >= 1) {
+            	local_runqueue_delete(interrupted_sandbox);     
+            	sandbox_preempt(interrupted_sandbox); 
+            	// Write back global at idx 0
+            	wasm_globals_set_i64(&interrupted_sandbox->globals, 0, sledge_abi__current_wasm_module_instance.abi.wasmg_0,
                              true);
-            arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
-            int ret = push_to_preempted_queue(interrupted_sandbox, __getcycles());
-	    assert(ret != -1);
-
-            struct sandbox *next = scheduler_get_next();
-            /* next might be NULL because we delete the current sandbox from the runqueue */
-            if (next) {
-                scheduler_preemptive_switch_to(interrupted_context, next);
-            }
-            return;
+            	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
+            	int ret = push_to_preempted_queue(interrupted_sandbox, __getcycles());
+	    	assert(ret != -1);
+		
+		interrupts++;
+		struct sandbox *next = scheduler_get_next();
+		assert(next != NULL);
+               	scheduler_preemptive_switch_to(interrupted_context, next);
+	    } else {
+	    	/* current sandbox shouldn't be interrupted becuase it runs less than 50us, or it is the only sandbox in the 
+	       	   local runqueue, so return directly, the current context isn't switched and will resume when single handler
+		   returns 
+	         */
+                sandbox_interrupt_return(interrupted_sandbox, SANDBOX_RUNNING_USER);
+                return;
+	    }
+	    return;
         }
 
 	struct sandbox *next = scheduler_get_next();
@@ -371,6 +381,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	                     true);
 	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
 
+	interrupts++;
 	scheduler_preemptive_switch_to(interrupted_context, next);
 }
 
@@ -415,7 +426,6 @@ scheduler_switch_to_base_context(struct arch_context *current_context)
 	assert(worker_thread_base_context.variant == ARCH_CONTEXT_VARIANT_FAST);
 	arch_context_switch(current_context, &worker_thread_base_context);
 }
-
 
 /* The idle_loop is executed by the base_context. This should not be called directly */
 static inline void
@@ -538,11 +548,9 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 		    int virtual_id = global_worker_thread_idx - dispatcher_id * runtime_worker_group_size;	
 		    atomic_fetch_or(&free_workers[dispatcher_id], 1 << virtual_id);	
 	    }
-        //printf("finish one request\n");
-		scheduler_switch_to_base_context(exiting_context);
+            scheduler_switch_to_base_context(exiting_context);
 	}
 }
-
 
 static inline bool
 scheduler_worker_would_preempt(int worker_idx)
