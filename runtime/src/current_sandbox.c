@@ -140,6 +140,8 @@ current_sandbox_init()
 	/* Initialize sandbox globals. Needs to run in user state */
 	module_initialize_globals(current_module);
 
+	/* set start_ts_running_user for sandbox before it starts running */
+	sandbox->start_ts_running_user = __getcycles(); 
 	return sandbox;
 
 err:

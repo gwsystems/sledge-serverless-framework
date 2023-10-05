@@ -41,8 +41,10 @@ local_runqueue_binary_tree_is_empty()
 void
 local_runqueue_binary_tree_add(struct sandbox *sandbox)
 {
+	assert(sandbox != NULL);
+
 	lock_node_t node_lock = {};
-    lock_lock(&local_runqueue_binary_tree->lock, &node_lock);
+    	lock_lock(&local_runqueue_binary_tree->lock, &node_lock);
 	local_runqueue_binary_tree->root = insert(local_runqueue_binary_tree, local_runqueue_binary_tree->root, sandbox);
 	lock_unlock(&local_runqueue_binary_tree->lock, &node_lock);
 }
@@ -50,6 +52,8 @@ local_runqueue_binary_tree_add(struct sandbox *sandbox)
 void
 local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
 {
+	assert(sandbox != NULL);
+
 	struct binary_tree *binary_tree = worker_binary_trees[index];
 	lock_node_t node_lock = {};
 	lock_lock(&binary_tree->lock, &node_lock);
@@ -71,7 +75,12 @@ local_runqueue_binary_tree_delete(struct sandbox *sandbox)
 	bool deleted = false;
 	local_runqueue_binary_tree->root = delete_i(local_runqueue_binary_tree, local_runqueue_binary_tree->root, sandbox, &deleted);
 	lock_unlock(&local_runqueue_binary_tree->lock, &node_lock);
-	if (deleted == false) panic("Tried to delete sandbox %lu from runqueue, but was not present\n", sandbox->id);
+	if (deleted == false) { 
+		panic("Tried to delete sandbox %lu state %d from runqueue %p, but was not present\n", 
+		       sandbox->id, sandbox->state, local_runqueue_binary_tree);
+	}
+	   
+	
 }
 
 /**
@@ -122,6 +131,11 @@ local_runqueue_binary_tree_try_add_index(int index, struct sandbox *sandbox, boo
 
 }
 
+int local_runqueue_binary_tree_get_height() {
+	assert (local_runqueue_binary_tree != NULL);
+	return findHeight(local_runqueue_binary_tree->root); 
+}
+
 /**
  * Registers the PS variant with the polymorphic interface
  */
@@ -134,11 +148,13 @@ local_runqueue_binary_tree_initialize()
 	worker_binary_trees[global_worker_thread_idx] = local_runqueue_binary_tree;
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = { .add_fn         = local_runqueue_binary_tree_add,
-						                    .add_fn_idx     = local_runqueue_binary_tree_add_index,
-						                    .try_add_fn_idx = local_runqueue_binary_tree_try_add_index,
-		                                    .is_empty_fn    = local_runqueue_binary_tree_is_empty,
-		                                    .delete_fn      = local_runqueue_binary_tree_delete,
-		                                    .get_next_fn    = local_runqueue_binary_tree_get_next };
+						.add_fn_idx     = local_runqueue_binary_tree_add_index,
+						.try_add_fn_idx = local_runqueue_binary_tree_try_add_index,
+		                                .is_empty_fn    = local_runqueue_binary_tree_is_empty,
+		                                .delete_fn      = local_runqueue_binary_tree_delete,
+		                                .get_next_fn    = local_runqueue_binary_tree_get_next,
+					        .get_height_fn  = local_runqueue_binary_tree_get_height
+					      };
 
 	local_runqueue_initialize(&config);
 }

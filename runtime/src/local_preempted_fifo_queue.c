@@ -61,6 +61,7 @@ struct sandbox * pop_queue(struct request_fifo_queue * queue, uint64_t * tsc) {
     if (queue->rqueue_head > queue->rqueue_tail) {
         popped_sandbox = queue->rqueue[queue->rqueue_tail & (RQUEUE_QUEUE_LEN - 1)];
         *tsc = queue->tsqueue[queue->rqueue_tail & (RQUEUE_QUEUE_LEN - 1)];
+	queue->rqueue[queue->rqueue_tail & (RQUEUE_QUEUE_LEN - 1)] = NULL;
         queue->rqueue_tail++;
     }
 
