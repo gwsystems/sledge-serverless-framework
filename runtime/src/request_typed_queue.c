@@ -31,7 +31,7 @@ request_typed_queue_init(uint8_t type, uint32_t n_resas) {
 
 }
 
-int push_to_rqueue(uint8_t dispatcher_id, struct sandbox *sandbox, struct request_typed_queue *rtype, uint64_t tsc, int flag) {
+int push_to_rqueue(struct sandbox *sandbox, struct request_typed_queue *rtype, uint64_t tsc) {
     assert(sandbox != NULL);
 
     uint32_t head = rtype->rqueue_head;

@@ -34,7 +34,6 @@ extern thread_local bool pthread_stop;
 extern uint32_t runtime_worker_group_size;
 extern _Atomic uint32_t free_workers[10];
 extern thread_local int dispatcher_id;
-extern struct request_typed_queue *request_type_queue[MAX_DISPATCHER][MAX_REQUEST_TYPE];
 /**
  * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
  *
