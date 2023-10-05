@@ -55,10 +55,7 @@ sandbox_set_as_running_sys(struct sandbox *sandbox, sandbox_state_t last_state)
 static inline void
 sandbox_syscall(struct sandbox *sandbox)
 {
-	/* In SANDBOX_PREEMPTED state in case that call sandbox_preempt() first, but haven't done 
-	 * context switch to another sandbox 
-         */
-	assert(sandbox->state == SANDBOX_RUNNING_USER || sandbox->state == SANDBOX_PREEMPTED);
+	assert(sandbox->state == SANDBOX_RUNNING_USER);
 	sandbox_set_as_running_sys(sandbox, SANDBOX_RUNNING_USER);
 
 	sandbox_process_scheduler_updates(sandbox);

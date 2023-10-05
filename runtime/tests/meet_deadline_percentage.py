@@ -123,7 +123,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	for key,value in total_time_dist.items():
 		a = np.array(value)
 		p = np.percentile(a, int(percentage))
-		print(key + " " + percentage + " percentage is:" + str(p) + " mean is:" + str(np.mean(value)) + " max latency is:" + str(max_latency_dist[key]))
+		print(key + " " + percentage + " percentile is:" + str(p) + " mean is:" + str(np.mean(value)) + " max latency is:" + str(max_latency_dist[key]))
 	#total_cpu_times = 0
 	#for key,value in meet_deadline_dist.items():
 	#	total_cpu_times += value * fun_execution_time[key]
