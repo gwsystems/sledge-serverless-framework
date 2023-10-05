@@ -16,6 +16,7 @@
 #include "http_session_perf_log.h"
 #include "sandbox_set_as_runnable.h"
 #include "request_typed_queue.h"
+#include "request_typed_deque.h"
 #include "local_preempted_fifo_queue.h"
 
 struct perf_window * worker_perf_windows[1024];
@@ -42,6 +43,7 @@ _Atomic uint32_t free_workers[MAX_DISPATCHER] = {0}; // the index is the dispate
 
 
 thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE];
+thread_local struct request_typed_deque *request_type_deque[MAX_REQUEST_TYPE];
 
 thread_local uint32_t n_rtypes = 0;
 
@@ -535,7 +537,7 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
  * @param msg the payload of the rpc request. It is the input parameter fot the function
  * @param size the size of the msg
  */
-void darc_shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
 	if (first_request_comming == false){
                 t_start = time(NULL);
                 first_request_comming = true;
@@ -585,6 +587,62 @@ void darc_shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
 }
 
 
+/**
+ * @brief Request routing function
+ * @param req_handle used by eRPC internal, it is used to send out the response packet
+ * @param req_type the type of the request. Each function has a unique reqest type id
+ * @param msg the payload of the rpc request. It is the input parameter fot the function
+ * @param size the size of the msg
+ */
+void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+	if (first_request_comming == false){
+                t_start = time(NULL);
+                first_request_comming = true;
+        }
+
+        uint8_t kMsgSize = 16;
+        //TODO: rpc_id is hardcode now
+
+        struct tenant *tenant = tenant_database_find_by_port(port);
+        assert(tenant != NULL);
+        struct route *route = http_router_match_request_type(&tenant->router, req_type);
+        if (route == NULL) {
+                debuglog("Did not match any routes\n");
+                dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR));
+                return;
+        }
+
+        /*
+         * Perform admissions control.
+         * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+         * TODO: Consider providing a Retry-After header
+         */
+        uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+        if (work_admitted == 0) {
+                dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+                return;
+        }
+
+        /* Allocate a Sandbox */
+        //session->state          = HTTP_SESSION_EXECUTING;
+        struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+        if (unlikely(sandbox == NULL)) {
+                debuglog("Failed to allocate sandbox\n");
+                dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
+                return;
+        }
+
+        /* copy the received data since it will be released by erpc */
+        sandbox->rpc_request_body = malloc(size);
+        if (!sandbox->rpc_request_body) {
+                panic("malloc request body failed\n");
+        }
+
+        memcpy(sandbox->rpc_request_body, msg, size);
+        sandbox->rpc_request_body_size = size;
+	insertrear(request_type_deque[req_type -1], sandbox, __getcycles());
+}
+
 void drain_queue(struct request_typed_queue *rtype) {
     assert(rtype != NULL);
     /* queue is not empty and there is free workers */
@@ -632,20 +690,20 @@ struct sandbox * shinjuku_peek_selected_sandbox(int *selected_queue_idx) {
     struct sandbox *selected_sandbox = NULL;
 
     for (uint32_t i = 0; i < n_rtypes; ++i) {
-	    if (request_type_queue[i]->rqueue_head > request_type_queue[i]->rqueue_tail) {
-	    //get the tail sandbox of the queue
-            struct sandbox *sandbox = request_type_queue[i]->rqueue[request_type_queue[i]->rqueue_tail & (RQUEUE_LEN - 1)];	
-            assert(sandbox != NULL);
-
-            uint64_t ts = request_type_queue[i]->tsqueue[request_type_queue[i]->rqueue_tail & (RQUEUE_LEN - 1)];
-            uint64_t dt = __getcycles() - ts;
-            float priority = (float)dt / (float)sandbox->route->relative_deadline;
-            if (priority > highest_priority) {
-                highest_priority = priority;
-                *selected_queue_idx = i;
-                selected_sandbox = sandbox;
-            }
-	    }
+        if (isEmpty(request_type_deque[i]))
+            continue;
+        uint64_t ts = 0;
+	/* get the front sandbox of the deque */
+        struct sandbox *sandbox = getFront(request_type_deque[i], &ts);
+        assert(sandbox != NULL);
+        uint64_t dt = __getcycles() - ts;
+        float priority = (float)dt / (float)sandbox->route->relative_deadline;
+        if (priority > highest_priority) {
+            highest_priority = priority;
+            *selected_queue_idx = i;
+            selected_sandbox = sandbox;
+        }
+	    
     }
 
     return selected_sandbox;
@@ -654,9 +712,7 @@ struct sandbox * shinjuku_peek_selected_sandbox(int *selected_queue_idx) {
 
 void shinjuku_dequeue_selected_sandbox(int selected_queue_type) {
     assert(selected_queue_type >= 0 && selected_queue_type < MAX_REQUEST_TYPE);
-    /* set the array slot to NULL because the sandbox is popped out */
-    request_type_queue[selected_queue_type]->rqueue[request_type_queue[selected_queue_type]->rqueue_tail & (RQUEUE_LEN - 1)] = NULL;
-    request_type_queue[selected_queue_type]->rqueue_tail++;
+    deletefront(request_type_deque[selected_queue_type]);
 }
 
 /* Return selected sandbox and pop it out */
@@ -666,26 +722,23 @@ struct sandbox * shinjuku_select_sandbox() {
     struct sandbox *selected_sandbox = NULL;
 
     for (uint32_t i = 0; i < n_rtypes; ++i) {
-	    if (request_type_queue[i]->rqueue_head > request_type_queue[i]->rqueue_tail) {
-	    //get the tail sandbox of the queue
-            struct sandbox *sandbox = request_type_queue[i]->rqueue[request_type_queue[i]->rqueue_tail & (RQUEUE_LEN - 1)];	
-            assert(sandbox != NULL); 
-
-            uint64_t ts = request_type_queue[i]->tsqueue[request_type_queue[i]->rqueue_tail & (RQUEUE_LEN - 1)];
-            uint64_t dt = __getcycles() - ts;
-            float priority = (float)dt / (float)sandbox->route->relative_deadline;
-            if (priority > highest_priority) {
-                highest_priority = priority;
-                selected_queue_idx = i;
-                selected_sandbox = sandbox;
-            }
-	    }
+        if (isEmpty(request_type_deque[i]))
+            continue;
+        uint64_t ts = 0;
+        /* get the front sandbox of the deque */
+        struct sandbox *sandbox = getFront(request_type_deque[i], &ts);
+        assert(sandbox != NULL);
+        uint64_t dt = __getcycles() - ts;
+        float priority = (float)dt / (float)sandbox->route->relative_deadline;
+        if (priority > highest_priority) {
+            highest_priority = priority;
+            selected_queue_idx = i;
+            selected_sandbox = sandbox;
+        }
     }
 
     if (selected_sandbox != NULL) {
-        /* set the array slot to NULL because the sandbox is popped out */
-        request_type_queue[selected_queue_idx]->rqueue[request_type_queue[selected_queue_idx]->rqueue_tail & (RQUEUE_LEN - 1)] = NULL;
-        request_type_queue[selected_queue_idx]->rqueue_tail++;
+        deletefront(request_type_deque[selected_queue_idx]);
     }
 
     return selected_sandbox;
@@ -740,7 +793,8 @@ void shinjuku_dispatch() {
         struct sandbox * preempted_sandbox = pop_worker_preempted_queue(worker_list[i], preempted_queue, &tsc);
 	while(preempted_sandbox != NULL) {
 	    uint8_t req_type = preempted_sandbox->route->request_type; 
-	    push_to_rqueue(preempted_sandbox, request_type_queue[req_type - 1], tsc);
+	    insertfront(request_type_deque[req_type - 1], preempted_sandbox, tsc);
+	    //insertrear(request_type_deque[req_type - 1], preempted_sandbox, tsc);
 	    preempted_sandbox = pop_worker_preempted_queue(worker_list[i], preempted_queue, &tsc);     
 	} 
         /* core is idle */

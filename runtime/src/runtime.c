@@ -30,7 +30,6 @@
 
 /* Count of the total number of requests we've ever received. Never decrements as it is used to dispatch requests to workers with RR */
 _Atomic uint64_t request_index;
-extern struct request_typed_queue *request_type_queue[MAX_DISPATCHER][MAX_REQUEST_TYPE];
 pthread_t *runtime_worker_threads;
 pthread_t *runtime_listener_threads;
 int       *runtime_worker_threads_argument;

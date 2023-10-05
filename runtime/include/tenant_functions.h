@@ -14,10 +14,12 @@
 #include "priority_queue.h"
 #include "sandbox_functions.h"
 #include "request_typed_queue.h"
+#include "request_typed_deque.h"
 #include "memlogging.h"
 
 extern thread_local uint32_t n_rtypes;
 extern thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE];
+extern thread_local struct request_typed_deque *request_type_deque[MAX_REQUEST_TYPE];
 extern thread_local uint8_t dispatcher_thread_idx;
 extern thread_local struct perf_window perf_window_per_thread[1024];
 extern thread_local int global_worker_thread_idx;
@@ -193,6 +195,8 @@ tenant_request_typed_queue_init(struct tenant *tenant, void *arg1, void *arg2) {
 	for(int i = 0; i < tenant->routes_len; i++) {
 		request_type_queue[tenant->routes_config[i].request_type - 1] = 
 		request_typed_queue_init(tenant->routes_config[i].request_type, tenant->routes_config[i].n_resas);		
+		request_type_deque[tenant->routes_config[i].request_type - 1] =
+		request_typed_deque_init(tenant->routes_config[i].request_type, 4096);
 	}
 	n_rtypes = tenant->routes_len;
 }
