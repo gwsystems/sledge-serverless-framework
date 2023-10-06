@@ -213,7 +213,7 @@ scheduler_runqueue_initialize()
 		local_runqueue_mtds_initialize();
 		break;
 	case SCHEDULER_EDF:
-		if (dispatcher == DISPATCHER_SHINJUKU) {
+		if (dispatcher == DISPATCHER_SHINJUKU || dispatcher == DISPATCHER_DARC) {
 			local_runqueue_circular_queue_initialize();	
 		} else {
 			//local_runqueue_minheap_initialize();
