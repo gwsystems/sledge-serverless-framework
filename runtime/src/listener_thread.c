@@ -756,32 +756,43 @@ void darc_dispatch() {
 }
 
 void shinjuku_dispatch_different_core() {
-	for (uint32_t i = 0; i < runtime_worker_group_size; ++i) {
-	    if ((1 << i) & free_workers[dispatcher_thread_idx]) { 
-	        struct sandbox *sandbox = shinjuku_select_sandbox();
-            if (sandbox == NULL) {
-                return; // queue empty
-            }
+    for (uint32_t i = 0; i < runtime_worker_group_size; ++i) {
+        /* move all preempted sandboxes from worker to dispatcher's typed queue */
+        struct request_fifo_queue * preempted_queue = worker_preempted_queue[worker_list[i]];
+        assert(preempted_queue != NULL);
+        uint64_t tsc = 0;
+        struct sandbox * preempted_sandbox = pop_worker_preempted_queue(worker_list[i], preempted_queue, &tsc);
+        while(preempted_sandbox != NULL) {
+            uint8_t req_type = preempted_sandbox->route->request_type;
+            insertfront(request_type_deque[req_type - 1], preempted_sandbox, tsc);
+            preempted_sandbox = pop_worker_preempted_queue(worker_list[i], preempted_queue, &tsc);
+        }
 
-	        local_runqueue_add_index(worker_list[i], sandbox);
-	        atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
-	    } else { // core is busy
-            	//check if the current sandbox is running longer than the specified time duration 
-            	struct sandbox *current = current_sandboxes[worker_list[i]];
-            	if (!current) continue; // In case that worker thread hasn't call current_sandbox_set to set the current sandbox
-            	uint64_t duration = (__getcycles() - current->timestamp_of.last_state_change) / runtime_processor_speed_MHz;
-            	if (duration >= 10 && current->state == SANDBOX_RUNNING_USER) {
-                	//preempt the current sandbox and put it back the typed queue, select a new one to send to it    
-                	struct sandbox *sandbox = shinjuku_select_sandbox();
-                	if (sandbox == NULL) {
-                    		return; // queue empty
-                	}
-                	local_runqueue_add_index(worker_list[i], sandbox);
-                	//preempt worker
-                	preempt_worker(worker_list[i]);
-            	}
-          }
-	}
+        /* core is idle */
+        if ((1 << i) & free_workers[dispatcher_thread_idx]) {
+            struct sandbox *sandbox = shinjuku_select_sandbox();
+            if (!sandbox) return; // queue is empty
+
+            local_runqueue_add_index(worker_list[i], sandbox);
+            atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
+        } else { // core is busy
+            //check if the current sandbox is running longer than the specified time duration
+            struct sandbox *current = current_sandboxes[worker_list[i]];
+            if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
+            uint64_t duration = (__getcycles() - current->start_ts_running_user) / runtime_processor_speed_MHz;
+            if (duration >= 400 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
+                struct sandbox *sandbox = shinjuku_select_sandbox();
+                if (!sandbox) return; // queue is empty
+
+                //preempt the current sandbox and put it back the typed queue, select a new one to send to it
+                local_runqueue_add_index(worker_list[i], sandbox);
+                //preempt worker
+                preempt_worker(worker_list[i]);
+            }
+        }
+
+    }
+
 }
 
 void shinjuku_dispatch() {
@@ -799,33 +810,28 @@ void shinjuku_dispatch() {
 	} 
         /* core is idle */
         if ((1 << i) & free_workers[dispatcher_thread_idx]) {
-            int selected_queue_type = -1;
-            struct sandbox *sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
+            struct sandbox *sandbox = shinjuku_select_sandbox();
             if (!sandbox) return; // queue is empty
             while (sandbox->global_worker_thread_idx != -1) {
                 local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
-                shinjuku_dequeue_selected_sandbox(selected_queue_type);
-                sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
+                sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return;
             }
                 
             local_runqueue_add_index(worker_list[i], sandbox);
             atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
-            shinjuku_dequeue_selected_sandbox(selected_queue_type);
         } else { // core is busy
             //check if the current sandbox is running longer than the specified time duration
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
             uint64_t duration = (__getcycles() - current->start_ts_running_user) / runtime_processor_speed_MHz;
             if (duration >= 50 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
-                int selected_queue_type = -1;
-                struct sandbox *sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
+                struct sandbox *sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return; // queue is empty
 
                 while (sandbox->global_worker_thread_idx != -1) {
                     local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
-                    shinjuku_dequeue_selected_sandbox(selected_queue_type);
-                    sandbox = shinjuku_peek_selected_sandbox(&selected_queue_type);
+                    sandbox = shinjuku_select_sandbox();
                     if (!sandbox) return;
                 }
 
@@ -833,7 +839,6 @@ void shinjuku_dispatch() {
                 local_runqueue_add_index(worker_list[i], sandbox);
                 //preempt worker
                 preempt_worker(worker_list[i]);
-                shinjuku_dequeue_selected_sandbox(selected_queue_type);
             }
         }
             

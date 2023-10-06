@@ -107,11 +107,11 @@ sandbox_init_response_body(struct sandbox *sandbox)
  */
 int
 sandbox_prepare_execution_environment(struct sandbox *sandbox)
-{
+{   
 	assert(sandbox != NULL);
 
-    sandbox->global_worker_thread_idx = global_worker_thread_idx;
-    sandbox->group_worker_thread_idx = group_worker_thread_idx;
+    	sandbox->global_worker_thread_idx = global_worker_thread_idx;
+    	sandbox->group_worker_thread_idx = group_worker_thread_idx;
 
 	char *error_message = "";
 

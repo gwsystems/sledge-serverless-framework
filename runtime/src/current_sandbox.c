@@ -135,13 +135,18 @@ current_sandbox_init()
 	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
 	assert(sandbox->wasi_context != NULL);
 
+	/* Set start_ts_running_user for sandbox before it starts running 
+	   This setting must be done before sandbox_return() because after sandbox_return(),
+	   state becomes running_user, which can be interrupted, howerver, if start_ts_running_user
+           wasn't set, then shinjuku will interrupt the sandbox immediately because start_ts_running_user
+           is 0, and the specified time interval to interrupt the sandbox is less than the big value    
+	*/
+	sandbox->start_ts_running_user = __getcycles(); 
 	sandbox_return(sandbox);
-
-	/* Initialize sandbox globals. Needs to run in user state */
+	
+        /* Initialize sandbox globals. Needs to run in user state */
 	module_initialize_globals(current_module);
 
-	/* set start_ts_running_user for sandbox before it starts running */
-	sandbox->start_ts_running_user = __getcycles(); 
 	return sandbox;
 
 err:
