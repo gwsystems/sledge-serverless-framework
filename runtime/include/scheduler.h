@@ -12,6 +12,7 @@
 #include "local_runqueue.h"
 #include "local_runqueue_minheap.h"
 #include "local_runqueue_binary_tree.h"
+#include "local_runqueue_circular_queue.h"
 #include "local_runqueue_list.h"
 #include "local_cleanup_queue.h"
 #include "local_runqueue_mtds.h"
@@ -131,7 +132,7 @@ scheduler_edf_get_next()
 			local->timestamp_of.last_state_change =  now;
 			/* end by xiaosu */
 			sandbox_prepare_execution_environment(local);
-            //printf("sandbox state %d\n", local->state);
+                        //printf("sandbox state %d\n", local->state);
 			assert(local->state == SANDBOX_INITIALIZED);
 			sandbox_set_as_runnable(local, SANDBOX_INITIALIZED);
 		}
@@ -212,8 +213,12 @@ scheduler_runqueue_initialize()
 		local_runqueue_mtds_initialize();
 		break;
 	case SCHEDULER_EDF:
-		//local_runqueue_minheap_initialize();
-		local_runqueue_binary_tree_initialize();
+		if (dispatcher == DISPATCHER_SHINJUKU) {
+			local_runqueue_circular_queue_initialize();	
+		} else {
+			//local_runqueue_minheap_initialize();
+			local_runqueue_binary_tree_initialize();
+		}
 		break;
 	case SCHEDULER_FIFO:
 		local_runqueue_list_initialize();
@@ -331,7 +336,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
         /* Delete current sandbox from local queue if dispatcher is DISPATCHER_SHINJUKU */
         if (dispatcher == DISPATCHER_SHINJUKU) {
             uint64_t duration = (__getcycles() - interrupted_sandbox->start_ts_running_user) / runtime_processor_speed_MHz;
-            if (duration >= 50 && local_runqueue_get_height() >= 1) {
+            if (duration >= 50 && local_runqueue_get_length() > 1) {
             	local_runqueue_delete(interrupted_sandbox);     
             	sandbox_preempt(interrupted_sandbox); 
             	// Write back global at idx 0

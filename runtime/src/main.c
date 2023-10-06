@@ -262,10 +262,10 @@ runtime_configure()
 	} else if (strcmp(dispatcher_policy, "EDF_INTERRUPT") == 0) {
 		dispatcher = DISPATCHER_EDF_INTERRUPT;
 	} else if (strcmp(dispatcher_policy, "SHINJUKU") == 0) {
-        dispatcher = DISPATCHER_SHINJUKU;
-    } else {
+        	dispatcher = DISPATCHER_SHINJUKU;
+    	} else {
 		panic("Invalid dispatcher policy: %s. Must be {EDF_INTERRUPT|DARC|SHINJUKU\n", dispatcher_policy);
-	}
+    	}
 	pretty_print_key_value("Dispatcher Policy", "%s\n", dispatcher_print(dispatcher));
 
 	/* Sigalrm Handler Technique */

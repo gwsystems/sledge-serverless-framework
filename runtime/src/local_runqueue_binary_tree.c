@@ -14,8 +14,6 @@
 #include "runtime.h"
 
 extern thread_local int global_worker_thread_idx;
-extern struct perf_window * worker_perf_windows[1024]; /* index is thread id, each queue's perf windows, each queue can 
-							  have multiple perf windows */
 extern struct sandbox* current_sandboxes[1024];
 extern struct binary_tree *worker_binary_trees[1024];
 thread_local static struct binary_tree *local_runqueue_binary_tree = NULL;

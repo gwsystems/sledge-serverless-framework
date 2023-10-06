@@ -73,12 +73,12 @@ worker_thread_main(void *argument)
 	/* Index was passed via argument */
 	global_worker_thread_idx = *(int *)argument;
 
-    /* Set dispatcher id for this worker */
-    dispatcher_id = global_worker_thread_idx / runtime_worker_group_size;
+	/* Set dispatcher id for this worker */
+	dispatcher_id = global_worker_thread_idx / runtime_worker_group_size;
 
-    group_worker_thread_idx = global_worker_thread_idx - dispatcher_id * runtime_worker_group_size;
+	group_worker_thread_idx = global_worker_thread_idx - dispatcher_id * runtime_worker_group_size;
 
-    printf("global thread %d's dispatcher id is %d group size is %d group id is %d\n", global_worker_thread_idx, 
+	printf("global thread %d's dispatcher id is %d group size is %d group id is %d\n", global_worker_thread_idx, 
             dispatcher_id, runtime_worker_group_size, group_worker_thread_idx);
 	/* Set my priority */
 	// runtime_set_pthread_prio(pthread_self(), 2);

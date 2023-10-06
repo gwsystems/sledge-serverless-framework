@@ -22,6 +22,7 @@
 struct perf_window * worker_perf_windows[1024];
 struct priority_queue * worker_queues[1024];
 struct binary_tree * worker_binary_trees[1024];
+struct request_fifo_queue * worker_circular_queue[1024];
 struct ps_list_head * worker_lists[1024];
 struct request_fifo_queue * worker_preempted_queue[1024];
 
@@ -780,7 +781,7 @@ void shinjuku_dispatch_different_core() {
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
             uint64_t duration = (__getcycles() - current->start_ts_running_user) / runtime_processor_speed_MHz;
-            if (duration >= 400 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
+            if (duration >= 50 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
                 struct sandbox *sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return; // queue is empty
 

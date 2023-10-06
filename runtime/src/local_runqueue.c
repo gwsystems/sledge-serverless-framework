@@ -83,6 +83,13 @@ local_runqueue_is_empty()
 int local_runqueue_get_height() {
 	return local_runqueue.get_height_fn();
 }
+
+/**
+ * Get total count of items in the queue 
+ */
+int local_runqueue_get_length() {
+	return local_runqueue.get_length_fn();
+}
 /**
  * Get next sandbox from run queue, where next is defined by
  * @returns sandbox (or NULL?)
