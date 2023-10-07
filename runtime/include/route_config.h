@@ -28,6 +28,7 @@ struct route_config {
 	char    *path;
 	uint8_t  admissions_percentile;
 	uint32_t expected_execution_us;
+	uint64_t expected_execution_cycle; /* exepected exectuion in cycle */
 	uint32_t relative_deadline_us;
 	char    *http_resp_content_type;
 };

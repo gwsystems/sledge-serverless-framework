@@ -39,6 +39,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 		               .relative_deadline_us = config->relative_deadline_us,
 		               .relative_deadline    = (uint64_t)config->relative_deadline_us
 		                                    * runtime_processor_speed_MHz,
+			       .expected_execution_cycle = config->expected_execution_cycle, 
 		               .response_content_type = config->http_resp_content_type };
 
 	route_latency_init(&route.latency);

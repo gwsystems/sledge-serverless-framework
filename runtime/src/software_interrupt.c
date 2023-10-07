@@ -177,6 +177,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			}
 		} else if (current_sandbox_is_preemptable()) {
 			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
+			/* sandbox_interrupt means the sandbox stopped, but might be resume very soon. If
+ 			   deciding preempt the sandbox for a while, then will call sandbox_preempt */
 			sandbox_interrupt(current_sandbox);
 			if (scheduler == SCHEDULER_MTDS && signal_info->si_code == SI_KERNEL) {
 				/* Global tenant promotions */

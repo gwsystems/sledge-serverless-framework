@@ -99,6 +99,8 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			                        route_config_json_keys[route_config_member_expected_execution_us],
 			                        &config->expected_execution_us);
 			if (rc < 0) return -1;
+			config->expected_execution_cycle = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz; 
+			assert(config->expected_execution_cycle != 0);
 		} else if (strcmp(key, route_config_json_keys[route_config_member_relative_deadline_us]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
 			if (route_config_set_key_once(did_set, route_config_member_relative_deadline_us) == -1)

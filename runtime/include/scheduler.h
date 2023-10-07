@@ -269,6 +269,7 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
 {
 	/* Switch to next sandbox */
 	switch (next->ctxt.variant) {
+	/* This sandbox is a new sandbox */
 	case ARCH_CONTEXT_VARIANT_FAST: {
 		assert(next->state == SANDBOX_RUNNABLE);
 		arch_context_restore_fast(&interrupted_context->uc_mcontext, &next->ctxt);
@@ -276,6 +277,7 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
 		sandbox_set_as_running_sys(next, SANDBOX_RUNNABLE);
 		break;
 	}
+	/* This sandbox is a preempted sandbox */
 	case ARCH_CONTEXT_VARIANT_SLOW: {
 		assert(next->state == SANDBOX_PREEMPTED);
 		arch_context_restore_slow(&interrupted_context->uc_mcontext, &next->ctxt);
@@ -366,8 +368,8 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
         /* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
 	assert(next != NULL);
 
-	/* If current equals next, no switch is necessary, so resume execution */
-	if (interrupted_sandbox == next) {
+	/* If current equals next, no switch is necessary, or its RS <= 0, just resume execution */
+	if (interrupted_sandbox == next || interrupted_sandbox->srsf_remaining_slack <= 0) {
 		sandbox_interrupt_return(interrupted_sandbox, SANDBOX_RUNNING_USER);
 		return;
 	}

@@ -195,6 +195,8 @@ current_sandbox_start(void)
 	int rc = sigsetjmp(sandbox->ctxt.start_buf, 1);
 	if (rc == 0) {
 		struct module *current_module = sandbox_get_module(sandbox);
+		/* Sandbox starts running, update its RS */ 
+		sandbox->srsf_remaining_slack = sandbox->srsf_remaining_slack - (__getcycles() - sandbox->srsf_stop_running_ts);
 		sandbox->return_value         = module_entrypoint(current_module);
 	} else {
 		current_sandbox_wasm_trap_handler(rc);

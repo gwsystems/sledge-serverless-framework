@@ -29,8 +29,8 @@ admissions_info_initialize(struct admissions_info *admissions_info, uint8_t perc
 #ifdef LOG_ADMISSIONS_CONTROL
 	debuglog("Percentile: %u\n", admissions_info->percentile);
 	debuglog("Control Index: %d\n", admissions_info->control_index);
-//#endif
 #endif
+//#endif
 }
 
 void perf_window_per_thread_update(struct admissions_info *admissions_info, uint64_t execution_duration) {

@@ -448,15 +448,15 @@ on_client_socket_epoll_event(struct epoll_event *evt)
  */
 void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
 
-	if (first_request_comming == false){
+    if (first_request_comming == false){
         t_start = time(NULL);
         first_request_comming = true;
     }
 
-	uint8_t kMsgSize = 16;
+    uint8_t kMsgSize = 16;
 
-	struct tenant *tenant = tenant_database_find_by_port(port);
-	assert(tenant != NULL);
+    struct tenant *tenant = tenant_database_find_by_port(port);
+    assert(tenant != NULL);
     struct route *route = http_router_match_request_type(&tenant->router, req_type);
     if (route == NULL) {
         debuglog("Did not match any routes\n");
@@ -484,51 +484,52 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
         return;
     }
 
-	/* copy the received data since it will be released by erpc */
-	sandbox->rpc_request_body = malloc(size);
-	if (!sandbox->rpc_request_body) {
-		panic("malloc request body failed\n");
-	}
+    /* copy the received data since it will be released by erpc */
+    sandbox->rpc_request_body = malloc(size);
+    if (!sandbox->rpc_request_body) {
+        panic("malloc request body failed\n");
+    }
 
-	memcpy(sandbox->rpc_request_body, msg, size);
-	sandbox->rpc_request_body_size = size;
+    memcpy(sandbox->rpc_request_body, msg, size);
+    sandbox->rpc_request_body_size = size;
 
-	uint64_t min_waiting_serving_time = UINT64_MAX;
-	int thread_id = 0;
-	int candidate_thread_with_interrupt = -1;
+    uint64_t min_waiting_serving_time = UINT64_MAX;
+    int thread_id = 0; /* This thread can server the request by waiting for a while */
+    int candidate_thread_with_interrupt = -1; /* This thread can server the request immediately by interrupting 
+					         the current one */
 
-	for (uint32_t i = worker_start_id; i < worker_end_id; i++) {
-		bool need_interrupt;
-		uint64_t waiting_serving_time = local_runqueue_try_add_index(i, sandbox, &need_interrupt);
-		/* The local queue is empty, the worker is idle, can be served this request immediately 
-		 * without interrupting 
-		 */
-		if (waiting_serving_time == 0 && need_interrupt == false) {
-			local_runqueue_add_index(i, sandbox);
-			return;
-		} else if (waiting_serving_time == 0 && need_interrupt == true) {//The worker can serve the request immediately
+    for (uint32_t i = worker_start_id; i < worker_end_id; i++) {
+        bool need_interrupt;
+        uint64_t waiting_serving_time = local_runqueue_try_add_index(i, sandbox, &need_interrupt);
+	/* The local queue is empty, the worker is idle, can be served this request immediately 
+         * without interrupting 
+         */
+        if (waiting_serving_time == 0 && need_interrupt == false) {
+            local_runqueue_add_index(i, sandbox);
+            return;
+        } else if (waiting_serving_time == 0 && need_interrupt == true) {//The worker can serve the request immediately
 									// by interrupting the current one
-			/* We already have a candidate thread, continue to find a 
-			 * better thread without needing interrupt
-			 */
-			if (candidate_thread_with_interrupt != -1) {
-				continue;
-			} else {
-				candidate_thread_with_interrupt = i;
-			}
-		} else if (min_waiting_serving_time > waiting_serving_time) {
-			min_waiting_serving_time = waiting_serving_time;
-			thread_id = i;	
-		} 
-	} 
+            /* We already have a candidate thread, continue to find a 
+             * better thread without needing interrupt
+             */
+            if (candidate_thread_with_interrupt != -1) {
+                continue;
+            } else {
+                candidate_thread_with_interrupt = i;
+            }
+        } else if (min_waiting_serving_time > waiting_serving_time) {
+            min_waiting_serving_time = waiting_serving_time;
+            thread_id = i;	
+        } 
+    } 
 	
-	if (candidate_thread_with_interrupt != -1) {
-		//urgent_request[candidate_thread_with_interrupt] = sandbox;
-		local_runqueue_add_index(candidate_thread_with_interrupt, sandbox);
-		preempt_worker(candidate_thread_with_interrupt);
-	} else {
-		local_runqueue_add_index(thread_id, sandbox);
-	}
+    if (candidate_thread_with_interrupt != -1) {
+        //urgent_request[candidate_thread_with_interrupt] = sandbox;
+        local_runqueue_add_index(candidate_thread_with_interrupt, sandbox);
+        preempt_worker(candidate_thread_with_interrupt);
+    } else {
+        local_runqueue_add_index(thread_id, sandbox);
+    }
 }
 
 /**

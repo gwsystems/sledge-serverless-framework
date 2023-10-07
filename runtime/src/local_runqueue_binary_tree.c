@@ -57,6 +57,27 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
 	lock_lock(&binary_tree->lock, &node_lock);
 	binary_tree->root = insert(binary_tree, binary_tree->root, sandbox);
 	lock_unlock(&binary_tree->lock, &node_lock);
+
+	/* Set estimated exeuction time for the sandbox */
+        uint32_t uid = sandbox->route->admissions_info.uid;
+        uint64_t estimated_execute_cost = perf_window_get_percentile(&worker_perf_windows[index][uid],
+                                                                     sandbox->route->admissions_info.percentile,
+                                                                     sandbox->route->admissions_info.control_index);
+        /* Use expected execution time in the configuration file as the esitmated execution time 
+           if estimated_execute_cost is 0 
+         */
+        if (estimated_execute_cost == 0) {
+            estimated_execute_cost = sandbox->route->expected_execution_cycle;
+	} 
+        sandbox->estimated_cost = estimated_execute_cost;
+	/* Record TS and calcuate RS. SRSF algo:
+           1. When reqeust arrives to the queue, record TS and calcuate RS. RS = deadline - execution time
+           2. When request starts running, update RS
+           3. When request stops, update TS
+           4. When request resumes, update RS 
+        */
+	sandbox->srsf_stop_running_ts = __getcycles();
+	sandbox->srsf_remaining_slack = sandbox->route->relative_deadline - sandbox->estimated_cost;
 }
 
 /**
@@ -111,17 +132,24 @@ local_runqueue_binary_tree_try_add_index(int index, struct sandbox *sandbox, boo
 {
 	struct binary_tree *binary_tree = worker_binary_trees[index];
 	if (is_empty(binary_tree)) {
+		/* The worker is idle */
 		*need_interrupt = false;
 		return 0;
-	} else if (current_sandboxes[index] != NULL && sandbox_is_preemptable(current_sandboxes[index]) == true && 
-		sandbox_get_priority(sandbox) < sandbox_get_priority(current_sandboxes[index])) {
+	} else if (current_sandboxes[index] != NULL &&
+		   current_sandboxes[index]->srsf_remaining_slack > 0 && 
+		   sandbox_is_preemptable(current_sandboxes[index]) == true && 
+		   sandbox_get_priority(sandbox) < sandbox_get_priority(current_sandboxes[index])) {
+		/* The new one has a higher priority than the current one, need to interrupt the current one */
 		*need_interrupt = true;
 		return 0;
 	} else {
+		/* Current sandbox cannot be interrupted because its priority is higher or its RS is 0, just find
+                   a right location to add the new sandbox to the tree 
+		*/
 		need_interrupt = false;
 		uint64_t waiting_serving_time = 0;
 		lock_node_t node_lock = {};
-    	lock_lock(&binary_tree->lock, &node_lock);
+    		lock_lock(&binary_tree->lock, &node_lock);
 		struct TreeNode* node = findMaxValueLessThan(binary_tree, binary_tree->root, sandbox, &waiting_serving_time, index);
 		lock_unlock(&binary_tree->lock, &node_lock);
 		return waiting_serving_time; 
