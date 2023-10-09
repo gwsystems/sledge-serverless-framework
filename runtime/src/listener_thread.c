@@ -782,7 +782,7 @@ void shinjuku_dispatch_different_core() {
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
             uint64_t duration = (__getcycles() - current->start_ts_running_user) / runtime_processor_speed_MHz;
-            if (duration >= 50 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
+            if (duration >= 7 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
                 struct sandbox *sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return; // queue is empty
 
@@ -827,7 +827,7 @@ void shinjuku_dispatch() {
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
             uint64_t duration = (__getcycles() - current->start_ts_running_user) / runtime_processor_speed_MHz;
-            if (duration >= 50 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
+            if (duration >= 20 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
                 struct sandbox *sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return; // queue is empty
 
@@ -900,22 +900,22 @@ listener_thread_main(void *dummy)
 	erpc_start(NULL, dispatcher_thread_idx, NULL, 0);
 
 	if (dispatcher == DISPATCHER_EDF_INTERRUPT) {
-        printf("edf_interrupt....\n");	
+        	printf("edf_interrupt....\n");	
 		while (!pthread_stop) {
 			erpc_run_event_loop(dispatcher_thread_idx, 1000);
 		}
 	} else if (dispatcher == DISPATCHER_DARC) {
-        printf("darc....\n");
+        	printf("darc....\n");
 		while (!pthread_stop) {
 			erpc_run_event_loop_once(dispatcher_thread_idx); // get a group of packets from the NIC and enqueue them to the typed queue
 			darc_dispatch(); //dispatch packets
 		}
 	} else if (dispatcher == DISPATCHER_SHINJUKU) {
-        printf("shinjuku....\n");
+        	printf("shinjuku....\n");
 		while (!pthread_stop) {
-            erpc_run_event_loop_once(dispatcher_thread_idx); // get a group of packets from the NIC and enqueue them to the typed queue
-            shinjuku_dispatch(); //dispatch packets
-        }
+            		erpc_run_event_loop_once(dispatcher_thread_idx); // get a group of packets from the NIC and enqueue them to the typed queue
+            		shinjuku_dispatch(); //dispatch packets
+        	}
 	}
 
 	/* won't go to the following implementaion */

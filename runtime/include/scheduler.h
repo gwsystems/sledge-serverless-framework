@@ -338,7 +338,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
         /* Delete current sandbox from local queue if dispatcher is DISPATCHER_SHINJUKU */
         if (dispatcher == DISPATCHER_SHINJUKU) {
             uint64_t duration = (__getcycles() - interrupted_sandbox->start_ts_running_user) / runtime_processor_speed_MHz;
-            if (duration >= 50 && local_runqueue_get_length() > 1) {
+            if (duration >= 20 && local_runqueue_get_length() > 1) {
             	local_runqueue_delete(interrupted_sandbox);     
             	sandbox_preempt(interrupted_sandbox); 
             	// Write back global at idx 0
