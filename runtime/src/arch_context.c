@@ -15,6 +15,6 @@
 noreturn void __attribute__((noinline)) arch_context_restore_preempted(void)
 {
 	pthread_t tid = pthread_self();
-    pthread_kill(tid, SIGUSR1);
+    	pthread_kill(tid, SIGUSR1);
 	panic("Unexpectedly reached code after sending self SIGUSR1\n");
 }

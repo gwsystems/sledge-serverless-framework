@@ -86,7 +86,7 @@ struct sandbox {
         int global_worker_thread_idx; /* which thread in a global view processes this sandbox. 
                                     pause and restore the sandbox must be done in the same thread */
         int group_worker_thread_idx; /* what's the thread index in the group */
-        uint64_t start_ts_running_user; /* the start timestamp to run user, it will be updated when resume to run user */
+        uint64_t start_ts; /* the start timestamp when dispatcher assign this sandbox to a worker */
         /* For SRSF */
 	uint64_t srsf_stop_running_ts; /* record the timestamp of stopping running of this sandbox, in cycles */
 	int64_t srsf_remaining_slack;

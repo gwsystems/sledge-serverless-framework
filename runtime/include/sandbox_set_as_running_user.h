@@ -25,7 +25,6 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
-		sandbox->start_ts_running_user = now;
 		/* Sandbox resumes, update its RS */
                 sandbox->srsf_remaining_slack = sandbox->srsf_remaining_slack - (__getcycles() - sandbox->srsf_stop_running_ts);
 		break;

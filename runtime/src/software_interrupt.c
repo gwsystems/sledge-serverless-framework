@@ -27,7 +27,10 @@
 #include "memlogging.h"
 #include "tenant_functions.h"
 
+extern thread_local uint32_t dispatcher_try_interrupts;
 thread_local uint32_t interrupts = 0;
+thread_local uint32_t preemptable_interrupts = 0;
+
 extern struct sandbox* current_sandboxes[1024];
 extern time_t t_start;
 extern thread_local int global_worker_thread_idx;
@@ -176,6 +179,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				global_timeout_queue_process_promotions();
 			}
 		} else if (current_sandbox_is_preemptable()) {
+			preemptable_interrupts++;
 			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
 			/* sandbox_interrupt means the sandbox stopped, but might be resume very soon. If
  			   deciding preempt the sandbox for a while, then will call sandbox_preempt */
@@ -242,6 +246,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		if (is_listener) {
 			pthread_stop = true;
+			printf("try preempts:%u\n", dispatcher_try_interrupts);
 			break;
 		}
  
@@ -250,9 +255,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		double seconds = difftime(t_end, t_start);
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
-		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_local_requests %u interrupts %u\n", 
+		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_local_requests %u interrupts %u p-interrupts %u\n", 
 			throughput, global_worker_thread_idx, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
-			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests, interrupts);
+			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests, interrupts, preemptable_interrupts);
                 dump_log_to_file();
 		pthread_stop = true;		
 		break;

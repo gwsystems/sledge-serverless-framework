@@ -58,7 +58,7 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	/* Return HTTP session to listener core to be written back to client */
-    //http_session_set_response_header(sandbox->http, 500);
+    	//http_session_set_response_header(sandbox->http, 500);
 
 	//sandbox->http->state = HTTP_SESSION_EXECUTION_COMPLETE;
 	//http_session_send_response(sandbox->http, (void_star_cb)listener_thread_register_http_session);

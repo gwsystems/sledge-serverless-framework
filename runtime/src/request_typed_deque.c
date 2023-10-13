@@ -15,6 +15,7 @@ request_typed_deque_init(uint8_t type, int size) {
     deque->front = -1;
     deque->rear = 0;
     deque->size = size; 
+    deque->length = 0;
     deque->deadline = 0;
 
     memset(deque->rqueue, 0, RDEQUE_LEN * sizeof(struct sandbox*));
@@ -63,6 +64,7 @@ void insertfront(struct request_typed_deque * queue, struct sandbox * sandbox, u
     // insert current element into request_typed_deque
     queue->rqueue[queue->front] = sandbox;
     queue->tsqueue[queue->front] = ts;
+    queue->length++;
 }
 
 // function to inset element at rear end
@@ -93,6 +95,7 @@ void insertrear(struct request_typed_deque * queue, struct sandbox * sandbox, ui
     // insert current element into request_typed_deque
     queue->rqueue[queue->rear] = sandbox;
     queue->tsqueue[queue->rear] = ts;
+    queue->length++;
 }
 
 // Deletes element at front end of request_typed_deque
@@ -122,6 +125,7 @@ void deletefront(struct request_typed_deque * queue)
             queue->front = queue->front + 1;
 	}
     }
+    queue->length--;
 }
 
 
@@ -146,6 +150,12 @@ void deleterear(struct request_typed_deque * queue)
         queue->rear = queue->size - 1;
     else
         queue->rear = queue->rear - 1;
+    queue->length--;
+}
+
+int getLength(struct request_typed_deque * queue) {
+    assert(queue != NULL);
+    return queue->length;
 }
 
 // Returns front element of request_typed_deque

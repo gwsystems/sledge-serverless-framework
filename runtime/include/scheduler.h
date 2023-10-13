@@ -337,8 +337,7 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 
         /* Delete current sandbox from local queue if dispatcher is DISPATCHER_SHINJUKU */
         if (dispatcher == DISPATCHER_SHINJUKU) {
-            uint64_t duration = (__getcycles() - interrupted_sandbox->start_ts_running_user) / runtime_processor_speed_MHz;
-            if (duration >= 20 && local_runqueue_get_length() > 1) {
+            if (local_runqueue_get_length() > 1) {
             	local_runqueue_delete(interrupted_sandbox);     
             	sandbox_preempt(interrupted_sandbox); 
             	// Write back global at idx 0
@@ -353,8 +352,8 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 		assert(next != NULL);
                	scheduler_preemptive_switch_to(interrupted_context, next);
 	    } else {
-	    	/* current sandbox shouldn't be interrupted becuase it runs less than 50us, or it is the only sandbox in the 
-	       	   local runqueue, so return directly, the current context isn't switched and will resume when single handler
+	    	/* current sandbox shouldn't be interrupted becuase it is the only request in the local queue 
+	       	   so return directly, the current context isn't switched and will resume when single handler
 		   returns 
 	         */
                 sandbox_interrupt_return(interrupted_sandbox, SANDBOX_RUNNING_USER);
