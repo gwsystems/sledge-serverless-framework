@@ -39,6 +39,8 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 	####
 	request_counter = defaultdict(def_value)
 	total_time_dist = defaultdict(list)
+	total_time_list = []
+	total_slow_down = []
 	total_workload_dist = defaultdict(def_value)
 	total_real_time_workload_dist = defaultdict(def_value)
 	real_time_workload_times_dist = defaultdict(list)
@@ -67,6 +69,11 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 			request_counter[name] += 1
 			total_time = int(line.split(" ")[4])
 			total_time_dist[name].append(total_time)
+			if name == "fib":
+				total_slow_down.append(round((float(total_time) / 50), 2))
+			else:
+				total_slow_down.append(round((float(total_time) / 7980), 2))
+			total_time_list.append(total_time)
 			thread_times[tid].append(total_time)	
 			if total_time > max_latency_dist[name]:
 				max_latency_dist[name] = total_time
@@ -88,6 +95,11 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
                                 max_latency_dist[name] = total_time
 			request_counter[name] += 1
 			total_time_dist[name].append(total_time)
+			total_time_list.append(total_time)
+			if name == "fib":
+                                total_slow_down.append(round((float(total_time) / 50), 2))
+			else:
+                                total_slow_down.append(round((float(total_time) / 7980), 2))
 			thread_times[tid].append(total_time)
 			miss_deadline_dist[name] += 1
 			exe_time = line.split(" ")[5]
@@ -143,6 +155,24 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		print(len(value))
 		print(len(queuing_times[key]))
 		print(len(total_time_dist[key]))	
+	total_time_array = np.array(total_time_list)
+	p_99 = np.percentile(total_time_array, 99)
+	p_99_9 = np.percentile(total_time_array, 99.9)
+	p_99_99 = np.percentile(total_time_array, 99.99)
+	print("99 percentile latency is ", p_99)
+	print("99.9 percentile latency is ", p_99_9)
+	print("99.99 percentile latency is ", p_99_99)
+	total_time_slow_down = np.array(total_slow_down)
+	p_99_slow_down = np.percentile(total_time_slow_down, 99)
+	p_99_9_slow_down = np.percentile(total_time_slow_down, 99.9)
+	p_99_99_slow_down = np.percentile(total_time_slow_down, 99.99)
+	print("99 percentile slow down is ", p_99_slow_down)
+	print("99.9 percentile slow down is ", p_99_9_slow_down)
+	print("99.99 percentile slow down is ", p_99_99_slow_down)
+	js_latency = json.dumps(total_time_list)
+	f_latency = open("total_time_list.txt", 'w')
+	f_latency.write(js_latency)
+	f_latency.close()
 	js = json.dumps(total_time_dist)
 	f = open("total_time.txt", 'w')
 	f.write(js)
