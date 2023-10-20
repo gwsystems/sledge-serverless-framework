@@ -1163,3 +1163,8 @@ sledge_abi__scratch_storage_upsert(uint32_t key_offset, uint32_t key_len, uint32
 
 	sandbox_return(sandbox);
 }
+
+EXPORT uint64_t 
+sledge_abi__env_getcycles() {
+	return __getcycles();
+}
