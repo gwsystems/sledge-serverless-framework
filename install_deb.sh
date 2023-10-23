@@ -2,7 +2,7 @@
 
 LLVM_VERSION=12
 
-ARCH=$(uname -p)
+ARCH=$(uname -m)
 
 if [[ $ARCH = "x86_64" ]]; then
 	SHFMT_URL=https://github.com/mvdan/sh/releases/download/v3.4.3/shfmt_v3.4.3_linux_amd64
