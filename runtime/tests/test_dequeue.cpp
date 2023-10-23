@@ -1,193 +1,193 @@
-// C++ implementation of De-queue using circular
-// array
-#include <iostream>
-using namespace std;
- 
+// C implementation of De-queue using circular array
 // Maximum size of array or Dequeue
+#include <stdio.h>
+#include <assert.h>
 #define MAX 100
- 
+
+using namespace std; 
 // A structure to represent a Deque
-class Deque {
+struct Deque {
     int arr[MAX];
     int front;
     int rear;
     int size;
- 
-public:
-    Deque(int size)
-    {
-        front = -1;
-        rear = 0;
-        this->size = size;
-    }
- 
-    // Operations on Deque:
-    void insertfront(int key);
-    void insertrear(int key);
-    void deletefront();
-    void deleterear();
-    bool isFull();
-    bool isEmpty();
-    int getFront();
-    int getRear();
 };
+
+
+void init_deque(struct Deque * queue, int size) {
+    assert(queue != NULL);
+    queue->front = -1;
+    queue->rear = 0;
+    queue->size = size;
+} 
  
 // Checks whether Deque is full or not.
-bool Deque::isFull()
+bool isFull(struct Deque * queue)
 {
-    return ((front == 0 && rear == size - 1)
-            || front == rear + 1);
+    assert(queue != NULL);
+    return ((queue->front == 0 && queue->rear == queue->size - 1)
+            || queue->front == queue->rear + 1);
 }
  
 // Checks whether Deque is empty or not.
-bool Deque::isEmpty() { return (front == -1); }
+bool isEmpty(struct Deque * queue) { 
+
+    assert(queue != NULL);
+    return (queue->front == -1); 
+}
  
 // Inserts an element at front
-void Deque::insertfront(int key)
+void insertfront(struct Deque * queue, int key)
 {
+    assert(queue != NULL);
     // check whether Deque if  full or not
-    if (isFull()) {
-        cout << "Overflow\n" << endl;
+    if (isFull(queue)) {
+        printf( "Overflow\n");
         return;
     }
  
     // If queue is initially empty
-    if (front == -1) {
-        front = 0;
-        rear = 0;
+    if (queue->front == -1) {
+        queue->front = 0;
+        queue->rear = 0;
     }
  
     // front is at first position of queue
-    else if (front == 0)
-        front = size - 1;
+    else if (queue->front == 0)
+        queue->front = queue->size - 1;
  
     else // decrement front end by '1'
-        front = front - 1;
+        queue->front = queue->front - 1;
  
     // insert current element into Deque
-    arr[front] = key;
+    queue->arr[queue->front] = key;
 }
  
 // function to inset element at rear end
 // of Deque.
-void Deque ::insertrear(int key)
+void insertrear(struct Deque * queue, int key)
 {
-    if (isFull()) {
-        cout << " Overflow\n " << endl;
+    assert(queue != NULL);
+
+    if (isFull(queue)) {
+        printf(" Overflow\n");
         return;
     }
  
     // If queue is initially empty
-    if (front == -1) {
-        front = 0;
-        rear = 0;
+    if (queue->front == -1) {
+        queue->front = 0;
+        queue->rear = 0;
     }
  
     // rear is at last position of queue
-    else if (rear == size - 1)
-        rear = 0;
+    else if (queue->rear == queue->size - 1)
+        queue->rear = 0;
  
     // increment rear end by '1'
     else
-        rear = rear + 1;
+        queue->rear = queue->rear + 1;
  
     // insert current element into Deque
-    arr[rear] = key;
+    queue->arr[queue->rear] = key;
 }
  
 // Deletes element at front end of Deque
-void Deque ::deletefront()
+void deletefront(struct Deque * queue)
 {
+    assert(queue != NULL);
+
     // check whether Deque is empty or not
-    if (isEmpty()) {
-        cout << "Queue Underflow\n" << endl;
+    if (isEmpty(queue)) {
+        printf("Queue Underflow\n");
         return;
     }
  
     // Deque has only one element
-    if (front == rear) {
-        front = -1;
-        rear = -1;
+    if (queue->front == queue->rear) {
+        queue->front = -1;
+        queue->rear = -1;
     }
-    else
+    else {
         // back to initial position
-        if (front == size - 1)
-        front = 0;
+        if (queue->front == queue->size - 1)
+            queue->front = 0;
  
-    else // increment front by '1' to remove current
-        // front value from Deque
-        front = front + 1;
+   	else // increment front by '1' to remove current
+            // front value from Deque
+            queue->front = queue->front + 1;
+    }
 }
  
 // Delete element at rear end of Deque
-void Deque::deleterear()
+void deleterear(struct Deque * queue)
 {
-    if (isEmpty()) {
-        cout << " Underflow\n" << endl;
+    assert(queue != NULL);
+    if (isEmpty(queue)) {
+        printf(" Underflow\n");
         return;
     }
  
     // Deque has only one element
-    if (front == rear) {
-        front = -1;
-        rear = -1;
+    if (queue->front == queue->rear) {
+        queue->front = -1;
+        queue->rear = -1;
     }
-    else if (rear == 0)
-        rear = size - 1;
+    else if (queue->rear == 0)
+        queue->rear = queue->size - 1;
     else
-        rear = rear - 1;
+        queue->rear = queue->rear - 1;
 }
  
 // Returns front element of Deque
-int Deque::getFront()
+int getFront(struct Deque * queue)
 {
+    assert(queue != NULL);
     // check whether Deque is empty or not
-    if (isEmpty()) {
-        cout << " Underflow\n" << endl;
+    if (isEmpty(queue)) {
+        printf(" Underflow\n");
         return -1;
     }
-    return arr[front];
+    return queue->arr[queue->front];
 }
  
 // function return rear element of Deque
-int Deque::getRear()
+int getRear(struct Deque * queue)
 {
+    assert(queue != NULL);
     // check whether Deque is empty or not
-    if (isEmpty() || rear < 0) {
-        cout << " Underflow\n" << endl;
+    if (isEmpty(queue) || queue->rear < 0) {
+        printf(" Underflow\n");
         return -1;
     }
-    return arr[rear];
+    return queue->arr[queue->rear];
 }
  
 // Driver code
 int main()
 {
-    Deque dq(5);
+    struct Deque dq;
+    init_deque(&dq, 5);
    
-      // Function calls
-    cout << "Insert element at rear end  : 5 \n";
-    dq.insertrear(5);
+    // Function calls
+    printf("Insert element at rear end  : 5 \n");
+    insertrear(&dq, 5);
  
-    cout << "insert element at rear end : 10 \n";
-    dq.insertrear(10);
+    printf("insert element at rear end : 10 \n");
+    insertrear(&dq, 10);
  
-    cout << "get rear element "
-         << " " << dq.getRear() << endl;
+    printf("get rear element %d \n", getRear(&dq));
  
-    dq.deleterear();
-    cout << "After delete rear element new rear"
-         << " become " << dq.getRear() << endl;
+    deleterear(&dq);
+    printf("After delete rear element new rear become %d ", getRear(&dq));
  
-    cout << "inserting element at front end \n";
-    dq.insertfront(15);
+    printf("inserting element at front end \n");
+    insertfront(&dq, 15);
  
-    cout << "get front element "
-         << " " << dq.getFront() << endl;
+    printf("get front element %d\n", getFront(&dq));
  
-    dq.deletefront();
+    deletefront(&dq);
  
-    cout << "After delete front element new "
-         << "front become " << dq.getFront() << endl;
+    printf("After delete front element new front become %d", getFront(&dq));
     return 0;
 }

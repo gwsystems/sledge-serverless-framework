@@ -282,6 +282,9 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
 		assert(next->state == SANDBOX_PREEMPTED);
 		arch_context_restore_slow(&interrupted_context->uc_mcontext, &next->ctxt);
 		current_sandbox_set(next);
+		//-----------xiaosu--------------
+		//printf("id %lu resume from slow\n", next->id);
+		//-----------xiaosu--------------
 		sandbox_set_as_running_user(next, SANDBOX_PREEMPTED);
 		break;
 	}

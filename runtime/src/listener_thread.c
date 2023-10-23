@@ -19,6 +19,9 @@
 #include "request_typed_deque.h"
 #include "local_preempted_fifo_queue.h"
 
+thread_local uint32_t global_queue_length = 0;
+thread_local uint32_t max_queue_length = 0;
+
 struct perf_window * worker_perf_windows[1024];
 struct priority_queue * worker_queues[1024];
 struct binary_tree * worker_binary_trees[1024];
@@ -588,6 +591,11 @@ void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t s
         memcpy(sandbox->rpc_request_body, msg, size);
         sandbox->rpc_request_body_size = size;
 	push_to_rqueue(sandbox, request_type_queue[req_type - 1], __getcycles());
+	global_queue_length++;
+        if (global_queue_length > max_queue_length) {
+                max_queue_length = global_queue_length;
+        }
+
 }
 
 
@@ -645,6 +653,10 @@ void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size
         memcpy(sandbox->rpc_request_body, msg, size);
         sandbox->rpc_request_body_size = size;
 	insertrear(request_type_deque[req_type -1], sandbox, __getcycles());
+	global_queue_length++;
+	if (global_queue_length > max_queue_length) {
+		max_queue_length = global_queue_length;
+	}
 }
 
 void drain_queue(struct request_typed_queue *rtype) {
@@ -681,6 +693,7 @@ void drain_queue(struct request_typed_queue *rtype) {
         struct sandbox *sandbox = rtype->rqueue[rtype->rqueue_tail & (RQUEUE_LEN - 1)];
 	    //add sandbox to worker's local queue
 	    local_runqueue_add_index(worker_list[worker_id], sandbox);
+	    global_queue_length--;
 	    rtype->rqueue_tail++;
 	    atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << worker_id);
     }
@@ -785,7 +798,7 @@ void shinjuku_dispatch_different_core() {
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
             uint64_t duration = (__getcycles() - current->start_ts) / runtime_processor_speed_MHz;
-            if (duration >= 7 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
+            if (duration >= 100 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
                 struct sandbox *sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return; // queue is empty
 
@@ -811,6 +824,7 @@ void shinjuku_dispatch() {
 	while(preempted_sandbox != NULL) {
 	    uint8_t req_type = preempted_sandbox->route->request_type; 
 	    insertfront(request_type_deque[req_type - 1], preempted_sandbox, tsc);
+	    global_queue_length++;
 	    //insertrear(request_type_deque[req_type - 1], preempted_sandbox, tsc);
 	    preempted_sandbox = pop_worker_preempted_queue(worker_list[i], preempted_queue, &tsc);     
 	} 
@@ -821,25 +835,28 @@ void shinjuku_dispatch() {
             while (sandbox->global_worker_thread_idx != -1) {
 		sandbox->start_ts = __getcycles();
                 local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
+		global_queue_length--;
                 sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return;
             }
             
 	    sandbox->start_ts = __getcycles();    
             local_runqueue_add_index(worker_list[i], sandbox);
+	    global_queue_length--;
             atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
         } else { // core is busy
             //check if the current sandbox is running longer than the specified time duration
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
             uint64_t duration = (__getcycles() - current->start_ts) / runtime_processor_speed_MHz;
-	    if (duration >= 25 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
+	    if (duration >= 5 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
                 struct sandbox *sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return; // queue is empty
 
                 while (sandbox->global_worker_thread_idx != -1) {
 		    sandbox->start_ts = __getcycles();
                     local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
+		    global_queue_length--;
                     sandbox = shinjuku_select_sandbox();
                     if (!sandbox) return;
                 }
@@ -847,6 +864,7 @@ void shinjuku_dispatch() {
                 //preempt the current sandbox and put it back the typed queue, select a new one to send to it
 		sandbox->start_ts = __getcycles();
                 local_runqueue_add_index(worker_list[i], sandbox);
+		global_queue_length--;
                 //preempt worker
                 preempt_worker(worker_list[i]);
 		dispatcher_try_interrupts++;
@@ -874,10 +892,10 @@ listener_thread_main(void *dummy)
 {
 	is_listener = true;
 	/* Unmask SIGINT signals */
-    software_interrupt_unmask_signal(SIGINT);
+    	software_interrupt_unmask_signal(SIGINT);
 
 	/* Index was passed via argument */
-    dispatcher_thread_idx = *(int *)dummy;
+    	dispatcher_thread_idx = *(int *)dummy;
 
 	/* init typed queue */
 	typed_queue_init();

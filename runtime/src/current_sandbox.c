@@ -64,6 +64,14 @@ current_sandbox_exit()
 		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
 		      sandbox_state_stringify(exiting_sandbox->state));
 	}
+	//---------xiaosu-----------------
+	/*char str[4096] = {0};
+	sprintf(str, "id %lu ", exiting_sandbox->id);
+	for (int i = 0; i < exiting_sandbox->state_history.size; i++) {
+		sprintf(str + strlen(str), "sate %d ", exiting_sandbox->state_history.buffer[i]);
+	}
+	printf("%s\n", str);*/
+	//-----------xiaosu---------------
 	scheduler_cooperative_sched(true);
 
 	/* The scheduler should never switch back to completed sandboxes */
@@ -159,7 +167,9 @@ current_sandbox_fini()
 
 	sandbox->timestamp_of.completion = __getcycles();
 	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation;
-
+	//-----------xiaosu-----------------------
+	//printf("id %lu finish, total time %lu, current ts %lu\n", sandbox->id, sandbox->total_time, sandbox->timestamp_of.completion);
+	//----------xiaosu-------------------------
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 
 done:

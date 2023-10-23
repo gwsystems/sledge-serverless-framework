@@ -27,6 +27,7 @@
 #include "memlogging.h"
 #include "tenant_functions.h"
 
+extern thread_local uint32_t max_queue_length;
 extern thread_local uint32_t dispatcher_try_interrupts;
 thread_local uint32_t interrupts = 0;
 thread_local uint32_t preemptable_interrupts = 0;
@@ -246,7 +247,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		if (is_listener) {
 			pthread_stop = true;
-			printf("try preempts:%u\n", dispatcher_try_interrupts);
+			printf("try preempts:%u max queue %u\n", dispatcher_try_interrupts, max_queue_length);
 			break;
 		}
  

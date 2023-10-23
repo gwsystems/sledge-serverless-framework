@@ -37,10 +37,10 @@ def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dic
 		# Define regular expressions to match the desired values
 		latency_rule = r'99 percentile latency is\s*([\d.]+)'
 		slow_down_rule = r'99 percentile slow down is\s*([\d.]+)'
-		latency_99_9_rule = '99.9 percentile latency is\s*([\d.]+)'
-		slow_down_99_9_rule = '99.9 percentile slow down is\s*([\d.]+)'
-		latency_99_99_rule = '99.99 percentile latency is\s*([\d.]+)'
-		slow_down_99_99_rule = '99.99 percentile slow down is\s*([\d.]+)'
+		latency_99_9_rule = r'99.9 percentile latency is\s*([\d.]+)'
+		slow_down_99_9_rule = r'99.9 percentile slow down is\s*([\d.]+)'
+		latency_99_99_rule = r'99.99 percentile latency is\s*([\d.]+)'
+		slow_down_99_99_rule = r'99.99 percentile slow down is\s*([\d.]+)'
 
 		# Use the regular expressions to find the values
 		latency_match = re.search(latency_rule, rt)
@@ -90,8 +90,8 @@ def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dic
 if __name__ == "__main__":
     import json
     #file_folders = ['SHINJUKU', 'SHINJUKU_25', 'DARC', 'EDF_SRSF_INTERRUPT']
-    #file_folders = ['SHINJUKU_100', 'SHINJUKU_200', 'SHINJUKU_25', 'DARC', 'EDF_SRSF_INTERRUPT']
-    file_folders = ['SHINJUKU']
+    file_folders = ['SHINJUKU_5', 'SHINJUKU_100', 'SHINJUKU_200', 'SHINJUKU_25', 'DARC', 'EDF_SRSF_INTERRUPT']
+    #file_folders = ['SHINJUKU']
     latency = defaultdict(list)
     slow_down = defaultdict(list)
     slow_down_99_9 = defaultdict(list)
