@@ -19,6 +19,7 @@
 #include "request_typed_deque.h"
 #include "local_preempted_fifo_queue.h"
 
+uint64_t shinjuku_interrupt_interval = 0; 
 thread_local uint32_t global_queue_length = 0;
 thread_local uint32_t max_queue_length = 0;
 
@@ -797,8 +798,8 @@ void shinjuku_dispatch_different_core() {
             //check if the current sandbox is running longer than the specified time duration
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
-            uint64_t duration = (__getcycles() - current->start_ts) / runtime_processor_speed_MHz;
-            if (duration >= 100 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
+            uint64_t elapsed_cycles = (__getcycles() - current->start_ts);
+            if (elapsed_cycles >= shinjuku_interrupt_interval && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
                 struct sandbox *sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return; // queue is empty
 
@@ -806,6 +807,7 @@ void shinjuku_dispatch_different_core() {
                 sandbox->start_ts = __getcycles();
 		local_runqueue_add_index(worker_list[i], sandbox);
                 //preempt worker
+		dispatcher_try_interrupts++;
                 preempt_worker(worker_list[i]);
             }
         }
@@ -848,8 +850,8 @@ void shinjuku_dispatch() {
             //check if the current sandbox is running longer than the specified time duration
             struct sandbox *current = current_sandboxes[worker_list[i]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
-            uint64_t duration = (__getcycles() - current->start_ts) / runtime_processor_speed_MHz;
-	    if (duration >= 5 && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
+            uint64_t elapsed_cycles = (__getcycles() - current->start_ts);
+	    if (elapsed_cycles >= shinjuku_interrupt_interval && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
                 struct sandbox *sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return; // queue is empty
 
@@ -891,6 +893,7 @@ void *
 listener_thread_main(void *dummy)
 {
 	is_listener = true;
+	shinjuku_interrupt_interval = 50 * runtime_processor_speed_MHz;
 	/* Unmask SIGINT signals */
     	software_interrupt_unmask_signal(SIGINT);
 
