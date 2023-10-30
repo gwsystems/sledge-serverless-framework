@@ -13,6 +13,7 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
+extern bool runtime_exponential_service_time_simulation_enabled;
 extern thread_local int global_worker_thread_idx;
 extern struct sandbox* current_sandboxes[1024];
 extern struct binary_tree *worker_binary_trees[1024];
@@ -59,17 +60,20 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
 	lock_unlock(&binary_tree->lock, &node_lock);
 
 	/* Set estimated exeuction time for the sandbox */
-        uint32_t uid = sandbox->route->admissions_info.uid;
-        uint64_t estimated_execute_cost = perf_window_get_percentile(&worker_perf_windows[index][uid],
+	if (runtime_exponential_service_time_simulation_enabled == false) {
+        	uint32_t uid = sandbox->route->admissions_info.uid;
+        	uint64_t estimated_execute_cost = perf_window_get_percentile(&worker_perf_windows[index][uid],
                                                                      sandbox->route->admissions_info.percentile,
                                                                      sandbox->route->admissions_info.control_index);
-        /* Use expected execution time in the configuration file as the esitmated execution time 
-           if estimated_execute_cost is 0 
-         */
-        if (estimated_execute_cost == 0) {
-            estimated_execute_cost = sandbox->route->expected_execution_cycle;
-	} 
-        sandbox->estimated_cost = estimated_execute_cost;
+        	/* Use expected execution time in the configuration file as the esitmated execution time 
+           	   if estimated_execute_cost is 0 
+         	*/
+        	if (estimated_execute_cost == 0) {
+            		estimated_execute_cost = sandbox->route->expected_execution_cycle;
+		} 
+        	sandbox->estimated_cost = estimated_execute_cost;
+		sandbox->relative_deadline = sandbox->route->relative_deadline;
+	}
 	/* Record TS and calcuate RS. SRSF algo:
            1. When reqeust arrives to the queue, record TS and calcuate RS. RS = deadline - execution time
            2. When request starts running, update RS
@@ -77,7 +81,7 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
            4. When request resumes, update RS 
         */
 	sandbox->srsf_stop_running_ts = __getcycles();
-	sandbox->srsf_remaining_slack = sandbox->route->relative_deadline - sandbox->estimated_cost;
+	sandbox->srsf_remaining_slack = sandbox->relative_deadline - sandbox->estimated_cost;
 }
 
 /**

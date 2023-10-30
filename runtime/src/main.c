@@ -45,6 +45,7 @@ uint32_t runtime_worker_group_size       = 1;
 
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 
+bool	 runtime_exponential_service_time_simulation_enabled = false;
 bool     runtime_preemption_enabled            = true;
 bool     runtime_worker_spinloop_pause_enabled = false;
 uint32_t runtime_quantum_us                    = 5000; /* 5ms */
@@ -298,6 +299,17 @@ runtime_configure()
 	}
 	pretty_print_key_value("Quantum", "%u us\n", runtime_quantum_us);
 
+	/* Runtime exponential service time simulation */
+	char *exponential_service_time_simulation_disable = getenv("SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION");
+	if (exponential_service_time_simulation_disable != NULL && 
+	    strcmp(exponential_service_time_simulation_disable, "false") == 0) {
+		runtime_exponential_service_time_simulation_enabled = true;
+	}
+
+	pretty_print_key_value("Exponential_service_time_simulation", " %s\n",
+				runtime_exponential_service_time_simulation_enabled ? 
+				PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
+				
 	sandbox_perf_log_init();
 	http_session_perf_log_init();
 }

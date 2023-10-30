@@ -19,6 +19,10 @@
 #include "request_typed_deque.h"
 #include "local_preempted_fifo_queue.h"
 
+#define BASE_SERVICE_TIME 10
+#define LOSS_PERCENTAGE 0.11
+
+uint64_t base_simulated_service_time = 0;
 uint64_t shinjuku_interrupt_interval = 0; 
 thread_local uint32_t global_queue_length = 0;
 thread_local uint32_t max_queue_length = 0;
@@ -30,6 +34,7 @@ struct request_fifo_queue * worker_circular_queue[1024];
 struct ps_list_head * worker_lists[1024];
 struct request_fifo_queue * worker_preempted_queue[1024];
 
+extern bool runtime_exponential_service_time_simulation_enabled;
 extern _Atomic uint64_t worker_queuing_cost[1024]; 
 //struct sandbox *urgent_request[1024] = { NULL };
 extern uint32_t runtime_worker_threads_count;
@@ -489,6 +494,13 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
         return;
     }
 
+    /* Reset estimated execution time and relative deadline for exponential service time simulation */
+    if (runtime_exponential_service_time_simulation_enabled) {
+	sandbox->estimated_cost = base_simulated_service_time * atoi((const char *)msg) * (1 - LOSS_PERCENTAGE);
+	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
+	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
+    }
+
     /* copy the received data since it will be released by erpc */
     sandbox->rpc_request_body = malloc(size);
     if (!sandbox->rpc_request_body) {
@@ -645,6 +657,13 @@ void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size
                 return;
         }
 
+	/* Reset estimated execution time and relative deadline for exponential service time simulation */
+    	if (runtime_exponential_service_time_simulation_enabled) {
+        	sandbox->estimated_cost = base_simulated_service_time * atoi((const char *)msg) * (1 - LOSS_PERCENTAGE);
+        	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
+        	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
+    	}
+
         /* copy the received data since it will be released by erpc */
         sandbox->rpc_request_body = malloc(size);
         if (!sandbox->rpc_request_body) {
@@ -715,7 +734,7 @@ struct sandbox * shinjuku_peek_selected_sandbox(int *selected_queue_idx) {
         struct sandbox *sandbox = getFront(request_type_deque[i], &ts);
         assert(sandbox != NULL);
         uint64_t dt = __getcycles() - ts;
-        float priority = (float)dt / (float)sandbox->route->relative_deadline;
+        float priority = (float)dt / (float)sandbox->relative_deadline;
         if (priority > highest_priority) {
             highest_priority = priority;
             *selected_queue_idx = i;
@@ -747,7 +766,7 @@ struct sandbox * shinjuku_select_sandbox() {
         struct sandbox *sandbox = getFront(request_type_deque[i], &ts);
         assert(sandbox != NULL);
         uint64_t dt = __getcycles() - ts;
-        float priority = (float)dt / (float)sandbox->route->relative_deadline;
+        float priority = (float)dt / (float)sandbox->relative_deadline;
         if (priority > highest_priority) {
             highest_priority = priority;
             selected_queue_idx = i;
@@ -893,7 +912,9 @@ void *
 listener_thread_main(void *dummy)
 {
 	is_listener = true;
-	shinjuku_interrupt_interval = 50 * runtime_processor_speed_MHz;
+	shinjuku_interrupt_interval = 100 * runtime_processor_speed_MHz;
+	base_simulated_service_time = BASE_SERVICE_TIME * runtime_processor_speed_MHz;
+
 	/* Unmask SIGINT signals */
     	software_interrupt_unmask_signal(SIGINT);
 
