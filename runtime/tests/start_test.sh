@@ -25,6 +25,7 @@ echo $project_path
 path=`pwd`
 export SLEDGE_DISABLE_PREEMPTION=true
 #export SLEDGE_SIGALRM_HANDLER=TRIAGED
+export SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION=false
 export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id
 export SLEDGE_NWORKERS=$worker_num
 export SLEDGE_NLISTENERS=$listener_num
