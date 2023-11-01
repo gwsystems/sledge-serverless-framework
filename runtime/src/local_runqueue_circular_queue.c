@@ -8,6 +8,8 @@
 #include "likely.h"
 #include "request_fifo_queue.h"
 
+extern uint32_t local_queue_length[1024];
+extern uint32_t max_local_queue_length[1024];
 extern thread_local int global_worker_thread_idx;
 extern struct request_fifo_queue * worker_circular_queue[1024];
 thread_local static struct request_fifo_queue * local_runqueue_circular_queue = NULL;
@@ -44,6 +46,10 @@ local_runqueue_circular_queue_add_index(int index, struct sandbox *sandbox){
         local_runqueue->rqueue[head & (RQUEUE_QUEUE_LEN - 1)] = sandbox;
         local_runqueue->rqueue_head++;
     }
+    local_queue_length[index]++;
+    if (local_queue_length[index] > max_local_queue_length[index]) {
+	max_local_queue_length[index] = local_queue_length[index];
+    }
 }
 
 bool
@@ -64,6 +70,7 @@ local_runqueue_circular_queue_delete(struct sandbox *sandbox) {
            = NULL;
 
     local_runqueue_circular_queue->rqueue_tail++;
+    local_queue_length[global_worker_thread_idx]--;
 }
 
 /* Called by worker thread to get item from the tail of the queue */

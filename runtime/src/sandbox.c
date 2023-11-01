@@ -15,6 +15,7 @@
 #include "wasm_memory.h"
 #include "wasm_stack.h"
 
+extern bool runtime_exponential_service_time_simulation_enabled;
 extern thread_local int group_worker_thread_idx;
 
 _Atomic uint64_t sandbox_total = 0;
@@ -281,6 +282,15 @@ sandbox_free(struct sandbox *sandbox, uint64_t *ret)
 }
 
 void sandbox_send_response(struct sandbox *sandbox, uint8_t response_code) {
-	auto_buf_flush(&sandbox->response_body);
-	erpc_req_response_enqueue(sandbox->rpc_id, sandbox->rpc_handler, sandbox->response_body.data, sandbox->response_body.size, response_code);
+	if (runtime_exponential_service_time_simulation_enabled && response_code == 0) {
+		uint64_t pure_cpu_time = (sandbox->duration_of_state[SANDBOX_RUNNING_SYS] + sandbox->duration_of_state[SANDBOX_RUNNING_USER])
+						/ runtime_processor_speed_MHz;
+		char tmp_buf[20] = {0};
+		sprintf(tmp_buf, "%lu", pure_cpu_time);
+		erpc_req_response_enqueue(sandbox->rpc_id, sandbox->rpc_handler, tmp_buf, strlen(tmp_buf), response_code);
+	} else {
+		auto_buf_flush(&sandbox->response_body);
+		erpc_req_response_enqueue(sandbox->rpc_id, sandbox->rpc_handler, 
+				sandbox->response_body.data, sandbox->response_body.size, response_code);
+	}
 }

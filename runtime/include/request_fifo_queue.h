@@ -2,7 +2,7 @@
 #include <stdint.h> 
 #include <stddef.h>
 
-#define RQUEUE_QUEUE_LEN 256
+#define RQUEUE_QUEUE_LEN 4096 
 
 struct request_fifo_queue {
     struct sandbox *rqueue[RQUEUE_QUEUE_LEN];

@@ -496,7 +496,12 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
 
     /* Reset estimated execution time and relative deadline for exponential service time simulation */
     if (runtime_exponential_service_time_simulation_enabled) {
-	sandbox->estimated_cost = base_simulated_service_time * atoi((const char *)msg) * (1 - LOSS_PERCENTAGE);
+	int exp_num = atoi((const char *)msg);
+	if (exp_num == 1) {
+		sandbox->estimated_cost = base_simulated_service_time;
+	} else {
+		sandbox->estimated_cost = base_simulated_service_time * exp_num * (1 - LOSS_PERCENTAGE);
+	}
 	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
 	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
     }
@@ -659,7 +664,12 @@ void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size
 
 	/* Reset estimated execution time and relative deadline for exponential service time simulation */
     	if (runtime_exponential_service_time_simulation_enabled) {
-        	sandbox->estimated_cost = base_simulated_service_time * atoi((const char *)msg) * (1 - LOSS_PERCENTAGE);
+		int exp_num = atoi((const char *)msg);
+        	if (exp_num == 1) {
+                	sandbox->estimated_cost = base_simulated_service_time;
+        	} else {
+                	sandbox->estimated_cost = base_simulated_service_time * exp_num * (1 - LOSS_PERCENTAGE);
+        	}
         	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
         	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
     	}

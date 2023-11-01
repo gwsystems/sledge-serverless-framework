@@ -27,6 +27,7 @@
 #include "memlogging.h"
 #include "tenant_functions.h"
 
+extern uint32_t max_local_queue_length[1024];
 extern thread_local uint32_t max_queue_length;
 extern thread_local uint32_t dispatcher_try_interrupts;
 thread_local uint32_t interrupts = 0;
@@ -247,7 +248,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 		if (is_listener) {
 			pthread_stop = true;
-			printf("try preempts:%u max queue %u\n", dispatcher_try_interrupts, max_queue_length);
+			printf("try preempts:%u max global queue %u\n", dispatcher_try_interrupts, max_queue_length);
 			break;
 		}
  
@@ -260,6 +261,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			throughput, global_worker_thread_idx, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
 			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests, interrupts, preemptable_interrupts);
                 dump_log_to_file();
+		printf("max local queue %u\n", max_local_queue_length[global_worker_thread_idx]);
 		pthread_stop = true;		
 		break;
 	}

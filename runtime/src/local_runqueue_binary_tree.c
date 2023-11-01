@@ -13,6 +13,8 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
+uint32_t local_queue_length[1024] = {0};
+uint32_t max_local_queue_length[1024] = {0};
 extern bool runtime_exponential_service_time_simulation_enabled;
 extern thread_local int global_worker_thread_idx;
 extern struct sandbox* current_sandboxes[1024];
@@ -59,6 +61,11 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
 	binary_tree->root = insert(binary_tree, binary_tree->root, sandbox);
 	lock_unlock(&binary_tree->lock, &node_lock);
 
+	local_queue_length[index]++;
+	if (local_queue_length[index] > max_local_queue_length[index]) {
+		max_local_queue_length[index] = local_queue_length[index];
+	}
+
 	/* Set estimated exeuction time for the sandbox */
 	if (runtime_exponential_service_time_simulation_enabled == false) {
         	uint32_t uid = sandbox->route->admissions_info.uid;
@@ -102,7 +109,8 @@ local_runqueue_binary_tree_delete(struct sandbox *sandbox)
 		panic("Tried to delete sandbox %lu state %d from runqueue %p, but was not present\n", 
 		       sandbox->id, sandbox->state, local_runqueue_binary_tree);
 	}
-	   
+
+	local_queue_length[global_worker_thread_idx]--;	   
 	
 }
 

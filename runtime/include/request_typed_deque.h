@@ -3,7 +3,7 @@
 #include <stdint.h> 
 #include <stddef.h>
 
-#define RDEQUE_LEN 4096
+#define RDEQUE_LEN 65535 
 
 struct request_typed_deque {
     uint8_t type;
