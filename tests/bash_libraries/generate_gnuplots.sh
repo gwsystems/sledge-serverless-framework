@@ -30,7 +30,11 @@ generate_gnuplots() {
 
 	shopt -s nullglob
 	for gnuplot_file in "$experiment_directory"/*.gnuplot; do
-		gnuplot "$gnuplot_file"
+		if [ -z "$TENANT_IDS" ]; then
+			gnuplot "$gnuplot_file"
+		else 
+			gnuplot -e "tenant_ids='${TENANT_IDS[*]}'" "$gnuplot_file"
+		fi
 	done
 	cd "$experiment_directory" || exit
 }
