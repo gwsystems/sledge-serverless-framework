@@ -19,14 +19,19 @@
 #include "request_typed_deque.h"
 #include "local_preempted_fifo_queue.h"
 
+#define INTERRUPT_INTERVAL 50
 #define BASE_SERVICE_TIME 10
 #define LOSS_PERCENTAGE 0.11
 
+thread_local int next_loop_start_index = -1;
+thread_local uint64_t total_requests = 0;
 uint64_t base_simulated_service_time = 0;
 uint64_t shinjuku_interrupt_interval = 0; 
 thread_local uint32_t global_queue_length = 0;
 thread_local uint32_t max_queue_length = 0;
 
+uint32_t worker_old_sandbox[1024] = {0};
+uint32_t worker_new_sandbox[1024] = {0};
 struct perf_window * worker_perf_windows[1024];
 struct priority_queue * worker_queues[1024];
 struct binary_tree * worker_binary_trees[1024];
@@ -485,6 +490,7 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
         return;
     }
 
+    total_requests++;
     /* Allocate a Sandbox */
     //session->state          = HTTP_SESSION_EXECUTING;
     struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
@@ -520,14 +526,20 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
     int candidate_thread_with_interrupt = -1; /* This thread can server the request immediately by interrupting 
 					         the current one */
 
-    for (uint32_t i = worker_start_id; i < worker_end_id; i++) {
+    next_loop_start_index++;
+    if (next_loop_start_index == runtime_worker_group_size) {
+        next_loop_start_index = 0;
+    }
+
+    for (uint32_t i = next_loop_start_index; i < next_loop_start_index + runtime_worker_group_size; ++i) {
+	int true_idx = i % runtime_worker_group_size;
         bool need_interrupt;
-        uint64_t waiting_serving_time = local_runqueue_try_add_index(i, sandbox, &need_interrupt);
+        uint64_t waiting_serving_time = local_runqueue_try_add_index(worker_list[true_idx], sandbox, &need_interrupt);
 	/* The local queue is empty, the worker is idle, can be served this request immediately 
          * without interrupting 
          */
         if (waiting_serving_time == 0 && need_interrupt == false) {
-            local_runqueue_add_index(i, sandbox);
+            local_runqueue_add_index(worker_list[true_idx], sandbox);
             return;
         } else if (waiting_serving_time == 0 && need_interrupt == true) {//The worker can serve the request immediately
 									// by interrupting the current one
@@ -537,11 +549,11 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
             if (candidate_thread_with_interrupt != -1) {
                 continue;
             } else {
-                candidate_thread_with_interrupt = i;
+                candidate_thread_with_interrupt = worker_list[true_idx];
             }
         } else if (min_waiting_serving_time > waiting_serving_time) {
             min_waiting_serving_time = waiting_serving_time;
-            thread_id = i;	
+            thread_id = worker_list[true_idx];	
         } 
     } 
 	
@@ -591,6 +603,7 @@ void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t s
                 return;
         }
 
+	total_requests++;
         /* Allocate a Sandbox */
         //session->state          = HTTP_SESSION_EXECUTING;
         struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
@@ -653,6 +666,7 @@ void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size
                 return;
         }
 
+	total_requests++;
         /* Allocate a Sandbox */
         //session->state          = HTTP_SESSION_EXECUTING;
         struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
@@ -846,38 +860,47 @@ void shinjuku_dispatch_different_core() {
 }
 
 void shinjuku_dispatch() {
-    for (uint32_t i = 0; i < runtime_worker_group_size; ++i) {
+    next_loop_start_index++;
+    if (next_loop_start_index == runtime_worker_group_size) {
+    	next_loop_start_index = 0;	
+    }
+
+    for (uint32_t i = next_loop_start_index; i < next_loop_start_index + runtime_worker_group_size; ++i) {
+	int true_idx = i % runtime_worker_group_size;
         /* move all preempted sandboxes from worker to dispatcher's typed queue */
-        struct request_fifo_queue * preempted_queue = worker_preempted_queue[worker_list[i]];
+        struct request_fifo_queue * preempted_queue = worker_preempted_queue[worker_list[true_idx]];
 	assert(preempted_queue != NULL);
 	uint64_t tsc = 0;
-        struct sandbox * preempted_sandbox = pop_worker_preempted_queue(worker_list[i], preempted_queue, &tsc);
+        struct sandbox * preempted_sandbox = pop_worker_preempted_queue(worker_list[true_idx], preempted_queue, &tsc);
 	while(preempted_sandbox != NULL) {
 	    uint8_t req_type = preempted_sandbox->route->request_type; 
 	    insertfront(request_type_deque[req_type - 1], preempted_sandbox, tsc);
 	    global_queue_length++;
 	    //insertrear(request_type_deque[req_type - 1], preempted_sandbox, tsc);
-	    preempted_sandbox = pop_worker_preempted_queue(worker_list[i], preempted_queue, &tsc);     
+	    preempted_sandbox = pop_worker_preempted_queue(worker_list[true_idx], preempted_queue, &tsc);     
 	} 
         /* core is idle */
-        if ((1 << i) & free_workers[dispatcher_thread_idx]) {
+        //if ((1 << i) & free_workers[dispatcher_thread_idx]) {
+        if (local_runqueue_get_length_index(worker_list[true_idx]) == 0) {
             struct sandbox *sandbox = shinjuku_select_sandbox();
             if (!sandbox) return; // queue is empty
             while (sandbox->global_worker_thread_idx != -1) {
 		sandbox->start_ts = __getcycles();
                 local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
 		global_queue_length--;
+		worker_old_sandbox[worker_list[true_idx]]++;
                 sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return;
             }
             
 	    sandbox->start_ts = __getcycles();    
-            local_runqueue_add_index(worker_list[i], sandbox);
+            local_runqueue_add_index(worker_list[true_idx], sandbox);
 	    global_queue_length--;
-            atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << i);
+            worker_new_sandbox[worker_list[true_idx]]++;
+            atomic_fetch_xor(&free_workers[dispatcher_thread_idx], 1 << true_idx);
         } else { // core is busy
             //check if the current sandbox is running longer than the specified time duration
-            struct sandbox *current = current_sandboxes[worker_list[i]];
+            struct sandbox *current = current_sandboxes[worker_list[true_idx]];
             if (!current) continue; //In case that worker thread hasn't call current_sandbox_set to set the current sandbox
             uint64_t elapsed_cycles = (__getcycles() - current->start_ts);
 	    if (elapsed_cycles >= shinjuku_interrupt_interval && (current->state == SANDBOX_RUNNING_USER || current->state == SANDBOX_RUNNING_SYS)) {
@@ -888,16 +911,18 @@ void shinjuku_dispatch() {
 		    sandbox->start_ts = __getcycles();
                     local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
 		    global_queue_length--;
+		    worker_old_sandbox[worker_list[true_idx]]++;
                     sandbox = shinjuku_select_sandbox();
                     if (!sandbox) return;
                 }
 
                 //preempt the current sandbox and put it back the typed queue, select a new one to send to it
 		sandbox->start_ts = __getcycles();
-                local_runqueue_add_index(worker_list[i], sandbox);
+                local_runqueue_add_index(worker_list[true_idx], sandbox);
 		global_queue_length--;
+		worker_new_sandbox[worker_list[true_idx]]++;
                 //preempt worker
-                preempt_worker(worker_list[i]);
+                preempt_worker(worker_list[true_idx]);
 		dispatcher_try_interrupts++;
             }
         }
@@ -922,7 +947,7 @@ void *
 listener_thread_main(void *dummy)
 {
 	is_listener = true;
-	shinjuku_interrupt_interval = 100 * runtime_processor_speed_MHz;
+	shinjuku_interrupt_interval = INTERRUPT_INTERVAL * runtime_processor_speed_MHz;
 	base_simulated_service_time = BASE_SERVICE_TIME * runtime_processor_speed_MHz;
 
 	/* Unmask SIGINT signals */

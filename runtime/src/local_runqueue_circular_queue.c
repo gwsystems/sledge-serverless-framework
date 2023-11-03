@@ -8,7 +8,7 @@
 #include "likely.h"
 #include "request_fifo_queue.h"
 
-extern uint32_t local_queue_length[1024];
+extern _Atomic uint32_t local_queue_length[1024];
 extern uint32_t max_local_queue_length[1024];
 extern thread_local int global_worker_thread_idx;
 extern struct request_fifo_queue * worker_circular_queue[1024];
@@ -46,7 +46,7 @@ local_runqueue_circular_queue_add_index(int index, struct sandbox *sandbox){
         local_runqueue->rqueue[head & (RQUEUE_QUEUE_LEN - 1)] = sandbox;
         local_runqueue->rqueue_head++;
     }
-    local_queue_length[index]++;
+    atomic_fetch_add(&local_queue_length[index], 1);  
     if (local_queue_length[index] > max_local_queue_length[index]) {
 	max_local_queue_length[index] = local_queue_length[index];
     }
@@ -70,7 +70,7 @@ local_runqueue_circular_queue_delete(struct sandbox *sandbox) {
            = NULL;
 
     local_runqueue_circular_queue->rqueue_tail++;
-    local_queue_length[global_worker_thread_idx]--;
+    atomic_fetch_sub(&local_queue_length[global_worker_thread_idx], 1);
 }
 
 /* Called by worker thread to get item from the tail of the queue */
@@ -90,6 +90,13 @@ int
 local_runqueue_circular_queue_get_length() {
     assert(local_runqueue_circular_queue != NULL);
     return (local_runqueue_circular_queue->rqueue_head - local_runqueue_circular_queue->rqueue_tail);
+}
+
+int 
+local_runqueue_circular_queue_get_length_index(int index) {
+    struct request_fifo_queue * local_runqueue = worker_circular_queue[index];
+    assert(local_runqueue != NULL);
+    return (local_runqueue->rqueue_head - local_runqueue->rqueue_tail);
 }
 
 /**
@@ -116,7 +123,8 @@ local_runqueue_circular_queue_initialize()
                                             .is_empty_fn    = local_runqueue_circular_queue_is_empty,
                                             .delete_fn      = local_runqueue_circular_queue_delete,
                                             .get_next_fn    = local_runqueue_circular_queue_get_next,
-                                            .get_length_fn  = local_runqueue_circular_queue_get_length
+                                            .get_length_fn  = local_runqueue_circular_queue_get_length,
+                                            .get_length_fn_idx  = local_runqueue_circular_queue_get_length_index
                                           };
 
     local_runqueue_initialize(&config);

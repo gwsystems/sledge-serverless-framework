@@ -27,6 +27,9 @@
 #include "memlogging.h"
 #include "tenant_functions.h"
 
+extern uint32_t worker_old_sandbox[1024];
+extern uint32_t worker_new_sandbox[1024];
+extern thread_local uint64_t total_requests;
 extern uint32_t max_local_queue_length[1024];
 extern thread_local uint32_t max_queue_length;
 extern thread_local uint32_t dispatcher_try_interrupts;
@@ -245,23 +248,26 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 	}
 	case SIGINT: { /* Stop the alarm timer first */ software_interrupt_disarm_timer();
    		sigint_propagate_workers_listener(signal_info);
+		time_t t_end = time(NULL);
+		double seconds = difftime(t_end, t_start);
 
 		if (is_listener) {
 			pthread_stop = true;
-			printf("try preempts:%u max global queue %u\n", dispatcher_try_interrupts, max_queue_length);
+			double arriving_rate = total_requests / seconds;
+			printf("try preempts:%u max global queue %u arriving rate %f\n", dispatcher_try_interrupts, max_queue_length, arriving_rate);
 			break;
 		}
  
 		/* calculate the throughput */
-		time_t t_end = time(NULL);
-		double seconds = difftime(t_end, t_start);
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
-		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_local_requests %u interrupts %u p-interrupts %u\n", 
+		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_local_requests %u interrupts %u p-interrupts %u max local queue %u\n", 
 			throughput, global_worker_thread_idx, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
-			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests, interrupts, preemptable_interrupts);
+			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests, interrupts, preemptable_interrupts,
+			max_local_queue_length[global_worker_thread_idx]);
                 dump_log_to_file();
-		printf("max local queue %u\n", max_local_queue_length[global_worker_thread_idx]);
+		printf("id %d max local queue %u new %u old %u\n", global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx], 
+			worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx]);
 		pthread_stop = true;		
 		break;
 	}

@@ -90,6 +90,9 @@ int local_runqueue_get_height() {
 int local_runqueue_get_length() {
 	return local_runqueue.get_length_fn();
 }
+int local_runqueue_get_length_index(int index) {
+	return local_runqueue.get_length_fn_idx(index);
+}
 /**
  * Get next sandbox from run queue, where next is defined by
  * @returns sandbox (or NULL?)

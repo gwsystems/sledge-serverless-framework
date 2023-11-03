@@ -282,7 +282,7 @@ sandbox_free(struct sandbox *sandbox, uint64_t *ret)
 }
 
 void sandbox_send_response(struct sandbox *sandbox, uint8_t response_code) {
-	if (runtime_exponential_service_time_simulation_enabled && response_code == 0) {
+	if (response_code == 0) {
 		uint64_t pure_cpu_time = (sandbox->duration_of_state[SANDBOX_RUNNING_SYS] + sandbox->duration_of_state[SANDBOX_RUNNING_USER])
 						/ runtime_processor_speed_MHz;
 		char tmp_buf[20] = {0};

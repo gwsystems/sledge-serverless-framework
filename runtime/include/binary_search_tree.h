@@ -4,7 +4,7 @@
 
 #include "lock.h"
 
-#define MAX_NODES 1024 // Maximum number of nodes in the pool
+#define MAX_NODES 4096 // Maximum number of nodes in the pool
 
 typedef uint64_t (*binary_tree_get_priority_fn_t)(void *data);
 typedef uint64_t (*binary_tree_get_execution_cost_fn_t)(void *data, int thread_id);

@@ -552,7 +552,8 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 		next_sandbox->context_switch_to = 2;
 		scheduler_cooperative_switch_to(exiting_context, next_sandbox);
 	} else {
-	    if (dispatcher == DISPATCHER_DARC || dispatcher == DISPATCHER_SHINJUKU) {
+	    //if (dispatcher == DISPATCHER_DARC || dispatcher == DISPATCHER_SHINJUKU) {
+	    if (dispatcher == DISPATCHER_DARC) {
 		    int virtual_id = global_worker_thread_idx - dispatcher_id * runtime_worker_group_size;	
 		    atomic_fetch_or(&free_workers[dispatcher_id], 1 << virtual_id);	
 	    }

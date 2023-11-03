@@ -13,8 +13,8 @@
 #include "sandbox_functions.h"
 #include "runtime.h"
 
-uint32_t local_queue_length[1024] = {0};
-uint32_t max_local_queue_length[1024] = {0};
+extern _Atomic uint32_t local_queue_length[1024];
+extern uint32_t max_local_queue_length[1024];
 extern bool runtime_exponential_service_time_simulation_enabled;
 extern thread_local int global_worker_thread_idx;
 extern struct sandbox* current_sandboxes[1024];
@@ -61,7 +61,7 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
 	binary_tree->root = insert(binary_tree, binary_tree->root, sandbox);
 	lock_unlock(&binary_tree->lock, &node_lock);
 
-	local_queue_length[index]++;
+	atomic_fetch_add(&local_queue_length[index], 1);
 	if (local_queue_length[index] > max_local_queue_length[index]) {
 		max_local_queue_length[index] = local_queue_length[index];
 	}
@@ -110,7 +110,7 @@ local_runqueue_binary_tree_delete(struct sandbox *sandbox)
 		       sandbox->id, sandbox->state, local_runqueue_binary_tree);
 	}
 
-	local_queue_length[global_worker_thread_idx]--;	   
+	atomic_fetch_sub(&local_queue_length[global_worker_thread_idx], 1);
 	
 }
 

@@ -24,6 +24,8 @@
  * Worker Thread State     *
  **************************/
 
+_Atomic uint32_t local_queue_length[1024] = {0};
+uint32_t max_local_queue_length[1024] = {0};
 extern struct perf_window * worker_perf_windows[1024];
 thread_local struct perf_window perf_window_per_thread[1024];
 struct sandbox* current_sandboxes[1024] = { NULL };
@@ -73,6 +75,7 @@ worker_thread_main(void *argument)
 	/* Index was passed via argument */
 	global_worker_thread_idx = *(int *)argument;
 
+	atomic_init(&local_queue_length[global_worker_thread_idx], 0);
 	/* Set dispatcher id for this worker */
 	dispatcher_id = global_worker_thread_idx / runtime_worker_group_size;
 
