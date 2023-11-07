@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "memlogging.h"
 #include "lock.h"
 
 #define MAX_NODES 4096 // Maximum number of nodes in the pool
@@ -88,7 +89,7 @@ struct TreeNode* newNode(struct binary_tree *binary_tree, void *data) {
 
 void getAvailableCapacity(struct binary_tree *binary_tree) {
 	
-	assert(binary_tree != NULL);
+    assert(binary_tree != NULL);
         
     int size = 0;
     struct TreeNode* start = binary_tree->nodePool.head;
@@ -98,6 +99,29 @@ void getAvailableCapacity(struct binary_tree *binary_tree) {
     }
 
     printf("available capacity of the queue is %d\n", size);
+}
+
+void print_in_order(struct TreeNode* node) {
+    if (node != NULL) {
+        // Recursively traverse the left subtree
+        print_in_order(node->left);
+        
+        // Print the data in the current node
+	if (node->data) {
+        	mem_log("%lu(%lu) ", ((struct sandbox *)node->data)->absolute_deadline, ((struct sandbox *)node->data)->estimated_cost);
+	}
+        
+        // Recursively traverse the right subtree
+        print_in_order(node->right);
+    }
+}
+
+// Function to print the items in the binary search tree in order
+void print_tree_in_order(struct binary_tree* bst) {
+    if (bst != NULL) {
+        print_in_order(bst->root);
+        mem_log("\n");
+    }
 }
 
 // Return a node to the pool

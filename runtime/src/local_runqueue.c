@@ -6,6 +6,7 @@
 
 #include "local_runqueue.h"
 
+extern _Atomic uint64_t worker_queuing_cost[1024];
 thread_local uint32_t total_local_requests = 0;
 static struct local_runqueue_config local_runqueue;
 
@@ -103,3 +104,24 @@ local_runqueue_get_next()
 	assert(local_runqueue.get_next_fn != NULL);
 	return local_runqueue.get_next_fn();
 };
+
+void
+worker_queuing_cost_initialize()
+{
+        for (int i = 0; i < 1024; i++) atomic_init(&worker_queuing_cost[i], 0);
+}
+
+void
+worker_queuing_cost_increment(int index, uint64_t cost)
+{
+        atomic_fetch_add(&worker_queuing_cost[index], cost);
+}
+
+void
+worker_queuing_cost_decrement(int index, uint64_t cost)
+{
+        assert(index >= 0 && index < 1024);
+        atomic_fetch_sub(&worker_queuing_cost[index], cost);
+        assert(worker_queuing_cost[index] >= 0);
+}
+

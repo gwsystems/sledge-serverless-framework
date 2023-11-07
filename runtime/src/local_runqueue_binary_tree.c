@@ -12,7 +12,9 @@
 #include "binary_search_tree.h"
 #include "sandbox_functions.h"
 #include "runtime.h"
+#include "memlogging.h"
 
+extern thread_local uint8_t dispatcher_thread_idx;
 extern _Atomic uint32_t local_queue_length[1024];
 extern uint32_t max_local_queue_length[1024];
 extern bool runtime_exponential_service_time_simulation_enabled;
@@ -64,6 +66,11 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
 	atomic_fetch_add(&local_queue_length[index], 1);
 	if (local_queue_length[index] > max_local_queue_length[index]) {
 		max_local_queue_length[index] = local_queue_length[index];
+		/*mem_log("listener %d 1:%u 2:%u 3:%u 4:%u 5:%u 6:%u 7:%u 8:%u 9:%u\n", dispatcher_thread_idx, max_local_queue_length[0],
+			max_local_queue_length[1],max_local_queue_length[2],
+			max_local_queue_length[3],max_local_queue_length[4], max_local_queue_length[5], max_local_queue_length[6],
+			max_local_queue_length[7], max_local_queue_length[8]);
+		*/
 	}
 
 	/* Set estimated exeuction time for the sandbox */
@@ -89,6 +96,7 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
         */
 	sandbox->srsf_stop_running_ts = __getcycles();
 	sandbox->srsf_remaining_slack = sandbox->relative_deadline - sandbox->estimated_cost;
+	worker_queuing_cost_increment(index, sandbox->estimated_cost);
 }
 
 /**
@@ -111,7 +119,7 @@ local_runqueue_binary_tree_delete(struct sandbox *sandbox)
 	}
 
 	atomic_fetch_sub(&local_queue_length[global_worker_thread_idx], 1);
-	
+	worker_queuing_cost_decrement(global_worker_thread_idx, sandbox->estimated_cost);	
 }
 
 /**
@@ -174,6 +182,12 @@ int local_runqueue_binary_tree_get_height() {
 	return findHeight(local_runqueue_binary_tree->root); 
 }
 
+void local_runqueue_print_in_order(int index) {
+	struct binary_tree *binary_tree = worker_binary_trees[index];
+	assert(binary_tree != NULL);
+	print_tree_in_order(binary_tree);
+}
+
 /**
  * Registers the PS variant with the polymorphic interface
  */
@@ -191,7 +205,8 @@ local_runqueue_binary_tree_initialize()
 		                                .is_empty_fn    = local_runqueue_binary_tree_is_empty,
 		                                .delete_fn      = local_runqueue_binary_tree_delete,
 		                                .get_next_fn    = local_runqueue_binary_tree_get_next,
-					        .get_height_fn  = local_runqueue_binary_tree_get_height
+					        .get_height_fn  = local_runqueue_binary_tree_get_height,
+						.print_in_order_fn_idx = local_runqueue_print_in_order
 					      };
 
 	local_runqueue_initialize(&config);

@@ -14,6 +14,7 @@ typedef struct sandbox *(*local_runqueue_get_next_fn_t)();
 typedef int (*local_runqueue_get_height_fn_t)();
 typedef int (*local_runqueue_get_length_fn_t)();
 typedef int (*local_runqueue_get_length_fn_t_idx)(int index);
+typedef void (*local_runqueue_print_in_order_fn_t_idx)(int index);
 
 struct local_runqueue_config {
 	local_runqueue_add_fn_t          add_fn;
@@ -25,6 +26,7 @@ struct local_runqueue_config {
 	local_runqueue_get_height_fn_t   get_height_fn;
 	local_runqueue_get_length_fn_t   get_length_fn;
 	local_runqueue_get_length_fn_t_idx   get_length_fn_idx;
+	local_runqueue_print_in_order_fn_t_idx print_in_order_fn_idx;
 };
 
 void            local_runqueue_add(struct sandbox *);
@@ -37,3 +39,14 @@ void            local_runqueue_initialize(struct local_runqueue_config *config);
 int             local_runqueue_get_height();
 int             local_runqueue_get_length();
 int             local_runqueue_get_length_index(int index);
+void		local_runqueue_print_in_order(int index);
+
+void
+worker_queuing_cost_initialize();
+
+void
+worker_queuing_cost_increment(int index, uint64_t cost);
+
+void
+worker_queuing_cost_decrement(int index, uint64_t cost);
+

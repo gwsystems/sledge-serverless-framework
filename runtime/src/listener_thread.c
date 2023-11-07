@@ -39,6 +39,7 @@ struct request_fifo_queue * worker_circular_queue[1024];
 struct ps_list_head * worker_lists[1024];
 struct request_fifo_queue * worker_preempted_queue[1024];
 
+extern FILE *sandbox_perf_log;
 extern bool runtime_exponential_service_time_simulation_enabled;
 extern _Atomic uint64_t worker_queuing_cost[1024]; 
 //struct sandbox *urgent_request[1024] = { NULL };
@@ -531,23 +532,32 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
         next_loop_start_index = 0;
     }
 
+    //uint64_t waiting_times[3] = {0};
     for (uint32_t i = next_loop_start_index; i < next_loop_start_index + runtime_worker_group_size; ++i) {
 	int true_idx = i % runtime_worker_group_size;
         bool need_interrupt;
         uint64_t waiting_serving_time = local_runqueue_try_add_index(worker_list[true_idx], sandbox, &need_interrupt);
+	/*waiting_times[true_idx] = waiting_serving_time;
+	if (waiting_times[true_idx] != 0) {
+		mem_log("listener %d %d queue:\n", dispatcher_thread_idx, worker_list[true_idx]);
+		local_runqueue_print_in_order(worker_list[true_idx]);	
+	}*/
 	/* The local queue is empty, the worker is idle, can be served this request immediately 
          * without interrupting 
          */
         if (waiting_serving_time == 0 && need_interrupt == false) {
             local_runqueue_add_index(worker_list[true_idx], sandbox);
+	    //mem_log("listener %d %d is idle, choose it\n", dispatcher_thread_idx, worker_list[true_idx]);  
             return;
         } else if (waiting_serving_time == 0 && need_interrupt == true) {//The worker can serve the request immediately
 									// by interrupting the current one
-            /* We already have a candidate thread, continue to find a 
-             * better thread without needing interrupt
+            /* We already have a candidate worker, continue to find a 
+             * better worker without needing interrupt or a worker that has the minimum total amount of work
              */
             if (candidate_thread_with_interrupt != -1) {
-                continue;
+		if (worker_queuing_cost[worker_list[true_idx]] < worker_queuing_cost[candidate_thread_with_interrupt]) {
+			candidate_thread_with_interrupt = worker_list[true_idx];
+		}
             } else {
                 candidate_thread_with_interrupt = worker_list[true_idx];
             }
@@ -560,10 +570,23 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
     if (candidate_thread_with_interrupt != -1) {
         //urgent_request[candidate_thread_with_interrupt] = sandbox;
         local_runqueue_add_index(candidate_thread_with_interrupt, sandbox);
+	//mem_log("listener %d %d can be interrupted immediately for req deadline %lu\n", dispatcher_thread_idx, 
+	//	candidate_thread_with_interrupt, sandbox->absolute_deadline);
+	
         preempt_worker(candidate_thread_with_interrupt);
 	dispatcher_try_interrupts++;
     } else {
         local_runqueue_add_index(thread_id, sandbox);
+	/*mem_log("listener %d %d has the min waiting time for req deadline %lu. 0:%lu 1:%lu 2:%lu\n", 
+		 dispatcher_thread_idx, thread_id, sandbox->absolute_deadline, waiting_times[0], waiting_times[1], waiting_times[2]);
+	local_runqueue_print_in_order(thread_id);
+	int fake_id = thread_id % runtime_worker_group_size;
+	for (int i = 0; i < runtime_worker_group_size;  i++) {
+		if (fake_id != i) {
+			mem_log("listener %d %d queue:\n", dispatcher_thread_idx, worker_list[i]);
+			local_runqueue_print_in_order(worker_list[i]);
+		}
+	}*/
     }
 }
 
@@ -949,6 +972,9 @@ listener_thread_main(void *dummy)
 	is_listener = true;
 	shinjuku_interrupt_interval = INTERRUPT_INTERVAL * runtime_processor_speed_MHz;
 	base_simulated_service_time = BASE_SERVICE_TIME * runtime_processor_speed_MHz;
+
+	/* Initialize memory logging, set 1M memory for logging */
+        mem_log_init2(1024*1024*1024, sandbox_perf_log);
 
 	/* Unmask SIGINT signals */
     	software_interrupt_unmask_signal(SIGINT);

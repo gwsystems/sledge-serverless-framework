@@ -12,6 +12,7 @@
  * Public API              *
  **************************/
 
+extern bool runtime_exponential_service_time_simulation_enabled;
 extern struct perf_window * worker_perf_windows[1024];
 struct sandbox *sandbox_alloc(struct module *module, struct http_session *session, struct route *route,
                               struct tenant *tenant, uint64_t admissions_estimate, void *req_handle,
@@ -60,13 +61,18 @@ sandbox_get_execution_cost(void *element, int thread_id)
 {
 	assert(element != NULL);
 	struct sandbox *sandbox = (struct sandbox *)element;
-	uint32_t uid = sandbox->route->admissions_info.uid;
-	return perf_window_get_percentile(&worker_perf_windows[thread_id][uid],
-                                          sandbox->route->admissions_info.percentile,
-                                          sandbox->route->admissions_info.control_index);
+	if (runtime_exponential_service_time_simulation_enabled) {
+		assert(sandbox->estimated_cost != 0);
+		return sandbox->estimated_cost;
+	} else {
+		uint32_t uid = sandbox->route->admissions_info.uid;
+		return perf_window_get_percentile(&worker_perf_windows[thread_id][uid],
+                                          	sandbox->route->admissions_info.percentile,
+                                          	sandbox->route->admissions_info.control_index);
 
-	
+	}
 }
+
 static inline void
 sandbox_process_scheduler_updates(struct sandbox *sandbox)
 {

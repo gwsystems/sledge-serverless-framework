@@ -27,6 +27,7 @@
 #include "memlogging.h"
 #include "tenant_functions.h"
 
+extern thread_local uint8_t dispatcher_thread_idx;
 extern uint32_t worker_old_sandbox[1024];
 extern uint32_t worker_new_sandbox[1024];
 extern thread_local uint64_t total_requests;
@@ -254,7 +255,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (is_listener) {
 			pthread_stop = true;
 			double arriving_rate = total_requests / seconds;
-			printf("try preempts:%u max global queue %u arriving rate %f\n", dispatcher_try_interrupts, max_queue_length, arriving_rate);
+			printf("%d try preempts:%u max global queue %u arriving rate %f total requests %lu\n", dispatcher_thread_idx,
+				dispatcher_try_interrupts, max_queue_length, arriving_rate, total_requests);
+			dump_log_to_file();
 			break;
 		}
  
