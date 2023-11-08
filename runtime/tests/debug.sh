@@ -11,6 +11,7 @@ declare project_path="$(
 path=`pwd`
 echo $project_path
 cd $project_path/runtime/bin
+export SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION=true
 export SLEDGE_DISABLE_PREEMPTION=true
 export SLEDGE_SANDBOX_PERF_LOG=$path/srsf.log
 export SLEDGE_NWORKERS=9
@@ -18,7 +19,8 @@ export SLEDGE_FIRST_WORKER_COREID=4
 export SLEDGE_NLISTENERS=3
 export SLEDGE_WORKER_GROUP_SIZE=3
 #export SLEDGE_DISPATCHER=DARC
-export SLEDGE_DISPATCHER=SHINJUKU
+export SLEDGE_DISPATCHER=EDF_INTERRUPT
+#export SLEDGE_DISPATCHER=SHINJUKU
 export LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH"
 #gdb --eval-command="handle SIGUSR1 nostop" \
 #	--eval-command="set pagination off" \
