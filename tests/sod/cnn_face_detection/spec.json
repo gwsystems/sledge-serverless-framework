@@ -1,0 +1,19 @@
+[
+	{
+		"name": "gwu",
+		"port": 10000,
+		"replenishment-period-us": 0,
+		"max-budget-us": 0,
+		"reservation-percentile": 0,
+		"routes": [
+			{
+				"route": "/face",
+				"path": "cnn_face_detection.wasm.so",
+				"admissions-percentile": 50,
+				"expected-execution-us": 320000,
+				"relative-deadline-us": 500000,
+				"http-resp-content-type": "text/plain"
+			}
+		]
+	}
+]

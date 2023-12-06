@@ -13,7 +13,7 @@ env:
 # job control
 jobs:
   format:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Apt Update
         run: sudo apt-get update
@@ -24,7 +24,7 @@ jobs:
       - name: Clang Format
         run: ./format.sh -d
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Apt Update
         run: sudo apt-get update

@@ -22,8 +22,7 @@
         "relative-deadline-us": 10000,
         "http-resp-content-type": "text/plain"
       }
-    ],
-    "extra-exec-percentile": 0
+    ]
   },
   {
     "name": "long-000",
@@ -48,8 +47,7 @@
         "relative-deadline-us": 18000,
         "http-resp-content-type": "text/plain"
       }
-    ],
-    "extra-exec-percentile": 0
+    ]
   },
   {
     "name": "short-000",
@@ -66,7 +64,6 @@
         "relative-deadline-us": 18000,
         "http-resp-content-type": "text/plain"
       }
-    ],
-    "extra-exec-percentile": 0
+    ]
   }
 ]
