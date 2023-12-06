@@ -26,6 +26,7 @@ all: \
 	gps_ekf.install \
 	license_plate_detection.install \
 	resize_image.install \
+	cnn_face_detection.install \
 	scratch_storage_get.install \
 	scratch_storage_set.install \
 	scratch_storage_delete.install \
@@ -104,6 +105,9 @@ gps_ekf.install: ../runtime/bin/gps_ekf.wasm.so
 
 .PHONY: license_plate_detection.install
 license_plate_detection.install: ../runtime/bin/license_plate_detection.wasm.so
+
+.PHONY: cnn_face_detection.install
+cnn_face_detection.install: ../runtime/bin/cnn_face_detection.wasm.so
 
 .PHONY: trap_divzero.install
 trap_divzero.install: ../runtime/bin/trap_divzero.wasm.so
