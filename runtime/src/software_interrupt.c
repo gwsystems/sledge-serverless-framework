@@ -272,6 +272,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		printf("id %d max local queue %u new %u old %u\n", global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx], 
 			worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx]);
 		pthread_stop = true;		
+		/* Wake up worker so it can check if pthread_stop is true, othewise, it will block at condition wait */
+		wakeup_worker(global_worker_thread_idx);
 		break;
 	}
 	default: {

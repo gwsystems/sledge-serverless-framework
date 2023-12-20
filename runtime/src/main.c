@@ -9,6 +9,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+
 
 #ifdef LOG_TO_FILE
 #include <sys/types.h>
@@ -213,7 +218,7 @@ runtime_process_debug_log_behavior()
 void
 runtime_start_runtime_worker_threads()
 {
-	printf("Starting %d worker thread(s)\n", runtime_worker_threads_count);
+	printf("Starting %d worker thread(s) first worker cpu is %d\n", runtime_worker_threads_count, runtime_first_worker_processor);
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		/* Pass the value we want the threads to use when indexing into global arrays of per-thread values */
 		runtime_worker_threads_argument[i] = i;
@@ -531,6 +536,41 @@ void listener_threads_initialize() {
         }
 }
 
+int getUri(const char *interface, int port, char *uri) {
+    struct ifreq ifr;
+
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd == -1) {
+        perror("socket");
+        return -1;
+    }
+
+    // Set the name of the interface
+    strncpy(ifr.ifr_name, interface, IFNAMSIZ - 1);
+    ifr.ifr_name[IFNAMSIZ - 1] = '\0';
+
+    // Get the IP address
+    if (ioctl(sockfd, SIOCGIFADDR, &ifr) == -1) {
+        perror("ioctl");
+        close(sockfd);
+        return -1;
+    }
+
+    close(sockfd);
+
+    // Convert the IP address to a string
+    if (inet_ntop(AF_INET, &((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr, uri, INET_ADDRSTRLEN) == NULL) {
+        perror("inet_ntop");
+        return -1;
+    }
+
+    // Append the port to the IP address in the same buffer
+    int offset = strlen(uri);
+    snprintf(uri + offset, INET_ADDRSTRLEN - offset + 5, ":%d", port);
+
+    return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -546,7 +586,14 @@ main(int argc, char **argv)
 	software_interrupt_initialize();
 
 	/* eRPC init */
-        char *server_uri = "128.110.219.3:31850";
+	char server_uri[INET_ADDRSTRLEN + 5];
+
+	if (getUri("ens1f0np0", 31850, server_uri) == 0) {
+		printf("URI: %s\n", server_uri);
+	} else {
+		printf("Failed to get URI.\n");
+	}
+
         erpc_init(server_uri, 0, 0);
 
 	log_compiletime_config();
@@ -589,6 +636,13 @@ main(int argc, char **argv)
 
 	runtime_get_listener_count();
 	runtime_get_worker_group_size();
+	/* Set main thread cpu affinity to core #1 */
+	cpu_set_t cs;
+	CPU_ZERO(&cs);
+	CPU_SET(1, &cs);
+	int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cs);
+	assert(ret == 0);
+
 	runtime_start_runtime_worker_threads();
 	software_interrupt_arm_timer();
 	

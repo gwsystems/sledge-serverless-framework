@@ -6,6 +6,9 @@
 
 #include "local_runqueue.h"
 
+extern pthread_mutex_t mutexs[1024];
+extern pthread_cond_t conds[1024];
+
 extern _Atomic uint64_t worker_queuing_cost[1024];
 thread_local uint32_t total_local_requests = 0;
 static struct local_runqueue_config local_runqueue;
@@ -42,7 +45,13 @@ local_runqueue_add_index(int index, struct sandbox *sandbox)
 #ifdef LOG_LOCAL_RUNQUEUE
         local_runqueue_count++;
 #endif
-        return local_runqueue.add_fn_idx(index, sandbox);
+	/* wakeup worker if it is empty before we add a new request */
+	if (local_runqueue_is_empty_index(index)) {
+		local_runqueue.add_fn_idx(index, sandbox);
+		wakeup_worker(index);	
+	} else {
+		local_runqueue.add_fn_idx(index, sandbox);
+	}
 }
 
 uint64_t
@@ -75,6 +84,17 @@ local_runqueue_is_empty()
 {
 	assert(local_runqueue.is_empty_fn != NULL);
 	return local_runqueue.is_empty_fn();
+}
+
+/**
+ * Checks if run queue is empty
+ * @returns true if empty
+ */
+bool
+local_runqueue_is_empty_index(int index)
+{
+        assert(local_runqueue.is_empty_fn_idx != NULL);
+        return local_runqueue.is_empty_fn_idx(index);
 }
 
 /**
@@ -125,3 +145,9 @@ worker_queuing_cost_decrement(int index, uint64_t cost)
         assert(worker_queuing_cost[index] >= 0);
 }
 
+void 
+wakeup_worker(int index) {
+	pthread_mutex_lock(&mutexs[index]);
+	pthread_cond_signal(&conds[index]);
+	pthread_mutex_unlock(&mutexs[index]);
+}

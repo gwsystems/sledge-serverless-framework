@@ -6,7 +6,7 @@
 #include "http_session.h"
 #include "module.h"
 
-#define LISTENER_THREAD_START_CORE_ID 1
+#define LISTENER_THREAD_START_CORE_ID 2 
 #define DIPATCH_ROUNTE_ERROR "Did not match any routes"
 #define WORK_ADMITTED_ERROR "Work is not admitted"
 #define SANDBOX_ALLOCATION_ERROR "Failed to allocate a sandbox"

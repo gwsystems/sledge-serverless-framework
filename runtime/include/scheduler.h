@@ -35,6 +35,8 @@ extern thread_local bool pthread_stop;
 extern uint32_t runtime_worker_group_size;
 extern _Atomic uint32_t free_workers[10];
 extern thread_local int dispatcher_id;
+extern pthread_mutex_t mutexs[1024];
+extern pthread_cond_t conds[1024];
 /**
  * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
  *
@@ -481,8 +483,12 @@ scheduler_idle_loop()
 			ret[3] += ret_inner[3];
 			ret[4] += ret_inner[4];
 		}
-		/* Improve the performance of spin-wait loops (works only if preemptions enabled) */
-		if (runtime_worker_spinloop_pause_enabled) pause();
+		/* If queue is empty, then sleep to wait for the condition variable */
+		if (next_sandbox == NULL) {
+			pthread_mutex_lock(&mutexs[global_worker_thread_idx]);
+			pthread_cond_wait(&conds[global_worker_thread_idx], &mutexs[global_worker_thread_idx]);
+			pthread_mutex_unlock(&mutexs[global_worker_thread_idx]);
+		}
 	}
 }
 

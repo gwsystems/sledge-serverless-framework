@@ -30,13 +30,15 @@ uint64_t shinjuku_interrupt_interval = 0;
 thread_local uint32_t global_queue_length = 0;
 thread_local uint32_t max_queue_length = 0;
 
+pthread_mutex_t mutexs[1024];
+pthread_cond_t conds[1024];
+
 uint32_t worker_old_sandbox[1024] = {0};
 uint32_t worker_new_sandbox[1024] = {0};
 struct perf_window * worker_perf_windows[1024];
 struct priority_queue * worker_queues[1024];
 struct binary_tree * worker_binary_trees[1024];
 struct request_fifo_queue * worker_circular_queue[1024];
-struct ps_list_head * worker_lists[1024];
 struct request_fifo_queue * worker_preempted_queue[1024];
 
 extern FILE *sandbox_perf_log;
@@ -107,6 +109,7 @@ listener_thread_initialize(uint8_t thread_id)
 	CPU_ZERO(&cs);
 	CPU_SET(LISTENER_THREAD_START_CORE_ID + thread_id, &cs);
 
+	printf("cpu affinity core for listener is %d\n", LISTENER_THREAD_START_CORE_ID + thread_id);
 	/* Setup epoll */
 	listener_thread_epoll_file_descriptor = epoll_create1(0);
 	assert(listener_thread_epoll_file_descriptor >= 0);
@@ -115,11 +118,12 @@ listener_thread_initialize(uint8_t thread_id)
         runtime_listener_threads_argument[thread_id] = thread_id;
 
 	int ret = pthread_create(&runtime_listener_threads[thread_id], NULL, listener_thread_main, (void *)&runtime_listener_threads_argument[thread_id]);
+	/* Sleep 1 second to wait for listener_thread_main start up and set DPDK control threads cpu affinity */
+	sleep(1);
 	listener_thread_id = runtime_listener_threads[thread_id];
 	assert(ret == 0);
+	/* Set listener thread to a different cpu affinity to seperate from DPDK control threads */
 	ret = pthread_setaffinity_np(listener_thread_id, sizeof(cpu_set_t), &cs);
-	assert(ret == 0);
-	ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cs);
 	assert(ret == 0);
 
 	printf("\tListener core thread: %lx\n", listener_thread_id);

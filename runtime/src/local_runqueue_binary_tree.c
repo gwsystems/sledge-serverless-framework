@@ -37,6 +37,20 @@ local_runqueue_binary_tree_is_empty()
 }
 
 /**
+ * Checks if the run queue is empty
+ * @returns true if empty. false otherwise
+ */
+bool
+local_runqueue_binary_tree_is_empty_index(int index)
+{
+	struct binary_tree *binary_tree = worker_binary_trees[index];
+
+        assert(binary_tree != NULL);
+
+        return is_empty(binary_tree);
+}
+
+/**
  * Adds a sandbox to the run queue
  * @param sandbox
  * @returns pointer to sandbox added
@@ -203,6 +217,7 @@ local_runqueue_binary_tree_initialize()
 						.add_fn_idx     = local_runqueue_binary_tree_add_index,
 						.try_add_fn_idx = local_runqueue_binary_tree_try_add_index,
 		                                .is_empty_fn    = local_runqueue_binary_tree_is_empty,
+						.is_empty_fn_idx = local_runqueue_binary_tree_is_empty_index,
 		                                .delete_fn      = local_runqueue_binary_tree_delete,
 		                                .get_next_fn    = local_runqueue_binary_tree_get_next,
 					        .get_height_fn  = local_runqueue_binary_tree_get_height,

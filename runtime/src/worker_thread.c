@@ -24,6 +24,9 @@
  * Worker Thread State     *
  **************************/
 
+extern pthread_mutex_t mutexs[1024];
+extern pthread_cond_t conds[1024];
+
 _Atomic uint32_t local_queue_length[1024] = {0};
 uint32_t max_local_queue_length[1024] = {0};
 extern struct perf_window * worker_perf_windows[1024];
@@ -61,6 +64,11 @@ void perf_window_init() {
 	tenant_database_foreach(tenant_perf_window_init, NULL, NULL);
 }
 
+void condition_variable_init() {
+	pthread_mutex_init(&mutexs[global_worker_thread_idx], NULL);
+    	pthread_cond_init(&conds[global_worker_thread_idx], NULL);
+}
+
 /**
  * The entry function for sandbox worker threads
  * Initializes thread-local state, unmasks signals, sets up epoll loop and
@@ -89,6 +97,7 @@ worker_thread_main(void *argument)
 
 	preallocate_memory();
 	perf_window_init();
+	condition_variable_init();
 
 	scheduler_runqueue_initialize();
 	local_preempted_fifo_queue_init();
