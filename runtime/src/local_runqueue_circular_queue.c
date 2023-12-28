@@ -58,6 +58,18 @@ local_runqueue_circular_queue_is_empty() {
     return (local_runqueue_circular_queue->rqueue_head == local_runqueue_circular_queue->rqueue_tail);
 }
 
+/**
+ * Checks if the run queue is empty
+ * @returns true if empty. false otherwise
+ */
+bool
+local_runqueue_circular_queue_is_empty_index(int index)
+{
+    struct request_fifo_queue * local_runqueue = worker_circular_queue[index];
+    assert(local_runqueue != NULL);
+    return (local_runqueue->rqueue_head == local_runqueue->rqueue_tail);
+}
+
 /* Called by worker thread to delete item from the tail of the queue, the to be deleted sandbox must be in the tail */
 void
 local_runqueue_circular_queue_delete(struct sandbox *sandbox) {
@@ -121,6 +133,7 @@ local_runqueue_circular_queue_initialize()
     struct local_runqueue_config config = { .add_fn         = local_runqueue_circular_queue_add,
                                             .add_fn_idx     = local_runqueue_circular_queue_add_index,
                                             .is_empty_fn    = local_runqueue_circular_queue_is_empty,
+                                            .is_empty_fn_idx = local_runqueue_circular_queue_is_empty_index,
                                             .delete_fn      = local_runqueue_circular_queue_delete,
                                             .get_next_fn    = local_runqueue_circular_queue_get_next,
                                             .get_length_fn  = local_runqueue_circular_queue_get_length,
