@@ -73,7 +73,7 @@ struct TreeNode* newNode(struct binary_tree *binary_tree, void *data) {
     assert(binary_tree != NULL);
 
     if (binary_tree->nodePool.head == NULL) {
-        panic("queue is full\n");
+        panic("Binary search tree queue is full\n");
         return NULL;
     } else {
         // Remove a node from the head of the memory pool

@@ -23,6 +23,7 @@
 #define BASE_SERVICE_TIME 10
 #define LOSS_PERCENTAGE 0.11
 
+thread_local int current_active_workers = 1;
 thread_local int next_loop_start_index = -1;
 thread_local uint64_t total_requests = 0;
 uint64_t base_simulated_service_time = 0;
@@ -41,6 +42,7 @@ struct binary_tree * worker_binary_trees[1024];
 struct request_fifo_queue * worker_circular_queue[1024];
 struct request_fifo_queue * worker_preempted_queue[1024];
 
+extern bool runtime_autoscaling_enabled;
 extern FILE *sandbox_perf_log;
 extern bool runtime_exponential_service_time_simulation_enabled;
 extern _Atomic uint64_t worker_queuing_cost[1024]; 
@@ -532,13 +534,13 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
 					         the current one */
 
     next_loop_start_index++;
-    if (next_loop_start_index == runtime_worker_group_size) {
+    if (next_loop_start_index == current_active_workers) {
         next_loop_start_index = 0;
     }
 
     //uint64_t waiting_times[3] = {0};
-    for (uint32_t i = next_loop_start_index; i < next_loop_start_index + runtime_worker_group_size; ++i) {
-	int true_idx = i % runtime_worker_group_size;
+    for (uint32_t i = next_loop_start_index; i < next_loop_start_index + current_active_workers; ++i) {
+	int true_idx = i % current_active_workers;
         bool need_interrupt;
         uint64_t waiting_serving_time = local_runqueue_try_add_index(worker_list[true_idx], sandbox, &need_interrupt);
 	/*waiting_times[true_idx] = waiting_serving_time;
@@ -992,7 +994,6 @@ listener_thread_main(void *dummy)
 	/* calucate the worker start and end id for this listener */
 	worker_start_id = dispatcher_thread_idx * runtime_worker_group_size;
 	worker_end_id = worker_start_id + runtime_worker_group_size;
-	printf("listener %d worker_start_id %d worker_end_id %d\n", dispatcher_thread_idx, worker_start_id, worker_end_id - 1);
 
 	int index = 0;
 	for (uint32_t i = worker_start_id; i < worker_end_id; i++) {
@@ -1000,7 +1001,15 @@ listener_thread_main(void *dummy)
 		index++;
 	}	
 
-	free_workers[dispatcher_thread_idx] = __builtin_powi(2, runtime_worker_group_size) - 1;	
+	if (runtime_autoscaling_enabled) {
+		current_active_workers = 1;
+	} else {
+		current_active_workers = runtime_worker_group_size;
+	} 
+	printf("listener %d worker_start_id %d worker_end_id %d active worker %d\n", 
+		dispatcher_thread_idx, worker_start_id, worker_end_id - 1, current_active_workers);
+ 
+	free_workers[dispatcher_thread_idx] = __builtin_powi(2, current_active_workers) - 1;	
 
 	printf("free_workers is %u\n", free_workers[dispatcher_thread_idx]);
 
@@ -1034,7 +1043,7 @@ listener_thread_main(void *dummy)
         	}
 	}
 
-	/* won't go to the following implementaion */
+	/* code will end here with eRPC and won't go to the following implementaion */
 	while (!pthread_stop) {
 		printf("pthread_stop is false\n");
 		/* Block indefinitely on the epoll file descriptor, waiting on up to a max number of events */

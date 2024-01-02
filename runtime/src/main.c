@@ -51,9 +51,10 @@ uint32_t runtime_worker_group_size       = 1;
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 
 bool	 runtime_exponential_service_time_simulation_enabled = false;
-bool     runtime_preemption_enabled            = true;
-bool     runtime_worker_spinloop_pause_enabled = false;
-uint32_t runtime_quantum_us                    = 5000; /* 5ms */
+bool     runtime_autoscaling_enabled                         = false;
+bool     runtime_preemption_enabled                          = true;
+bool     runtime_worker_spinloop_pause_enabled               = false;
+uint32_t runtime_quantum_us                                  = 5000; /* 5ms */
 uint64_t runtime_boot_timestamp;
 pid_t    runtime_pid = 0;
 
@@ -293,6 +294,12 @@ runtime_configure()
 	pretty_print_key_value("Preemption", "%s\n",
 	                       runtime_preemption_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
 
+	/* Runtime Autoscaling */
+	char *autoscaling_disable = getenv("SLEDGE_DISABLE_AUTOSCALING");
+	if (autoscaling_disable != NULL && strcmp(autoscaling_disable, "true") != 0) runtime_autoscaling_enabled = true;
+	pretty_print_key_value("Autoscaling", "%s\n",
+				runtime_autoscaling_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
+ 
 	/* Runtime Quantum */
 	char *quantum_raw = getenv("SLEDGE_QUANTUM_US");
 	if (quantum_raw != NULL) {
