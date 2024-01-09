@@ -33,6 +33,7 @@ thread_local uint32_t max_queue_length = 0;
 
 pthread_mutex_t mutexs[1024];
 pthread_cond_t conds[1024];
+sem_t semlock[1024];
 
 uint32_t worker_old_sandbox[1024] = {0};
 uint32_t worker_new_sandbox[1024] = {0};
@@ -42,6 +43,7 @@ struct binary_tree * worker_binary_trees[1024];
 struct request_fifo_queue * worker_circular_queue[1024];
 struct request_fifo_queue * worker_preempted_queue[1024];
 
+extern uint64_t wakeup_thread_cycles;
 extern bool runtime_autoscaling_enabled;
 extern FILE *sandbox_perf_log;
 extern bool runtime_exponential_service_time_simulation_enabled;
@@ -567,10 +569,12 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
             } else {
                 candidate_thread_with_interrupt = worker_list[true_idx];
             }
-        } else if (min_waiting_serving_time > waiting_serving_time) {
-            min_waiting_serving_time = waiting_serving_time;
-            thread_id = worker_list[true_idx];	
-        } 
+        } else {
+		if (min_waiting_serving_time > waiting_serving_time) {
+            		min_waiting_serving_time = waiting_serving_time;
+            		thread_id = worker_list[true_idx];	
+        	}
+	} 
     } 
 	
     if (candidate_thread_with_interrupt != -1) {

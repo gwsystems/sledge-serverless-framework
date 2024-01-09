@@ -6,16 +6,16 @@
 
 #include "local_runqueue.h"
 
+extern thread_local int global_worker_thread_idx;
+extern bool runtime_worker_busy_loop_enabled;
 extern pthread_mutex_t mutexs[1024];
 extern pthread_cond_t conds[1024];
+extern sem_t semlock[1024]; 
 
 extern _Atomic uint64_t worker_queuing_cost[1024];
-thread_local uint32_t total_local_requests = 0;
 static struct local_runqueue_config local_runqueue;
-
-#ifdef LOG_LOCAL_RUNQUEUE
-thread_local uint32_t local_runqueue_count = 0;
-#endif
+thread_local uint32_t total_complete_requests = 0;
+_Atomic uint32_t local_runqueue_count[1024];
 
 /* Initializes a concrete implementation of the sandbox request scheduler interface */
 void
@@ -32,26 +32,38 @@ void
 local_runqueue_add(struct sandbox *sandbox)
 {
 	assert(local_runqueue.add_fn != NULL);
-#ifdef LOG_LOCAL_RUNQUEUE
-	local_runqueue_count++;
-#endif
-	return local_runqueue.add_fn(sandbox);
+	local_runqueue.add_fn(sandbox);
+	//atomic_fetch_add(&local_runqueue_count[global_worker_thread_idx], 1);
 }
 
 void
 local_runqueue_add_index(int index, struct sandbox *sandbox)
 {
         assert(local_runqueue.add_fn_idx != NULL);
-#ifdef LOG_LOCAL_RUNQUEUE
-        local_runqueue_count++;
-#endif
 	/* wakeup worker if it is empty before we add a new request */
-	if (local_runqueue_is_empty_index(index)) {
-		local_runqueue.add_fn_idx(index, sandbox);
-		wakeup_worker(index);	
+
+	if (!runtime_worker_busy_loop_enabled) {
+		/*pthread_mutex_lock(&mutexs[index]);
+		if (local_runqueue_is_empty_index(index)) {
+			local_runqueue.add_fn_idx(index, sandbox);
+                	//atomic_fetch_add(&local_runqueue_count[index], 1);
+			pthread_mutex_unlock(&mutexs[index]);
+                	pthread_cond_signal(&conds[index]);
+		} else {
+			pthread_mutex_unlock(&mutexs[index]);
+			local_runqueue.add_fn_idx(index, sandbox);
+		}*/
+
+		if (local_runqueue_is_empty_index(index)) {
+			local_runqueue.add_fn_idx(index, sandbox);
+			sem_post(&semlock[index]);	
+		} else {
+			local_runqueue.add_fn_idx(index, sandbox);
+		}
 	} else {
 		local_runqueue.add_fn_idx(index, sandbox);
 	}
+
 }
 
 uint64_t
@@ -68,11 +80,9 @@ void
 local_runqueue_delete(struct sandbox *sandbox)
 {
 	assert(local_runqueue.delete_fn != NULL);
-	total_local_requests++;
-#ifdef LOG_LOCAL_RUNQUEUE
-	local_runqueue_count--;
-#endif
+	total_complete_requests++;
 	local_runqueue.delete_fn(sandbox);
+	//atomic_fetch_sub(&local_runqueue_count[global_worker_thread_idx], 1);
 }
 
 /**
@@ -128,7 +138,10 @@ local_runqueue_get_next()
 void
 worker_queuing_cost_initialize()
 {
-        for (int i = 0; i < 1024; i++) atomic_init(&worker_queuing_cost[i], 0);
+        for (int i = 0; i < 1024; i++) {
+		atomic_init(&worker_queuing_cost[i], 0);
+		//atomic_init(&local_runqueue_count[i], 0);
+	}
 }
 
 void

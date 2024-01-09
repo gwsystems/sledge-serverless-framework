@@ -52,6 +52,7 @@ enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_B
 
 bool	 runtime_exponential_service_time_simulation_enabled = false;
 bool     runtime_autoscaling_enabled                         = false;
+bool     runtime_worker_busy_loop_enabled                    = false;
 bool     runtime_preemption_enabled                          = true;
 bool     runtime_worker_spinloop_pause_enabled               = false;
 uint32_t runtime_quantum_us                                  = 5000; /* 5ms */
@@ -299,7 +300,13 @@ runtime_configure()
 	if (autoscaling_disable != NULL && strcmp(autoscaling_disable, "true") != 0) runtime_autoscaling_enabled = true;
 	pretty_print_key_value("Autoscaling", "%s\n",
 				runtime_autoscaling_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
- 
+
+	/* Runtime worker busy loop */
+	char *worker_busy_loop_disable = getenv("SLEDGE_DISABLE_BUSY_LOOP");
+	if (worker_busy_loop_disable != NULL && strcmp(worker_busy_loop_disable, "true") != 0) runtime_worker_busy_loop_enabled = true;
+	 pretty_print_key_value("Worker busy loop", "%s\n",
+				runtime_worker_busy_loop_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
+
 	/* Runtime Quantum */
 	char *quantum_raw = getenv("SLEDGE_QUANTUM_US");
 	if (quantum_raw != NULL) {
@@ -324,17 +331,6 @@ runtime_configure()
 				
 	sandbox_perf_log_init();
 	http_session_perf_log_init();
-}
-
-void
-runtime_configure_worker_spinloop_pause()
-{
-	/* Runtime Worker-Spinloop-Pause Toggle */
-	char *pause_enable = getenv("SLEDGE_SPINLOOP_PAUSE_ENABLED");
-	if (pause_enable != NULL && strcmp(pause_enable, "true") == 0) runtime_worker_spinloop_pause_enabled = true;
-	pretty_print_key_value("Worker-Spinloop-Pause", "%s\n",
-	                       runtime_worker_spinloop_pause_enabled ? PRETTY_PRINT_GREEN_ENABLED
-	                                                             : PRETTY_PRINT_RED_DISABLED);
 }
 
 void
@@ -612,10 +608,7 @@ main(int argc, char **argv)
 	runtime_allocate_available_cores();
 	runtime_configure();
 	runtime_initialize();
-	//runtime_start_runtime_worker_threads();
 	runtime_get_processor_speed_MHz();
-	//runtime_configure_worker_spinloop_pause();
-	//software_interrupt_arm_timer();
 
 	
 #ifdef LOG_TENANT_LOADING

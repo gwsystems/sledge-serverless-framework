@@ -24,6 +24,8 @@
 #include "software_interrupt.h"
 #include "sandbox_perf_log.h"
 
+#define WAKEUP_THREAD_OVERHEAD 5 /* 5us */
+
 /***************************
  * Shared Process State    *
  **************************/
@@ -36,6 +38,7 @@ int       *runtime_worker_threads_argument;
 int       *runtime_listener_threads_argument;
 /* The active deadline of the sandbox running on each worker thread */
 uint64_t *runtime_worker_threads_deadline;
+uint64_t wakeup_thread_cycles;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -136,6 +139,7 @@ runtime_initialize(void)
 
 	http_parser_settings_initialize();
 	admissions_control_initialize();
+	wakeup_thread_cycles = WAKEUP_THREAD_OVERHEAD * runtime_processor_speed_MHz; 
 }
 
 static void

@@ -26,6 +26,7 @@
 
 extern pthread_mutex_t mutexs[1024];
 extern pthread_cond_t conds[1024];
+extern sem_t semlock[1024];
 
 _Atomic uint32_t local_queue_length[1024] = {0};
 uint32_t max_local_queue_length[1024] = {0};
@@ -69,6 +70,10 @@ void condition_variable_init() {
     	pthread_cond_init(&conds[global_worker_thread_idx], NULL);
 }
 
+void semaphore_init(){
+	sem_init(&semlock[global_worker_thread_idx], 0, 0);
+}
+
 /**
  * The entry function for sandbox worker threads
  * Initializes thread-local state, unmasks signals, sets up epoll loop and
@@ -98,6 +103,7 @@ worker_thread_main(void *argument)
 	preallocate_memory();
 	perf_window_init();
 	condition_variable_init();
+	semaphore_init();
 
 	scheduler_runqueue_initialize();
 	local_preempted_fifo_queue_init();

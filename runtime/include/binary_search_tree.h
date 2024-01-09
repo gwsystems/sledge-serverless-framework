@@ -25,46 +25,68 @@ struct TreeNodePool {
 };
 
 struct binary_tree {
-	struct TreeNode 	                *root;
+	struct TreeNode 	            *root;
 	struct TreeNodePool                 nodePool;
 	binary_tree_get_priority_fn_t       get_priority_fn;
 	binary_tree_get_execution_cost_fn_t get_execution_cost_fn;
 	lock_t                              lock;
 	bool                                use_lock;
+	int                                 id;
 };
 
 // Initialize the node pool
-void initNodePool(struct TreeNodePool *nodePool) {
+void initNodePool(struct TreeNodePool *nodePool, int pool_size) {
     
     assert(nodePool != NULL);
 
-    struct TreeNode *nodes = (struct TreeNode*)malloc(MAX_NODES * sizeof(struct TreeNode));
+    struct TreeNode *nodes = (struct TreeNode*)malloc(pool_size * sizeof(struct TreeNode));
     nodePool->head = nodes;  // Initialize head to the beginning of the node array
  
     for (int i = 0; i < MAX_NODES - 1; ++i) {
         nodes[i].next  = &nodes[i + 1];  // Set the next pointer of each node to the next node
         nodes[i].left  = NULL;
-	    nodes[i].right = NULL;
-	    nodes[i].data  = NULL;
+        nodes[i].right = NULL;
+        nodes[i].data  = NULL;
     }
     nodes[MAX_NODES - 1].next = NULL;
 }
 
 struct binary_tree * init_binary_tree(bool use_lock, binary_tree_get_priority_fn_t get_priority_fn, 
-				      binary_tree_get_execution_cost_fn_t get_execution_cost_fn) {
+				      binary_tree_get_execution_cost_fn_t get_execution_cost_fn, int id, int queue_size) {
 	
 	assert(get_priority_fn != NULL);
 
 	struct binary_tree *binary_tree = (struct binary_tree *)calloc(1, sizeof(struct binary_tree));
-	initNodePool(&binary_tree->nodePool);
+	initNodePool(&binary_tree->nodePool, queue_size);
 	binary_tree->root = NULL;
 	binary_tree->get_priority_fn = get_priority_fn;
 	binary_tree->get_execution_cost_fn = get_execution_cost_fn;
 	binary_tree->use_lock = use_lock;
+	binary_tree->id = id;
 	
 	if (binary_tree->use_lock) lock_init(&binary_tree->lock);
 
 	return binary_tree;
+}
+
+// Helper function for counting non-deleted nodes in the binary tree
+static int countNonDeletedNodesRec(struct TreeNode* root) {
+    if (root == NULL) {
+        return 0;
+    }
+
+    // Only count nodes that are not marked as deleted
+    if (root->data != NULL) {
+        return 1 + countNonDeletedNodesRec(root->left) + countNonDeletedNodesRec(root->right);
+    } else {
+        return countNonDeletedNodesRec(root->left) + countNonDeletedNodesRec(root->right);
+    }
+}
+
+// Function to get the total number of non-deleted nodes in the binary tree
+int getNonDeletedNodeCount(struct binary_tree *binary_tree) {
+    assert(binary_tree != NULL);
+    return countNonDeletedNodesRec(binary_tree->root);
 }
 
 // Get a new node from the pool
@@ -73,7 +95,7 @@ struct TreeNode* newNode(struct binary_tree *binary_tree, void *data) {
     assert(binary_tree != NULL);
 
     if (binary_tree->nodePool.head == NULL) {
-        panic("Binary search tree queue is full\n");
+        panic("Binary search tree queue %d is full\n", binary_tree->id);
         return NULL;
     } else {
         // Remove a node from the head of the memory pool
@@ -142,7 +164,7 @@ int findHeight(struct TreeNode *root)
 {
     int lefth, righth;
     if(root == NULL)
-        return -1;
+        return 0;
     lefth = findHeight(root->left);
     righth = findHeight(root->right);
     return (lefth > righth ? lefth : righth)+1;

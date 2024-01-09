@@ -27,6 +27,8 @@
 #include "memlogging.h"
 #include "tenant_functions.h"
 
+extern sem_t semlock[1024];
+extern uint32_t local_runqueue_count[1024];
 extern thread_local uint8_t dispatcher_thread_idx;
 extern uint32_t worker_old_sandbox[1024];
 extern uint32_t worker_new_sandbox[1024];
@@ -42,7 +44,7 @@ extern time_t t_start;
 extern thread_local int global_worker_thread_idx;
 extern thread_local bool pthread_stop;
 extern thread_local bool is_listener;
-extern thread_local uint32_t total_local_requests;
+extern thread_local uint32_t total_complete_requests;
 thread_local _Atomic volatile sig_atomic_t handler_depth    = 0;
 thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
 
@@ -264,16 +266,18 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		/* calculate the throughput */
 		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
 		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
-		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_local_requests %u interrupts %u p-interrupts %u max local queue %u\n", 
+		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_complete_requests %u interrupts %u p-interrupts %u max local queue %u\n", 
 			throughput, global_worker_thread_idx, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
-			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_local_requests, interrupts, preemptable_interrupts,
+			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_complete_requests, interrupts, preemptable_interrupts,
 			max_local_queue_length[global_worker_thread_idx]);
                 dump_log_to_file();
-		printf("id %d max local queue %u new %u old %u\n", global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx], 
-			worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx]);
+		printf("id %d max local queue %u new %u old %u current length %u real length %d total complete request %u\n", global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx], 
+			worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx], local_runqueue_count[global_worker_thread_idx],
+			local_runqueue_get_length(), total_complete_requests);
 		pthread_stop = true;		
 		/* Wake up worker so it can check if pthread_stop is true, othewise, it will block at condition wait */
 		wakeup_worker(global_worker_thread_idx);
+		sem_post(&semlock[global_worker_thread_idx]);	
 		break;
 	}
 	default: {

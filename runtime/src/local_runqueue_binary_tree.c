@@ -159,12 +159,14 @@ local_runqueue_binary_tree_get_next()
  * Try but not real add a item to the local runqueue.
  * @param index The worker thread id
  * @param sandbox Try to add 
- * @returns The waiting serving time for this sandbox if adding it to the queue
+ * @returns The waiting serving time in cycles for this sandbox if adding it to the queue
  */
 uint64_t 
 local_runqueue_binary_tree_try_add_index(int index, struct sandbox *sandbox, bool *need_interrupt)
 {
 	struct binary_tree *binary_tree = worker_binary_trees[index];
+	assert(binary_tree != NULL);
+
 	if (is_empty(binary_tree)) {
 		/* The worker is idle */
 		*need_interrupt = false;
@@ -196,6 +198,18 @@ int local_runqueue_binary_tree_get_height() {
 	return findHeight(local_runqueue_binary_tree->root); 
 }
 
+int local_runqueue_binary_tree_get_length() {
+	assert (local_runqueue_binary_tree != NULL);
+	return getNonDeletedNodeCount(local_runqueue_binary_tree); 
+}
+
+int local_runqueue_binary_tree_get_length_index(int index) {
+	struct binary_tree *binary_tree = worker_binary_trees[index];
+        assert(binary_tree != NULL);
+
+        return getNonDeletedNodeCount(binary_tree);
+}
+
 void local_runqueue_print_in_order(int index) {
 	struct binary_tree *binary_tree = worker_binary_trees[index];
 	assert(binary_tree != NULL);
@@ -209,7 +223,7 @@ void
 local_runqueue_binary_tree_initialize()
 {
 	/* Initialize local state */
-	local_runqueue_binary_tree = init_binary_tree(true, sandbox_get_priority, sandbox_get_execution_cost);
+	local_runqueue_binary_tree = init_binary_tree(true, sandbox_get_priority, sandbox_get_execution_cost, global_worker_thread_idx, 4096);
 
 	worker_binary_trees[global_worker_thread_idx] = local_runqueue_binary_tree;
 	/* Register Function Pointers for Abstract Scheduling API */
@@ -221,6 +235,8 @@ local_runqueue_binary_tree_initialize()
 		                                .delete_fn      = local_runqueue_binary_tree_delete,
 		                                .get_next_fn    = local_runqueue_binary_tree_get_next,
 					        .get_height_fn  = local_runqueue_binary_tree_get_height,
+						.get_length_fn  = local_runqueue_binary_tree_get_length,
+						.get_length_fn_idx  = local_runqueue_binary_tree_get_length_index,
 						.print_in_order_fn_idx = local_runqueue_print_in_order
 					      };
 
