@@ -22,14 +22,14 @@ declare project_path="$(
 echo $project_path
 path=`pwd`
 export SLEDGE_DISABLE_PREEMPTION=true
-export SLEDGE_DISABLE_BUSY_LOOP=false
+export SLEDGE_DISABLE_BUSY_LOOP=true
 export SLEDGE_DISABLE_AUTOSCALING=true
-export SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION=true
+export SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION=false
 #export SLEDGE_SIGALRM_HANDLER=TRIAGED
 export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id
 export SLEDGE_NWORKERS=$worker_num
 export SLEDGE_NLISTENERS=$listener_num
-export SLEDGE_WORKER_GROUP_SIZE=3
+export SLEDGE_WORKER_GROUP_SIZE=9
 export SLEDGE_SCHEDULER=EDF
 #export SLEDGE_DISPATCHER=DARC
 #export SLEDGE_DISPATCHER=SHINJUKU
@@ -45,7 +45,8 @@ cd $project_path/runtime/bin
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/mulitple_linear_chain.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_multiple_image_processing.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_multiple_image_processing3.json
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/fib.json
+#LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/fib.json
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/hash.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/empty.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/my_fibonacci.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_sodresize.json

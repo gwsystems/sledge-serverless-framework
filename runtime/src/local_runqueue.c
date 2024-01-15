@@ -16,6 +16,7 @@ extern _Atomic uint64_t worker_queuing_cost[1024];
 static struct local_runqueue_config local_runqueue;
 thread_local uint32_t total_complete_requests = 0;
 _Atomic uint32_t local_runqueue_count[1024];
+struct timespec startT[1024];
 
 /* Initializes a concrete implementation of the sandbox request scheduler interface */
 void
@@ -48,6 +49,7 @@ local_runqueue_add_index(int index, struct sandbox *sandbox)
 			local_runqueue.add_fn_idx(index, sandbox);
                 	//atomic_fetch_add(&local_runqueue_count[index], 1);
 			pthread_mutex_unlock(&mutexs[index]);
+			clock_gettime(CLOCK_MONOTONIC, &startT[index]);
                 	pthread_cond_signal(&conds[index]);
 		} else {
 			pthread_mutex_unlock(&mutexs[index]);
@@ -56,6 +58,7 @@ local_runqueue_add_index(int index, struct sandbox *sandbox)
 
 		if (local_runqueue_is_empty_index(index)) {
 			local_runqueue.add_fn_idx(index, sandbox);
+			//clock_gettime(CLOCK_MONOTONIC, &startT[index]);
 			sem_post(&semlock[index]);	
 		} else {
 			local_runqueue.add_fn_idx(index, sandbox);
