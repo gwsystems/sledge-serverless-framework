@@ -577,23 +577,23 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
             		thread_id = worker_list[true_idx];	
         	} 
 		/* Check flag and if need to autoscale */	
-		if (runtime_autoscaling_enabled && 
-		   (min_waiting_serving_time + sandbox->estimated_cost + (wakeup_thread_cycles) >= sandbox->relative_deadline)) {
-			violate_deadline_workers++;
-		}
+		//if (runtime_autoscaling_enabled && 
+		//   (min_waiting_serving_time + sandbox->estimated_cost + (wakeup_thread_cycles) >= sandbox->relative_deadline)) {
+		//	violate_deadline_workers++;
+		//}
 	} 
     } 
-
+    
     /* If no any worker can meet the current request deadline, scale up */
-    if (runtime_autoscaling_enabled && current_active_workers < runtime_worker_group_size 
-	&& violate_deadline_workers == current_active_workers) {
+    //if (runtime_autoscaling_enabled && current_active_workers < runtime_worker_group_size 
+    //	&& violate_deadline_workers == current_active_workers) {
         /* Add the current request to the scaling up worker */
-        local_runqueue_add_index(current_active_workers, sandbox);
-        current_active_workers++;
-	printf("current_active_workers %d\n", current_active_workers);
-        return;
-    }	
-
+    //    local_runqueue_add_index(current_active_workers, sandbox);
+    //    current_active_workers++;
+    //	printf("current_active_workers %d\n", current_active_workers);
+    //    return;
+    //}	
+    
     if (candidate_thread_with_interrupt != -1) {
         //urgent_request[candidate_thread_with_interrupt] = sandbox;
         local_runqueue_add_index(candidate_thread_with_interrupt, sandbox);
