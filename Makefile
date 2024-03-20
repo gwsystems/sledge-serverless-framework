@@ -16,7 +16,7 @@ install: submodules wasm_apps all
 # aWsm: the WebAssembly to LLVM bitcode compiler
 .PHONY: awsm
 awsm: 
-	cd awsm && cargo build --release
+	cd awsm && git checkout f0b35e756395f79b06be8dd2660eecac94506e94 && cargo build --release
 
 .PHONY: awsm.clean
 awsm.clean:
