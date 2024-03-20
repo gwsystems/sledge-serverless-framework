@@ -569,7 +569,7 @@ int getUri(const char *interface, int port, char *uri) {
 
     // Append the port to the IP address in the same buffer
     int offset = strlen(uri);
-    snprintf(uri + offset, INET_ADDRSTRLEN - offset + 5, ":%d", port);
+    snprintf(uri + offset, INET_ADDRSTRLEN - offset + 6, ":%d", port);
 
     return 0;
 }
@@ -589,7 +589,7 @@ main(int argc, char **argv)
 	software_interrupt_initialize();
 
 	/* eRPC init */
-	char server_uri[INET_ADDRSTRLEN + 5];
+	char server_uri[INET_ADDRSTRLEN + 6];
 
 	if (getUri("ens1f0np0", 31850, server_uri) == 0) {
 		printf("URI: %s\n", server_uri);
