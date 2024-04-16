@@ -17,9 +17,9 @@ total_cold_time = 0
 total_warm_time = 0
 count = 0
 
-for i in range(0, len(lines), 2):
+for i in range(0, len(lines), 4):
     time_str_1 = lines[i].split(": ")[1].strip()
-    time_str_2 = lines[i+1].split(": ")[1].strip()
+    time_str_2 = lines[i+3].split(": ")[1].strip()
     time_value_1 = float(time_str_1[:-1])          
     time_value_2 = float(time_str_2[:-1])    
 
