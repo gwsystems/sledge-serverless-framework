@@ -13,6 +13,7 @@
 #include "vec.h"
 #include "dispatcher_options.h"
 
+extern struct route *route_array;
 typedef struct route route_t;
 VEC(route_t)
 
@@ -22,6 +23,10 @@ static inline void
 http_router_init(http_router_t *router, size_t capacity)
 {
 	vec_route_t_init(router, capacity);
+        /* Use the request type as the array index, so skip index 0 since request index 
+           starts from 1
+        */
+        route_array = (struct route*) calloc(capacity + 1, sizeof(struct route));
 }
 
 static inline int
@@ -67,6 +72,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 	                           route.relative_deadline);
 
 	int rc = vec_route_t_push(router, route);
+        route_array[config->request_type] = route;
 	if (unlikely(rc == -1)) { return -1; }
 
 	return 0;
@@ -87,13 +93,21 @@ http_router_match_route(http_router_t *router, char *route)
 static inline struct route *
 http_router_match_request_type(http_router_t *router, uint8_t request_type)
 {
-	for (int i = 0; i < router->length; i++) {
+	/*
+        for (int i = 0; i < router->length; i++) {
 		if (request_type == router->buffer[i].request_type) {
 			return &router->buffer[i];
 		}
 	}
 
-	return NULL;
+	return NULL; 
+        */
+
+        if (route_array[request_type].request_type == request_type) {
+          return &route_array[request_type];
+        } else {
+          return NULL;
+        }
 }
 
 static inline void

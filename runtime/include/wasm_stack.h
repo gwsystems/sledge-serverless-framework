@@ -124,7 +124,8 @@ wasm_stack_reinit(struct wasm_stack *wasm_stack)
 	assert(wasm_stack->buffer != NULL);
 	assert(wasm_stack->low == wasm_stack->buffer + /* guard page */ PAGE_SIZE);
 	assert(wasm_stack->high == wasm_stack->low + wasm_stack->capacity);
-
-	explicit_bzero(wasm_stack->low, wasm_stack->capacity);
+        /* comment this line because it will access all bits of the memory 
+           and hurt the performance too much */
+	//explicit_bzero(wasm_stack->low, wasm_stack->capacity);
 	ps_list_init_d(wasm_stack);
 }

@@ -5,6 +5,7 @@
 #include "sandbox_types.h"
 #include "memlogging.h"
 
+extern _Atomic uint32_t local_queue_length[1024];
 extern FILE *sandbox_perf_log;
 extern thread_local int global_worker_thread_idx;
 
@@ -15,9 +16,7 @@ static inline void
 sandbox_perf_log_print_header()
 {
 	if (sandbox_perf_log == NULL) { perror("sandbox perf log"); }
-	fprintf(sandbox_perf_log, "id,tenant,route,state,deadline,actual,queued,uninitialized,allocated,initialized,"
-	                          "runnable,interrupted,preempted,"
-	                          "running_sys,running_user,asleep,returned,complete,error,proc_MHz,memory\n");
+	fprintf(sandbox_perf_log, "tid,rid,total,execution,queued,route,init,cleanup,deadline,queuelen\n");
 }
 
 /**
@@ -55,11 +54,23 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
 
 	uint64_t init_time = sandbox->duration_of_state[SANDBOX_INITIALIZED] / runtime_processor_speed_MHz;
 	if (miss_deadline) {
-		mem_log("tid %d %u miss %lu %lu %lu %s %lu %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
-			init_time, cleanup, deadline, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
+		/*mem_log("tid %d %u miss %lu %lu %lu %s %lu %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", 
+                         global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, 
+                         sandbox->route->route,init_time, cleanup, deadline, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
+                */
+		mem_log("tid %d %u miss %lu %lu %lu %s %lu %lu %lu %u\n", 
+                         global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, 
+                         sandbox->route->route,init_time, cleanup, deadline,local_queue_length[global_worker_thread_idx]);
+                
 	} else {
-		mem_log("tid %d %u meet %lu %lu %lu %s %lu %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, sandbox->route->route,
-			init_time, cleanup, deadline, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
+		/*mem_log("tid %d %u meet %lu %lu %lu %s %lu %lu %lu f%d %lu %lu %lu %lu %lu %lu\n", 
+                         global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, 
+                         sandbox->route->route,init_time, cleanup, deadline, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
+                */
+		mem_log("tid %d %u meet %lu %lu %lu %s %lu %lu %lu %lu\n", 
+                         global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, 
+                         sandbox->route->route,init_time, cleanup, deadline,deadline,local_queue_length[global_worker_thread_idx]);
+                
 	}
 	/*
 	 * Assumption: A sandbox is never able to free pages. If linear memory management

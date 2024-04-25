@@ -13,7 +13,7 @@
 #define GLOBAL_QUEUE_ERROR "Failed to add sandbox to global queue" 
 
 #define MAX_DISPATCHER 10
-#define MAX_REQUEST_TYPE 10
+#define MAX_REQUEST_TYPE MODULE_DATABASE_CAPACITY 
 
 extern thread_local pthread_t listener_thread_id;
 
