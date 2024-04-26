@@ -1,0 +1,191 @@
+diff --git a/awsm b/awsm
+index 69c8b61..f0b35e7 160000
+--- a/awsm
++++ b/awsm
+@@ -1 +1 @@
+-Subproject commit 69c8b6116664d65a851cc459601bef6af3caeaea
++Subproject commit f0b35e756395f79b06be8dd2660eecac94506e94
+diff --git a/runtime/Makefile b/runtime/Makefile
+index 607870e..5e01e67 100644
+--- a/runtime/Makefile
++++ b/runtime/Makefile
+@@ -16,10 +16,10 @@ CFLAGS+=-D_GNU_SOURCE
+ # Enable SLEDGE macro for erpc c interface build
+ CFLAGS+=-DSLEDGE
+ # Release Flags
+-CFLAGS+=-O3 -flto
++#CFLAGS+=-O3 -flto
+ 
+ # Debugging Flags
+-# CFLAGS+=-O0 -g3
++ CFLAGS+=-O0 -g3
+ 
+ # CFI Sanitizer
+ # CFLAGS+=-fvisibility=default -fsanitize=cfi
+diff --git a/runtime/include/erpc_handler.h b/runtime/include/erpc_handler.h
+index 7442ea1..04de7fa 100644
+--- a/runtime/include/erpc_handler.h
++++ b/runtime/include/erpc_handler.h
+@@ -1,6 +1,6 @@
+ #pragma once
+ 
+ #include <stdint.h>
+-void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
++void edf_interrupt_req_handler(void *req_handle, uint16_t req_type, uint8_t *msg, size_t size, uint16_t port);
+ void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
+ void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
+diff --git a/runtime/include/http_router.h b/runtime/include/http_router.h
+index 39e1bb7..4da6948 100644
+--- a/runtime/include/http_router.h
++++ b/runtime/include/http_router.h
+@@ -54,7 +54,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
+ 	/* Register RPC request handler */
+ 	if (dispatcher == DISPATCHER_EDF_INTERRUPT) {
+             if (erpc_register_req_func(config->request_type, edf_interrupt_req_handler, 0) != 0) {
+-                panic("register erpc function for EDF_INTERRUPT dispatcher failed\n");
++                panic("register erpc function %u for EDF_INTERRUPT dispatcher failed\n", config->request_type);
+ 	    }
+ 	} else if (dispatcher == DISPATCHER_DARC) {
+ 	    if (erpc_register_req_func(config->request_type, darc_req_handler, 0) != 0) {
+@@ -91,7 +91,7 @@ http_router_match_route(http_router_t *router, char *route)
+ }
+ 
+ static inline struct route *
+-http_router_match_request_type(http_router_t *router, uint8_t request_type)
++http_router_match_request_type(http_router_t *router, uint16_t request_type)
+ {
+ 	/*
+         for (int i = 0; i < router->length; i++) {
+diff --git a/runtime/include/json_parse.h b/runtime/include/json_parse.h
+index c99aa2a..4c5b3c4 100644
+--- a/runtime/include/json_parse.h
++++ b/runtime/include/json_parse.h
+@@ -7,7 +7,7 @@
+ 
+ #include "tenant_config_parse.h"
+ 
+-#define JSON_TOKENS_CAPACITY 16384
++#define JSON_TOKENS_CAPACITY 65535 
+ 
+ /**
+  * Parses a JSON file into an array of tenant configs
+diff --git a/runtime/include/route.h b/runtime/include/route.h
+index 3fffc08..3127055 100644
+--- a/runtime/include/route.h
++++ b/runtime/include/route.h
+@@ -11,7 +11,7 @@
+ /* Assumption: entrypoint is always _start. This should be enhanced later */
+ struct route {
+ 	char                   *route;
+-	uint8_t		        request_type;
++	uint16_t		request_type;
+ 	struct http_route_total metrics;
+ 	struct module          *module;
+ 	/* HTTP State */
+diff --git a/runtime/include/route_config.h b/runtime/include/route_config.h
+index 337389f..1904f7c 100644
+--- a/runtime/include/route_config.h
++++ b/runtime/include/route_config.h
+@@ -23,7 +23,7 @@ enum route_config_member
+ 
+ struct route_config {
+ 	char    *route;
+-	uint8_t  request_type;
++	uint16_t request_type;
+ 	uint32_t n_resas;
+ 	char    *path;
+ 	uint8_t  admissions_percentile;
+@@ -48,8 +48,7 @@ static inline void
+ route_config_print(struct route_config *config)
+ {
+ 	printf("[Route] Route: %s\n", config->route);
+-	printf("[Route] Request type: %hhu\n", config->request_type);
+-	printf("[Route] Request type: %hhu\n", config->request_type);
++	printf("[Route] Request type: %u\n", config->request_type);
+ 	printf("[Route] Path: %s\n", config->path);
+ 	printf("[Route] Admissions Percentile: %hhu\n", config->admissions_percentile);
+ 	printf("[Route] Expected Execution (us): %u\n", config->expected_execution_us);
+diff --git a/runtime/include/route_config_parse.h b/runtime/include/route_config_parse.h
+index 522f3db..4b68008 100644
+--- a/runtime/include/route_config_parse.h
++++ b/runtime/include/route_config_parse.h
+@@ -63,7 +63,7 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t
+                         if (route_config_set_key_once(did_set, route_config_member_request_type) == -1)
+                                 return -1;
+ 
+-                        int rc = parse_uint8_t(tokens[i], json_buf,
++                        int rc = parse_uint16_t(tokens[i], json_buf,
+                                                route_config_json_keys[route_config_member_request_type],
+                                                &config->request_type);
+                         if (rc < 0) return -1;
+diff --git a/runtime/include/tenant_functions.h b/runtime/include/tenant_functions.h
+index f4e02c1..4aa7842 100644
+--- a/runtime/include/tenant_functions.h
++++ b/runtime/include/tenant_functions.h
+@@ -21,7 +21,7 @@ extern thread_local uint32_t n_rtypes;
+ extern thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE];
+ extern thread_local struct request_typed_deque *request_type_deque[MAX_REQUEST_TYPE];
+ extern thread_local uint8_t dispatcher_thread_idx;
+-extern thread_local struct perf_window perf_window_per_thread[1024];
++extern thread_local struct perf_window perf_window_per_thread[MODULE_DATABASE_CAPACITY];
+ extern thread_local int global_worker_thread_idx;
+ 
+ int            tenant_database_add(struct tenant *tenant);
+diff --git a/runtime/src/admissions_info.c b/runtime/src/admissions_info.c
+index 77c3417..e204bbc 100644
+--- a/runtime/src/admissions_info.c
++++ b/runtime/src/admissions_info.c
+@@ -1,9 +1,10 @@
+ #include "admissions_control.h"
+ #include "admissions_info.h"
++#include "module_database.h"
+ #include "debuglog.h"
+ #include "perf_window.h"
+ 
+-extern thread_local struct perf_window perf_window_per_thread[1024];
++extern thread_local struct perf_window perf_window_per_thread[MODULE_DATABASE_CAPACITY];
+ /**
+  * Initializes perf window
+  * @param admissions_info
+diff --git a/runtime/src/listener_thread.c b/runtime/src/listener_thread.c
+index 35c1420..038c9be 100644
+--- a/runtime/src/listener_thread.c
++++ b/runtime/src/listener_thread.c
+@@ -471,7 +471,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
+  * @param msg the payload of the rpc request. It is the input parameter fot the function
+  * @param size the size of the msg
+  */
+-void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
++void edf_interrupt_req_handler(void *req_handle, uint16_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+ 
+     if (first_request_comming == false){
+         t_start = time(NULL);
+diff --git a/runtime/src/worker_thread.c b/runtime/src/worker_thread.c
+index b11b7a0..78e3fa5 100644
+--- a/runtime/src/worker_thread.c
++++ b/runtime/src/worker_thread.c
+@@ -24,15 +24,15 @@
+  * Worker Thread State     *
+  **************************/
+ 
+-extern pthread_mutex_t mutexs[1024];
+-extern pthread_cond_t conds[1024];
+-extern sem_t semlock[1024];
+-
+-_Atomic uint32_t local_queue_length[1024] = {0};
+-uint32_t max_local_queue_length[1024] = {0};
+-extern struct perf_window * worker_perf_windows[1024];
+-thread_local struct perf_window perf_window_per_thread[1024];
+-struct sandbox* current_sandboxes[1024] = { NULL };
++extern pthread_mutex_t mutexs[1024]; // maximum index is number of threads
++extern pthread_cond_t conds[1024]; // maximum index is number of threads
++extern sem_t semlock[1024]; //maximum index is number of threads
++
++_Atomic uint32_t local_queue_length[1024] = {0}; // maximum index is number of threads
++uint32_t max_local_queue_length[1024] = {0}; // maximum index is number of threads
++extern struct perf_window * worker_perf_windows[1024]; // maximum index is number of threads
++thread_local struct perf_window perf_window_per_thread[MODULE_DATABASE_CAPACITY]; // maximum index is the number of modules
++struct sandbox* current_sandboxes[1024] = { NULL }; // maximum index is number of threads
+ extern uint32_t runtime_worker_group_size;
+ 
+ extern FILE *sandbox_perf_log;
