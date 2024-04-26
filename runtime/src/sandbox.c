@@ -80,7 +80,9 @@ sandbox_free_stack(struct sandbox *sandbox)
 {
 	assert(sandbox);
 
-	//return module_free_stack(sandbox->module, sandbox->stack);
+        //return module_free_stack(sandbox->module, sandbox->stack);
+        //set SP to sandbox->stack
+        sandbox->stack->sp = (uint8_t*)sandbox->ctxt.regs[UREG_SP];
 	uint64_t t = module_free_stack(sandbox->module, sandbox->stack);
 	return t;
 }
