@@ -164,7 +164,7 @@ __framework_sh__parse_arguments() {
 				;;
 			-n=* | --name=*)
 				echo "Set experiment name to ${i#*=}"
-				__framework_sh__experiment_name="${i#*=}"
+				__framework_sh__experiment_name+=" ${i#*=}"
 				shift
 				;;
 			-e=* | --envfile=*)
@@ -190,6 +190,9 @@ __framework_sh__parse_arguments() {
 				__framework_sh__usage
 				exit 0
 				;;
+			nuclio | Nuclio)
+				echo "Running for Nuclio"
+				;;
 			*)
 				echo "$1 is a not a valid option"
 				__framework_sh__usage
@@ -199,7 +202,7 @@ __framework_sh__parse_arguments() {
 	done
 
 	if [[ -z "$__framework_sh__envfile" ]]; then
-		if [[ -d "$__framework_sh__application_directory/res/$__framework_sh__experiment_name/" ]]; then
+		if [[ -d "$__framework_sh__application_directory/res-$__framework_sh__role/$__framework_sh__experiment_name/" ]]; then
 			echo "Experiment $__framework_sh__experiment_name already exists. Pick a unique name!"
 			exit 1
 		fi
@@ -209,8 +212,8 @@ __framework_sh__parse_arguments() {
 			exit 1
 		fi
 		short_name="$(basename "${__framework_sh__envfile/.env/}")"
-		echo "$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$short_name/"
-		if [[ -d "$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$short_name/" ]]; then
+		echo "$__framework_sh__application_directory/res-$__framework_sh__role/$__framework_sh__experiment_name/$short_name/"
+		if [[ -d "$__framework_sh__application_directory/res-$__framework_sh__role/$__framework_sh__experiment_name/$short_name/" ]]; then
 			echo "Variant $short_name was already run in experiment ${__framework_sh__experiment_name}."
 			exit 1
 		fi
@@ -469,8 +472,8 @@ __framework_sh__run_both() {
 __framework_sh__create_and_export_results_directory() {
 	local -r subdirectory=${1:-""}
 
-	local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name"
-	# local dir="$__framework_sh__application_directory/res/$__framework_sh__experiment_name/$subdirectory"
+	local dir="$__framework_sh__application_directory/res-$__framework_sh__role/$__framework_sh__experiment_name"
+	# local dir="$__framework_sh__application_directory/res-$__framework_sh__role/$__framework_sh__experiment_name/$subdirectory"
 
 	mkdir -p "$dir" || {
 		panic "mkdir -p $dir"
