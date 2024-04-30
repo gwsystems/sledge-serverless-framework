@@ -52,7 +52,7 @@ applications.clean:
 
 # Instead of having two copies of wasm_apps, just link to the awsm repo's copy
 wasm_apps:
-	ln -sr awsm/applications/wasm_apps/ applications/
+	cd awsm/applications/wasm_apps && git checkout master && cd ../../../ && ln -sr awsm/applications/wasm_apps/ applications/
 
 # Tests
 .PHONY: test
