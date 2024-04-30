@@ -1,4 +1,5 @@
 res
+res-*
 perf.data
 perf.data.old
 samples
