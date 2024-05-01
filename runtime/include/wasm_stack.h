@@ -126,6 +126,6 @@ wasm_stack_reinit(struct wasm_stack *wasm_stack)
 	assert(wasm_stack->buffer != NULL);
 	assert(wasm_stack->low == wasm_stack->buffer + /* guard page */ PAGE_SIZE);
 	assert(wasm_stack->high == wasm_stack->low + wasm_stack->capacity);
-	explicit_bzero(wasm_stack->sp, wasm_stack->high - wasm_stack->sp);
+	//explicit_bzero(wasm_stack->sp, wasm_stack->high - wasm_stack->sp);
 	ps_list_init_d(wasm_stack);
 }
