@@ -1,0 +1,17 @@
+Enter this command and copy & paste the following two lines:
+
+    crontab -e
+
+* * * * *              /users/emil/sledge-server/tests/cmu-sod/auto_start.sh
+* * * * * ( sleep 30 ; /users/emil/sledge-server/tests/cmu-sod/auto_start.sh )
+
+
+To stop:
+    sudo service cron stop
+
+To start:
+    sudo service cron start
+
+To remove type:
+    crontab -e     
+and then remove the above two lines.

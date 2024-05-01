@@ -126,8 +126,25 @@
 		"local_cleanup_queue.h": "c",
 		"sandbox_state_transition.h": "c",
 		"http_session_perf_log.h": "c",
-		"perf_window.h": "c",
-		"global_request_scheduler_deque.h": "c"
+		"traffic_control.h": "c",
+		"memory_resource": "c",
+		"memory": "c",
+		"istream": "c",
+		"ostream": "c",
+		"sstream": "c",
+		"streambuf": "c",
+		"sandbox_perf_log.h": "c",
+		"global_request_scheduler_deque.h": "c",
+		"message.h": "c",
+		"dbf.h": "c",
+		"dbf_generic.h": "c",
+		"tenant_functions.h": "c",
+		"thread": "c",
+		"limits": "c",
+		"algorithm": "c",
+		"stdio.h": "c",
+		"get_time.h": "c",
+		"unistd.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,
@@ -189,5 +206,6 @@
 		"TKILL",
 		"WASI"
 	],
-	"C_Cpp.errorSquiggles": "Enabled"
+	"C_Cpp.errorSquiggles": "Enabled",
+	"C_Cpp.default.compilerPath": "/usr/bin/clang"
 }

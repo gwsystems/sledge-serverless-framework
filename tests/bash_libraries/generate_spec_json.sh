@@ -1,7 +1,29 @@
 # shellcheck shell=bash
-# shellcheck disable=SC2154
+# shellcheck disable=SC2154,SC2155
 if [ -n "$__generate_spec_json_sh__" ]; then return; fi
 __generate_spec_json_sh__=$(date)
+
+jq_admin_spec() {
+	jq ". + {\
+		\"name\": \"Admin\",\
+		\"port\": 55555,\
+		\"replenishment-period-us\": 0,\
+		\"max-budget-us\": 0,\
+		\"reservation-percentile\": 0,\
+		\"routes\": [\
+			.routes[] + {\
+			\"route\": \"/admin\",\
+			\"admissions-percentile\": 50,\
+			\"expected-execution-us\": 1000,\
+			\"relative-deadline-us\": 10000},\
+			.routes[] + {\
+			\"route\": \"/terminator\",\
+			\"admissions-percentile\": 50,\
+			\"expected-execution-us\": 1000,\
+			\"relative-deadline-us\": 10000}\
+		]\
+		}" < "./template.json" > "./result_admin.json"
+}
 
 generate_spec_json() {
 	printf "Generating 'spec.json'\n"
@@ -13,12 +35,14 @@ generate_spec_json() {
 			local port=${ports[$tenant]}
 			local repl_period=${repl_periods[$tenant]}
 			local budget=${max_budgets[$tenant]}
+			local reservation=${reservations[$tenant]}
 
 			jq_str=". + {
 				\"name\": \"$tenant\",\
 				\"port\": $port,\
 				\"replenishment-period-us\": $repl_period,\
 				\"max-budget-us\": $budget,\
+				\"reservation-percentile\": $reservation,\
 				\"routes\": ["
 
 			local t_routes
