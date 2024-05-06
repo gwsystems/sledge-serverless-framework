@@ -10,9 +10,6 @@ extern thread_local int global_worker_thread_idx;
 extern struct request_fifo_queue * worker_preempted_queue[1024];
 thread_local static struct request_fifo_queue * local_preempted_queue = NULL;
 
-/*
- * n_resas the number of reserved workers. Leaving the last n_resas workers as the reserved workers
- */
 struct request_fifo_queue * request_fifo_queue_init() {
     struct request_fifo_queue * queue = (struct request_fifo_queue*) malloc(sizeof(struct request_fifo_queue));
    

@@ -326,7 +326,7 @@ scheduler_process_policy_specific_updates_on_interrupts(struct sandbox *interrup
 }
 
 /**
- * Called by the SIGALRM handler after a quantum
+ * Called by the SIGALRM handler after a quantum, this function can only be called by SHINJUKU or EDF_INTERRUPT
  * Assumes the caller validates that there is something to preempt
  * @param interrupted_context - The context of our user-level Worker thread
  * @returns the sandbox that the scheduler chose to run
@@ -572,12 +572,10 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
  	/* Logging this sandbox to memory */	
 	sandbox_perf_log_print_entry(exiting_sandbox);
 
-
 	if (next_sandbox != NULL) {
 		next_sandbox->context_switch_to = 2;
 		scheduler_cooperative_switch_to(exiting_context, next_sandbox);
 	} else {
-	    //if (dispatcher == DISPATCHER_DARC || dispatcher == DISPATCHER_SHINJUKU) {
 	    if (dispatcher == DISPATCHER_DARC) {
 		    int virtual_id = global_worker_thread_idx - dispatcher_id * runtime_worker_group_size;	
 		    atomic_fetch_or(&free_workers[dispatcher_id], 1 << virtual_id);	

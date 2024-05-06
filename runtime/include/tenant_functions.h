@@ -192,12 +192,19 @@ tenant_perf_window_init(struct tenant *tenant, void *arg1, void *arg2) {
 
 static inline void
 tenant_request_typed_queue_init(struct tenant *tenant, void *arg1, void *arg2) {
-	for(int i = 0; i < tenant->routes_len; i++) {
+
+	if (dispatcher == DISPATCHER_SHINJUKU) {
+	    for(int i = 0; i < tenant->routes_len; i++) {
+                request_type_deque[tenant->routes_config[i].request_type - 1] =
+                request_typed_deque_init(tenant->routes_config[i].request_type, 4096);
+            }
+
+        } else if (dispatcher == DISPATCHER_DARC) { 
+	    for(int i = 0; i < tenant->routes_len; i++) {
 		request_type_queue[tenant->routes_config[i].request_type - 1] = 
 		request_typed_queue_init(tenant->routes_config[i].request_type, tenant->routes_config[i].n_resas);		
-		request_type_deque[tenant->routes_config[i].request_type - 1] =
-		request_typed_deque_init(tenant->routes_config[i].request_type, 4096);
-	}
+	    }
+        }
 	n_rtypes = tenant->routes_len;
 }
 

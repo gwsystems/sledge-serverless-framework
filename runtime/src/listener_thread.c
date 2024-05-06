@@ -19,7 +19,7 @@
 #include "request_typed_deque.h"
 #include "local_preempted_fifo_queue.h"
 
-#define INTERRUPT_INTERVAL 50
+#define INTERRUPT_INTERVAL 15 
 #define BASE_SERVICE_TIME 10
 #define LOSS_PERCENTAGE 0.11
 
@@ -56,6 +56,7 @@ extern _Atomic uint64_t request_index;
 extern uint32_t runtime_worker_group_size;
 extern struct sandbox* current_sandboxes[1024];
 
+thread_local uint32_t current_reserved = 0;
 thread_local uint32_t dispatcher_try_interrupts = 0;
 thread_local uint32_t worker_start_id;
 thread_local uint32_t worker_end_id;
@@ -780,6 +781,7 @@ void drain_queue(struct request_typed_queue *rtype) {
         }
         // No peer found
         if (worker_id == MAX_WORKERS + 1) {
+            //printf("No availabe worker\n");
             return; 
         }
 
@@ -925,8 +927,8 @@ void shinjuku_dispatch() {
 	while(preempted_sandbox != NULL) {
 	    uint8_t req_type = preempted_sandbox->route->request_type; 
 	    insertfront(request_type_deque[req_type - 1], preempted_sandbox, tsc);
-	    global_queue_length++;
 	    //insertrear(request_type_deque[req_type - 1], preempted_sandbox, tsc);
+	    global_queue_length++;
 	    preempted_sandbox = pop_worker_preempted_queue(worker_list[true_idx], preempted_queue, &tsc);     
 	} 
         /* core is idle */
