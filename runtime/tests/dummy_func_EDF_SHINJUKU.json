@@ -1,0 +1,64 @@
+[
+        {
+                "name": "gwu",
+                "port": 31850,
+                "replenishment-period-us": 0,
+                "max-budget-us": 0,
+                "routes": [
+                    {
+                        "route": "/Payment",
+                        "request-type": 1,
+			"n-resas": 1,
+                        "path": "dummy_func.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 6,
+                        "relative-deadline-us": 60,
+                        "http-resp-content-type": "text/plain"
+                    },
+	            {       
+                        "route": "/OrderStatus",
+                        "request-type": 2,
+			"n-resas": 1,
+                        "path": "dummy_func.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 6,
+                        "relative-deadline-us": 60,
+                        "http-resp-content-type": "text/plain"
+                    },
+		    {
+                        "route": "/NewOrder",
+                        "request-type": 3,
+                        "n-resas": 1,
+                        "path": "dummy_func.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 20,
+                        "relative-deadline-us": 200,
+                        "http-resp-content-type": "text/plain"
+                    },
+		    {
+                        "route": "/Delivery",
+                        "request-type": 4,
+                        "n-resas": 1,
+                        "path": "dummy_func.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 88,
+                        "relative-deadline-us": 880,
+                        "http-resp-content-type": "text/plain"
+                    },
+		    {
+                        "route": "/StockLevel",
+                        "request-type": 5,
+                        "n-resas": 1,
+                        "path": "dummy_func.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 100,
+                        "relative-deadline-us": 1000,
+                        "http-resp-content-type": "text/plain"
+                    }
+
+                ]
+
+        }
+
+]
+
