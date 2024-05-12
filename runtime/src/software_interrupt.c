@@ -34,6 +34,7 @@ extern uint32_t worker_old_sandbox[1024];
 extern uint32_t worker_new_sandbox[1024];
 extern thread_local uint64_t total_requests;
 extern uint32_t max_local_queue_length[1024];
+extern uint32_t max_local_queue_height[1024];
 extern thread_local uint32_t max_queue_length;
 extern thread_local uint32_t dispatcher_try_interrupts;
 thread_local uint32_t interrupts = 0;
@@ -271,8 +272,10 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_complete_requests, interrupts, preemptable_interrupts,
 			max_local_queue_length[global_worker_thread_idx]);
                 dump_log_to_file();
-		printf("id %d max local queue %u new %u old %u current length %u real length %d total complete request %u\n", global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx], 
-			worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx], local_runqueue_count[global_worker_thread_idx],
+		printf("id %d max local queue %u new %u old %u current length %u real length %d total complete request %u\n", 
+                        global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx],
+			worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx], 
+                        local_runqueue_count[global_worker_thread_idx],
 			local_runqueue_get_length(), total_complete_requests);
 		pthread_stop = true;		
 		/* Wake up worker so it can check if pthread_stop is true, othewise, it will block at condition wait */

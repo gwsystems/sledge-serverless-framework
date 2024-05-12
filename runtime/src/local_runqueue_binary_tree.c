@@ -17,6 +17,7 @@
 extern thread_local uint8_t dispatcher_thread_idx;
 extern _Atomic uint32_t local_queue_length[1024];
 extern uint32_t max_local_queue_length[1024];
+extern uint32_t max_local_queue_height[1024];
 extern bool runtime_exponential_service_time_simulation_enabled;
 extern thread_local int global_worker_thread_idx;
 extern struct sandbox* current_sandboxes[1024];
@@ -76,6 +77,11 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
 	lock_lock(&binary_tree->lock, &node_lock);
 	binary_tree->root = insert(binary_tree, binary_tree->root, sandbox, index);
 	lock_unlock(&binary_tree->lock, &node_lock);
+       
+        /*int height = findHeight(binary_tree->root); 
+        if ( height > max_local_queue_height[index]) {
+            max_local_queue_height[index] = height;
+        }*/
 
 	atomic_fetch_add(&local_queue_length[index], 1);
 	if (local_queue_length[index] > max_local_queue_length[index]) {
