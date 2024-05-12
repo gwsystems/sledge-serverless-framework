@@ -62,7 +62,7 @@ local_runqueue_binary_tree_add(struct sandbox *sandbox)
 
 	lock_node_t node_lock = {};
     	lock_lock(&local_runqueue_binary_tree->lock, &node_lock);
-	local_runqueue_binary_tree->root = insert(local_runqueue_binary_tree, local_runqueue_binary_tree->root, sandbox);
+	local_runqueue_binary_tree->root = insert(local_runqueue_binary_tree, local_runqueue_binary_tree->root, sandbox, global_worker_thread_idx);
 	lock_unlock(&local_runqueue_binary_tree->lock, &node_lock);
 }
 
@@ -74,7 +74,7 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
 	struct binary_tree *binary_tree = worker_binary_trees[index];
 	lock_node_t node_lock = {};
 	lock_lock(&binary_tree->lock, &node_lock);
-	binary_tree->root = insert(binary_tree, binary_tree->root, sandbox);
+	binary_tree->root = insert(binary_tree, binary_tree->root, sandbox, index);
 	lock_unlock(&binary_tree->lock, &node_lock);
 
 	atomic_fetch_add(&local_queue_length[index], 1);
@@ -125,7 +125,7 @@ local_runqueue_binary_tree_delete(struct sandbox *sandbox)
 	lock_node_t node_lock = {};
 	lock_lock(&local_runqueue_binary_tree->lock, &node_lock);
 	bool deleted = false;
-	local_runqueue_binary_tree->root = delete_i(local_runqueue_binary_tree, local_runqueue_binary_tree->root, sandbox, &deleted);
+	local_runqueue_binary_tree->root = delete_i(local_runqueue_binary_tree, local_runqueue_binary_tree->root, sandbox, &deleted, global_worker_thread_idx);
 	lock_unlock(&local_runqueue_binary_tree->lock, &node_lock);
 	if (deleted == false) { 
 		panic("Tried to delete sandbox %lu state %d from runqueue %p, but was not present\n", 
@@ -186,7 +186,7 @@ local_runqueue_binary_tree_try_add_index(int index, struct sandbox *sandbox, boo
 		uint64_t waiting_serving_time = 0;
 		lock_node_t node_lock = {};
     		lock_lock(&binary_tree->lock, &node_lock);
-		struct TreeNode* node = findMaxValueLessThan(binary_tree, binary_tree->root, sandbox, &waiting_serving_time, index);
+		waiting_serving_time = findMaxValueLessThan(binary_tree, binary_tree->root, sandbox, index);
 		lock_unlock(&binary_tree->lock, &node_lock);
 		return waiting_serving_time; 
 	}

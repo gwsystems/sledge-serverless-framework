@@ -16,6 +16,8 @@ struct TreeNode {
     struct TreeNode *right;
     struct TreeNode *next;  // pointing to the next node, this is used for nodePool 
                             // to find next available node
+    struct TreeNode *dup_next; // pointing to next duplicate key item
+    uint64_t        left_subtree_sum;
     void            *data;  // sandbox 
 };
 
@@ -32,6 +34,7 @@ struct binary_tree {
 	lock_t                              lock;
 	bool                                use_lock;
 	int                                 id;
+        int                                 queue_length;
 };
 
 // Initialize the node pool
@@ -46,6 +49,8 @@ void initNodePool(struct TreeNodePool *nodePool, int pool_size) {
         nodes[i].next  = &nodes[i + 1];  // Set the next pointer of each node to the next node
         nodes[i].left  = NULL;
         nodes[i].right = NULL;
+        nodes[i].dup_next = NULL;
+        nodes[i].left_subtree_sum = 0;
         nodes[i].data  = NULL;
     }
     nodes[MAX_NODES - 1].next = NULL;
@@ -63,30 +68,17 @@ struct binary_tree * init_binary_tree(bool use_lock, binary_tree_get_priority_fn
 	binary_tree->get_execution_cost_fn = get_execution_cost_fn;
 	binary_tree->use_lock = use_lock;
 	binary_tree->id = id;
+        binary_tree->queue_length = 0;
 	
 	if (binary_tree->use_lock) lock_init(&binary_tree->lock);
 
 	return binary_tree;
 }
 
-// Helper function for counting non-deleted nodes in the binary tree
-static int countNonDeletedNodesRec(struct TreeNode* root) {
-    if (root == NULL) {
-        return 0;
-    }
-
-    // Only count nodes that are not marked as deleted
-    if (root->data != NULL) {
-        return 1 + countNonDeletedNodesRec(root->left) + countNonDeletedNodesRec(root->right);
-    } else {
-        return countNonDeletedNodesRec(root->left) + countNonDeletedNodesRec(root->right);
-    }
-}
-
 // Function to get the total number of non-deleted nodes in the binary tree
 int getNonDeletedNodeCount(struct binary_tree *binary_tree) {
     assert(binary_tree != NULL);
-    return countNonDeletedNodesRec(binary_tree->root);
+    return binary_tree->queue_length;
 }
 
 // Get a new node from the pool
@@ -105,6 +97,8 @@ struct TreeNode* newNode(struct binary_tree *binary_tree, void *data) {
         new_node_t->data = data;
         new_node_t->left = NULL;
         new_node_t->right = NULL;
+        new_node_t->dup_next = NULL;
+        new_node_t->left_subtree_sum = 0;
         return new_node_t;
     }
 }
@@ -130,9 +124,15 @@ void print_in_order(struct TreeNode* node) {
         
         // Print the data in the current node
 	if (node->data) {
-        	mem_log("%lu(%lu) ", ((struct sandbox *)node->data)->absolute_deadline, ((struct sandbox *)node->data)->estimated_cost);
+            mem_log("%lu(%lu) ", ((struct sandbox *)node->data)->absolute_deadline, ((struct sandbox *)node->data)->estimated_cost);
 	}
-        
+        //Print data in the dup_next list
+        struct TreeNode* cur = node->dup_next;
+        while(cur) {
+           mem_log("%lu(%lu) ", ((struct sandbox *)cur->data)->absolute_deadline, ((struct sandbox *)cur->data)->estimated_cost);
+           cur = cur->dup_next;
+        }
+
         // Recursively traverse the right subtree
         print_in_order(node->right);
     }
@@ -146,6 +146,18 @@ void print_tree_in_order(struct binary_tree* bst) {
     }
 }
 
+//get the total execute time of a node.
+uint64_t get_sum_exe_time_of_node(struct binary_tree *binary_tree, struct TreeNode* node, int thread_id){
+    uint64_t total = 0;
+    struct TreeNode* curNode = node;
+    while (curNode!=NULL) {
+        total += binary_tree->get_execution_cost_fn(curNode->data, thread_id);
+        curNode = curNode->dup_next;
+    }
+
+    return total;
+}
+
 // Return a node to the pool
 void deleteNode(struct binary_tree *binary_tree, struct TreeNode* node) {
 
@@ -156,6 +168,8 @@ void deleteNode(struct binary_tree *binary_tree, struct TreeNode* node) {
     node->left = NULL;
     node->right = NULL;
     node->data = NULL;
+    node->left_subtree_sum = 0;
+    node->dup_next = NULL;
     node->next = binary_tree->nodePool.head;
     binary_tree->nodePool.head = node;
 }
@@ -171,18 +185,34 @@ int findHeight(struct TreeNode *root)
 }
 
 // Function to insert a value into a binary search tree
-struct TreeNode* insert(struct binary_tree *binary_tree, struct TreeNode* root, void *data) {
+struct TreeNode* insert(struct binary_tree *binary_tree, struct TreeNode* root, void *data, int thread_id) {
     
     assert(binary_tree != NULL);
 
     if (root == NULL) {
+        binary_tree->queue_length++;
         return newNode(binary_tree, data); // Create a new node for an empty tree
     }
 
-    if (binary_tree->get_priority_fn(data) <= binary_tree->get_priority_fn(root->data)) {
-        root->left = insert(binary_tree, root->left, data); // Insert into the left subtree
+    if (binary_tree->get_priority_fn(data) == binary_tree->get_priority_fn(root->data)) {
+        //go to the tail of clone chain
+        struct TreeNode* tail = root;
+        while (tail->dup_next != NULL){
+            tail = tail->dup_next;
+        }
+
+        //append the new node to the chain 
+        struct TreeNode* new_node = newNode(binary_tree, data);
+        tail->dup_next = new_node;
+        binary_tree->queue_length++;
+        return root;
+    }
+
+    if (binary_tree->get_priority_fn(data) < binary_tree->get_priority_fn(root->data)) {
+        root->left = insert(binary_tree, root->left, data, thread_id); // Insert into the left subtree
+        root->left_subtree_sum += binary_tree->get_execution_cost_fn(data, thread_id);
     } else {
-        root->right = insert(binary_tree, root->right, data); // Insert into the right subtree
+        root->right = insert(binary_tree, root->right, data, thread_id); // Insert into the right subtree
     }
     return root;
 }
@@ -220,54 +250,109 @@ struct TreeNode* findMax(struct binary_tree *binary_tree, struct TreeNode *root)
     return root;
 }
 
+struct TreeNode* remove_node_from_dup_list(struct binary_tree *binary_tree, struct TreeNode* root, void *data, bool *deleted) {
+    if (root->data == data) {
+        root->dup_next->left = root->left;
+        root->dup_next->right = root->right;
+        root->dup_next->left_subtree_sum = root->left_subtree_sum;
+        //free old root
+        struct TreeNode* new_root = root->dup_next;
+        deleteNode(binary_tree, root);
+        *deleted = true;
+        binary_tree->queue_length--;
+        return new_root;
+    } else {
+        struct TreeNode* cur = root->dup_next;
+        struct TreeNode* pre = root;
+        while(cur) {
+            if (cur->data == data) {
+                pre->dup_next = cur->dup_next;
+                //free cur
+                deleteNode(binary_tree, cur);
+                *deleted = true;
+                binary_tree->queue_length--;
+                return root;
+            } else {
+                pre = cur;
+                cur = cur->dup_next;
+            }
+        }
+        *deleted = false;
+        return root;
+    }
+}
+
 // Function to delete a value from a binary search tree
-struct TreeNode* delete_i(struct binary_tree *binary_tree, struct TreeNode* root, void *data, bool *deleted) {
+struct TreeNode* delete_i(struct binary_tree *binary_tree, struct TreeNode* root, void *data, bool *deleted, int thread_id) {
 
     assert(binary_tree != NULL);
 
     if (root == NULL) {
-	    *deleted = false;
+	*deleted = false;
         return NULL;
     }
 
     int64_t cmp_result = binary_tree->get_priority_fn(data) - binary_tree->get_priority_fn(root->data);
     if (cmp_result < 0) {
-        root->left = delete_i(binary_tree, root->left, data, deleted);
+        root->left_subtree_sum -= binary_tree->get_execution_cost_fn(data, thread_id); 
+        root->left = delete_i(binary_tree, root->left, data, deleted, thread_id);
+        return root;
     } else if (cmp_result > 0) {
-        root->right = delete_i(binary_tree, root->right, data, deleted);
+        root->right = delete_i(binary_tree, root->right, data, deleted, thread_id);
+        return root;
     } else { // cmp_result == 0
-        if (root->data == data) {
-            if (root->left == NULL) {
-                struct TreeNode* temp = root->right;
-                deleteNode(binary_tree, root);
-			    *deleted = true;
-                return temp;
-            } else if (root->right == NULL) {
-                struct TreeNode* temp = root->left;
-                deleteNode(binary_tree, root);
-			    *deleted = true;
-                return temp;
-            } else {
-                struct TreeNode* successor = root->right;
-                while (successor->left != NULL) {
-                    successor = successor->left;
-                }
-                root->data = successor->data;
-                root->right = delete_i(binary_tree, root->right, successor->data, deleted);
-                return root;
-            }
+        // The deleted node might either be the root or in the dup_next list
+        if (root->dup_next != NULL) {
+             struct TreeNode* new_root = remove_node_from_dup_list(binary_tree, root, data, deleted);
+             return new_root;
+        }
+        // If key is same as root's key, then this is the node to be deleted
+        // Node with only one child or no child
+        if (root->left == NULL) {
+            struct TreeNode* temp = root->right;
+            deleteNode(binary_tree, root);
+            *deleted = true;
+            binary_tree->queue_length--;
+            return temp;
+        } else if (root->right == NULL) {
+            struct TreeNode* temp = root->left;
+            deleteNode(binary_tree, root);
+            *deleted = true;
+            binary_tree->queue_length--;
+            return temp;
         } else {
-            // Continue searching for the node with the same data pointer
-            if (root->left != NULL) {
-                root->left = delete_i(binary_tree, root->left, data, deleted);
+            // Node with two children: Get the inorder successor(smallest in the right subtree)
+            struct TreeNode* succParent = root;
+            struct TreeNode* succ = root->right;
+            while (succ->left != NULL) {
+                succParent = succ;
+                succ = succ->left;
+            }
+            // Copy the inorder successor's content to this node, left_subtree_sum is not changed
+            root->data = succ->data;
+            root->dup_next = succ->dup_next;
+            //update the sum_less_than of the nodes affected by the removed node.
+            int removed_exe_time = get_sum_exe_time_of_node(binary_tree, succ, thread_id);
+            struct TreeNode* temp = root->right;
+            while (temp->left != NULL) {
+                temp->left_subtree_sum -= removed_exe_time;
+                temp = temp->left;
             }
 
-		    if (*deleted == false && root->right != NULL) {
-                root->right = delete_i(binary_tree, root->right, data, deleted);
+            // Delete the inorder successor
+            if (succParent->left == succ) {
+                succParent->left = succ->right;
+            } else {
+                succParent->right = succ->right;
             }
+
+            deleteNode(binary_tree, succ);
+            *deleted = true;
+            binary_tree->queue_length--;
+            return root;
         }
-   }
-    return root;
+
+    }
 
 }
 
@@ -301,34 +386,21 @@ void inorder(struct binary_tree *binary_tree, struct TreeNode* root)
     printf("%lu ", binary_tree->get_priority_fn(root->data));
     inorder(binary_tree, root->right);
 }
-
-struct TreeNode* findMaxValueLessThan(struct binary_tree *binary_tree, struct TreeNode* root, void *target, uint64_t *sum, int thread_id) {
-
+// return the sum of nodes' execution time that less than the target priority
+uint64_t findMaxValueLessThan(struct binary_tree *binary_tree, struct TreeNode* root, void *target, int thread_id) {
     assert(binary_tree != NULL);
-
+    
     if (root == NULL) {
-        return NULL; // Base case: empty node, return NULL
+        return 0;
+    }
+    if (binary_tree->get_priority_fn(target) == binary_tree->get_priority_fn(root->data)) {
+        return root->left_subtree_sum;
+    } else if (binary_tree->get_priority_fn(target) < binary_tree->get_priority_fn(root->data)) {
+        return findMaxValueLessThan(binary_tree, root->left, target, thread_id);
+    } else {
+        return get_sum_exe_time_of_node(binary_tree, root, thread_id) + root->left_subtree_sum + findMaxValueLessThan(binary_tree, root->right, target, thread_id);
     }
 
-    struct TreeNode* maxNode = NULL; // Initialize the node containing the maximum value to NULL
-
-    // In-order traversal of the binary tree
-    struct TreeNode* leftMaxNode = findMaxValueLessThan(binary_tree, root->left, target, sum, thread_id); // Traverse left subtree
-    if (binary_tree->get_priority_fn(root->data) <= binary_tree->get_priority_fn(target)) {
-        *sum += binary_tree->get_execution_cost_fn(root->data, thread_id); // Add the current node's value to the sum
-        maxNode = root; // Update the maximum node
-    }
-    struct TreeNode* rightMaxNode = findMaxValueLessThan(binary_tree, root->right, target, sum, thread_id); // Traverse right subtree
-
-    // Update the maximum node with the maximum node from left and right subtrees
-    if (leftMaxNode != NULL && (maxNode == NULL || binary_tree->get_priority_fn(leftMaxNode->data) > binary_tree->get_priority_fn(maxNode->data))) {
-        maxNode = leftMaxNode;
-    }
-    if (rightMaxNode != NULL && (maxNode == NULL || binary_tree->get_priority_fn(rightMaxNode->data) > binary_tree->get_priority_fn(maxNode->data))) {
-        maxNode = rightMaxNode;
-    }
-
-    return maxNode;
 }
 
 struct TreeNode* makeEmpty(struct binary_tree *binary_tree, struct TreeNode* root)
