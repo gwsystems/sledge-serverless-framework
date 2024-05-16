@@ -11,18 +11,9 @@ index 7442ea1..04de7fa 100644
  void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
  void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
 diff --git a/runtime/include/http_router.h b/runtime/include/http_router.h
-index 39e1bb7..4da6948 100644
+index 39e1bb7..e6c877c 100644
 --- a/runtime/include/http_router.h
 +++ b/runtime/include/http_router.h
-@@ -54,7 +54,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
- 	/* Register RPC request handler */
- 	if (dispatcher == DISPATCHER_EDF_INTERRUPT) {
-             if (erpc_register_req_func(config->request_type, edf_interrupt_req_handler, 0) != 0) {
--                panic("register erpc function for EDF_INTERRUPT dispatcher failed\n");
-+                panic("register erpc function %u for EDF_INTERRUPT dispatcher failed\n", config->request_type);
- 	    }
- 	} else if (dispatcher == DISPATCHER_DARC) {
- 	    if (erpc_register_req_func(config->request_type, darc_req_handler, 0) != 0) {
 @@ -91,7 +91,7 @@ http_router_match_route(http_router_t *router, char *route)
  }
  
@@ -72,7 +63,7 @@ index 3fffc08..3127055 100644
  	struct module          *module;
  	/* HTTP State */
 diff --git a/runtime/include/route_config.h b/runtime/include/route_config.h
-index 337389f..1904f7c 100644
+index 337389f..fcc4c3a 100644
 --- a/runtime/include/route_config.h
 +++ b/runtime/include/route_config.h
 @@ -23,7 +23,7 @@ enum route_config_member
@@ -80,7 +71,7 @@ index 337389f..1904f7c 100644
  struct route_config {
  	char    *route;
 -	uint8_t  request_type;
-+	uint16_t request_type;
++	uint16_t  request_type;
  	uint32_t n_resas;
  	char    *path;
  	uint8_t  admissions_percentile;
@@ -108,41 +99,36 @@ index 522f3db..4b68008 100644
                                                 &config->request_type);
                          if (rc < 0) return -1;
 diff --git a/runtime/include/tenant_functions.h b/runtime/include/tenant_functions.h
-index f4e02c1..84f69a2 100644
+index 396dddc..033e125 100644
 --- a/runtime/include/tenant_functions.h
 +++ b/runtime/include/tenant_functions.h
-@@ -21,7 +21,8 @@ extern thread_local uint32_t n_rtypes;
+@@ -21,7 +21,7 @@ extern thread_local uint32_t n_rtypes;
  extern thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE];
  extern thread_local struct request_typed_deque *request_type_deque[MAX_REQUEST_TYPE];
  extern thread_local uint8_t dispatcher_thread_idx;
 -extern thread_local struct perf_window perf_window_per_thread[1024];
-+//extern thread_local struct perf_window perf_window_per_thread[MODULE_DATABASE_CAPACITY];
 +extern thread_local struct perf_window *perf_window_per_thread;
  extern thread_local int global_worker_thread_idx;
  
  int            tenant_database_add(struct tenant *tenant);
 diff --git a/runtime/src/admissions_info.c b/runtime/src/admissions_info.c
-index 77c3417..a5901a0 100644
+index 77c3417..f9837df 100644
 --- a/runtime/src/admissions_info.c
 +++ b/runtime/src/admissions_info.c
-@@ -1,9 +1,11 @@
- #include "admissions_control.h"
- #include "admissions_info.h"
-+#include "module_database.h"
+@@ -3,7 +3,7 @@
  #include "debuglog.h"
  #include "perf_window.h"
  
 -extern thread_local struct perf_window perf_window_per_thread[1024];
-+//extern thread_local struct perf_window perf_window_per_thread[MODULE_DATABASE_CAPACITY];
 +extern thread_local struct perf_window *perf_window_per_thread;
  /**
   * Initializes perf window
   * @param admissions_info
 diff --git a/runtime/src/listener_thread.c b/runtime/src/listener_thread.c
-index 35c1420..038c9be 100644
+index 70293b5..987473a 100644
 --- a/runtime/src/listener_thread.c
 +++ b/runtime/src/listener_thread.c
-@@ -471,7 +471,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
+@@ -472,7 +472,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
   * @param msg the payload of the rpc request. It is the input parameter fot the function
   * @param size the size of the msg
   */
@@ -152,10 +138,10 @@ index 35c1420..038c9be 100644
      if (first_request_comming == false){
          t_start = time(NULL);
 diff --git a/runtime/src/worker_thread.c b/runtime/src/worker_thread.c
-index b11b7a0..03f78f5 100644
+index dd356a4..26ce73b 100644
 --- a/runtime/src/worker_thread.c
 +++ b/runtime/src/worker_thread.c
-@@ -24,15 +24,16 @@
+@@ -24,16 +24,16 @@
   * Worker Thread State     *
   **************************/
  
@@ -165,23 +151,24 @@ index b11b7a0..03f78f5 100644
 -
 -_Atomic uint32_t local_queue_length[1024] = {0};
 -uint32_t max_local_queue_length[1024] = {0};
+-uint32_t max_local_queue_height[1024] = {0};
 -extern struct perf_window * worker_perf_windows[1024];
 -thread_local struct perf_window perf_window_per_thread[1024];
 -struct sandbox* current_sandboxes[1024] = { NULL };
-+extern pthread_mutex_t mutexs[1024]; // maximum index is number of threads
-+extern pthread_cond_t conds[1024]; // maximum index is number of threads
++extern pthread_mutex_t mutexs[1024]; //maximum index is number of threads
++extern pthread_cond_t conds[1024]; //maximum index is number of threads
 +extern sem_t semlock[1024]; //maximum index is number of threads
 +
-+_Atomic uint32_t local_queue_length[1024] = {0}; // maximum index is number of threads
-+uint32_t max_local_queue_length[1024] = {0}; // maximum index is number of threads
-+extern struct perf_window * worker_perf_windows[1024]; // maximum index is number of threads
-+//thread_local struct perf_window perf_window_per_thread[MODULE_DATABASE_CAPACITY]; // maximum index is the number of modules
++_Atomic uint32_t local_queue_length[1024] = {0}; //maximum index is number of threads
++uint32_t max_local_queue_length[1024] = {0}; //maximum index is number of threads
++uint32_t max_local_queue_height[1024] = {0}; //maximum index is number of threads
++extern struct perf_window * worker_perf_windows[1024]; //maximum index is the number of modules
 +thread_local struct perf_window *perf_window_per_thread = NULL; // maximum index is the number of modules
-+struct sandbox* current_sandboxes[1024] = { NULL }; // maximum index is number of threads
++struct sandbox* current_sandboxes[1024] = { NULL }; //maximum index is number of threads
  extern uint32_t runtime_worker_group_size;
  
  extern FILE *sandbox_perf_log;
-@@ -100,7 +101,8 @@ worker_thread_main(void *argument)
+@@ -101,7 +101,8 @@ worker_thread_main(void *argument)
  	// runtime_set_pthread_prio(pthread_self(), 2);
  	pthread_setschedprio(pthread_self(), -20);
  
