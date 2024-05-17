@@ -44,14 +44,11 @@ module_init(struct module *module, char *path)
 	rc = sledge_abi_symbols_init(&module->abi, path);
 	if (rc != 0) goto err;
 
-	module->pools = calloc(runtime_worker_threads_count, sizeof(struct module_pool));
-
 	module->path = path;
 
 	module->stack_size = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
 
 	module_alloc_table(module);
-	module_initialize_pools(module);
 done:
 	return rc;
 err:
@@ -68,8 +65,6 @@ module_deinit(struct module *module)
 	free(module->path);
 	sledge_abi_symbols_deinit(&module->abi);
 	/* TODO: Free indirect_table */
-	module_deinitialize_pools(module);
-	free(module->pools);
 }
 
 /***************************************

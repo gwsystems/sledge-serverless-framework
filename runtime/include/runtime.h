@@ -7,9 +7,23 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 
+#include "types.h"
+#include "pool.h"
+#include "wasm_stack.h"
+#include "wasm_memory.h"
 #include "likely.h"
 #include "types.h"
 
+INIT_POOL(wasm_memory, wasm_memory_free)
+INIT_POOL(wasm_stack, wasm_stack_free)
+
+struct memory_pool {
+        struct wasm_memory_pool memory;
+        struct wasm_stack_pool  stack;
+} CACHE_PAD_ALIGNED;
+
+
+extern struct memory_pool *memory_pools;
 /**
  * Optimizing compilers and modern CPUs reorder instructions however it sees fit. This means that the resulting
  * execution order may differ from the order of our source code. If there is a variable protecting a critical section,
@@ -84,3 +98,40 @@ request_index_increment()
         return atomic_fetch_add(&request_index, 1);
 }
 
+static inline void
+runtime_initialize_pools()
+{
+        for (int i = 0; i < runtime_worker_threads_count; i++) {
+                wasm_memory_pool_init(&memory_pools[i].memory, false);
+                wasm_stack_pool_init(&memory_pools[i].stack, false);
+        }
+}
+
+static inline void
+runtime_deinitialize_pools()
+{
+        for (int i = 0; i < runtime_worker_threads_count; i++) {
+                wasm_memory_pool_deinit(&memory_pools[i].memory);
+                wasm_stack_pool_deinit(&memory_pools[i].stack);
+        }
+}
+
+static inline struct wasm_stack * 
+runtime_stack_pool_remove(int thread_id) {
+	return wasm_stack_pool_remove_nolock(&memory_pools[thread_id].stack);
+}
+
+static inline void
+runtime_stack_pool_add(int thread_id, struct wasm_stack * stack) {
+	wasm_stack_pool_add_nolock(&memory_pools[thread_id].stack, stack);
+}
+
+static inline struct wasm_memory *
+runtime_linear_memory_pool_remove(int thread_id) {
+	return wasm_memory_pool_remove_nolock(&memory_pools[thread_id].memory);
+}
+
+static inline void
+runtime_linear_memory_pool_add(int thread_id, struct wasm_memory * memory) {
+	wasm_memory_pool_add_nolock(&memory_pools[thread_id].memory, memory);
+}
