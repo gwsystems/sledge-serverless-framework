@@ -14,6 +14,7 @@ fi
 worker_num=$1
 listener_num=$2
 first_worker_core_id=$3
+worker_group_size=$((worker_num / listener_num))
 
 declare project_path="$(
         cd "$(dirname "$0")/../.."
@@ -29,7 +30,7 @@ export SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION=true
 export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id
 export SLEDGE_NWORKERS=$worker_num
 export SLEDGE_NLISTENERS=$listener_num
-export SLEDGE_WORKER_GROUP_SIZE=1
+export SLEDGE_WORKER_GROUP_SIZE=$worker_group_size
 export SLEDGE_SCHEDULER=EDF
 #export SLEDGE_DISPATCHER=DARC
 #export SLEDGE_DISPATCHER=SHINJUKU
