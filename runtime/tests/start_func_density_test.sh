@@ -1,12 +1,16 @@
 #!/bin/bash
+
 ulimit -n 655350
+ulimit -s unlimited
+ulimit -m unlimited
+sudo sysctl -w vm.max_map_count=262144
 
 function usage {
-        echo "$0 [worker num] [listener num] [first worker core id]"
+        echo "$0 [worker num] [listener num] [first worker core id] [json file] [server log]"
         exit 1
 }
 
-if [ $# != 3 ] ; then
+if [ $# != 5 ] ; then
         usage
         exit 1;
 fi
@@ -14,6 +18,8 @@ fi
 worker_num=$1
 listener_num=$2
 first_worker_core_id=$3
+json_file=$4
+server_log=$5
 worker_group_size=$((worker_num / listener_num))
 
 declare project_path="$(
@@ -35,7 +41,7 @@ export SLEDGE_SCHEDULER=EDF
 #export SLEDGE_DISPATCHER=DARC
 #export SLEDGE_DISPATCHER=SHINJUKU
 export SLEDGE_DISPATCHER=EDF_INTERRUPT
-export SLEDGE_SANDBOX_PERF_LOG=$path/server.log
+export SLEDGE_SANDBOX_PERF_LOG=$path/$server_log
 #echo $SLEDGE_SANDBOX_PERF_LOG
 cd $project_path/runtime/bin
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_fibonacci.json
@@ -47,7 +53,7 @@ cd $project_path/runtime/bin
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_multiple_image_processing.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/test_multiple_image_processing3.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/fib.json
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/config.json
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/$json_file
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/hash.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/empty.json
 #LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/my_fibonacci.json
