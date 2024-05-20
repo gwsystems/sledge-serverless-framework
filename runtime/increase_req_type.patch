@@ -37,7 +37,7 @@ index c99aa2a..4c5b3c4 100644
  /**
   * Parses a JSON file into an array of tenant configs
 diff --git a/runtime/include/module_database.h b/runtime/include/module_database.h
-index 24d1b46..7cbc088 100644
+index 24d1b46..32902dc 100644
 --- a/runtime/include/module_database.h
 +++ b/runtime/include/module_database.h
 @@ -2,7 +2,7 @@
@@ -45,7 +45,7 @@ index 24d1b46..7cbc088 100644
  #include "module.h"
  
 -#define MODULE_DATABASE_CAPACITY 1024 
-+#define MODULE_DATABASE_CAPACITY 2048 
++#define MODULE_DATABASE_CAPACITY 20000 
  
  struct module_database {
  	struct module *modules[MODULE_DATABASE_CAPACITY];
@@ -98,8 +98,86 @@ index 522f3db..4b68008 100644
                                                 route_config_json_keys[route_config_member_request_type],
                                                 &config->request_type);
                          if (rc < 0) return -1;
+diff --git a/runtime/include/tenant.h b/runtime/include/tenant.h
+index 113fdca..e33aacc 100644
+--- a/runtime/include/tenant.h
++++ b/runtime/include/tenant.h
+@@ -38,6 +38,7 @@ struct tenant {
+ 	uint16_t	       port; 
+ 	struct route_config   *routes_config;
+ 	size_t                 routes_len;
++	size_t                 route_replicas;
+ 	struct tcp_server      tcp_server;
+ 	http_router_t          router;
+ 	struct module_database module_db;
+diff --git a/runtime/include/tenant_config.h b/runtime/include/tenant_config.h
+index d907718..8bedede 100644
+--- a/runtime/include/tenant_config.h
++++ b/runtime/include/tenant_config.h
+@@ -14,6 +14,7 @@ enum tenant_config_member
+ 	tenant_config_member_port,
+ 	tenant_config_member_replenishment_period_us,
+ 	tenant_config_member_max_budget_us,
++	tenant_config_member_route_replicas,
+ 	tenant_config_member_routes,
+ 	tenant_config_member_len
+ };
+@@ -23,6 +24,7 @@ struct tenant_config {
+ 	uint16_t             port;
+ 	uint32_t             replenishment_period_us;
+ 	uint32_t             max_budget_us;
++        uint32_t 	     route_replicas;
+ 	struct route_config *routes;
+ 	size_t               routes_len;
+ };
+@@ -37,6 +39,7 @@ tenant_config_deinit(struct tenant_config *config)
+ 	for (int i = 0; i < config->routes_len; i++) { route_config_deinit(&config->routes[i]); }
+ 	free(config->routes);
+ 	config->routes     = NULL;
++        config->route_replicas = 0;
+ 	config->routes_len = 0;
+ }
+ 
+@@ -47,6 +50,7 @@ tenant_config_print(struct tenant_config *config)
+ 	printf("[Tenant] Path: %d\n", config->port);
+ 	printf("[Tenant] Replenishment Period (us): %u\n", config->replenishment_period_us);
+ 	printf("[Tenant] Max Budget (us): %u\n", config->max_budget_us);
++	printf("[Tenant] Route replicas (us): %u\n", config->route_replicas);
+ 	printf("[Tenant] Routes Size: %zu\n", config->routes_len);
+ 	for (int i = 0; i < config->routes_len; i++) { route_config_print(&config->routes[i]); }
+ }
+diff --git a/runtime/include/tenant_config_parse.h b/runtime/include/tenant_config_parse.h
+index 14b7aef..6515015 100644
+--- a/runtime/include/tenant_config_parse.h
++++ b/runtime/include/tenant_config_parse.h
+@@ -10,7 +10,7 @@
+ #include "tenant_config.h"
+ 
+ static const char *tenant_config_json_keys[tenant_config_member_len] = { "name", "port", "replenishment-period-us",
+-	                                                                 "max-budget-us", "routes" };
++	                                                                 "max-budget-us", "route-replicas", "routes" };
+ 
+ static inline int
+ tenant_config_set_key_once(bool *did_set, enum tenant_config_member member)
+@@ -79,7 +79,15 @@ tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_
+ 			                        tenant_config_json_keys[tenant_config_member_max_budget_us],
+ 			                        &config->max_budget_us);
+ 			if (rc < 0) return -1;
+-		} else if (strcmp(key, tenant_config_json_keys[tenant_config_member_routes]) == 0) {
++		} else if (strcmp(key, tenant_config_json_keys[tenant_config_member_route_replicas]) == 0) {
++			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
++			if (tenant_config_set_key_once(did_set, tenant_config_member_route_replicas) == -1) return -1;
++			
++			int rc = parse_uint32_t(tokens[i], json_buf,
++                                                tenant_config_json_keys[tenant_config_member_route_replicas],
++                                                &config->route_replicas);
++			if (rc < 0) return -1;
++                } else if (strcmp(key, tenant_config_json_keys[tenant_config_member_routes]) == 0) {
+ 			if (!has_valid_type(tokens[i], key, JSMN_ARRAY, json_buf)) return -1;
+ 			if (tenant_config_set_key_once(did_set, tenant_config_member_routes) == -1) return -1;
+ 
 diff --git a/runtime/include/tenant_functions.h b/runtime/include/tenant_functions.h
-index 396dddc..033e125 100644
+index 396dddc..919fd8c 100644
 --- a/runtime/include/tenant_functions.h
 +++ b/runtime/include/tenant_functions.h
 @@ -21,7 +21,7 @@ extern thread_local uint32_t n_rtypes;
@@ -111,6 +189,168 @@ index 396dddc..033e125 100644
  extern thread_local int global_worker_thread_idx;
  
  int            tenant_database_add(struct tenant *tenant);
+@@ -84,6 +84,105 @@ tenant_policy_specific_init(struct tenant *tenant, struct tenant_config *config)
+ 	return 0;
+ }
+ 
++static inline char* 
++generate_new_path(const char* full_name, int number, const char* fixed_part) {
++    const char* suffix_position = strstr(full_name, fixed_part);
++    if (!suffix_position) {
++ 	panic("Wrong path name");
++    }
++
++    size_t name_length = suffix_position - full_name;
++
++    char number_str[6];
++    snprintf(number_str, sizeof(number_str), "%d", number);
++    size_t number_length = strlen(number_str);
++
++    size_t new_length = name_length + number_length + strlen(fixed_part) + 1;
++    char* new_name = (char*)malloc(new_length);
++    if (!new_name) {
++	panic("Failed to allocate memory for path");
++    }
++
++    strncpy(new_name, full_name, name_length);
++    new_name[name_length] = '\0';
++
++    strcat(new_name, number_str);
++    strcat(new_name, fixed_part);
++
++    return new_name;
++}
++
++static inline struct route_config *
++duplicate_route(int index, struct route_config *src_route) {
++    struct route_config *dup_route = (struct route_config *)malloc(sizeof(struct route_config));
++
++    // Allocate memory for route with additional space for index
++    size_t route_len = strlen(src_route->route) + 6; // 20 is enough to hold the index as string
++    dup_route->route = (char *)malloc(route_len);
++    strcpy(dup_route->route, src_route->route);
++    sprintf(dup_route->route + strlen(dup_route->route), "%d", index);
++
++    // Allocate memory for path with additional space for index
++    dup_route->path = generate_new_path(src_route->path, index, ".wasm.so"); 
++   
++    // Copy other fields
++    dup_route->request_type = index;
++    dup_route->n_resas = src_route->n_resas;
++    dup_route->admissions_percentile = src_route->admissions_percentile;
++    dup_route->expected_execution_us = src_route->expected_execution_us;
++    dup_route->expected_execution_cycle = src_route->expected_execution_cycle;
++    dup_route->relative_deadline_us = src_route->relative_deadline_us;
++
++    if (src_route->http_resp_content_type != NULL) {
++        dup_route->http_resp_content_type = strdup(src_route->http_resp_content_type);
++    } else {
++        dup_route->http_resp_content_type = NULL;
++    }
++
++    return dup_route;
++}
++
++static inline void 
++create_replica_routes(struct tenant *tenant, struct tenant_config *config)
++{
++	for (int i = 0; i < config->routes_len; i++) {
++	    struct module *module = module_database_find_by_path(&tenant->module_db, config->routes[i].path);
++            if (module == NULL) {
++	        for (int j = 1; j <= config->route_replicas; j++) {
++		    struct route_config *route_cfg = duplicate_route(j, &config->routes[i]);
++		    //printf("name %s type %d route %s path %s\n", config->name, route_cfg->request_type, route_cfg->route, route_cfg->path);
++                    assert(module_database_find_by_path(&tenant->module_db, route_cfg->path) == NULL);
++
++                    /* Ownership of path moves here */
++                    struct module * new_module = module_alloc(route_cfg->path);
++
++                    if (new_module != NULL) {
++                        module_database_add(&tenant->module_db, new_module);
++                        route_cfg->path = NULL;
++                    }
++                    /* Ownership of config's route and http_resp_content_type move here */
++                    int rc = http_router_add_route(&tenant->router, route_cfg, new_module);
++                    if (unlikely(rc != 0)) {
++                        panic("Tenant %s defined %lu routes, but router failed to grow beyond %lu\n", tenant->name,
++                               config->routes_len, tenant->router.capacity);
++                    }
++
++                    route_cfg->route                  = NULL;
++                    route_cfg->http_resp_content_type = NULL;
++		}
++            } else {
++ 		panic("No allowed duplicate route path when route_replicas is larger then 1\n");
++            }
++
++	    free(config->routes[i].path);
++	    config->routes[i].path = NULL;
++	    free(config->routes[i].http_resp_content_type);
++	    config->routes[i].http_resp_content_type = NULL;
++	    free(config->routes[i].route);
++	    config->routes[i].route = NULL;
++	}	
++}
++
+ static inline struct tenant *
+ tenant_alloc(struct tenant_config *config)
+ {
+@@ -94,26 +193,36 @@ tenant_alloc(struct tenant_config *config)
+ 	struct tenant *tenant = (struct tenant *)calloc(1, sizeof(struct tenant));
+ 
+ 	/* Move name */
+-	tenant->tag  	      = EPOLL_TAG_TENANT_SERVER_SOCKET;
+-	tenant->name          = config->name;
+-	tenant->port          = config->port;
+-	tenant->routes_config = config->routes;
+-	tenant->routes_len    = config->routes_len;
+-	config->name          = NULL;
++	tenant->tag  	       = EPOLL_TAG_TENANT_SERVER_SOCKET;
++	tenant->name           = config->name;
++	tenant->port           = config->port;
++	tenant->routes_config  = config->routes;
++	tenant->routes_len     = config->routes_len;
++        tenant->route_replicas = config->route_replicas;
++	config->name           = NULL;
+ 
+ 	tcp_server_init(&tenant->tcp_server, config->port);
+-	http_router_init(&tenant->router, config->routes_len);
++        if (config->route_replicas > 1) {
++		http_router_init(&tenant->router, config->route_replicas);
++	} else {
++		http_router_init(&tenant->router, config->routes_len);
++	}
++
+ 	module_database_init(&tenant->module_db);
+ 	map_init(&tenant->scratch_storage);
+ 
+ 	/* Deferrable Server init */
+ 	tenant_policy_specific_init(tenant, config);
+ 
+-	for (int i = 0; i < config->routes_len; i++) {
++	if (config->route_replicas > 1) {
++	    create_replica_routes(tenant, config);
++	} else {
++ 	    for (int i = 0; i < config->routes_len; i++) {
+ 		struct module *module = module_database_find_by_path(&tenant->module_db, config->routes[i].path);
+ 		if (module == NULL) {
+ 			/* Ownership of path moves here */
+ 			module = module_alloc(config->routes[i].path);
++			//printf("name %s type %d route %s path %s\n", config->name, config->routes[i].request_type, config->routes[i].route, config->routes[i].path);
+ 			if (module != NULL) {
+ 				module_database_add(&tenant->module_db, module);
+ 				config->routes[i].path = NULL;
+@@ -134,8 +243,9 @@ tenant_alloc(struct tenant_config *config)
+ 
+ 		config->routes[i].route                  = NULL;
+ 		config->routes[i].http_resp_content_type = NULL;
+-	}
++	    }
+ 
++	}
+ 	return tenant;
+ }
+ 
 diff --git a/runtime/src/admissions_info.c b/runtime/src/admissions_info.c
 index 77c3417..f9837df 100644
 --- a/runtime/src/admissions_info.c
