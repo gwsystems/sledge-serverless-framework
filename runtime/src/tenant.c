@@ -29,10 +29,12 @@ err:
 void
 tenant_preprocess(struct http_session *session)
 {
+	/* No tenant preprocessing if the wasm module not provided by the tenant */
+	if (session->route->module_proprocess == NULL) goto done;
 	const uint64_t start = __getcycles();
 
 	/* Tenant Pre-processing - Extract other useful parameters */
-	struct sandbox *pre_sandbox = sandbox_alloc(session->route->pre_module, session, session->route,
+	struct sandbox *pre_sandbox = sandbox_alloc(session->route->module_proprocess, session, session->route,
 	                                            session->tenant, 1);
 	if (sandbox_prepare_execution_environment(pre_sandbox)) panic("pre_sandbox environment setup failed");
 	pre_sandbox->state = SANDBOX_RUNNING_SYS;
@@ -62,9 +64,10 @@ tenant_preprocess(struct http_session *session)
 	sandbox_free_linear_memory(pre_sandbox);
 	sandbox_free(pre_sandbox);
 
-	session->did_preprocessing = true;
-
 	const uint64_t end              = __getcycles();
 	session->preprocessing_duration = end - start;
+
+done:
+	session->did_preprocessing = true;
 }
 #endif

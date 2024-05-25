@@ -21,7 +21,7 @@ http_router_init(http_router_t *router, size_t capacity)
 
 static inline int
 http_router_add_route(http_router_t *router, struct route_config *config, struct module *module,
-                      struct module *pre_module)
+                      struct module *module_proprocess)
 {
 	assert(router != NULL);
 	assert(config != NULL);
@@ -41,8 +41,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 
 #ifdef EXECUTION_REGRESSION
 	/* Execution Regression setup */
-	assert(pre_module);
-	route.pre_module              = pre_module;
+	route.module_proprocess       = module_proprocess;
 	route.regr_model.bias         = config->model_bias / 1000.0;
 	route.regr_model.scale        = config->model_scale / 1000.0;
 	route.regr_model.num_of_param = config->model_num_of_param;

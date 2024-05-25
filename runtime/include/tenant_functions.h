@@ -115,27 +115,30 @@ tenant_alloc(struct tenant_config *config)
 
 		assert(module != NULL);
 
-		struct module *pre_module = NULL;
+		struct module *module_proprocess = NULL;
 
 #ifdef EXECUTION_REGRESSION
-		pre_module = module_database_find_by_path(&tenant->module_db, config->routes[i].path_premodule);
-		if (pre_module == NULL) {
-			/* Ownership of path moves here */
-			pre_module = module_alloc(config->routes[i].path_premodule, PREPROCESS_MODULE);
-			if (pre_module != NULL) {
-				module_database_add(&tenant->module_db, pre_module);
-				config->routes[i].path_premodule = NULL;
+		if (config->routes[i].path_preprocess) {
+			module_proprocess = module_database_find_by_path(&tenant->module_db,
+			                                                 config->routes[i].path_preprocess);
+			if (module_proprocess == NULL) {
+				/* Ownership of path moves here */
+				module_proprocess = module_alloc(config->routes[i].path_preprocess, PREPROCESS_MODULE);
+				if (module_proprocess != NULL) {
+					module_database_add(&tenant->module_db, module_proprocess);
+					config->routes[i].path_preprocess = NULL;
+				}
+			} else {
+				free(config->routes[i].path_preprocess);
+				config->routes[i].path_preprocess = NULL;
 			}
-		} else {
-			free(config->routes[i].path_premodule);
-			config->routes[i].path_premodule = NULL;
-		}
 
-		assert(pre_module != NULL);
+			assert(module_proprocess != NULL);
+		}
 #endif
 
 		/* Ownership of config's route and http_resp_content_type move here */
-		int rc = http_router_add_route(&tenant->router, &config->routes[i], module, pre_module);
+		int rc = http_router_add_route(&tenant->router, &config->routes[i], module, module_proprocess);
 		if (unlikely(rc != 0)) {
 			panic("Tenant %s defined %lu routes, but router failed to grow beyond %lu\n", tenant->name,
 			      config->routes_len, tenant->router.capacity);

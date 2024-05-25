@@ -9,6 +9,7 @@ declare -A repl_periods=()
 declare -A max_budgets=()
 declare -A reservations=()
 declare -A wasm_paths=()
+declare -A preprocess_wasm_paths=()
 declare -A expected_execs=()
 declare -A deadlines=()
 declare -A resp_content_types=()
@@ -94,6 +95,7 @@ run_init() {
 			IFS=' ' read -r -a r_dl_to_exec_ratios <<< "${DEADLINE_TO_EXEC_RATIOs[$t_idx]}"
 			IFS=' ' read -r -a r_resp_content_types <<< "${RESP_CONTENT_TYPES[$t_idx]}"
 
+			IFS=' ' read -r -a r_preprocess_wasm_paths <<< "${PREPROCESS_WASM_PATHS[$t_idx]}"
 			IFS=' ' read -r -a r_model_biases <<< "${MODEL_BIASES[$t_idx]}"
 			IFS=' ' read -r -a r_model_scales <<< "${MODEL_SCALES[$t_idx]}"
 			IFS=' ' read -r -a r_model_num_of_params <<< "${MODEL_NUM_OF_PARAMS[$t_idx]}"
@@ -112,6 +114,7 @@ run_init() {
 				local dl_to_exec_ratio=${r_dl_to_exec_ratios[$r_idx]}
 				local deadline=$((expected*dl_to_exec_ratio/100))
 				local resp_content_type=${r_resp_content_types[$r_idx]}
+				local preprocess_wasm_path=${r_preprocess_wasm_paths[$r_idx]}
 				local model_bias=${r_model_biases[$r_idx]}
 				local model_scale=${r_model_scales[$r_idx]}
 				local model_num_of_param=${r_model_num_of_params[$r_idx]}
@@ -127,6 +130,7 @@ run_init() {
 				expected_execs+=([$workload]=$expected)
 				deadlines+=([$workload]=$deadline)
 				resp_content_types+=([$workload]=$resp_content_type)
+				preprocess_wasm_paths+=([$workload]=$preprocess_wasm_path)
 				model_biases+=([$workload]=$model_bias)
 				model_scales+=([$workload]=$model_scale)
 				model_num_of_params+=([$workload]=$model_num_of_param)

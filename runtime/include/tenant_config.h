@@ -45,8 +45,10 @@ tenant_config_print(struct tenant_config *config)
 {
 	printf("[Tenant] Name: %s\n", config->name);
 	printf("[Tenant] Path: %d\n", config->port);
-	printf("[Tenant] Replenishment Period (us): %u\n", config->replenishment_period_us);
-	printf("[Tenant] Max Budget (us): %u\n", config->max_budget_us);
+	if (scheduler == SCHEDULER_MTDS) {
+		printf("[Tenant] Replenishment Period (us): %u\n", config->replenishment_period_us);
+		printf("[Tenant] Max Budget (us): %u\n", config->max_budget_us);
+	}
 	printf("[Tenant] Routes Size: %zu\n", config->routes_len);
 	for (int i = 0; i < config->routes_len; i++) { route_config_print(&config->routes[i]); }
 }

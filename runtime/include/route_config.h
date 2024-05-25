@@ -12,9 +12,9 @@ enum route_config_member
 {
 	route_config_member_route,
 	route_config_member_path,
-	route_config_member_path_premodule,
 	route_config_member_admissions_percentile,
 	route_config_member_relative_deadline_us,
+	route_config_member_path_preprocess,
 	route_config_member_model_bias,
 	route_config_member_model_scale,
 	route_config_member_model_num_of_param,
@@ -27,9 +27,9 @@ enum route_config_member
 struct route_config {
 	char    *route;
 	char    *path;
-	char    *path_premodule;
 	uint8_t  admissions_percentile;
 	uint32_t relative_deadline_us;
+	char    *path_preprocess;
 	uint32_t model_bias;
 	uint32_t model_scale;
 	uint32_t model_num_of_param;
@@ -54,14 +54,16 @@ route_config_print(struct route_config *config)
 {
 	printf("[Route] Route: %s\n", config->route);
 	printf("[Route] Path: %s\n", config->path);
-	printf("[Route] Path of Preprocessing Module: %s\n", config->path_premodule);
 	printf("[Route] Admissions Percentile: %hhu\n", config->admissions_percentile);
 	printf("[Route] Relative Deadline (us): %u\n", config->relative_deadline_us);
+	printf("[Route] HTTP Response Content Type: %s\n", config->http_resp_content_type);
+#ifdef EXECUTION_HISTOGRAM
+	printf("[Route] Path of Preprocessing Module: %s\n", config->path_preprocess);
 	printf("[Route] Model Bias: %u\n", config->model_bias);
 	printf("[Route] Model Scale: %u\n", config->model_scale);
 	printf("[Route] Model Num of Parameters: %u\n", config->model_num_of_param);
 	printf("[Route] Model Betas: [%u, %u]\n", config->model_beta1, config->model_beta2);
-	printf("[Route] HTTP Response Content Type: %s\n", config->http_resp_content_type);
+#endif
 }
 
 /**
@@ -73,7 +75,7 @@ static inline int
 route_config_validate(struct route_config *config, bool *did_set)
 {
 	if (did_set[route_config_member_route] == false) {
-		fprintf(stderr, "path field is required\n");
+		fprintf(stderr, "route field is required\n");
 		return -1;
 	}
 
@@ -82,19 +84,14 @@ route_config_validate(struct route_config *config, bool *did_set)
 		return -1;
 	}
 
-	if (did_set[route_config_member_path_premodule] == false) {
-		fprintf(stderr, "path_premodule field is required\n");
-		return -1;
-	}
-
 	if (did_set[route_config_member_http_resp_content_type] == false) {
 		debuglog("http_resp_content_type not set, defaulting to text/plain\n");
 		config->http_resp_content_type = "text/plain";
 	}
 
-	if (scheduler != SCHEDULER_FIFO) {
+	if (scheduler != SCHEDULER_FIFO && scheduler != SCHEDULER_SJF) {
 		if (did_set[route_config_member_relative_deadline_us] == false) {
-			fprintf(stderr, "relative_deadline_us is required\n");
+			fprintf(stderr, "relative_deadline_us is required for the selected scheduler\n");
 			return -1;
 		}
 
@@ -103,20 +100,69 @@ route_config_validate(struct route_config *config, bool *did_set)
 			        (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, config->relative_deadline_us);
 			return -1;
 		}
-
-#ifdef ADMISSIONS_CONTROL
-		if (did_set[route_config_member_admissions_percentile] == false) {
-			fprintf(stderr, "admissions_percentile is required\n");
-			return -1;
-		}
-
-		if (config->admissions_percentile > 99 || config->admissions_percentile < 50) {
-			fprintf(stderr, "admissions-percentile must be > 50 and <= 99 but was %u\n",
-			        config->admissions_percentile);
-			return -1;
-		}
-#endif
 	}
 
+#ifdef EXECUTION_HISTOGRAM
+	if (config->admissions_percentile > 99 || config->admissions_percentile < 50) {
+		fprintf(stderr, "admissions-percentile must be > 50 and <= 99 but was %u, defaulting to 70\n",
+		        config->admissions_percentile);
+		config->admissions_percentile = 70;
+	}
+#endif
+
+#ifdef EXECUTION_REGRESSION
+	if (did_set[route_config_member_path_preprocess] == false) {
+		fprintf(stderr, "model path_preprocess field is required. Put zero if just default preprocessing\n");
+		return -1;
+	} else if (strcmp(config->path_preprocess, "0") == 0) {
+		config->path_preprocess = NULL;
+	}
+
+	if (did_set[route_config_member_model_bias] == false) {
+		fprintf(stderr, "model bias field is required\n");
+		return -1;
+	}
+
+	if (did_set[route_config_member_model_scale] == false) {
+		fprintf(stderr, "model scale field is required\n");
+		return -1;
+	}
+
+	if (did_set[route_config_member_model_num_of_param] == false) {
+		fprintf(stderr, "model num_of_param field is required\n");
+		return -1;
+	}
+
+	if (did_set[route_config_member_model_beta1] == false) {
+		fprintf(stderr, "model beta1 field is required\n");
+		return -1;
+	}
+
+	if (did_set[route_config_member_model_beta2] == false) {
+		fprintf(stderr, "model beta2 field is required. Put zero for just default preprocessing\n");
+		return -1;
+	}
+
+	if (config->model_num_of_param < 1) {
+		fprintf(stderr, "model num_of_param must be at least 1 (just default preprocessing)\n");
+		return -1;
+	} else if (config->model_num_of_param == 1) {
+		if (config->path_preprocess) {
+			fprintf(stderr, "model_num_of_param cannot be 1 when using tenant preprocessing\n");
+			return -1;
+		}
+		if (config->model_beta2 != 0) {
+			fprintf(stderr, "model beta2 must be zero for just default preprocessing\n");
+			return -1;
+		}
+	} else {
+		/* For now we just support up to two params */
+		assert(config->model_num_of_param == 2);
+		if (config->path_preprocess == NULL) {
+			fprintf(stderr, "model_num_of_param cannot be more than 1 when just default preprocessing\n");
+			return -1;
+		}
+	}
+#endif
 	return 0;
 }

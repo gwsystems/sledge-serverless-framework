@@ -6,17 +6,11 @@
 #include "json.h"
 #include "route_config.h"
 
-static const char *route_config_json_keys[route_config_member_len] = { "route",
-	                                                               "path",
-	                                                               "path_premodule",
-	                                                               "admissions-percentile",
-	                                                               "relative-deadline-us",
-	                                                               "model-bias",
-	                                                               "model-scale",
-	                                                               "model-num-of-param",
-	                                                               "model-beta1",
-	                                                               "model-beta2",
-	                                                               "http-resp-content-type" };
+static const char *route_config_json_keys[route_config_member_len] = {
+	"route",           "path",        "admissions-percentile", "relative-deadline-us",
+	"path_preprocess", "model-bias",  "model-scale",           "model-num-of-param",
+	"model-beta1",     "model-beta2", "http-resp-content-type"
+};
 
 static inline int
 route_config_set_key_once(bool *did_set, enum route_config_member member)
@@ -66,11 +60,11 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			if (route_config_set_key_once(did_set, route_config_member_path) == -1) return -1;
 
 			config->path = strndup(json_buf + tokens[i].start, tokens[i].end - tokens[i].start);
-		} else if (strcmp(key, route_config_json_keys[route_config_member_path_premodule]) == 0) {
+		} else if (strcmp(key, route_config_json_keys[route_config_member_path_preprocess]) == 0) {
 			if (!is_nonempty_string(tokens[i], key)) return -1;
-			if (route_config_set_key_once(did_set, route_config_member_path_premodule) == -1) return -1;
+			if (route_config_set_key_once(did_set, route_config_member_path_preprocess) == -1) return -1;
 
-			config->path_premodule = strndup(json_buf + tokens[i].start, tokens[i].end - tokens[i].start);
+			config->path_preprocess = strndup(json_buf + tokens[i].start, tokens[i].end - tokens[i].start);
 		} else if (strcmp(key, route_config_json_keys[route_config_member_admissions_percentile]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
 			if (route_config_set_key_once(did_set, route_config_member_admissions_percentile) == -1)
@@ -89,6 +83,9 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			                        route_config_json_keys[route_config_member_relative_deadline_us],
 			                        &config->relative_deadline_us);
 			if (rc < 0) return -1;
+		} else if (strcmp(key, "expected-execution-us") == 0) {
+			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+			printf("The \"expected-execution-us\" field has been deprecated, so no need.\n");
 		} else if (strcmp(key, route_config_json_keys[route_config_member_model_bias]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
 			if (route_config_set_key_once(did_set, route_config_member_model_bias) == -1) return -1;
@@ -138,7 +135,7 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			                                         tokens[i].end - tokens[i].start);
 		} else {
 			fprintf(stderr, "%s is not a valid key\n", key);
-			// return -1;
+			return -1;
 		}
 	}
 
