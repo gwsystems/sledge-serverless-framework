@@ -38,6 +38,10 @@ BINARY_NAME=sledgert
 
 
 # Feature Toggles
+CFLAGS += -DEXECUTION_HISTOGRAM
+# CFLAGS += -DEXECUTION_REGRESSION
+
+# It is recommended (not mandatory) to enable this flag along with the EXECUTION_HISTOGRAM flag:
 # CFLAGS += -DADMISSIONS_CONTROL
 
 # Debugging Flags
@@ -56,6 +60,7 @@ BINARY_NAME=sledgert
 # CFLAGS += -DLOG_TO_FILE
 
 # Various Informational Logs for Debugging
+# CFLAGS += -DLOG_EXECUTION_HISTOGRAM
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_HTTP_PARSER

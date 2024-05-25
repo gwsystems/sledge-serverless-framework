@@ -40,7 +40,7 @@ enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_B
 
 bool     runtime_preemption_enabled            = true;
 bool     runtime_worker_spinloop_pause_enabled = false;
-uint32_t runtime_quantum_us                    = 5000; /* 5ms */
+uint32_t runtime_quantum_us                    = 1000; /* 1ms */
 uint64_t runtime_boot_timestamp;
 pid_t    runtime_pid = 0;
 
@@ -105,7 +105,7 @@ runtime_allocate_available_cores()
 static inline void
 runtime_get_processor_speed_MHz(void)
 {
-	char *proc_mhz_raw = getenv("PROC_MHZ");
+	char *proc_mhz_raw = getenv("SLEDGE_PROC_MHZ");
 	FILE *cmd          = NULL;
 
 	if (proc_mhz_raw != NULL) {
@@ -127,6 +127,7 @@ runtime_get_processor_speed_MHz(void)
 		char   buff[16];
 		size_t n = fread(buff, 1, sizeof(buff) - 1, cmd);
 		buff[n]  = '\0';
+		pclose(cmd);
 
 		float processor_speed_MHz;
 		n = sscanf(buff, "%f", &processor_speed_MHz);
@@ -139,7 +140,6 @@ runtime_get_processor_speed_MHz(void)
 	pretty_print_key_value("Worker CPU Freq", "%u MHz\n", runtime_processor_speed_MHz);
 
 done:
-	pclose(cmd);
 	return;
 err:
 	goto done;
@@ -208,10 +208,12 @@ runtime_configure()
 		scheduler = SCHEDULER_MTDS;
 	} else if (strcmp(scheduler_policy, "EDF") == 0) {
 		scheduler = SCHEDULER_EDF;
+	} else if (strcmp(scheduler_policy, "SJF") == 0) {
+		scheduler = SCHEDULER_SJF;
 	} else if (strcmp(scheduler_policy, "FIFO") == 0) {
 		scheduler = SCHEDULER_FIFO;
 	} else {
-		panic("Invalid scheduler policy: %s. Must be {MTDBF|MTDS|EDF|FIFO}\n", scheduler_policy);
+		panic("Invalid scheduler policy: %s. Must be {MTDBF|MTDS|EDF|SJF|FIFO}\n", scheduler_policy);
 	}
 	pretty_print_key_value("Scheduler Policy", "%s\n", scheduler_print(scheduler));
 
@@ -282,6 +284,18 @@ log_compiletime_config()
 	pretty_print_key_enabled("Admissions Control");
 #else
 	pretty_print_key_disabled("Admissions Control");
+#endif
+
+#ifdef EXECUTION_HISTOGRAM
+	pretty_print_key_enabled("Execution Histogram");
+#else
+	pretty_print_key_disabled("Execution Histogram");
+#endif
+
+#ifdef EXECUTION_REGRESSION
+	pretty_print_key_enabled("Execution Regression");
+#else
+	pretty_print_key_disabled("Execution Regression");
 #endif
 
 	/* Debugging Flags */

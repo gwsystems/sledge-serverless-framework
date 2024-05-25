@@ -40,14 +40,16 @@ declare -gr SANDBOX_ROUTE_FIELD=3
 declare -gr SANDBOX_CPU_FREQ_FIELD=20
 declare -gr SANDBOX_RESPONSE_CODE_FIELD=21
 declare -gr SANDBOX_GUARANTEE_TYPE_FIELD=22
+declare -gr SANDBOX_PAYLOAD_SIZE=23
 
 # HTTP Session Perf Log Globals:
-declare  -ga HTTP_METRICS=(http_receive http_sent http_total)
+declare  -ga HTTP_METRICS=(http_receive http_sent http_total http_preprocess)
 declare  -gA HTTP_METRICS_FIELDS=(
 	[http_receive]=6
 	[http_sent]=7
 	[http_total]=8
+	[http_preprocess]=9
 )
 declare -gr HTTP_TENANT_NAME_FIELD=1
 declare -gr HTTP_ROUTE_FIELD=2
-declare -gr HTTP_CPU_FREQ_FIELD=9
+declare -gr HTTP_CPU_FREQ_FIELD=10

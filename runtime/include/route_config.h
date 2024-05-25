@@ -12,9 +12,14 @@ enum route_config_member
 {
 	route_config_member_route,
 	route_config_member_path,
+	route_config_member_path_premodule,
 	route_config_member_admissions_percentile,
-	route_config_member_expected_execution_us,
 	route_config_member_relative_deadline_us,
+	route_config_member_model_bias,
+	route_config_member_model_scale,
+	route_config_member_model_num_of_param,
+	route_config_member_model_beta1,
+	route_config_member_model_beta2,
 	route_config_member_http_resp_content_type,
 	route_config_member_len
 };
@@ -22,9 +27,14 @@ enum route_config_member
 struct route_config {
 	char    *route;
 	char    *path;
+	char    *path_premodule;
 	uint8_t  admissions_percentile;
-	uint32_t expected_execution_us;
 	uint32_t relative_deadline_us;
+	uint32_t model_bias;
+	uint32_t model_scale;
+	uint32_t model_num_of_param;
+	uint32_t model_beta1;
+	uint32_t model_beta2;
 	char    *http_resp_content_type;
 };
 
@@ -44,9 +54,13 @@ route_config_print(struct route_config *config)
 {
 	printf("[Route] Route: %s\n", config->route);
 	printf("[Route] Path: %s\n", config->path);
+	printf("[Route] Path of Preprocessing Module: %s\n", config->path_premodule);
 	printf("[Route] Admissions Percentile: %hhu\n", config->admissions_percentile);
-	printf("[Route] Expected Execution (us): %u\n", config->expected_execution_us);
 	printf("[Route] Relative Deadline (us): %u\n", config->relative_deadline_us);
+	printf("[Route] Model Bias: %u\n", config->model_bias);
+	printf("[Route] Model Scale: %u\n", config->model_scale);
+	printf("[Route] Model Num of Parameters: %u\n", config->model_num_of_param);
+	printf("[Route] Model Betas: [%u, %u]\n", config->model_beta1, config->model_beta2);
 	printf("[Route] HTTP Response Content Type: %s\n", config->http_resp_content_type);
 }
 
@@ -68,6 +82,11 @@ route_config_validate(struct route_config *config, bool *did_set)
 		return -1;
 	}
 
+	if (did_set[route_config_member_path_premodule] == false) {
+		fprintf(stderr, "path_premodule field is required\n");
+		return -1;
+	}
+
 	if (did_set[route_config_member_http_resp_content_type] == false) {
 		debuglog("http_resp_content_type not set, defaulting to text/plain\n");
 		config->http_resp_content_type = "text/plain";
@@ -86,11 +105,6 @@ route_config_validate(struct route_config *config, bool *did_set)
 		}
 
 #ifdef ADMISSIONS_CONTROL
-		if (did_set[route_config_member_expected_execution_us] == false) {
-			fprintf(stderr, "expected-execution-us is required\n");
-			return -1;
-		}
-
 		if (did_set[route_config_member_admissions_percentile] == false) {
 			fprintf(stderr, "admissions_percentile is required\n");
 			return -1;
@@ -99,17 +113,6 @@ route_config_validate(struct route_config *config, bool *did_set)
 		if (config->admissions_percentile > 99 || config->admissions_percentile < 50) {
 			fprintf(stderr, "admissions-percentile must be > 50 and <= 99 but was %u\n",
 			        config->admissions_percentile);
-			return -1;
-		}
-
-		/* If the ratio is too big, admissions control is too coarse */
-		uint32_t ratio = config->relative_deadline_us / config->expected_execution_us;
-		if (ratio > ADMISSIONS_CONTROL_GRANULARITY) {
-			fprintf(stderr,
-			        "Ratio of Deadline to Execution time cannot exceed admissions control "
-			        "granularity of "
-			        "%d\n",
-			        ADMISSIONS_CONTROL_GRANULARITY);
 			return -1;
 		}
 #endif

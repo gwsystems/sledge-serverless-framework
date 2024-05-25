@@ -118,7 +118,11 @@ runtime_initialize(void)
 	signal(SIGQUIT, runtime_cleanup);
 
 	http_parser_settings_initialize();
+
+#ifdef ADMISSIONS_CONTROL
+	/* Admissions Control Setup */
 	admissions_control_initialize();
+#endif
 }
 
 static void

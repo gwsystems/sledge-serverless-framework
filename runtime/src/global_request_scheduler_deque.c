@@ -2,7 +2,7 @@
 #include "global_request_scheduler_deque.h"
 #include "runtime.h"
 
-#define GLOBAL_REQUEST_SCHEDULER_DEQUE_CAPACITY (1 << 19)
+#define GLOBAL_REQUEST_SCHEDULER_DEQUE_CAPACITY (1 << 12)
 
 static struct deque_sandbox *global_request_scheduler_deque;
 

@@ -194,5 +194,5 @@ current_sandbox_start(void)
 		current_sandbox_wasm_trap_handler(rc);
 	}
 
-	current_sandbox_fini();
+	if (sandbox->module->type == APP_MODULE) current_sandbox_fini();
 }

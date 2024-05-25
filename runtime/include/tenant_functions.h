@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "admissions_info.h"
 #include "http.h"
 #include "listener_thread.h"
 #include "module_database.h"
@@ -30,6 +29,7 @@ tenant_policy_specific_init(struct tenant *tenant, struct tenant_config *config)
 	case SCHEDULER_FIFO:
 		break;
 	case SCHEDULER_EDF:
+	case SCHEDULER_SJF:
 		break;
 	case SCHEDULER_MTDS:
 		/* Deferable Server Initialization */
@@ -103,7 +103,7 @@ tenant_alloc(struct tenant_config *config)
 		struct module *module = module_database_find_by_path(&tenant->module_db, config->routes[i].path);
 		if (module == NULL) {
 			/* Ownership of path moves here */
-			module = module_alloc(config->routes[i].path);
+			module = module_alloc(config->routes[i].path, APP_MODULE);
 			if (module != NULL) {
 				module_database_add(&tenant->module_db, module);
 				config->routes[i].path = NULL;
@@ -115,8 +115,27 @@ tenant_alloc(struct tenant_config *config)
 
 		assert(module != NULL);
 
+		struct module *pre_module = NULL;
+
+#ifdef EXECUTION_REGRESSION
+		pre_module = module_database_find_by_path(&tenant->module_db, config->routes[i].path_premodule);
+		if (pre_module == NULL) {
+			/* Ownership of path moves here */
+			pre_module = module_alloc(config->routes[i].path_premodule, PREPROCESS_MODULE);
+			if (pre_module != NULL) {
+				module_database_add(&tenant->module_db, pre_module);
+				config->routes[i].path_premodule = NULL;
+			}
+		} else {
+			free(config->routes[i].path_premodule);
+			config->routes[i].path_premodule = NULL;
+		}
+
+		assert(pre_module != NULL);
+#endif
+
 		/* Ownership of config's route and http_resp_content_type move here */
-		int rc = http_router_add_route(&tenant->router, &config->routes[i], module);
+		int rc = http_router_add_route(&tenant->router, &config->routes[i], module, pre_module);
 		if (unlikely(rc != 0)) {
 			panic("Tenant %s defined %lu routes, but router failed to grow beyond %lu\n", tenant->name,
 			      config->routes_len, tenant->router.capacity);
@@ -160,5 +179,6 @@ get_next_timeout_of_tenant(uint64_t replenishment_period)
  * @param tenant
  * @returns 0 on success, -1 on error
  */
-int tenant_listen(struct tenant *tenant);
-int listener_thread_register_tenant(struct tenant *tenant);
+int  tenant_listen(struct tenant *tenant);
+int  listener_thread_register_tenant(struct tenant *tenant);
+void tenant_preprocess(struct http_session *session);

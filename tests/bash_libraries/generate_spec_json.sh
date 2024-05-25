@@ -7,20 +7,11 @@ jq_admin_spec() {
 	jq ". + {\
 		\"name\": \"Admin\",\
 		\"port\": 55555,\
-		\"replenishment-period-us\": 0,\
-		\"max-budget-us\": 0,\
-		\"reservation-percentile\": 0,\
 		\"routes\": [\
 			.routes[] + {\
-			\"route\": \"/admin\",\
-			\"admissions-percentile\": 50,\
-			\"expected-execution-us\": 1000,\
-			\"relative-deadline-us\": 10000},\
+			\"route\": \"/admin\"},\
 			.routes[] + {\
-			\"route\": \"/terminator\",\
-			\"admissions-percentile\": 50,\
-			\"expected-execution-us\": 1000,\
-			\"relative-deadline-us\": 10000}\
+			\"route\": \"/terminator\"}\
 		]\
 		}" < "./template.json" > "./result_admin.json"
 }
@@ -55,6 +46,11 @@ generate_spec_json() {
 				local resp_content_type=${resp_content_types[$workload]}
 				local expected=${expected_execs[$workload]}
 				local deadline=${deadlines[$workload]}
+				local model_bias=${model_biases[$workload]}
+				local model_scale=${model_scales[$workload]}
+				local model_num_of_param=${model_num_of_params[$workload]}
+				local model_beta1=${model_beta1s[$workload]}
+				local model_beta2=${model_beta2s[$workload]}
 
 				jq_str+=".routes[] + {\
 					\"route\": \"/$route\",\
@@ -62,6 +58,11 @@ generate_spec_json() {
 					\"admissions-percentile\": $ESTIMATIONS_PERCENTILE,\
 					\"expected-execution-us\": $expected,\
 					\"relative-deadline-us\": $deadline,\
+					\"model-bias\": $model_bias,\
+					\"model-scale\": $model_scale,\
+					\"model-num-of-param\": $model_num_of_param,\
+					\"model-beta1\": $model_beta1,\
+					\"model-beta2\": $model_beta2,\
 					\"http-resp-content-type\": \"$resp_content_type\"}"
 				
 				if [ "$index" != $((${#t_routes[@]}-1)) ]; then

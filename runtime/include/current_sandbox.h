@@ -4,6 +4,7 @@
 
 #include "current_wasm_module_instance.h"
 #include "sandbox_types.h"
+#include "listener_thread.h"
 
 /* current sandbox that is active.. */
 extern thread_local struct sandbox *worker_thread_current_sandbox;
@@ -46,8 +47,9 @@ current_sandbox_set(struct sandbox *sandbox)
 			/* Private */
 			.wasi_context = NULL,
 		};
-		worker_thread_current_sandbox                      = NULL;
-		runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
+		worker_thread_current_sandbox = NULL;
+		/* This is because the event core does not maintain core-assigned deadline */
+		if (!listener_thread_is_running()) runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	} else {
 		sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
 		memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, &sandbox->memory->abi,
@@ -55,8 +57,9 @@ current_sandbox_set(struct sandbox *sandbox)
 		sledge_abi__current_wasm_module_instance.abi.table = sandbox->module->indirect_table;
 		wasm_globals_update_if_used(&sandbox->globals, 0,
 		                            &sledge_abi__current_wasm_module_instance.abi.wasmg_0);
-		worker_thread_current_sandbox                      = sandbox;
-		runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
+		worker_thread_current_sandbox = sandbox;
+		if (!listener_thread_is_running())
+			runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 	}
 }
 

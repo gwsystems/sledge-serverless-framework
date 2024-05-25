@@ -43,10 +43,10 @@ global_request_scheduler_minheap_remove(struct sandbox **removed_sandbox)
  * @returns 0 if successful, -ENOENT if empty or if request isn't earlier than target_deadline
  */
 int
-global_request_scheduler_minheap_remove_if_earlier(struct sandbox **removed_sandbox, uint64_t target_deadline)
+global_request_scheduler_minheap_remove_if_earlier(struct sandbox **removed_sandbox, uint64_t target_latest_start)
 {
 	return priority_queue_dequeue_if_earlier(global_request_scheduler_minheap, (void **)removed_sandbox,
-	                                         target_deadline);
+	                                         target_latest_start);
 }
 
 /**
@@ -65,6 +65,8 @@ uint64_t
 sandbox_get_priority_fn(void *element)
 {
 	struct sandbox *sandbox = (struct sandbox *)element;
+	if (scheduler == SCHEDULER_SJF) return sandbox->remaining_exec;
+	assert(scheduler == SCHEDULER_EDF);
 	return sandbox->absolute_deadline;
 };
 

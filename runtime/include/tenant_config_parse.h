@@ -96,7 +96,7 @@ tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_
 
 		} else {
 			fprintf(stderr, "%s is not a valid key\n", key);
-			return -1;
+			// return -1;
 		}
 	}
 

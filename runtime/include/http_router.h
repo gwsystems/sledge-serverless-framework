@@ -1,8 +1,6 @@
 #pragma once
 
 #include <stdlib.h>
-#include <string.h>
-
 #include "http.h"
 #include "module.h"
 #include "route_latency.h"
@@ -22,7 +20,8 @@ http_router_init(http_router_t *router, size_t capacity)
 }
 
 static inline int
-http_router_add_route(http_router_t *router, struct route_config *config, struct module *module)
+http_router_add_route(http_router_t *router, struct route_config *config, struct module *module,
+                      struct module *pre_module)
 {
 	assert(router != NULL);
 	assert(config != NULL);
@@ -40,10 +39,27 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 	route_latency_init(&route.latency);
 	http_route_total_init(&route.metrics);
 
-	/* Admissions Control */
-	uint64_t expected_execution = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz;
-	admissions_info_initialize(&route.admissions_info, config->admissions_percentile, expected_execution,
-	                           route.relative_deadline);
+#ifdef EXECUTION_REGRESSION
+	/* Execution Regression setup */
+	assert(pre_module);
+	route.pre_module              = pre_module;
+	route.regr_model.bias         = config->model_bias / 1000.0;
+	route.regr_model.scale        = config->model_scale / 1000.0;
+	route.regr_model.num_of_param = config->model_num_of_param;
+	route.regr_model.beta1        = config->model_beta1 / 1000.0;
+	route.regr_model.beta2        = config->model_beta2 / 1000.0;
+#endif
+
+	const uint64_t expected_execution = route.relative_deadline / 2;
+#ifdef ADMISSIONS_CONTROL
+	/* Addmissions Control setup */
+	route.execution_histogram.estimated_execution = expected_execution;
+#endif
+
+#ifdef EXECUTION_HISTOGRAM
+	/* Execution Histogram setup */
+	execution_histogram_initialize(&route.execution_histogram, config->admissions_percentile, expected_execution);
+#endif
 
 	int rc = vec_route_t_push(router, route);
 	if (unlikely(rc == -1)) { return -1; }

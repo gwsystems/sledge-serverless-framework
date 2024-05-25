@@ -12,6 +12,8 @@
 #include "tenant.h"
 #include "tenant_functions.h"
 #include "http_session_perf_log.h"
+#include "sandbox_perf_log.h"
+#include "execution_regression.h"
 
 static void listener_thread_unregister_http_session(struct http_session *http);
 static void panic_on_epoll_error(struct epoll_event *evt);
@@ -193,11 +195,34 @@ on_client_request_receiving(struct http_session *session)
 {
 	/* Read HTTP request */
 	int rc = http_session_receive_request(session, (void_star_cb)listener_thread_register_http_session);
-	if (likely(rc == 0)) {
+
+	/* Check if the route is accurate only when the URL is downloaded. Stop downloading if inaccurate. */
+	if (session->route == NULL && strlen(session->http_request.full_url) > 0) {
+		struct route *route = http_router_match_route(&session->tenant->router, session->http_request.full_url);
+		if (route == NULL) {
+			debuglog("Did not match any routes\n");
+			session->state = HTTP_SESSION_EXECUTION_COMPLETE;
+			http_session_set_response_header(session, 404);
+			on_client_response_header_sending(session);
+			return;
+		}
+
+		session->route = route;
+	}
+
+	if (rc == 0) {
+#ifdef EXECUTION_REGRESSION
+		if (!session->did_preprocessing) tenant_preprocess(session);
+#endif
 		on_client_request_received(session);
 		return;
-	} else if (unlikely(rc == -EAGAIN)) {
-		/* session blocked and registered to epoll so continue to next handle */
+	} else if (rc == -EAGAIN) {
+		/* session blocked and registered to epoll, so continue to next handle */
+#ifdef EXECUTION_REGRESSION
+		/* try tenant preprocessing if min 4k Bytes received */
+		if (!session->did_preprocessing && session->http_request.body_length_read > 4096)
+			tenant_preprocess(session);
+#endif
 		return;
 	} else if (rc < 0) {
 		debuglog("Failed to receive or parse request\n");
@@ -215,30 +240,29 @@ on_client_request_received(struct http_session *session)
 {
 	assert(session->state == HTTP_SESSION_RECEIVED_REQUEST);
 	session->request_downloaded_timestamp = __getcycles();
+	struct route *route                   = session->route;
+	uint64_t      estimated_execution     = route->execution_histogram.estimated_execution;
+	uint64_t      work_admitted           = 1;
 
-	struct route *route = http_router_match_route(&session->tenant->router, session->http_request.full_url);
-	if (route == NULL) {
-		debuglog("Did not match any routes\n");
-		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
-		http_session_set_response_header(session, 404);
-		on_client_response_header_sending(session);
-		return;
-	}
+#ifdef EXECUTION_REGRESSION
+	estimated_execution = get_regression_prediction(session);
+#endif
 
-	session->route = route;
-
+#ifdef ADMISSIONS_CONTROL
 	/*
 	 * Perform admissions control.
 	 * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
-	 * TODO: Consider providing a Retry-After header
 	 */
-	uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+	uint64_t admissions_estimate = admissions_control_calculate_estimate(estimated_execution,
+	                                                                     route->relative_deadline);
+	work_admitted                = admissions_control_decide(admissions_estimate);
 	if (work_admitted == 0) {
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
 		http_session_set_response_header(session, 429);
 		on_client_response_header_sending(session);
 		return;
 	}
+#endif
 
 	/* Allocate a Sandbox */
 	session->state          = HTTP_SESSION_EXECUTING;
@@ -251,9 +275,15 @@ on_client_request_received(struct http_session *session)
 		return;
 	}
 
+	sandbox->remaining_exec = estimated_execution;
+
 	/* If the global request scheduler is full, return a 429 to the client */
 	if (unlikely(global_request_scheduler_add(sandbox) == NULL)) {
-		debuglog("Failed to add sandbox to global queue\n");
+		// debuglog("Failed to add sandbox to global queue\n");
+		sandbox->response_code = 4290;
+		sandbox->state         = SANDBOX_ERROR;
+		sandbox_perf_log_print_entry(sandbox);
+		sandbox->http = NULL;
 		sandbox_free(sandbox);
 		session->state = HTTP_SESSION_EXECUTION_COMPLETE;
 		http_session_set_response_header(session, 429);

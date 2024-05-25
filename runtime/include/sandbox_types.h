@@ -38,6 +38,7 @@ struct sandbox {
 	uint64_t                     id;
 	sandbox_state_t              state;
 	struct sandbox_state_history state_history;
+	uint16_t                     response_code;
 
 
 	/* Accounting Info */
@@ -61,10 +62,12 @@ struct sandbox {
 	uint64_t                  duration_of_state[SANDBOX_STATE_COUNT];
 	uint64_t                  last_state_duration;
 
+	uint64_t remaining_exec;
 	uint64_t absolute_deadline;
 	uint64_t admissions_estimate; /* estimated execution time (cycles) * runtime_admissions_granularity / relative
 	                                 deadline (cycles) */
 	uint64_t total_time;          /* Total time from Request to Response */
+	int      payload_size;
 
 	/* System Interface State */
 	int32_t         return_value;
