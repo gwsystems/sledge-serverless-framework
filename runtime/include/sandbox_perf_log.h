@@ -58,7 +58,7 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
                          global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, 
                          sandbox->route->route,init_time, cleanup, deadline, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
                 */
-		mem_log("tid %d %u miss %lu %lu %lu %s %lu %lu %lu %u\n", 
+		mem_log("%d %u miss %lu %lu %lu %s %lu %lu %lu %u\n", 
                          global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, 
                          sandbox->route->route,init_time, cleanup, deadline,local_queue_length[global_worker_thread_idx]);
                 
@@ -67,7 +67,7 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
                          global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, 
                          sandbox->route->route,init_time, cleanup, deadline, sandbox->context_switch_to, other, t1,t2,t3,t4,t5);
                 */
-		mem_log("tid %d %u meet %lu %lu %lu %s %lu %lu %lu %lu\n", 
+		mem_log("%d %u meet %lu %lu %lu %s %lu %lu %lu %lu\n", 
                          global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, 
                          sandbox->route->route,init_time, cleanup, deadline,deadline,local_queue_length[global_worker_thread_idx]);
                 
