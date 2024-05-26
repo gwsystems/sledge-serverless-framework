@@ -226,6 +226,10 @@ struct TreeNode* findMin(struct binary_tree *binary_tree, struct TreeNode *root)
         return NULL;
     }
 
+    if (binary_tree->queue_length == 1) {
+	return root;
+    }
+
     lock_node_t node = {};
     lock_lock(&binary_tree->lock, &node);
     while (root->left != NULL) {
