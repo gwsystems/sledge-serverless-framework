@@ -68,7 +68,7 @@ run_perf_tests() {
 			done
 			((batch_id++))
 
-			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "./${workload}.dat" "http://${hostname}:10000${path[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" &
+			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m POST -D "./${workload}.dat" "http://${hostname}:10000${path[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" &
 		done
 		pids=$(pgrep hey | tr '\n' ' ')
 		[[ -n $pids ]] && wait -f $pids

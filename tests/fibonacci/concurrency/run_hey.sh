@@ -47,7 +47,7 @@ run_experiments() {
 	printf "Running Experiments:\n"
 	for con in "${concurrency[@]}"; do
 		printf "\t%d Concurrency: " "$con"
-		hey -disable-compression -disable-keepalive -disable-redirects -z "$duration_sec"s -n "$iterations" -c "$con" -o csv -m GET -d "30\n" "http://$hostname:10030/fib" > "$results_directory/con$con.csv" 2> /dev/null || {
+		hey -disable-compression -disable-keepalive -disable-redirects -z "$duration_sec"s -n "$iterations" -c "$con" -o csv -m POST -d "30\n" "http://$hostname:10030/fib" > "$results_directory/con$con.csv" 2> /dev/null || {
 			printf "[ERR]\n"
 			panic "experiment failed"
 			return 1

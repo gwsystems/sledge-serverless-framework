@@ -63,7 +63,7 @@ run_perf_tests() {
 			else
 				image=$same_image
 			fi
-			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "${image}" "http://${hostname}:10000${route[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m POST -D "${image}" "http://${hostname}:10000${route[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 		done
 		pids=$(pgrep hey | tr '\n' ' ')
 		[[ -n $pids ]] && wait -f $pids
