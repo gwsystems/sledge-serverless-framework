@@ -20,6 +20,7 @@ path=`pwd`
 export SLEDGE_DISABLE_PREEMPTION=false
 #export SLEDGE_SIGALRM_HANDLER=TRIAGED
 export SLEDGE_SCHEDULER=EDF
+export SLEDGE_NWORKERS=1
 export SLEDGE_SANDBOX_PERF_LOG=$path/server.log
 #echo $SLEDGE_SANDBOX_PERF_LOG
 cd $project_path/runtime/bin
