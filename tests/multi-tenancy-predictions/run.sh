@@ -51,8 +51,8 @@ declare -gr LOADTEST_REQUEST_TIMEOUT=false
 
 # For HEY -d is text, -D is file input. For LoadTest -P is text, -b is file input.
 # ALso, LoadTest now supports -B for random file in the folder. HEY supports a single file.
-declare -ar ARG_OPTS_HEY=("-D" "-D" "-D" "-D" "-D")
-declare -ar ARG_OPTS_LT=("-B" "-B" "-B" "-B" "-B") # "-P -P -P")
+declare -ar ARG_OPTS_HEY=("-D" "-D" "-D" "-D" "-D" "-D")
+declare -ar ARG_OPTS_LT=("-B" "-B" "-B" "-B" "-B" "-B") # "-P -P -P")
 declare -ar ARGS=("input-cnn" "input-cifar10" "input-gocr" "input-lpd-jpg" "input-resize" "input-ekf")
 # declare -ar ARGS=("input-cnn/faces01.jpg" "input-cifar10/airplane1.bmp" "input-gocr/5x8.pnm" "input-lpd-jpg/Cars0.jpg" "input-resize/picsum_512x512_01.jpg" "input-ekf/iter00.dat")
 

@@ -16,9 +16,7 @@
         "model-beta1": 2000,
         "model-beta2": 0
       }
-    ],
-    "replenishment-period-us": 0,
-    "max-budget-us": 0
+    ]
   },
   {
     "name": "cnn-000",
@@ -37,9 +35,7 @@
         "model-beta1": 1500,
         "model-beta2": 1500
       }
-    ],
-    "replenishment-period-us": 0,
-    "max-budget-us": 0
+    ]
   },
   {
     "name": "ekf-000",
@@ -58,9 +54,7 @@
         "model-beta1": 100,
         "model-beta2": 0
       }
-    ],
-    "replenishment-period-us": 0,
-    "max-budget-us": 0
+    ]
   },
   {
     "name": "gocr-000",
@@ -79,9 +73,7 @@
         "model-beta1": 2500,
         "model-beta2": 0
       }
-    ],
-    "replenishment-period-us": 0,
-    "max-budget-us": 0
+    ]
   },
   {
     "name": "lpd-000",
@@ -100,9 +92,7 @@
         "model-beta1": 3000,
         "model-beta2": 3000
       }
-    ],
-    "replenishment-period-us": 0,
-    "max-budget-us": 0
+    ]
   },
   {
     "name": "resize-000",
@@ -121,8 +111,6 @@
         "model-beta1": 3500,
         "model-beta2": 3500
       }
-    ],
-    "replenishment-period-us": 0,
-    "max-budget-us": 0
+    ]
   }
 ]
