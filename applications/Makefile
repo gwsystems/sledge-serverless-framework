@@ -28,15 +28,10 @@ all: \
 	resize_image.install \
 	cnn_face_detection.install \
 	get_jpeg_resolution.install \
-	scratch_storage_get.install \
-	scratch_storage_set.install \
-	scratch_storage_delete.install \
-	scratch_storage_upsert.install \
 
 .PHONY: clean
 clean:
 	@make -C wasm_apps clean
-	@make -C scratch_storage clean
 	@rm -rf dist
 	@rm -rf ../runtime/bin/*.so
 
@@ -70,7 +65,7 @@ dist/%.bc: ./wasm_apps/dist/%.wasm dist
 	${AWSMCC} ${AWSMFLAGS} $< -o $@
 
 dist/%.ll: dist/%.bc
-	llvm-dis-12 $< -o $@
+	llvm-dis $< -o $@
 
 dist/%.wasm.so: dist/%.bc
 	${CC} ${CFLAGS} ${LDFLAGS} $^ -o $@

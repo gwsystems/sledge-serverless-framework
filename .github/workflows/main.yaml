@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 env:
   LLVM_VERSION: 13
-  WASI_SDK_URL: https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-12/wasi-sdk-12.0-linux.tar.gz
+  WASI_SDK_VERSION: 12
   WASI_SDK_PATH: /opt/wasi-sdk
   LANG: C.UTF-8
   LANGUAGE: C.UTF-8
@@ -18,10 +18,10 @@ jobs:
       - name: Apt Update
         run: sudo apt-get update
       - uses: actions/checkout@v2
-      - name: Install LLVM
+      - name: Install Clang Format
         run: |
           sudo ./install_llvm.sh $LLVM_VERSION
-      - name: Clang Format
+      - name: Run Clang Format
         run: ./format.sh -d
   test:
     runs-on: ubuntu-20.04
@@ -62,6 +62,7 @@ jobs:
           echo "/root/.cargo/bin:$PATH" >> $GITHUB_PATH
       - name: Get wasi-sdk
         run: |
+          WASI_SDK_URL=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_SDK_VERSION/wasi-sdk-$WASI_SDK_VERSION.0-linux.tar.gz
           wget $WASI_SDK_URL -O wasi-sdk.tar.gz
           mkdir -p $WASI_SDK_PATH
           tar xvfz wasi-sdk.tar.gz --strip-components=1 -C $WASI_SDK_PATH
