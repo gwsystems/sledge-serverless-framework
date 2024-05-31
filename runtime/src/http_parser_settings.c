@@ -3,8 +3,8 @@
 
 #include "debuglog.h"
 #include "http.h"
-#include "http_request.h"
 #include "http_parser_settings.h"
+#include "http_request.h"
 #include "likely.h"
 
 http_parser_settings runtime_http_parser_settings;
@@ -211,7 +211,7 @@ http_parser_settings_on_header_end(http_parser *parser)
 	}
 }
 
-const char *http_methods[] = { "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT" };
+const char *http_methods[] = {"OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT"};
 
 /**
  * http-parser callback called for HTTP Bodies

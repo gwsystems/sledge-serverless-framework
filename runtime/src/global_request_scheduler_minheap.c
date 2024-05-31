@@ -79,12 +79,11 @@ global_request_scheduler_minheap_initialize()
 {
 	global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_get_priority_fn);
 
-	struct global_request_scheduler_config config = {
-		.add_fn               = global_request_scheduler_minheap_add,
-		.remove_fn            = global_request_scheduler_minheap_remove,
-		.remove_if_earlier_fn = global_request_scheduler_minheap_remove_if_earlier,
-		.peek_fn              = global_request_scheduler_minheap_peek
-	};
+	struct global_request_scheduler_config config = {.add_fn    = global_request_scheduler_minheap_add,
+	                                                 .remove_fn = global_request_scheduler_minheap_remove,
+	                                                 .remove_if_earlier_fn =
+	                                                   global_request_scheduler_minheap_remove_if_earlier,
+	                                                 .peek_fn = global_request_scheduler_minheap_peek};
 
 	global_request_scheduler_initialize(&config);
 }

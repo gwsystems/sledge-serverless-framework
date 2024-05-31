@@ -3,17 +3,17 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include "admissions_control.h"
 #include "arch/getcycles.h"
 #include "listener_thread.h"
 #include "local_runqueue.h"
-#include "sandbox_state.h"
+#include "panic.h"
 #include "sandbox_functions.h"
 #include "sandbox_perf_log.h"
+#include "sandbox_state.h"
 #include "sandbox_state_history.h"
 #include "sandbox_state_transition.h"
 #include "sandbox_summarize_page_allocations.h"
-#include "panic.h"
-#include "admissions_control.h"
 
 /**
  * Transitions a sandbox to the SANDBOX_ERROR state.

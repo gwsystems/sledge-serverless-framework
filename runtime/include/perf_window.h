@@ -72,8 +72,8 @@ perf_window_fill(struct perf_window *perf_window, uint64_t newest_execution_time
 {
 	for (uint16_t i = 0; i < PERF_WINDOW_CAPACITY; i++) {
 		perf_window->by_termination[i] = i;
-		perf_window->by_duration[i]    = (struct execution_node){ .execution_time     = newest_execution_time,
-			                                                  .by_termination_idx = i };
+		perf_window->by_duration[i]    = (struct execution_node){.execution_time     = newest_execution_time,
+		                                                         .by_termination_idx = i};
 	}
 	perf_window->count = PERF_WINDOW_CAPACITY;
 }

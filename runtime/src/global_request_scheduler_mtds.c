@@ -230,12 +230,11 @@ global_request_scheduler_mtds_initialize()
 
 	lock_init(&global_lock);
 
-	struct global_request_scheduler_config config = {
-		.add_fn               = global_request_scheduler_mtds_add,
-		.remove_fn            = global_request_scheduler_mtds_remove,
-		.remove_if_earlier_fn = global_request_scheduler_mtds_remove_if_earlier,
-		.peek_fn              = global_request_scheduler_mtds_peek
-	};
+	struct global_request_scheduler_config config = {.add_fn    = global_request_scheduler_mtds_add,
+	                                                 .remove_fn = global_request_scheduler_mtds_remove,
+	                                                 .remove_if_earlier_fn =
+	                                                   global_request_scheduler_mtds_remove_if_earlier,
+	                                                 .peek_fn = global_request_scheduler_mtds_peek};
 
 	global_request_scheduler_initialize(&config);
 }

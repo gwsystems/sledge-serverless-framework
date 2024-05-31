@@ -6,10 +6,10 @@
 #include "arch/getcycles.h"
 #include "current_sandbox.h"
 #include "panic.h"
+#include "sandbox_functions.h"
 #include "sandbox_state_history.h"
 #include "sandbox_state_transition.h"
 #include "sandbox_types.h"
-#include "sandbox_functions.h"
 
 static inline void
 sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)

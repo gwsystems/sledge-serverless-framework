@@ -1,6 +1,6 @@
 #include "tenant.h"
-#include "tenant_functions.h"
 #include "current_sandbox.h"
+#include "tenant_functions.h"
 
 /**
  * Start the tenant as a server listening at tenant->port

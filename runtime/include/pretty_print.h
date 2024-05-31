@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #define PRETTY_PRINT_COLOR_CODE_RED   "\033[1;31m"
 #define PRETTY_COLOR_CODE_GREEN       "\033[0;32m"

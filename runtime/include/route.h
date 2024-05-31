@@ -1,11 +1,11 @@
 #pragma once
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "execution_histogram.h"
-#include "module.h"
 #include "http_route_total.h"
+#include "module.h"
 #include "perf_window.h"
 
 struct regression_model {

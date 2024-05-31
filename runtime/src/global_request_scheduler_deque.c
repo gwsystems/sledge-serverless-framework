@@ -1,5 +1,5 @@
-#include "global_request_scheduler.h"
 #include "global_request_scheduler_deque.h"
+#include "global_request_scheduler.h"
 #include "runtime.h"
 
 #define GLOBAL_REQUEST_SCHEDULER_DEQUE_CAPACITY (1 << 12)
@@ -57,11 +57,10 @@ global_request_scheduler_deque_initialize()
 	deque_init_sandbox(global_request_scheduler_deque, GLOBAL_REQUEST_SCHEDULER_DEQUE_CAPACITY);
 
 	/* Register Function Pointers for Abstract Scheduling API */
-	struct global_request_scheduler_config config = {
-		.add_fn               = global_request_scheduler_deque_add,
-		.remove_fn            = global_request_scheduler_deque_remove,
-		.remove_if_earlier_fn = global_request_scheduler_deque_remove_if_earlier
-	};
+	struct global_request_scheduler_config config = {.add_fn    = global_request_scheduler_deque_add,
+	                                                 .remove_fn = global_request_scheduler_deque_remove,
+	                                                 .remove_if_earlier_fn =
+	                                                   global_request_scheduler_deque_remove_if_earlier};
 
 	global_request_scheduler_initialize(&config);
 }

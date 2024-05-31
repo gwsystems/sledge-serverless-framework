@@ -1,12 +1,12 @@
 #pragma once
 
-#include <stdlib.h>
 #include "http.h"
 #include "module.h"
-#include "route_latency.h"
 #include "route.h"
 #include "route_config.h"
+#include "route_latency.h"
 #include "vec.h"
+#include <stdlib.h>
 
 typedef struct route route_t;
 VEC(route_t)
@@ -29,12 +29,11 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 	assert(config->route != NULL);
 	assert(config->http_resp_content_type != NULL);
 
-	struct route route = { .route                = config->route,
-		               .module               = module,
-		               .relative_deadline_us = config->relative_deadline_us,
-		               .relative_deadline    = (uint64_t)config->relative_deadline_us
-		                                    * runtime_processor_speed_MHz,
-		               .response_content_type = config->http_resp_content_type };
+	struct route route = {.route                = config->route,
+	                      .module               = module,
+	                      .relative_deadline_us = config->relative_deadline_us,
+	                      .relative_deadline = (uint64_t)config->relative_deadline_us * runtime_processor_speed_MHz,
+	                      .response_content_type = config->http_resp_content_type};
 
 	route_latency_init(&route.latency);
 	http_route_total_init(&route.metrics);

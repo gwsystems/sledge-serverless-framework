@@ -1,14 +1,13 @@
 #include <arpa/inet.h>
 #include <assert.h>
-#include <signal.h>
+#include <pthread.h>
 #include <sched.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/time.h>
-#include <sys/resource.h>
-#include <pthread.h>
 
 #include "admissions_control.h"
 #include "arch/context.h"
@@ -19,10 +18,10 @@
 #include "listener_thread.h"
 #include "module.h"
 #include "runtime.h"
+#include "sandbox_perf_log.h"
 #include "sandbox_total.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
-#include "sandbox_perf_log.h"
 
 /***************************
  * Shared Process State    *
@@ -63,8 +62,8 @@ runtime_set_resource_limits_to_max()
 	char          lim[uint64_t_max_digits + 1];
 	char          max[uint64_t_max_digits + 1];
 
-	uint64_t resources[]      = { RLIMIT_DATA, RLIMIT_NOFILE };
-	char    *resource_names[] = { "RLIMIT_DATA", "RLIMIT_NOFILE" };
+	uint64_t resources[]      = {RLIMIT_DATA, RLIMIT_NOFILE};
+	char    *resource_names[] = {"RLIMIT_DATA", "RLIMIT_NOFILE"};
 
 	for (int i = 0; i < sizeof(resources) / sizeof(resources[0]); i++) {
 		int resource = resources[i];

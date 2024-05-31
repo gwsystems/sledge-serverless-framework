@@ -7,11 +7,11 @@
 #include "listener_thread.h"
 #include "module_database.h"
 #include "panic.h"
+#include "priority_queue.h"
+#include "sandbox_functions.h"
 #include "scheduler_options.h"
 #include "tenant.h"
 #include "tenant_config.h"
-#include "priority_queue.h"
-#include "sandbox_functions.h"
 
 int            tenant_database_add(struct tenant *tenant);
 struct tenant *tenant_database_find_by_name(char *name);

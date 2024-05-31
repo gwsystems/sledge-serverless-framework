@@ -2,10 +2,10 @@
 
 #include "current_wasm_module_instance.h"
 #include "pool.h"
-#include "types.h"
 #include "sledge_abi_symbols.h"
-#include "wasm_stack.h"
+#include "types.h"
 #include "wasm_memory.h"
+#include "wasm_stack.h"
 
 extern thread_local int worker_thread_idx;
 

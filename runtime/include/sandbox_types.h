@@ -9,11 +9,11 @@
 #include "sandbox_state.h"
 #include "sandbox_state_history.h"
 #include "tenant.h"
-#include "wasm_memory.h"
-#include "wasm_types.h"
-#include "wasm_stack.h"
-#include "wasm_globals.h"
 #include "wasi.h"
+#include "wasm_globals.h"
+#include "wasm_memory.h"
+#include "wasm_stack.h"
+#include "wasm_types.h"
 
 /*********************
  * Structs and Types *

@@ -2,18 +2,18 @@
 #include <unistd.h>
 
 #include "arch/getcycles.h"
+#include "execution_regression.h"
 #include "global_request_scheduler.h"
+#include "http_session_perf_log.h"
 #include "listener_thread.h"
 #include "metrics_server.h"
 #include "module.h"
 #include "runtime.h"
 #include "sandbox_functions.h"
+#include "sandbox_perf_log.h"
 #include "tcp_session.h"
 #include "tenant.h"
 #include "tenant_functions.h"
-#include "http_session_perf_log.h"
-#include "sandbox_perf_log.h"
-#include "execution_regression.h"
 
 static void listener_thread_unregister_http_session(struct http_session *http);
 static void panic_on_epoll_error(struct epoll_event *evt);

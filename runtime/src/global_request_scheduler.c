@@ -24,9 +24,9 @@ uninitialized_peek()
 
 
 /* The global of our polymorphic interface */
-static struct global_request_scheduler_config global_request_scheduler = { .add_fn    = uninitialized_add,
-	                                                                   .remove_fn = uninitialized_remove,
-	                                                                   .peek_fn   = uninitialized_peek };
+static struct global_request_scheduler_config global_request_scheduler = {.add_fn    = uninitialized_add,
+                                                                          .remove_fn = uninitialized_remove,
+                                                                          .peek_fn   = uninitialized_peek};
 
 /**
  * Initializes the polymorphic interface with a concrete implementation

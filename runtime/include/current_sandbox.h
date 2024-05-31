@@ -3,8 +3,8 @@
 #include <threads.h>
 
 #include "current_wasm_module_instance.h"
-#include "sandbox_types.h"
 #include "listener_thread.h"
+#include "sandbox_types.h"
 
 /* current sandbox that is active.. */
 extern thread_local struct sandbox *worker_thread_current_sandbox;
@@ -31,21 +31,21 @@ current_sandbox_set(struct sandbox *sandbox)
 	/* Unpack hierarchy to avoid pointer chasing */
 	if (sandbox == NULL) {
 		sledge_abi__current_wasm_module_instance = (struct wasm_module_instance){
-			/* Public */
-			.abi =
-			  (struct sledge_abi__wasm_module_instance){
-			    .memory =
-			      (struct sledge_abi__wasm_memory){
-			        .size     = 0,
-			        .capacity = 0,
-			        .max      = 0,
-			        .buffer   = NULL,
-			      },
-			    .table   = NULL,
-			    .wasmg_0 = 0,
-			  },
-			/* Private */
-			.wasi_context = NULL,
+		  /* Public */
+		  .abi =
+		    (struct sledge_abi__wasm_module_instance){
+		      .memory =
+		        (struct sledge_abi__wasm_memory){
+		          .size     = 0,
+		          .capacity = 0,
+		          .max      = 0,
+		          .buffer   = NULL,
+		        },
+		      .table   = NULL,
+		      .wasmg_0 = 0,
+		    },
+		  /* Private */
+		  .wasi_context = NULL,
 		};
 		worker_thread_current_sandbox = NULL;
 		/* This is because the event core does not maintain core-assigned deadline */

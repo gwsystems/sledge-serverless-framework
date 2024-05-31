@@ -3,8 +3,8 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include "auto_buf.h"
 #include "arch/getcycles.h"
+#include "auto_buf.h"
 #include "listener_thread.h"
 #include "local_runqueue.h"
 #include "panic.h"

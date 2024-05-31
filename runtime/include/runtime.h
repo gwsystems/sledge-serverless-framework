@@ -1,10 +1,10 @@
 #pragma once
 
 #include <pthread.h>
-#include <sys/epoll.h> /* for epoll_create1(), epoll_ctl(), struct epoll_event */
-#include <sys/types.h> /* for pid_t */
 #include <stdatomic.h>
 #include <stdbool.h>
+#include <sys/epoll.h> /* for epoll_create1(), epoll_ctl(), struct epoll_event */
+#include <sys/types.h> /* for pid_t */
 
 #include "likely.h"
 #include "types.h"

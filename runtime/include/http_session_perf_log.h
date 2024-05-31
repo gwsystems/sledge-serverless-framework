@@ -1,8 +1,8 @@
 #pragma once
 
+#include "http_session.h"
 #include "pretty_print.h"
 #include "runtime.h"
-#include "http_session.h"
 
 extern FILE                *http_session_perf_log;
 typedef struct http_session http_session;

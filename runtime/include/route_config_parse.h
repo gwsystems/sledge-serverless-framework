@@ -6,11 +6,10 @@
 #include "json.h"
 #include "route_config.h"
 
-static const char *route_config_json_keys[route_config_member_len] = {
-	"route",           "path",        "admissions-percentile", "relative-deadline-us",
-	"path_preprocess", "model-bias",  "model-scale",           "model-num-of-param",
-	"model-beta1",     "model-beta2", "http-resp-content-type"
-};
+static const char *route_config_json_keys[route_config_member_len] =
+  {"route",           "path",        "admissions-percentile", "relative-deadline-us",
+   "path_preprocess", "model-bias",  "model-scale",           "model-num-of-param",
+   "model-beta1",     "model-beta2", "http-resp-content-type"};
 
 static inline int
 route_config_set_key_once(bool *did_set, enum route_config_member member)
@@ -29,8 +28,8 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
                    int tokens_size)
 {
 	int  i                                = tokens_base;
-	char key[32]                          = { 0 };
-	bool did_set[route_config_member_len] = { false };
+	char key[32]                          = {0};
+	bool did_set[route_config_member_len] = {false};
 
 	if (!has_valid_type(tokens[i], "Anonymous Route Config Object", JSMN_OBJECT, json_buf)) return -1;
 	if (!is_nonempty_object(tokens[i], "Anonymous Route Config Object")) return -1;

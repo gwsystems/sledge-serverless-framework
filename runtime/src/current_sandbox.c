@@ -1,15 +1,14 @@
-#include <threads.h>
 #include <setjmp.h>
 #include <threads.h>
 
 #include "current_sandbox.h"
 #include "sandbox_functions.h"
 #include "sandbox_set_as_asleep.h"
+#include "sandbox_set_as_complete.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_returned.h"
-#include "sandbox_set_as_complete.h"
-#include "sandbox_set_as_running_user.h"
 #include "sandbox_set_as_running_sys.h"
+#include "sandbox_set_as_running_user.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
 #include "wasi.h"

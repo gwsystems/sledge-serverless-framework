@@ -3,7 +3,9 @@
 #include <assert.h>
 #include <stdint.h>
 
+#include "admissions_control.h"
 #include "arch/getcycles.h"
+#include "execution_histogram.h"
 #include "panic.h"
 #include "sandbox_functions.h"
 #include "sandbox_perf_log.h"
@@ -12,8 +14,6 @@
 #include "sandbox_state_transition.h"
 #include "sandbox_summarize_page_allocations.h"
 #include "sandbox_types.h"
-#include "execution_histogram.h"
-#include "admissions_control.h"
 
 /**
  * Transitions a sandbox from the SANDBOX_RETURNED state to the SANDBOX_COMPLETE state.

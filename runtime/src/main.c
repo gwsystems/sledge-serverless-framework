@@ -2,25 +2,25 @@
 #include <dlfcn.h>
 #include <math.h>
 #include <pthread.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <sched.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #ifdef LOG_TO_FILE
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #endif
 
-#include "json_parse.h"
-#include "pretty_print.h"
 #include "debuglog.h"
+#include "json_parse.h"
 #include "listener_thread.h"
 #include "panic.h"
+#include "pretty_print.h"
 #include "runtime.h"
 #include "sandbox_perf_log.h"
 #include "sandbox_types.h"
@@ -116,7 +116,7 @@ runtime_get_processor_speed_MHz(void)
 		usleep(200000); /* wait a bit for the workers to launch  for more accuracy */
 
 		/* Get the average of the cpufreqs only for worker cores (no event core and reserved) */
-		char command[128] = { 0 };
+		char command[128] = {0};
 		sprintf(command, "grep '^cpu MHz' /proc/cpuinfo | sed -n '%u,%up' | \
 					awk '{ total += $4; count++ } END { print total/count }'",
 		        runtime_first_worker_processor + 1,
