@@ -27,15 +27,11 @@ all: \
 	license_plate_detection.install \
 	resize_image.install \
 	cnn_face_detection.install \
-	scratch_storage_get.install \
-	scratch_storage_set.install \
-	scratch_storage_delete.install \
-	scratch_storage_upsert.install \
+	get_jpeg_resolution.install \
 
 .PHONY: clean
 clean:
 	@make -C wasm_apps clean
-	@make -C scratch_storage clean
 	@rm -rf dist
 	@rm -rf ../runtime/bin/*.so
 
@@ -69,7 +65,7 @@ dist/%.bc: ./wasm_apps/dist/%.wasm dist
 	${AWSMCC} ${AWSMFLAGS} $< -o $@
 
 dist/%.ll: dist/%.bc
-	llvm-dis-12 $< -o $@
+	llvm-dis $< -o $@
 
 dist/%.wasm.so: dist/%.bc
 	${CC} ${CFLAGS} ${LDFLAGS} $^ -o $@
@@ -108,6 +104,9 @@ license_plate_detection.install: ../runtime/bin/license_plate_detection.wasm.so
 
 .PHONY: cnn_face_detection.install
 cnn_face_detection.install: ../runtime/bin/cnn_face_detection.wasm.so
+
+.PHONY: get_jpeg_resolution.install
+get_jpeg_resolution.install: ../runtime/bin/get_jpeg_resolution.wasm.so
 
 .PHONY: trap_divzero.install
 trap_divzero.install: ../runtime/bin/trap_divzero.wasm.so

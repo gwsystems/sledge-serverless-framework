@@ -1,7 +1,7 @@
 #pragma once
 
-#include <assert.h>
 #include <arpa/inet.h>
+#include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <string.h>
@@ -9,8 +9,8 @@
 #include <unistd.h>
 
 #include "debuglog.h"
-#include "panic.h"
 #include "likely.h"
+#include "panic.h"
 
 static inline void
 tcp_session_close(int client_socket, struct sockaddr *client_address)
@@ -21,7 +21,7 @@ tcp_session_close(int client_socket, struct sockaddr *client_address)
 	assert(client_socket != STDERR_FILENO);
 
 	if (unlikely(close(client_socket) < 0)) {
-		char client_address_text[INET6_ADDRSTRLEN] = { '\0' };
+		char client_address_text[INET6_ADDRSTRLEN] = {'\0'};
 		if (unlikely(inet_ntop(AF_INET, &client_address, client_address_text, INET6_ADDRSTRLEN) == NULL)) {
 			debuglog("Failed to log client_address: %s", strerror(errno));
 		}

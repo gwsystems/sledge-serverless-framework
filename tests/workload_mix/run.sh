@@ -47,13 +47,13 @@ run_samples() {
 	local -ir PERF_WINDOW_CAPACITY
 
 	printf "Running Samples: "
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$PERF_WINDOW_CAPACITY" -c "$PERF_WINDOW_CAPACITY" -cpus 3 -t 0 -o csv -m GET -d "40\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$PERF_WINDOW_CAPACITY" -c "$PERF_WINDOW_CAPACITY" -cpus 3 -t 0 -o csv -m POST -d "40\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fibonacci_40 samples failed with $?"
 		return 1
 	}
 
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$PERF_WINDOW_CAPACITY" -c "$PERF_WINDOW_CAPACITY" -cpus 3 -t 0 -o csv -m GET -d "10\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$PERF_WINDOW_CAPACITY" -c "$PERF_WINDOW_CAPACITY" -cpus 3 -t 0 -o csv -m POST -d "10\n" "http://${hostname}:10000/fibonacci_10" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fibonacci_10 samples failed with $?"
 		return 1
@@ -140,7 +140,7 @@ run_experiments() {
 		((batch_id++))
 		for workload in "${workloads[@]}"; do
 			if ((roll >= floor[$workload] && roll < floor[$workload] + length[$workload])); then
-				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -d "${body[$workload]}\n" "http://${hostname}:10000${path[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+				hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m POST -d "${body[$workload]}\n" "http://${hostname}:10000${path[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 				break
 			fi
 		done

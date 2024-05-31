@@ -5,10 +5,10 @@
 
 #include "arch/getcycles.h"
 #include "local_runqueue.h"
-#include "sandbox_types.h"
 #include "sandbox_state.h"
 #include "sandbox_state_history.h"
 #include "sandbox_state_transition.h"
+#include "sandbox_types.h"
 
 /**
  * Transitions a sandbox to the SANDBOX_ASLEEP state.

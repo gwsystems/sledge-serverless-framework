@@ -2,8 +2,8 @@
 
 #include "current_sandbox.h"
 #include "global_request_scheduler.h"
-#include "local_runqueue_list.h"
 #include "local_runqueue.h"
+#include "local_runqueue_list.h"
 #include "sandbox_functions.h"
 
 thread_local static struct ps_list_head local_runqueue_list;
@@ -81,9 +81,9 @@ local_runqueue_list_initialize()
 	ps_list_head_init(&local_runqueue_list);
 
 	/* Register Function Pointers for Abstract Scheduling API */
-	struct local_runqueue_config config = { .add_fn      = local_runqueue_list_append,
-		                                .is_empty_fn = local_runqueue_list_is_empty,
-		                                .delete_fn   = local_runqueue_list_remove,
-		                                .get_next_fn = local_runqueue_list_get_next };
+	struct local_runqueue_config config = {.add_fn      = local_runqueue_list_append,
+	                                       .is_empty_fn = local_runqueue_list_is_empty,
+	                                       .delete_fn   = local_runqueue_list_remove,
+	                                       .get_next_fn = local_runqueue_list_get_next};
 	local_runqueue_initialize(&config);
 };

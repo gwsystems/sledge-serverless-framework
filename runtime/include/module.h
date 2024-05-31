@@ -1,22 +1,11 @@
 #pragma once
 
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netdb.h>
-
-#include "admissions_control.h"
-#include "admissions_info.h"
 #include "current_wasm_module_instance.h"
-#include "panic.h"
 #include "pool.h"
 #include "sledge_abi_symbols.h"
-#include "tcp_server.h"
 #include "types.h"
-#include "sledge_abi_symbols.h"
-#include "wasm_stack.h"
 #include "wasm_memory.h"
-#include "wasm_table.h"
+#include "wasm_stack.h"
 
 extern thread_local int worker_thread_idx;
 
@@ -28,9 +17,15 @@ struct module_pool {
 	struct wasm_stack_pool  stack;
 } CACHE_PAD_ALIGNED;
 
+enum module_type
+{
+	APP_MODULE,
+	PREPROCESS_MODULE
+};
 struct module {
-	char    *path;
-	uint32_t stack_size; /* a specification? */
+	char            *path;
+	uint32_t         stack_size; /* a specification? */
+	enum module_type type;
 
 	/* Handle and ABI Symbols for *.so file */
 	struct sledge_abi_symbols abi;
@@ -41,12 +36,13 @@ struct module {
 	struct module_pool *pools;
 } CACHE_PAD_ALIGNED;
 
+
 /********************************
  * Public Methods from module.c *
  *******************************/
 
 void           module_free(struct module *module);
-struct module *module_alloc(char *path);
+struct module *module_alloc(char *path, enum module_type type);
 
 /*************************
  * Public Static Inlines *
@@ -115,7 +111,9 @@ module_alloc_table(struct module *module)
 static inline void
 module_initialize_pools(struct module *module)
 {
-	for (int i = 0; i < runtime_worker_threads_count; i++) {
+	/* Create only a single pool for the preprocessing module, since it is executed only by the event core. */
+	const int n = module->type == APP_MODULE ? runtime_worker_threads_count : 1;
+	for (int i = 0; i < n; i++) {
 		wasm_memory_pool_init(&module->pools[i].memory, false);
 		wasm_stack_pool_init(&module->pools[i].stack, false);
 	}
@@ -124,7 +122,8 @@ module_initialize_pools(struct module *module)
 static inline void
 module_deinitialize_pools(struct module *module)
 {
-	for (int i = 0; i < runtime_worker_threads_count; i++) {
+	const int n = module->type == APP_MODULE ? runtime_worker_threads_count : 1;
+	for (int i = 0; i < n; i++) {
 		wasm_memory_pool_deinit(&module->pools[i].memory);
 		wasm_stack_pool_deinit(&module->pools[i].stack);
 	}

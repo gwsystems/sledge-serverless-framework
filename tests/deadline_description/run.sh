@@ -26,23 +26,23 @@ profile() {
 	local -r results_directory="$2"
 
 	# ekf
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./ekf/initial_state.dat" "http://${hostname}:10000/ekf" > /dev/null
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m POST -D "./ekf/initial_state.dat" "http://${hostname}:10000/ekf" > /dev/null
 	printf "[ekf: OK]\n"
 
 	# Resize
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./resize/shrinking_man_large.jpg" "http://${hostname}:10000/resize" > /dev/null
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m POST -D "./resize/shrinking_man_large.jpg" "http://${hostname}:10000/resize" > /dev/null
 	printf "[resize: OK]\n"
 
 	# lpd
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./lpd/Cars0.png" "http://${hostname}:10000/lpd" > /dev/null
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m POST -D "./lpd/Cars0.png" "http://${hostname}:10000/lpd" > /dev/null
 	printf "[lpd: OK]\n"
 
 	# gocr
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./gocr/hyde.pnm" "http://${hostname}:10000/gocr" > /dev/null
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m POST -D "./gocr/hyde.pnm" "http://${hostname}:10000/gocr" > /dev/null
 	printf "[gocr: OK]\n"
 
 	# cifar10
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m GET -D "./cifar10/airplane1.bmp" "http://${hostname}:10000/cifar10" > /dev/null
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m POST -D "./cifar10/airplane1.bmp" "http://${hostname}:10000/cifar10" > /dev/null
 	printf "[cifar10: OK]\n"
 }
 

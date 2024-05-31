@@ -44,7 +44,8 @@ module_init(struct module *module, char *path)
 	rc = sledge_abi_symbols_init(&module->abi, path);
 	if (rc != 0) goto err;
 
-	module->pools = calloc(runtime_worker_threads_count, sizeof(struct module_pool));
+	module->pools = calloc((module->type == APP_MODULE ? runtime_worker_threads_count : 1),
+	                       sizeof(struct module_pool));
 
 	module->path = path;
 
@@ -106,7 +107,7 @@ module_free(struct module *module)
  */
 
 struct module *
-module_alloc(char *path)
+module_alloc(char *path, enum module_type type)
 {
 	size_t alignment     = (size_t)CACHE_PAD;
 	size_t size_to_alloc = (size_t)round_to_cache_pad(sizeof(struct module));
@@ -120,6 +121,7 @@ module_alloc(char *path)
 	};
 
 	memset(module, 0, size_to_alloc);
+	module->type = type;
 
 	int rc = module_init(module, path);
 	if (rc < 0) goto init_err;

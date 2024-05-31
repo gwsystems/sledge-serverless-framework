@@ -8,9 +8,9 @@
 #include "pool.h"
 #include "runtime.h"
 #include "sandbox_functions.h"
+#include "sandbox_set_as_allocated.h"
 #include "sandbox_set_as_error.h"
 #include "sandbox_set_as_initialized.h"
-#include "sandbox_set_as_allocated.h"
 #include "sandbox_total.h"
 #include "wasm_memory.h"
 #include "wasm_stack.h"
@@ -154,6 +154,7 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 	sandbox->route  = route;
 
 	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->route->relative_deadline;
+	sandbox->payload_size      = session->http_request.body_length;
 
 	/*
 	 * Admissions Control State

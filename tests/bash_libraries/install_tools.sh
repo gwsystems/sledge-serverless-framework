@@ -22,47 +22,6 @@ if ! command -v hey > /dev/null; then
 	fi
 fi
 
-if ! command -v loadtest > /dev/null; then
-	if ! command -v npm > /dev/null; then
-		# if [[ $(whoami) == "root" ]]; then
-		# 	apt update
-		# 	apt install -y npm
-		# else
-		# 	sudo apt update
-		# 	sudo apt install -y npm
-		# fi
-		# installs NVM (Node Version Manager)
-		curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-		export NVM_DIR="$HOME/.nvm"
-		[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-		[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-		# download and install Node.js
-		nvm install 14
-		# verifies the right Node.js version is in the environment
-		node -v # should print `v14.21.3`
-		# verifies the right NPM version is in the environment
-		npm -v # should print `6.14.18`
-	fi
-
-	# Try pulling Emil's version of loadtest to support post binary files
-	# if [[ $(whoami) == "root" ]]; then
-	# 	npm install -y -g loadtest
-	# else
-	# 	sudo npm install -y -g loadtest
-	# fi
-
-	pushd ~
-	git clone https://github.com/emil916/loadtest.git
-	pushd loadtest
-	# if [[ $(whoami) == "root" ]]; then
-	npm install -g
-	# else
-	# 	sudo npm install -g
-	# fi
-	popd
-	popd 
-fi
-
 if ! command -v gnuplot > /dev/null; then
 	if [[ $(whoami) == "root" ]]; then
 		apt update
@@ -92,6 +51,48 @@ if ! command -v htop > /dev/null; then
 		sudo apt update
 		sudo apt install -y htop
 	fi
+fi
+
+if ! command -v loadtest > /dev/null; then
+	if ! command -v npm > /dev/null; then
+		# if [[ $(whoami) == "root" ]]; then
+		# 	apt update
+		# 	apt install -y npm
+		# else
+		# 	sudo apt update
+		# 	sudo apt install -y npm
+		# fi
+		# installs NVM (Node Version Manager)
+		curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+		sleep 5
+		export NVM_DIR="$HOME/.nvm"
+		[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+		[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+		# download and install Node.js
+		nvm install 14
+		# verifies the right Node.js version is in the environment
+		node -v # should print `v14.21.3`
+		# verifies the right NPM version is in the environment
+		npm -v # should print `6.14.18`
+	fi
+
+	# Try pulling Emil's version of loadtest to support post binary files
+	# if [[ $(whoami) == "root" ]]; then
+	# 	npm install -y -g loadtest
+	# else
+	# 	sudo npm install -y -g loadtest
+	# fi
+
+	pushd ~
+	git clone https://github.com/emil916/loadtest.git
+	pushd loadtest
+	# if [[ $(whoami) == "root" ]]; then
+	npm install -g
+	# else
+	# 	sudo npm install -g
+	# fi
+	popd
+	popd 
 fi
 
 # For SOD:

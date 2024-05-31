@@ -9,19 +9,19 @@
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
 #include "global_request_scheduler_mtds.h"
-#include "local_runqueue.h"
-#include "local_runqueue_minheap.h"
-#include "local_runqueue_list.h"
 #include "local_cleanup_queue.h"
+#include "local_runqueue.h"
+#include "local_runqueue_list.h"
+#include "local_runqueue_minheap.h"
 #include "local_runqueue_mtds.h"
 #include "panic.h"
 #include "sandbox_functions.h"
-#include "sandbox_types.h"
+#include "sandbox_set_as_interrupted.h"
 #include "sandbox_set_as_preempted.h"
 #include "sandbox_set_as_runnable.h"
 #include "sandbox_set_as_running_sys.h"
-#include "sandbox_set_as_interrupted.h"
 #include "sandbox_set_as_running_user.h"
+#include "sandbox_types.h"
 #include "scheduler_options.h"
 
 
@@ -107,6 +107,31 @@ done:
 }
 
 static inline struct sandbox *
+scheduler_sjf_get_next()
+{
+	struct sandbox *local          = local_runqueue_get_next();
+	uint64_t        local_rem_exec = local == NULL ? UINT64_MAX : local->remaining_exec;
+	struct sandbox *global         = NULL;
+
+	uint64_t global_remaining_exec = global_request_scheduler_peek();
+
+	/* Try to pull and allocate from the global queue if earlier
+	 * This will be placed at the head of the local runqueue */
+	if (global_remaining_exec < local_rem_exec) {
+		if (global_request_scheduler_remove_if_earlier(&global, local_rem_exec) == 0) {
+			assert(global != NULL);
+			assert(global->remaining_exec < local_rem_exec);
+			sandbox_prepare_execution_environment(global);
+			assert(global->state == SANDBOX_INITIALIZED);
+			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+		}
+	}
+
+	/* Return what is at the head of the local runqueue or NULL if empty */
+	return local_runqueue_get_next();
+}
+
+static inline struct sandbox *
 scheduler_edf_get_next()
 {
 	/* Get the deadline of the sandbox at the head of the local queue */
@@ -163,6 +188,8 @@ scheduler_get_next()
 		return scheduler_mtdbf_get_next();
 	case SCHEDULER_MTDS:
 		return scheduler_mtds_get_next();
+	case SCHEDULER_SJF:
+		return scheduler_sjf_get_next();
 	case SCHEDULER_EDF:
 		return scheduler_edf_get_next();
 	case SCHEDULER_FIFO:
@@ -177,12 +204,13 @@ scheduler_initialize()
 {
 	switch (scheduler) {
 	case SCHEDULER_MTDBF:
-		// global_request_scheduler_mtdbf_initialize();
+		/* TODO: loading */
 		break;
 	case SCHEDULER_MTDS:
 		global_request_scheduler_mtds_initialize();
 		break;
 	case SCHEDULER_EDF:
+	case SCHEDULER_SJF:
 		global_request_scheduler_minheap_initialize();
 		break;
 	case SCHEDULER_FIFO:
@@ -204,6 +232,7 @@ scheduler_runqueue_initialize()
 		local_runqueue_mtds_initialize();
 		break;
 	case SCHEDULER_EDF:
+	case SCHEDULER_SJF:
 		local_runqueue_minheap_initialize();
 		break;
 	case SCHEDULER_FIFO:
@@ -222,6 +251,8 @@ scheduler_print(enum SCHEDULER variant)
 		return "FIFO";
 	case SCHEDULER_EDF:
 		return "EDF";
+	case SCHEDULER_SJF:
+		return "SJF";
 	case SCHEDULER_MTDS:
 		return "MTDS";
 	case SCHEDULER_MTDBF:
@@ -287,6 +318,7 @@ scheduler_process_policy_specific_updates_on_interrupts(struct sandbox *interrup
 	case SCHEDULER_FIFO:
 		return;
 	case SCHEDULER_EDF:
+	case SCHEDULER_SJF:
 		return;
 	case SCHEDULER_MTDS:
 		local_timeout_queue_process_promotions();

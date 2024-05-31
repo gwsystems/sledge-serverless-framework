@@ -1,7 +1,7 @@
 #pragma once
+#include "sledge_abi.h"
 #include "wasm_memory.h"
 #include "wasm_table.h"
-#include "sledge_abi.h"
 
 /* This structure is the runtime representation of the unique state of a module instance
  * Currently this is not spec-compliant, as it only supports a single table and a single memory and it excludes many

@@ -2,9 +2,9 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/mman.h>
 
 #include "ps_list.h"
 #include "types.h"

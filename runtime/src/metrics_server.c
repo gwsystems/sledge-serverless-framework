@@ -11,8 +11,8 @@
 #include "metrics_server.h"
 #include "proc_stat.h"
 #include "runtime.h"
-#include "sandbox_total.h"
 #include "sandbox_state.h"
+#include "sandbox_total.h"
 #include "tcp_server.h"
 
 /* We run threads on the "reserved OS core" using blocking semantics */

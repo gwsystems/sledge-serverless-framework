@@ -13,6 +13,7 @@ export SLEDGE_HTTP_SESSION_PERF_LOG=http_perf.log
 # export EXTRA_EXEC_PERCENTILE=10
 
 # The global configs for the scripts
+declare -r ADMIN_ACCESS=false
 declare -r CLIENT_TERMINATE_SERVER=false
 declare -r DURATION_sec=30
 declare -r ESTIMATIONS_PERCENTILE=60

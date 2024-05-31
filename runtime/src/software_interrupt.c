@@ -1,14 +1,14 @@
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
-#include <sys/time.h>
-#include <string.h>
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
 #include <threads.h>
-#include <unistd.h>
 #include <ucontext.h>
+#include <unistd.h>
 
 #include "arch/context.h"
 #include "current_sandbox.h"
@@ -18,8 +18,8 @@
 #include "module.h"
 #include "panic.h"
 #include "runtime.h"
-#include "sandbox_set_as_running_user.h"
 #include "sandbox_set_as_interrupted.h"
+#include "sandbox_set_as_running_user.h"
 #include "sandbox_types.h"
 #include "scheduler.h"
 #include "software_interrupt.h"
@@ -269,7 +269,7 @@ software_interrupt_initialize(void)
 	sigaddset(&signal_action.sa_mask, SIGFPE);
 	sigaddset(&signal_action.sa_mask, SIGSEGV);
 
-	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGFPE, SIGSEGV };
+	const int    supported_signals[]   = {SIGALRM, SIGUSR1, SIGFPE, SIGSEGV};
 	const size_t supported_signals_len = 4;
 
 	for (int i = 0; i < supported_signals_len; i++) {
