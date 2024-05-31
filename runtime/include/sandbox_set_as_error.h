@@ -49,10 +49,11 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
-	if (last_state == SANDBOX_RUNNING_SYS)
+	if (last_state == SANDBOX_RUNNING_SYS) {
 		sandbox->remaining_exec = (sandbox->remaining_exec > sandbox->last_state_duration)
 		                            ? sandbox->remaining_exec - sandbox->last_state_duration
 		                            : 0;
+	}
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_ERROR);

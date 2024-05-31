@@ -112,7 +112,8 @@ static inline void
 module_initialize_pools(struct module *module)
 {
 	/* Create only a single pool for the preprocessing module, since it is executed only by the event core. */
-	for (int i = 0; i < (module->type == APP_MODULE ? runtime_worker_threads_count : 1); i++) {
+	const int n = module->type == APP_MODULE ? runtime_worker_threads_count : 1;
+	for (int i = 0; i < n; i++) {
 		wasm_memory_pool_init(&module->pools[i].memory, false);
 		wasm_stack_pool_init(&module->pools[i].stack, false);
 	}
@@ -121,7 +122,8 @@ module_initialize_pools(struct module *module)
 static inline void
 module_deinitialize_pools(struct module *module)
 {
-	for (int i = 0; i < (module->type == APP_MODULE ? runtime_worker_threads_count : 1); i++) {
+	const int n = module->type == APP_MODULE ? runtime_worker_threads_count : 1;
+	for (int i = 0; i < n; i++) {
 		wasm_memory_pool_deinit(&module->pools[i].memory);
 		wasm_stack_pool_deinit(&module->pools[i].stack);
 	}

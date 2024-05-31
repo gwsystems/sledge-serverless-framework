@@ -53,7 +53,7 @@ tenant_preprocess(struct http_session *session)
 	} else if ((errno == ERANGE && (num == LONG_MAX || num == LONG_MIN)) || (errno != 0 && num == 0)) {
 		perror("strtol");
 	} else {
-		session->param2 = num;
+		session->regression_param = num;
 	}
 
 	session->http_request.cursor = 0;
