@@ -128,6 +128,11 @@ route_config_validate(struct route_config *config, bool *did_set)
 		return -1;
 	}
 
+	if (config->model_scale == 0) {
+		fprintf(stderr, "model scale cannot be zero (to avoid divide by zero)\n");
+		return -1;
+	}
+
 	if (did_set[route_config_member_model_num_of_param] == false) {
 		fprintf(stderr, "model num_of_param field is required\n");
 		return -1;
@@ -135,6 +140,11 @@ route_config_validate(struct route_config *config, bool *did_set)
 
 	if (did_set[route_config_member_model_beta1] == false) {
 		fprintf(stderr, "model beta1 field is required\n");
+		return -1;
+	}
+
+	if (config->model_beta1 == 0) {
+		fprintf(stderr, "model beta1 cannot be zero (to avoid divide by zero)\n");
 		return -1;
 	}
 
@@ -151,15 +161,16 @@ route_config_validate(struct route_config *config, bool *did_set)
 			fprintf(stderr, "model_num_of_param cannot be 1 when using tenant preprocessing\n");
 			return -1;
 		}
-		if (config->model_beta2 != 0) {
-			fprintf(stderr, "model beta2 must be zero for just default preprocessing\n");
-			return -1;
-		}
+		config->model_beta2 = 1; /* This is to avoid divide-by-zero */
 	} else {
 		/* For now we just support up to two params */
 		assert(config->model_num_of_param == 2);
 		if (config->path_preprocess == NULL) {
 			fprintf(stderr, "model_num_of_param cannot be more than 1 when just default preprocessing\n");
+			return -1;
+		}
+		if (config->model_beta2 == 0) {
+			fprintf(stderr, "model beta2 cannot be zero (to avoid divide by zero)\n");
 			return -1;
 		}
 	}
