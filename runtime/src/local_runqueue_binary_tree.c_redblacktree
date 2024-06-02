@@ -117,6 +117,12 @@ local_runqueue_binary_tree_add_index(int index, struct sandbox *sandbox)
 	sandbox->srsf_stop_running_ts = __getcycles();
 	sandbox->srsf_remaining_slack = sandbox->relative_deadline - sandbox->estimated_cost;
 	worker_queuing_cost_increment(index, sandbox->estimated_cost);
+       //------------------for test-------------------------
+       /*int high = findHeight(binary_tree->root);
+       if (high > max_local_queue_height[index]) {
+           max_local_queue_height[index] = high;
+       } */
+       //---------------------end-------------------------
 }
 
 /**

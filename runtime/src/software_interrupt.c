@@ -260,6 +260,8 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			double arriving_rate = total_requests / seconds;
 			printf("%d try preempts:%u max global queue %u arriving rate %f total requests %lu\n", dispatcher_thread_idx,
 				dispatcher_try_interrupts, max_queue_length, arriving_rate, total_requests);
+			//mem_log("%d try preempts:%u max global queue %u arriving rate %f total requests %lu\n", dispatcher_thread_idx,
+			//	dispatcher_try_interrupts, max_queue_length, arriving_rate, total_requests);
 			dump_log_to_file();
 			break;
 		}
@@ -272,6 +274,11 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_complete_requests, interrupts, preemptable_interrupts,
 			max_local_queue_length[global_worker_thread_idx]);
                 dump_log_to_file();
+		//printf("id %d max local queue %u height %u new %u old %u current length %u real length %d total complete request %u\n", 
+                //        global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx],max_local_queue_height[global_worker_thread_idx],
+		//	worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx], 
+                //        local_runqueue_count[global_worker_thread_idx],
+		//	local_runqueue_get_length(), total_complete_requests);
 		printf("id %d max local queue %u new %u old %u current length %u real length %d total complete request %u\n", 
                         global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx],
 			worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx], 
