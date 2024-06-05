@@ -6,9 +6,19 @@
                 "max-budget-us": 0,
                 "routes": [
                     {
-                        "route": "/hash",
+                        "route": "/hash1",
                         "request-type": 1,
-			"n-resas": 6,
+			"n-resas": 3,
+                        "path": "hash.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 5,
+                        "relative-deadline-us": 50,
+                        "http-resp-content-type": "text/plain"
+                    },
+		    {
+                        "route": "/hash2",
+                        "request-type": 2,
+                        "n-resas": 3,
                         "path": "hash.wasm.so",
                         "admissions-percentile": 70,
                         "expected-execution-us": 5,

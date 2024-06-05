@@ -18,7 +18,7 @@
 		    {
 			"route": "/hash2",
                         "request-type": 2,
-                        "n-resas": 4,
+                        "n-resas": 5,
                         "path": "hash.wasm.so",
                         "admissions-percentile": 70,
                         "expected-execution-us": 5,
