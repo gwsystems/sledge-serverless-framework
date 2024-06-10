@@ -285,9 +285,13 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
                         local_runqueue_count[global_worker_thread_idx],
 			local_runqueue_get_length(), total_complete_requests);
 		pthread_stop = true;		
-		/* Wake up worker so it can check if pthread_stop is true, othewise, it will block at condition wait */
-		wakeup_worker(global_worker_thread_idx);
-		sem_post(&semlock[global_worker_thread_idx]);	
+		if (!runtime_worker_busy_loop_enabled) {
+		    /* Wake up worker so it can check if pthread_stop is true, othewise, it will block at condition wait */
+		    wakeup_worker(global_worker_thread_idx);
+		    sem_post(&semlock[global_worker_thread_idx]);	
+		}
+                /* Use pthread_exit in case some function code is an infinite loop and cannot finish forever */
+		//pthread_exit(NULL);
 		break;
 	}
 	default: {
