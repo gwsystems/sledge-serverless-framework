@@ -38,7 +38,7 @@ client-cifar10:
 	curl  -H 'Expect: ' -H "Content-Type: image/bmp" --data-binary "@input-cifar10/airplane1.bmp" "${HOST}:${PORT1}/cifar10"
 
 client-gocr:
-	curl  -H 'Expect: ' -H "Content-Type: application/octet-stream" --data-binary "@input-gocr/5x8.pnm" "${HOST}:${PORT2}/gocr"
+	curl  -H 'Expect: ' -H "Content-Type: application/octet-stream" --data-binary "@input-gocr/5x8.png" "${HOST}:${PORT2}/gocr"
 
 client-lpd:
 #	curl -H 'Expect: ' -H "Content-Type: image/png" --data-binary "@input-lpd-png/Cars0.png" "${HOST}:${PORT3}/lpd"

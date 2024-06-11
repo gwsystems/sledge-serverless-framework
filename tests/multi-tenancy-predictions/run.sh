@@ -54,7 +54,7 @@ declare -gr LOADTEST_REQUEST_TIMEOUT=false
 declare -ar ARG_OPTS_HEY=("-D" "-D" "-D" "-D" "-D" "-D")
 declare -ar ARG_OPTS_LT=("-B" "-B" "-B" "-B" "-B" "-B") # "-P -P -P")
 declare -ar ARGS=("input-cnn" "input-cifar10" "input-gocr" "input-lpd-jpg" "input-resize" "input-ekf")
-# declare -ar ARGS=("input-cnn/faces01.jpg" "input-cifar10/airplane1.bmp" "input-gocr/5x8.pnm" "input-lpd-jpg/Cars0.jpg" "input-resize/picsum_512x512_01.jpg" "input-ekf/iter00.dat")
+# declare -ar ARGS=("input-cnn/faces01.jpg" "input-cifar10/airplane1.bmp" "input-gocr/5x8.png" "input-lpd-jpg/Cars0.jpg" "input-resize/picsum_512x512_01.jpg" "input-ekf/iter00.dat")
 
 # This is needed if you want loadtest to log the randomly chosen filenames
 declare -gr LOADTEST_LOG_RANDOM=false
