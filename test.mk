@@ -9,7 +9,6 @@
 
 PHONY: gocr__by_dpi
 gocr__by_dpi: ./runtime/bin/gocr.wasm.so
-	# cd ./tests/gocr/by_dpi && ./install.sh
 	cd ./tests/gocr/by_dpi  && ./run.sh
 
 PHONY: gocr__by_font

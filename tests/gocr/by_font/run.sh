@@ -14,22 +14,11 @@ source percentiles_table.sh || exit 1
 source validate_dependencies.sh || exit 1
 
 experiment_client() {
-	local -ri iteration_count=100
-	local -ri word_count=100
-
-	if (($# != 2)); then
-		panic "invalid number of arguments \"$1\""
-		return 1
-	elif [[ -z "$1" ]]; then
-		panic "hostname \"$1\" was empty"
-		return 1
-	elif [[ ! -d "$2" ]]; then
-		panic "directory \"$2\" does not exist"
-		return 1
-	fi
-
 	local -r hostname="$1"
 	local -r results_directory="$2"
+
+	local -ri iteration_count=100
+	local -ri word_count=100
 
 	# Perform Experiments
 	printf "Running Experiments\n"
@@ -39,6 +28,7 @@ experiment_client() {
 		["Roboto"]=/gocr_roboto
 		["Cascadia Code"]=/gocr_cascadia
 	)
+	
 	local words
 	for ((i = 1; i <= iteration_count; i++)); do
 		words="$(shuf -n"$word_count" /usr/share/dict/american-english)"
@@ -47,11 +37,10 @@ experiment_client() {
 			font_file="${font// /_}"
 
 			pango-view --font="$font" -qo "${font_file}_words.png" -t "$words" || exit 1
-			pngtopnm "${font_file}_words.png" > "${font_file}_words.pnm"
 
-			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"${font_file}_words.pnm" "$hostname:10000${font_to_path[$font]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${font_file}_time.txt")
+			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"${font_file}_words.png" "$hostname:10000${font_to_path[$font]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${font_file}_time.txt")
 
-			rm "${font_file}"_words.png "${font_file}"_words.pnm
+			rm "${font_file}"_words.png
 
 			# Logs the number of words that don't match
 			echo "font: $font_file" >> "$results_directory/${font_file}_full_results.txt"
@@ -95,6 +84,6 @@ experiment_client() {
 	csv_to_dat "$results_directory/success.csv" "$results_directory/latency.csv"
 }
 
-validate_dependencies curl shuf pango-view pngtopnm diff
+validate_dependencies curl shuf pango-view diff
 
 framework_init "$@"

@@ -6,21 +6,18 @@
 			{
 				"route": "/gocr_1_word",
 				"path": "gocr.wasm.so",
-				"expected-execution-us": 5000,
 				"relative-deadline-us": 36000,
 				"http-resp-content-type": "text/plain"
 			},
 			{
 				"route": "/gocr_10_words",
 				"path": "gocr.wasm.so",
-				"expected-execution-us": 5000,
 				"relative-deadline-us": 36000,
 				"http-resp-content-type": "text/plain"
 			},
 			{
 				"route": "/gocr_100_words",
 				"path": "gocr.wasm.so",
-				"expected-execution-us": 5000,
 				"relative-deadline-us": 36000,
 				"http-resp-content-type": "text/plain"
 			}

@@ -6,21 +6,18 @@
 			{
 				"route": "/gocr_mono",
 				"path": "gocr.wasm.so",
-				"expected-execution-us": 5000,
 				"relative-deadline-us": 36000,
 				"http-resp-content-type": "text/plain"
 			},
 			{
 				"route": "/gocr_roboto",
 				"path": "gocr.wasm.so",
-				"expected-execution-us": 5000,
 				"relative-deadline-us": 36000,
 				"http-resp-content-type": "text/plain"
 			},
 			{
 				"route": "/gocr_cascadia",
 				"path": "gocr.wasm.so",
-				"expected-execution-us": 5000,
 				"relative-deadline-us": 36000,
 				"http-resp-content-type": "text/plain"
 			}

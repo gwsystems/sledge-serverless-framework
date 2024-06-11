@@ -7,7 +7,6 @@ export PATH="$__run_sh__bash_libraries_absolute_path:$PATH"
 
 source csv_to_dat.sh || exit 1
 source framework.sh || exit 1
-# source generate_gnuplots.sh || exit 1
 source get_result_count.sh || exit 1
 source panic.sh || exit 1
 source path_join.sh || exit 1
@@ -15,24 +14,11 @@ source percentiles_table.sh || exit 1
 source validate_dependencies.sh || exit 1
 
 experiment_client() {
-	local -ir iteration_count=100
-	local -ra word_counts=(1 10 100)
-
-	if (($# != 2)); then
-		panic "invalid number of arguments \"$1\""
-		return 1
-	elif [[ -z "$1" ]]; then
-		panic "hostname \"$1\" was empty"
-		return 1
-	elif [[ ! -d "$2" ]]; then
-		panic "directory \"$2\" does not exist"
-		return 1
-	fi
-
 	local -r hostname="$1"
 	local -r results_directory="$2"
 
-	# Write Headers to CSV files
+	local -ir iteration_count=100
+	local -ra word_counts=(1 10 100)
 
 	local -Ar word_count_to_path=(
 		["1_words"]=/gocr_1_word
@@ -48,14 +34,13 @@ experiment_client() {
 			word_count_file="${word_count}_words"
 
 			pango-view --font=mono -qo "$word_count_file.png" -t "$words" || exit 1
-			pngtopnm "$word_count_file.png" > "$word_count_file.pnm" || exit 1
 
-			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"$word_count_file.pnm" "$hostname:10000${word_count_to_path[$word_count_file]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${word_count_file}_time.txt")
+			result=$(curl -H 'Expect:' -H "Content-Type: text/plain" --data-binary @"$word_count_file.png" "$hostname:10000${word_count_to_path[$word_count_file]}" --silent -w "%{stderr}%{time_total}\n" 2>> "$results_directory/${word_count_file}_time.txt")
 
 			# If the OCR does not produce a guess, fail
 			[[ -z "$result" ]] && exit 1
 
-			rm "$word_count_file.png" "$word_count_file.pnm"
+			rm "$word_count_file.png"
 
 			# Logs the number of words that don't match
 			# Also tees the full diff into a separate file
@@ -68,6 +53,7 @@ experiment_client() {
 	done
 
 	# Process Results
+	# Write Headers to CSV files
 	printf "words,Success_Rate\n" >> "$results_directory/success.csv"
 	percentiles_table_header "$results_directory/latency.csv" "words"
 
@@ -100,6 +86,6 @@ experiment_client() {
 	csv_to_dat "$results_directory/success.csv" "$results_directory/latency.csv"
 }
 
-validate_dependencies curl shuf pango-view pngtopnm diff
+validate_dependencies curl shuf pango-view diff
 
 framework_init "$@"
