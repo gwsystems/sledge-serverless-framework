@@ -38,7 +38,7 @@ profile() {
 	printf "[lpd: OK]\n"
 
 	# gocr
-	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m POST -D "./gocr/hyde.pnm" "http://${hostname}:10000/gocr" > /dev/null
+	hey -disable-compression -disable-keepalive -disable-redirects -n 256 -c 1 -cpus 1 -t 0 -o csv -m POST -D "./gocr/hyde.png" "http://${hostname}:10000/gocr" > /dev/null
 	printf "[gocr: OK]\n"
 
 	# cifar10
