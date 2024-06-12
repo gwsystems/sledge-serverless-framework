@@ -1,9 +1,6 @@
 {
 	"name": "tenant",
 	"port": 0,
-	"replenishment-period-us": 0,
-	"max-budget-us": 0,
-	"reservation-percentile": 0,
 	"routes": [
 		{
 			"route": "/route",

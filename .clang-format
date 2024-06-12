@@ -1,4 +1,3 @@
----
 BasedOnStyle: Mozilla
 IndentWidth: 8
 Language: Cpp
@@ -10,10 +9,10 @@ AlignConsecutiveMacros: true
 AlignEscapedNewlines: Left
 AlignTrailingComments: true
 
-AllowShortBlocksOnASingleLine: true
+AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLoopsOnASingleLine: true 
 
 AlwaysBreakAfterReturnType: AllDefinitions
@@ -38,7 +37,7 @@ BreakBeforeBinaryOperators: NonAssignment
 
 ColumnLimit: 120
 
-Cpp11BracedListStyle: false
+Cpp11BracedListStyle: true
 
 IndentCaseLabels: false
 IndentWrappedFunctionNames: false
@@ -47,10 +46,9 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 
 MaxEmptyLinesToKeep: 2
 
-DerivePointerAlignment: false
 PointerAlignment: Right
 
-SortIncludes: false
+SortIncludes: true
 
 SpaceAfterCStyleCast: false
 SpaceBeforeAssignmentOperators: true

@@ -16,14 +16,12 @@ client-10:
 	mkdir -p tmp
 	shuf -n10 /usr/share/dict/american-english > tmp/10_words.txt
 	pango-view --font=mono -qo tmp/10_words.png tmp/10_words.txt
-	pngtopnm tmp/10_words.png > tmp/10_words.pnm
-	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/10_words.pnm" "${HOSTNAME}:10000/gocr_10_words"
+	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/10_words.png" "${HOSTNAME}:10000/gocr_10_words"
 	rm -rf tmp
 
 client-100:
 	mkdir -p tmp
 	shuf -n100 /usr/share/dict/american-english > tmp/100_words.txt
 	pango-view --font=mono -qo tmp/100_words.png tmp/100_words.txt
-	pngtopnm tmp/100_words.png > tmp/100_words.pnm
-	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/100_words.pnm" "${HOSTNAME}:10000/gocr_100_words"
+	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/100_words.png" "${HOSTNAME}:10000/gocr_100_words"
 	rm -rf tmp

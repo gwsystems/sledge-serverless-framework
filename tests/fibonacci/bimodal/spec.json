@@ -2,8 +2,6 @@
 	{
 		"name": "gwu",
 		"port": 10010,
-		"replenishment-period-us": 0,
-		"max-budget-us": 0,
 		"routes": [
 			{
 				"route": "/fib",
@@ -26,8 +24,6 @@
 	{
 		"name": "conix",
 		"port": 10020,
-		"replenishment-period-us": 0,
-		"max-budget-us": 0,
 		"routes": [
 			{
 				"route": "/fib",

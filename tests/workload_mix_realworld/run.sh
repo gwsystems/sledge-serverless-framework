@@ -35,7 +35,7 @@ declare -A path=()
 declare -Ar body=(
 	[cifar10]="-D ./cifar10/airplane1.bmp"
 	[ekf]="-D ./ekf/ekf_raw.dat"
-	[gocr]="-D ./gocr/hyde.pnm"
+	[gocr]="-D ./gocr/hyde.png"
 	[lpd]="-D ./lpd/Cars0.png"
 	[resize]="-D ./resize/shrinking_man_large.jpg"
 )

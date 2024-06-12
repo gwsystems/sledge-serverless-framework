@@ -98,12 +98,12 @@ map_set(struct map *map, uint8_t *key, uint32_t key_len, uint8_t *value, uint32_
 	}
 
 	struct map_node *new_node = (struct map_node *)xmalloc(sizeof(struct map_node));
-	*(new_node)               = (struct map_node){ .hash      = hash,
-		                                       .key       = xmalloc(key_len),
-		                                       .key_len   = key_len,
-		                                       .value     = xmalloc(value_len),
-		                                       .value_len = value_len,
-		                                       .next      = bucket->head };
+	*(new_node)               = (struct map_node){.hash      = hash,
+	                                              .key       = xmalloc(key_len),
+	                                              .key_len   = key_len,
+	                                              .value     = xmalloc(value_len),
+	                                              .value_len = value_len,
+	                                              .next      = bucket->head};
 
 	// Copy Key and Value
 	memcpy(new_node->key, key, key_len);
@@ -174,12 +174,12 @@ map_upsert(struct map *map, uint8_t *key, uint32_t key_len, uint8_t *value, uint
 
 	struct map_node *new_node = (struct map_node *)xmalloc(sizeof(struct map_node));
 
-	*(new_node) = (struct map_node){ .hash      = hash,
-		                         .key       = xmalloc(key_len),
-		                         .key_len   = key_len,
-		                         .value     = xmalloc(value_len),
-		                         .value_len = value_len,
-		                         .next      = bucket->head };
+	*(new_node) = (struct map_node){.hash      = hash,
+	                                .key       = xmalloc(key_len),
+	                                .key_len   = key_len,
+	                                .value     = xmalloc(value_len),
+	                                .value_len = value_len,
+	                                .next      = bucket->head};
 
 	assert(new_node->key);
 	assert(new_node->value);

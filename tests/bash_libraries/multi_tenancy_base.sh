@@ -151,7 +151,7 @@ process_client_results_hey() {
 
 	for workload in "${workloads[@]}"; do
 		local t_id=${workload_tids[$workload]}
-		local deadline=${workload_deadlines[$workload]}
+		local deadline=${deadlines[$workload]}
 		local var=${workload_vars[$workload]}
 		
 		# Some requests come back with an "Unsolicited response ..." See issue #185
@@ -273,7 +273,8 @@ process_client_results_loadtest() {
 		# throughput=$(grep "Requests per second" "$results_directory/${workload}.dat" | tr -s ' '  | cut -d ' ' -f 14 | tail -n 1) # throughput of ALL
 		throughput=$(echo "$total/$duration" | bc)
 		goodput=$(echo "$all200/$duration" | bc)
-		printf "%s,%.1f\n" "$var" "$success_rate" >> "$results_directory/throughput_$t_id.csv"
+		# printf "%s,%.1f\n" "$var" "$success_rate" >> "$results_directory/throughput_$t_id.csv"
+		printf "%s,%s\n" "$throughput" "$goodput" >> "$results_directory/throughput_$t_id.csv"
 
 		# Generate Latency Data
 		min=$(awk '/Minimum latency/ {sum += $13; count++} END {print int(sum*1000/count)}' "$results_directory/${workload}.dat")
@@ -338,7 +339,7 @@ process_server_results() {
 		mkdir -p "$results_directory/$workload"
 
 		local t_id=${workload_tids[$workload]}
-		local deadline=${workload_deadlines[$workload]}
+		local deadline=${deadlines[$workload]}
 		local var=${workload_vars[$workload]}
 		
 		for metric in "${SANDBOX_METRICS[@]}"; do
@@ -386,8 +387,13 @@ process_server_results() {
 			END{printf "'"$var"',%3.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", (all200*100/NR), NR, ok, all200, total_failed, denied_any, denied_gtd, x_denied_any, x_denied_gtd, mis_dl_glob, mis_dl_local, mis_dl_wb, shed_glob, shed_local, misc, guaranteed, besteffort}
 		' < "$results_directory/$workload/total_sorted.csv" >> "$results_directory/success_$t_id.csv"
 
+		total=$(awk 'END {printf "%d", NR}' "$results_directory/$workload/total_sorted.csv")
+		ok=$(awk -F, '$2 == 200 && $1 <= '"$deadline"' {ok++} END {printf "%d", ok}' "$results_directory/$workload/total_sorted.csv")
+		throughput=$(echo "$total/$DURATION_sec" | bc)
+		goodput=$(echo "$ok/$DURATION_sec" | bc)
+		
 		# Throughput is calculated on the client side, so ignore the below line
-		printf "%s,%d\n" "$var" "1" >> "$results_directory/throughput_$t_id.csv"
+		printf "%s,%s\n" "$throughput" "$goodput" >> "$results_directory/throughput_$t_id.csv"
 
 		# Generate Latency Data for csv
 		percentiles_table_row "$results_directory/$workload/total_sorted.csv" "$results_directory/latency_$t_id.csv" "$var"
@@ -477,7 +483,7 @@ experiment_server_post() {
 		if [[ -f "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" ]]; then
 			mv "$__run_sh__base_path/$SLEDGE_SANDBOX_PERF_LOG" "$results_directory/$SERVER_LOG_FILE"
 			process_server_results "$results_directory" || return 1
-			rm "$results_directory/$SLEDGE_SANDBOX_PERF_LOG"
+			# rm "$results_directory/$SLEDGE_SANDBOX_PERF_LOG"
 		else
 			echo "Sandbox Perf Log was set, but $SERVER_LOG_FILE not found!"
 		fi
@@ -487,7 +493,7 @@ experiment_server_post() {
 		if [[ -f "$__run_sh__base_path/$SLEDGE_HTTP_SESSION_PERF_LOG" ]]; then
 			mv "$__run_sh__base_path/$SLEDGE_HTTP_SESSION_PERF_LOG" "$results_directory/$SERVER_HTTP_LOG_FILE"
 			process_server_http_results "$results_directory" || return 1
-			rm "$results_directory/$SERVER_HTTP_LOG_FILE"
+			# rm "$results_directory/$SERVER_HTTP_LOG_FILE"
 		else
 			echo "HTTP Perf Log was set, but $SERVER_HTTP_LOG_FILE not found!"
 		fi

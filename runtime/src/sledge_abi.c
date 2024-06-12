@@ -1,11 +1,11 @@
+#include "sledge_abi.h"
 #include "current_sandbox.h"
 #include "map.h"
 #include "sandbox_set_as_running_sys.h"
 #include "sandbox_set_as_running_user.h"
-#include "sledge_abi.h"
-#include "wasm_memory.h"
 #include "wasi.h"
 #include "wasi_serdes.h"
+#include "wasm_memory.h"
 
 EXPORT void
 sledge_abi__wasm_trap_raise(enum sledge_abi__wasm_trap trapno)

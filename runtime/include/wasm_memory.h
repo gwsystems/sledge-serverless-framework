@@ -8,8 +8,8 @@
 #include <sys/mman.h>
 
 #include "ps_list.h"
-#include "types.h" /* PAGE_SIZE */
 #include "sledge_abi.h"
+#include "types.h" /* PAGE_SIZE */
 #include "wasm_types.h"
 
 #define WASM_MEMORY_MAX           (uint64_t) UINT32_MAX + 1

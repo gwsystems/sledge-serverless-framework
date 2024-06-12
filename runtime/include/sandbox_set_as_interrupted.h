@@ -25,6 +25,10 @@ sandbox_set_as_interrupted(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
+	assert(last_state == SANDBOX_RUNNING_USER);
+	sandbox->remaining_exec = (sandbox->remaining_exec > sandbox->last_state_duration)
+	                            ? sandbox->remaining_exec - sandbox->last_state_duration
+	                            : 0;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
 	/* We do not append SANDBOX_INTERRUPTED to the sandbox_state_history because it would quickly fill the buffer */

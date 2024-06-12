@@ -9,8 +9,8 @@
 #include "route_config_parse.h"
 #include "tenant_config.h"
 
-static const char *tenant_config_json_keys[tenant_config_member_len] = { "name", "port", "replenishment-period-us",
-	                                                                 "max-budget-us", "routes" };
+static const char *tenant_config_json_keys[tenant_config_member_len] = {"name", "port", "replenishment-period-us",
+                                                                        "max-budget-us", "routes"};
 
 static inline int
 tenant_config_set_key_once(bool *did_set, enum tenant_config_member member)
@@ -29,8 +29,8 @@ tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_
                     int tokens_size)
 {
 	int  i                                 = tokens_base;
-	char key[32]                           = { 0 };
-	bool did_set[tenant_config_member_len] = { false };
+	char key[32]                           = {0};
+	bool did_set[tenant_config_member_len] = {false};
 
 	if (!has_valid_type(tokens[i], "Anonymous Tenant Config Object", JSMN_OBJECT, json_buf)) return -1;
 	if (!is_nonempty_object(tokens[i], "Anonymous Tenant Config Object")) return -1;

@@ -1,8 +1,8 @@
 #pragma once
 
+#include "http_session.h"
 #include "pretty_print.h"
 #include "runtime.h"
-#include "http_session.h"
 
 extern FILE                *http_session_perf_log;
 typedef struct http_session http_session;
@@ -15,8 +15,8 @@ static inline void
 http_session_perf_log_print_header()
 {
 	if (http_session_perf_log == NULL) { perror("http_session perf log"); }
-	fprintf(http_session_perf_log,
-	        "tenant,route,state,header_len,resp_body_len,receive_duration,sent_duration,total_lifetime,proc_MHz\n");
+	fprintf(http_session_perf_log, "tenant,route,state,header_len,resp_body_len,receive_duration,sent_duration,"
+	                               "total_lifetime,preprocessing,proc_MHz\n");
 }
 
 static inline void

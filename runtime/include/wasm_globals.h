@@ -85,9 +85,9 @@ wasm_globals_set_i32(struct vec_wasm_global_t *globals, uint32_t idx, int32_t va
 	wasm_global_t *current = vec_wasm_global_t_get(globals, idx);
 	if (unlikely(current->type != WASM_GLOBAL_TYPE_UNUSED && current->mut == false)) return -2;
 
-	int rc = vec_wasm_global_t_insert(globals, idx,
-	                                  (wasm_global_t){
-	                                    .mut = is_mutable, .type = WASM_GLOBAL_TYPE_I32, .value = value });
+	int rc =
+	  vec_wasm_global_t_insert(globals, idx,
+	                           (wasm_global_t){.mut = is_mutable, .type = WASM_GLOBAL_TYPE_I32, .value = value});
 	return rc;
 }
 
@@ -99,8 +99,8 @@ wasm_globals_set_i64(struct vec_wasm_global_t *globals, uint32_t idx, int64_t va
 	if (unlikely(current->type != WASM_GLOBAL_TYPE_UNUSED && current->mut == false)) return -2;
 
 	// Returns -1 if idx > capacity
-	int rc = vec_wasm_global_t_insert(globals, idx,
-	                                  (wasm_global_t){
-	                                    .mut = is_mutable, .type = WASM_GLOBAL_TYPE_I64, .value = value });
+	int rc =
+	  vec_wasm_global_t_insert(globals, idx,
+	                           (wasm_global_t){.mut = is_mutable, .type = WASM_GLOBAL_TYPE_I64, .value = value});
 	return rc;
 }

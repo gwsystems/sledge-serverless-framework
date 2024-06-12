@@ -109,5 +109,5 @@ wasm_table_set(struct sledge_abi__wasm_table *wasm_table, uint32_t idx, uint32_t
 	/* TODO: atomic for multiple concurrent invocations? Issue #97 */
 	if (wasm_table->buffer[idx].type_id == type_id && wasm_table->buffer[idx].func_pointer == pointer) return;
 
-	wasm_table->buffer[idx] = (struct sledge_abi__wasm_table_entry){ .type_id = type_id, .func_pointer = pointer };
+	wasm_table->buffer[idx] = (struct sledge_abi__wasm_table_entry){.type_id = type_id, .func_pointer = pointer};
 }

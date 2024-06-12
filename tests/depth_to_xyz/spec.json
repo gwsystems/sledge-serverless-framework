@@ -1,44 +1,19 @@
 [
   {
-    "name": "Admin",
-    "port": 55555,
-    "replenishment-period-us": 0,
-    "max-budget-us": 0,
-    "reservation-percentile": 0,
-    "routes": [
-      {
-        "route": "/admin",
-        "path": "fibonacci.wasm.so",
-        "admissions-percentile": 50,
-        "expected-execution-us": 1000,
-        "relative-deadline-us": 10000,
-        "http-resp-content-type": "text/plain"
-      },
-      {
-        "route": "/terminator",
-        "path": "fibonacci.wasm.so",
-        "admissions-percentile": 50,
-        "expected-execution-us": 1000,
-        "relative-deadline-us": 10000,
-        "http-resp-content-type": "text/plain"
-      }
-    ]
-  },
-  {
     "name": "cmu-000",
     "port": 10000,
-    "replenishment-period-us": 0,
-    "max-budget-us": 0,
-    "reservation-percentile": 0,
     "routes": [
       {
         "route": "/depth_to_xyz",
         "path": "depth_to_xyz.wasm.so",
         "admissions-percentile": 60,
         "expected-execution-us": 950000,
-        "relative-deadline-us": 4750000,
+        "relative-deadline-us": 0,
         "http-resp-content-type": "image/png"
       }
-    ]
+    ],
+    "replenishment-period-us": 0,
+    "max-budget-us": 0,
+    "reservation-percentile": 0
   }
 ]

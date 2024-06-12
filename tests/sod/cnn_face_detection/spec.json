@@ -2,9 +2,6 @@
 	{
 		"name": "gwu",
 		"port": 10000,
-		"replenishment-period-us": 0,
-		"max-budget-us": 0,
-		"reservation-percentile": 0,
 		"routes": [
 			{
 				"route": "/face",

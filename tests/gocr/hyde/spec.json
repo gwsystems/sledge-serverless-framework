@@ -2,13 +2,10 @@
 	{
 		"name": "gwu",
 		"port": 10000,
-		"replenishment-period-us": 0,
-		"max-budget-us": 0,
 		"routes": [
 			{
 				"route": "/gocr",
 				"path": "gocr.wasm.so",
-				"expected-execution-us": 5000,
 				"relative-deadline-us": 360000,
 				"http-resp-content-type": "text/plain"
 			}

@@ -1,14 +1,14 @@
 #include <errno.h>
 
+#include "panic.h"
 #include "runtime.h"
 #include "tenant.h"
-#include "panic.h"
 
 /*******************
  * Tenant Database *
  ******************/
 
-struct tenant *tenant_database[RUNTIME_MAX_TENANT_COUNT] = { NULL };
+struct tenant *tenant_database[RUNTIME_MAX_TENANT_COUNT] = {NULL};
 size_t         tenant_database_count                     = 0;
 
 /**

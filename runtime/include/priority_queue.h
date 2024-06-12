@@ -3,8 +3,8 @@
 
 #include <errno.h>
 
-#include "lock.h"
 #include "listener_thread.h"
+#include "lock.h"
 #include "panic.h"
 #include "runtime.h"
 #include "worker_thread.h"

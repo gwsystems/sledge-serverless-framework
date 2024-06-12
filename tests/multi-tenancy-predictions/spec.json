@@ -1,0 +1,116 @@
+[
+  {
+    "name": "cifar10-000",
+    "port": 15000,
+    "routes": [
+      {
+        "route": "/cifar10",
+        "path": "cifar10.wasm.so",
+        "admissions-percentile": 60,
+        "relative-deadline-us": 20000,
+        "http-resp-content-type": "text/plain",
+        "path_preprocess": "0",
+        "model-bias": 2000,
+        "model-scale": 2000,
+        "model-num-of-param": 1,
+        "model-beta1": 2000,
+        "model-beta2": 0
+      }
+    ]
+  },
+  {
+    "name": "cnn-000",
+    "port": 10000,
+    "routes": [
+      {
+        "route": "/cnn",
+        "path": "cnn_face_detection.wasm.so",
+        "admissions-percentile": 60,
+        "relative-deadline-us": 3000000,
+        "http-resp-content-type": "text/plain",
+        "path_preprocess": "get_jpeg_resolution.wasm.so",
+        "model-bias": 1500,
+        "model-scale": 1500,
+        "model-num-of-param": 2,
+        "model-beta1": 1500,
+        "model-beta2": 1500
+      }
+    ]
+  },
+  {
+    "name": "ekf-000",
+    "port": 35000,
+    "routes": [
+      {
+        "route": "/ekf",
+        "path": "gps_ekf.wasm.so",
+        "admissions-percentile": 60,
+        "relative-deadline-us": 1500,
+        "http-resp-content-type": "application/octet-stream",
+        "path_preprocess": "0",
+        "model-bias": 100,
+        "model-scale": 100,
+        "model-num-of-param": 1,
+        "model-beta1": 100,
+        "model-beta2": 0
+      }
+    ]
+  },
+  {
+    "name": "gocr-000",
+    "port": 20000,
+    "routes": [
+      {
+        "route": "/gocr",
+        "path": "gocr.wasm.so",
+        "admissions-percentile": 60,
+        "relative-deadline-us": 44500,
+        "http-resp-content-type": "text/plain",
+        "path_preprocess": "0",
+        "model-bias": 2500,
+        "model-scale": 2500,
+        "model-num-of-param": 1,
+        "model-beta1": 2500,
+        "model-beta2": 0
+      }
+    ]
+  },
+  {
+    "name": "lpd-000",
+    "port": 25000,
+    "routes": [
+      {
+        "route": "/lpd",
+        "path": "license_plate_detection.wasm.so",
+        "admissions-percentile": 60,
+        "relative-deadline-us": 83500,
+        "http-resp-content-type": "text/plain",
+        "path_preprocess": "get_jpeg_resolution.wasm.so",
+        "model-bias": 3000,
+        "model-scale": 3000,
+        "model-num-of-param": 2,
+        "model-beta1": 3000,
+        "model-beta2": 3000
+      }
+    ]
+  },
+  {
+    "name": "resize-000",
+    "port": 30000,
+    "routes": [
+      {
+        "route": "/resize",
+        "path": "resize_image.wasm.so",
+        "admissions-percentile": 60,
+        "relative-deadline-us": 310000,
+        "http-resp-content-type": "image/jpeg",
+        "path_preprocess": "get_jpeg_resolution.wasm.so",
+        "model-bias": 3500,
+        "model-scale": 3500,
+        "model-num-of-param": 2,
+        "model-beta1": 3500,
+        "model-beta2": 3500
+      }
+    ]
+  }
+]

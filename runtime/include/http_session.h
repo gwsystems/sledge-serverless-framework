@@ -57,6 +57,9 @@ struct http_session {
 	uint64_t                request_downloaded_timestamp;
 	uint64_t                response_takeoff_timestamp;
 	uint64_t                response_sent_timestamp;
+	bool                    did_preprocessing;
+	uint64_t                preprocessing_duration;
+	double                  regression_param; /* Calculated in tenant preprocessing logic if provided */
 };
 
 extern void http_session_perf_log_print_entry(struct http_session *http_session);

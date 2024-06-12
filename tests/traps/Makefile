@@ -62,4 +62,4 @@ test:
 	echo "4" | http :10000/divide
 
 client-fib10-multi:
-	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m GET -d "10\n" "http://${HOSTNAME}:10010/divide"
+	hey -z ${DURATION_SEC}s -cpus 4 -c 100 -t 0 -o csv -m POST -d "10\n" "http://${HOSTNAME}:10010/divide"

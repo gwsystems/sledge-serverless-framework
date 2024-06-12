@@ -1,6 +1,6 @@
 # OCR varied by DPI
 
-Generates pnm image files containing random words from the wamerican dictionary.
+Generates png image files containing random words from the wamerican dictionary.
 
 The number of words are held constant at 100, and the `mono` font is used for all runs. The dpi of the image is varied to judge how more visual details affects OCR accuracy and performance.
 

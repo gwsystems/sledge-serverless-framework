@@ -1,8 +1,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
-#include <signal.h>
 #include <sched.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <threads.h>
 
@@ -12,11 +12,11 @@
 #include "local_runqueue_list.h"
 #include "local_runqueue_minheap.h"
 #include "panic.h"
+#include "priority_queue.h"
 #include "runtime.h"
 #include "scheduler.h"
-#include "worker_thread.h"
 #include "tenant_functions.h"
-#include "priority_queue.h"
+#include "worker_thread.h"
 
 /***************************
  * Worker Thread State     *

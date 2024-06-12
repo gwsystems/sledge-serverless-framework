@@ -9,9 +9,9 @@
 #include "local_runqueue_mtds.h"
 #include "panic.h"
 #include "priority_queue.h"
+#include "runtime.h"
 #include "sandbox_functions.h"
 #include "tenant_functions.h"
-#include "runtime.h"
 
 thread_local static struct priority_queue *local_runqueue_mtds_guaranteed;
 thread_local static struct priority_queue *local_runqueue_mtds_default;
@@ -172,10 +172,10 @@ local_runqueue_mtds_initialize()
 	                                                           perworker_tenant_get_priority);
 
 	/* Register Function Pointers for Abstract Scheduling API */
-	struct local_runqueue_config config = { .add_fn      = local_runqueue_mtds_add,
-		                                .is_empty_fn = local_runqueue_mtds_is_empty,
-		                                .delete_fn   = local_runqueue_mtds_delete,
-		                                .get_next_fn = local_runqueue_mtds_get_next };
+	struct local_runqueue_config config = {.add_fn      = local_runqueue_mtds_add,
+	                                       .is_empty_fn = local_runqueue_mtds_is_empty,
+	                                       .delete_fn   = local_runqueue_mtds_delete,
+	                                       .get_next_fn = local_runqueue_mtds_get_next};
 
 	local_runqueue_initialize(&config);
 }

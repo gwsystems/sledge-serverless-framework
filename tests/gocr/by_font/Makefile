@@ -16,22 +16,19 @@ client-mono:
 	mkdir -p tmp
 	shuf -n10 /usr/share/dict/american-english > tmp/10_words.txt
 	pango-view --font="DejaVu Sans Mono" -qo tmp/10_words.png tmp/10_words.txt
-	pngtopnm tmp/10_words.png > tmp/10_words.pnm
-	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/10_words.pnm" "${HOSTNAME}:10000/gocr_mono"
+	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/10_words.png" "${HOSTNAME}:10000/gocr_mono"
 	rm -rf tmp
 
 client-roboto:
 	mkdir -p tmp
 	shuf -n10 /usr/share/dict/american-english > tmp/10_words.txt
 	pango-view --font="Roboto" -qo tmp/10_words.png tmp/10_words.txt
-	pngtopnm tmp/10_words.png > tmp/10_words.pnm
-	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/10_words.pnm" "${HOSTNAME}:10000/gocr_roboto"
+	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/10_words.png" "${HOSTNAME}:10000/gocr_roboto"
 	rm -rf tmp
 
 client-cascadia:
 	mkdir -p tmp
 	shuf -n10 /usr/share/dict/american-english > tmp/10_words.txt
 	pango-view --font="Cascadia Code" -qo tmp/10_words.png tmp/10_words.txt
-	pngtopnm tmp/10_words.png > tmp/10_words.pnm
-	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/10_words.pnm" "${HOSTNAME}:10000/gocr_cascadia"
+	curl  -H 'Expect:' -H "Content-Type: text/plain" --data-binary "@tmp/10_words.png" "${HOSTNAME}:10000/gocr_cascadia"
 	rm -rf tmp

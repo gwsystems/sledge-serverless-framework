@@ -9,8 +9,8 @@
 #include "local_runqueue_minheap.h"
 #include "panic.h"
 #include "priority_queue.h"
-#include "sandbox_functions.h"
 #include "runtime.h"
+#include "sandbox_functions.h"
 
 thread_local static struct priority_queue *local_runqueue_minheap;
 
@@ -84,10 +84,10 @@ local_runqueue_minheap_initialize()
 	local_runqueue_minheap = priority_queue_initialize(RUNTIME_RUNQUEUE_SIZE, false, sandbox_get_priority);
 
 	/* Register Function Pointers for Abstract Scheduling API */
-	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,
-		                                .is_empty_fn = local_runqueue_minheap_is_empty,
-		                                .delete_fn   = local_runqueue_minheap_delete,
-		                                .get_next_fn = local_runqueue_minheap_get_next };
+	struct local_runqueue_config config = {.add_fn      = local_runqueue_minheap_add,
+	                                       .is_empty_fn = local_runqueue_minheap_is_empty,
+	                                       .delete_fn   = local_runqueue_minheap_delete,
+	                                       .get_next_fn = local_runqueue_minheap_get_next};
 
 	local_runqueue_initialize(&config);
 }

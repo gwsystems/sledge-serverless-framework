@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdatomic.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 
 #include "worker_thread.h"

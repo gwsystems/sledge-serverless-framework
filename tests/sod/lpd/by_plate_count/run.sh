@@ -103,7 +103,7 @@ run_perf_tests() {
 			((batch_id++))
 
 			get_random_image "$workload" random_image
-			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m GET -D "${random_image}" "http://${hostname}:10000${path[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
+			hey -disable-compression -disable-keepalive -disable-redirects -n $batch_size -c 1 -cpus 1 -t 0 -o csv -m POST -D "${random_image}" "http://${hostname}:10000${path[$workload]}" > "$results_directory/${workload}_${batch_id}.csv" 2> /dev/null &
 		done
 		pids=$(pgrep hey | tr '\n' ' ')
 		[[ -n $pids ]] && wait -f $pids

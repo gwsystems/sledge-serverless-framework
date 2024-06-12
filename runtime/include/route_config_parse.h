@@ -6,12 +6,10 @@
 #include "json.h"
 #include "route_config.h"
 
-static const char *route_config_json_keys[route_config_member_len] = { "route",
-	                                                               "path",
-	                                                               "admissions-percentile",
-	                                                               "expected-execution-us",
-	                                                               "relative-deadline-us",
-	                                                               "http-resp-content-type" };
+static const char *route_config_json_keys[route_config_member_len] =
+  {"route",           "path",        "admissions-percentile", "relative-deadline-us",
+   "path_preprocess", "model-bias",  "model-scale",           "model-num-of-param",
+   "model-beta1",     "model-beta2", "http-resp-content-type"};
 
 static inline int
 route_config_set_key_once(bool *did_set, enum route_config_member member)
@@ -30,8 +28,8 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
                    int tokens_size)
 {
 	int  i                                = tokens_base;
-	char key[32]                          = { 0 };
-	bool did_set[route_config_member_len] = { false };
+	char key[32]                          = {0};
+	bool did_set[route_config_member_len] = {false};
 
 	if (!has_valid_type(tokens[i], "Anonymous Route Config Object", JSMN_OBJECT, json_buf)) return -1;
 	if (!is_nonempty_object(tokens[i], "Anonymous Route Config Object")) return -1;
@@ -61,6 +59,11 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			if (route_config_set_key_once(did_set, route_config_member_path) == -1) return -1;
 
 			config->path = strndup(json_buf + tokens[i].start, tokens[i].end - tokens[i].start);
+		} else if (strcmp(key, route_config_json_keys[route_config_member_path_preprocess]) == 0) {
+			if (!is_nonempty_string(tokens[i], key)) return -1;
+			if (route_config_set_key_once(did_set, route_config_member_path_preprocess) == -1) return -1;
+
+			config->path_preprocess = strndup(json_buf + tokens[i].start, tokens[i].end - tokens[i].start);
 		} else if (strcmp(key, route_config_json_keys[route_config_member_admissions_percentile]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
 			if (route_config_set_key_once(did_set, route_config_member_admissions_percentile) == -1)
@@ -70,15 +73,6 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			                       route_config_json_keys[route_config_member_admissions_percentile],
 			                       &config->admissions_percentile);
 			if (rc < 0) return -1;
-		} else if (strcmp(key, route_config_json_keys[route_config_member_expected_execution_us]) == 0) {
-			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
-			if (route_config_set_key_once(did_set, route_config_member_expected_execution_us) == -1)
-				return -1;
-
-			int rc = parse_uint32_t(tokens[i], json_buf,
-			                        route_config_json_keys[route_config_member_expected_execution_us],
-			                        &config->expected_execution_us);
-			if (rc < 0) return -1;
 		} else if (strcmp(key, route_config_json_keys[route_config_member_relative_deadline_us]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
 			if (route_config_set_key_once(did_set, route_config_member_relative_deadline_us) == -1)
@@ -87,6 +81,49 @@ route_config_parse(struct route_config *config, const char *json_buf, jsmntok_t 
 			int rc = parse_uint32_t(tokens[i], json_buf,
 			                        route_config_json_keys[route_config_member_relative_deadline_us],
 			                        &config->relative_deadline_us);
+			if (rc < 0) return -1;
+		} else if (strcmp(key, "expected-execution-us") == 0) {
+			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+			printf("The \"expected-execution-us\" field has been deprecated, so no need.\n");
+		} else if (strcmp(key, route_config_json_keys[route_config_member_model_bias]) == 0) {
+			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+			if (route_config_set_key_once(did_set, route_config_member_model_bias) == -1) return -1;
+
+			int rc = parse_uint32_t(tokens[i], json_buf,
+			                        route_config_json_keys[route_config_member_model_bias],
+			                        &config->model_bias);
+			if (rc < 0) return -1;
+		} else if (strcmp(key, route_config_json_keys[route_config_member_model_scale]) == 0) {
+			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+			if (route_config_set_key_once(did_set, route_config_member_model_scale) == -1) return -1;
+
+			int rc = parse_uint32_t(tokens[i], json_buf,
+			                        route_config_json_keys[route_config_member_model_scale],
+			                        &config->model_scale);
+			if (rc < 0) return -1;
+		} else if (strcmp(key, route_config_json_keys[route_config_member_model_num_of_param]) == 0) {
+			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+			if (route_config_set_key_once(did_set, route_config_member_model_num_of_param) == -1) return -1;
+
+			int rc = parse_uint32_t(tokens[i], json_buf,
+			                        route_config_json_keys[route_config_member_model_num_of_param],
+			                        &config->model_num_of_param);
+			if (rc < 0) return -1;
+		} else if (strcmp(key, route_config_json_keys[route_config_member_model_beta1]) == 0) {
+			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+			if (route_config_set_key_once(did_set, route_config_member_model_beta1) == -1) return -1;
+
+			int rc = parse_uint32_t(tokens[i], json_buf,
+			                        route_config_json_keys[route_config_member_model_beta1],
+			                        &config->model_beta1);
+			if (rc < 0) return -1;
+		} else if (strcmp(key, route_config_json_keys[route_config_member_model_beta2]) == 0) {
+			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+			if (route_config_set_key_once(did_set, route_config_member_model_beta2) == -1) return -1;
+
+			int rc = parse_uint32_t(tokens[i], json_buf,
+			                        route_config_json_keys[route_config_member_model_beta2],
+			                        &config->model_beta2);
 			if (rc < 0) return -1;
 		} else if (strcmp(key, route_config_json_keys[route_config_member_http_resp_content_type]) == 0) {
 			if (!is_nonempty_string(tokens[i], key)) return -1;

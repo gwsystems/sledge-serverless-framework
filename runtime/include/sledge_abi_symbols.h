@@ -5,8 +5,8 @@
 #include <stdint.h>
 
 #include "debuglog.h"
-#include "wasm_types.h"
 #include "sledge_abi.h"
+#include "wasm_types.h"
 
 struct sledge_abi_symbols {
 	void                         *handle;
