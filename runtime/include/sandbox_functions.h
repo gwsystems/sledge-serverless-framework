@@ -12,6 +12,7 @@
  * Public API              *
  **************************/
 
+extern struct sandbox* current_sandboxes[1024];
 extern bool runtime_exponential_service_time_simulation_enabled;
 extern struct perf_window * worker_perf_windows[1024];
 struct sandbox *sandbox_alloc(struct module *module, struct http_session *session, struct route *route,
@@ -63,12 +64,45 @@ sandbox_get_execution_cost(void *element, int thread_id)
 	struct sandbox *sandbox = (struct sandbox *)element;
 	if (runtime_exponential_service_time_simulation_enabled) {
 		assert(sandbox->estimated_cost != 0);
-		return sandbox->estimated_cost;
+		if (sandbox == current_sandboxes[thread_id]) {
+			/* This sandbox is running, get the running lasting time until now and
+                           calculate the remaining execution time 
+			*/
+			uint64_t run_cycles = __getcycles() - sandbox->timestamp_of.last_state_change;			
+			return sandbox->estimated_cost > (sandbox->duration_of_state[SANDBOX_RUNNING_SYS]
+                                                  + sandbox->duration_of_state[SANDBOX_RUNNING_USER] + run_cycles) ?
+                                                  sandbox->estimated_cost -
+                                                  sandbox->duration_of_state[SANDBOX_RUNNING_SYS] -
+                                                  sandbox->duration_of_state[SANDBOX_RUNNING_USER] - run_cycles : 0;
+		} else {
+		
+		    	return sandbox->estimated_cost > (sandbox->duration_of_state[SANDBOX_RUNNING_SYS] 
+						  + sandbox->duration_of_state[SANDBOX_RUNNING_USER]) ? 
+						  sandbox->estimated_cost - 
+						  sandbox->duration_of_state[SANDBOX_RUNNING_SYS] - 
+					          sandbox->duration_of_state[SANDBOX_RUNNING_USER] : 0;
+		}
 	} else {
 		uint32_t uid = sandbox->route->admissions_info.uid;
-		return perf_window_get_percentile(&worker_perf_windows[thread_id][uid],
+		uint64_t estimated_cost =  perf_window_get_percentile(&worker_perf_windows[thread_id][uid],
                                           	sandbox->route->admissions_info.percentile,
                                           	sandbox->route->admissions_info.control_index);
+
+		if (sandbox == current_sandboxes[thread_id]) {
+			uint64_t run_cycles = __getcycles() - sandbox->timestamp_of.last_state_change;
+			return estimated_cost > (sandbox->duration_of_state[SANDBOX_RUNNING_SYS]
+                                         + sandbox->duration_of_state[SANDBOX_RUNNING_USER] + run_cycles) ?
+                                         estimated_cost -
+                                         sandbox->duration_of_state[SANDBOX_RUNNING_SYS] -
+                                         sandbox->duration_of_state[SANDBOX_RUNNING_USER] - run_cycles : 0;
+
+		} else {
+		    	return estimated_cost > (sandbox->duration_of_state[SANDBOX_RUNNING_SYS]
+                                         + sandbox->duration_of_state[SANDBOX_RUNNING_USER]) ?
+                                         estimated_cost -
+                             	         sandbox->duration_of_state[SANDBOX_RUNNING_SYS] -
+                                         sandbox->duration_of_state[SANDBOX_RUNNING_USER] : 0;
+		}
 
 	}
 }

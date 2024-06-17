@@ -69,7 +69,7 @@ sandbox_perf_log_print_entry(struct sandbox *sandbox)
                 */
 		mem_log("%d %u meet %lu %lu %lu %s %lu %lu %lu %lu\n", 
                          global_worker_thread_idx, sandbox->id, total_time, execution_time, queued_duration, 
-                         sandbox->route->route,init_time, cleanup, deadline,deadline,local_queue_length[global_worker_thread_idx]);
+                         sandbox->route->route,init_time, cleanup, deadline,local_queue_length[global_worker_thread_idx]);
                 
 	}
 	/*
