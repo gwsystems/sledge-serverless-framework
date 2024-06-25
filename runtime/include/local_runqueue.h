@@ -17,8 +17,10 @@ struct local_runqueue_config {
 	local_runqueue_get_next_fn_t get_next_fn;
 };
 
-void            local_runqueue_add(struct sandbox *);
-void            local_runqueue_delete(struct sandbox *);
-bool            local_runqueue_is_empty();
-struct sandbox *local_runqueue_get_next();
-void            local_runqueue_initialize(struct local_runqueue_config *config);
+void                    local_runqueue_add(struct sandbox *);
+void                    local_runqueue_delete(struct sandbox *);
+bool                    local_runqueue_is_empty();
+struct sandbox         *local_runqueue_get_next();
+void                    local_runqueue_initialize(struct local_runqueue_config *config);
+// void                    local_runqueue_update_highest_priority(const void *element);
+// struct sandbox_metadata local_runqueue_peek_metadata();

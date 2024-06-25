@@ -10,10 +10,13 @@
 #include <sys/time.h>
 
 #include "admissions_control.h"
+#include "traffic_control.h"
 #include "arch/context.h"
 #include "debuglog.h"
 #include "global_request_scheduler_deque.h"
 #include "global_request_scheduler_minheap.h"
+#include "global_request_scheduler_mtds.h"
+#include "global_request_scheduler_mtdbf.h"
 #include "http_parser_settings.h"
 #include "listener_thread.h"
 #include "module.h"
@@ -31,6 +34,9 @@ pthread_t *runtime_worker_threads;
 int       *runtime_worker_threads_argument;
 /* The active deadline of the sandbox running on each worker thread */
 uint64_t *runtime_worker_threads_deadline;
+
+/* Tracks alive sandboxes */
+bool sandbox_refs[RUNTIME_MAX_ALIVE_SANDBOXES] = { false };
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -196,4 +202,36 @@ runtime_set_prio(unsigned int nice)
 	assert(sp.sched_priority == sched_get_priority_max(SCHED_RR) - nice);
 
 	return;
+}
+
+void
+runtime_set_policy_and_prio()
+{
+	if (geteuid() != 0) {
+		printf("Won't set the priority for sledgert. Run with sudo again.\n");
+		return;
+	}
+
+	// int which = PRIO_PROCESS; // You can also use PRIO_PGRP or PRIO_USER
+    // int nice_value = -20;     // Adjust the nice value as needed
+
+    // if (setpriority(which, getpid(), nice_value) == -1) {
+    //     perror("setpriority");
+    // }
+
+	const int FIFO_PRIO = 1; //sched_get_priority_max(SCHED_FIFO);
+    struct sched_param sp;
+
+    // Set the scheduling policy to SCHED_FIFO
+    sp.sched_priority = FIFO_PRIO;
+
+	int rc = sched_setscheduler(getpid(), SCHED_FIFO, &sp);
+    if (rc != 0) {
+        panic("sched_setscheduler error. Return code: %d", rc);
+    }
+
+	if (sched_getparam(0, &sp) < 0) { perror("getparam: "); }
+	assert(sp.sched_priority == FIFO_PRIO);
+
+	printf("Set sched for sledgert to FIFO. Prio=%d\n", FIFO_PRIO);
 }

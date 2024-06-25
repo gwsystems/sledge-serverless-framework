@@ -1040,6 +1040,7 @@ wasi_snapshot_preview1_backing_poll_oneoff(wasi_context_t *context, const __wasi
 noreturn void
 wasi_snapshot_preview1_backing_proc_exit(wasi_context_t *context, __wasi_exitcode_t exitcode)
 {
+	// panic("This path should not be reachable\n");
 	current_sandbox_fini();
 	assert(0);
 }

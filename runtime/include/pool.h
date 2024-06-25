@@ -12,6 +12,7 @@
 		bool                use_lock;                                                                      \
 		lock_t              lock;                                                                          \
 		struct ps_list_head list;                                                                          \
+		uint16_t            size;                                                                          \
 	};                                                                                                         \
                                                                                                                    \
 	static inline bool STRUCT_NAME##_pool_is_empty(struct STRUCT_NAME##_pool *self)                            \
@@ -26,6 +27,7 @@
 		ps_list_head_init(&self->list);                                                                    \
 		self->use_lock = use_lock;                                                                         \
 		if (use_lock) lock_init(&self->lock);                                                              \
+		self->size = 0;                                                                                    \
 	}                                                                                                          \
                                                                                                                    \
 	static inline void STRUCT_NAME##_pool_deinit(struct STRUCT_NAME##_pool *self)                              \
@@ -52,6 +54,8 @@
 		obj = ps_list_head_first_d(&self->list, struct STRUCT_NAME);                                       \
 		assert(obj);                                                                                       \
 		ps_list_rem_d(obj);                                                                                \
+		assert(self->size > 0);                                                                            \
+		self->size--;                                                                                      \
                                                                                                                    \
 		return obj;                                                                                        \
 	}                                                                                                          \
@@ -79,6 +83,8 @@
 		assert(!self->use_lock || lock_is_locked(&self->lock));                                            \
                                                                                                                    \
 		ps_list_head_add_d(&self->list, obj);                                                              \
+		self->size++;                                                                                      \
+		/*assert(self->size <= RUNTIME_WORKER_POOL_SIZE); */                                                       \
 	}                                                                                                          \
                                                                                                                    \
 	static inline void STRUCT_NAME##_pool_add(struct STRUCT_NAME##_pool *self, struct STRUCT_NAME *obj)        \

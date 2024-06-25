@@ -10,6 +10,10 @@
 extern thread_local struct sandbox *worker_thread_current_sandbox;
 
 void current_sandbox_start(void);
+void current_sandbox_exit(void);
+void interrupted_sandbox_exit(void);
+int  sandbox_validate_self_lifetime(struct sandbox *);
+void sandbox_kill_self(struct sandbox *);
 
 /**
  * Getter for the current sandbox executing on this thread
@@ -51,16 +55,27 @@ current_sandbox_set(struct sandbox *sandbox)
 		/* This is because the event core does not maintain core-assigned deadline */
 		if (!listener_thread_is_running()) runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	} else {
+		assert(sandbox->state == SANDBOX_RUNNABLE || sandbox->state == SANDBOX_PREEMPTED);
+		// if(sandbox->state == SANDBOX_PREEMPTED && sandbox->original_owner_worker_idx != worker_thread_idx) printf("SAND_id: %lu, WASM_id: %lu, wrk: %d\n", sandbox->id, sledge_abi__current_wasm_module_instance.abi.memory.id, worker_thread_idx);
+		// else 
+		// printf("Else SAND_id: %lu, WASM_id: %lu, wrk: %d, orig_wrk %d\n", sandbox->id, sledge_abi__current_wasm_module_instance.abi.memory.id, worker_thread_idx, sandbox->original_owner_worker_idx);
 		sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
+		assert(sandbox->memory->abi.capacity > 0);
+		assert(sandbox->memory->abi.size > 0);
+		assert(sandbox->memory->abi.max > 0);
 		memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, &sandbox->memory->abi,
 		       sizeof(struct sledge_abi__wasm_memory));
+assert(sledge_abi__current_wasm_module_instance.abi.memory.size == sandbox->memory->abi.size);
+assert(sledge_abi__current_wasm_module_instance.abi.memory.id == sandbox->id);
 		sledge_abi__current_wasm_module_instance.abi.table = sandbox->module->indirect_table;
 		wasm_globals_update_if_used(&sandbox->globals, 0,
 		                            &sledge_abi__current_wasm_module_instance.abi.wasmg_0);
 		worker_thread_current_sandbox = sandbox;
+		
 		if (!listener_thread_is_running())
 			runtime_worker_threads_deadline[worker_thread_idx] = sandbox->absolute_deadline;
 	}
+	barrier();
 }
 
 extern void current_sandbox_sleep();

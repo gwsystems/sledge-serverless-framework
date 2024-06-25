@@ -29,14 +29,11 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_RETURNED: {
-		sandbox->timestamp_of.completion = now;
+	case SANDBOX_RETURNED:
 		break;
-	}
-	default: {
+	default:
 		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
-	}
 	}
 
 	/* State Change Bookkeeping */
@@ -48,13 +45,11 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_totals_increment(SANDBOX_COMPLETE);
 	sandbox_state_totals_decrement(last_state);
 
-	struct route *route = sandbox->route;
-
 #ifdef EXECUTION_HISTOGRAM
 	/* Execution Histogram Post Processing */
 	const uint64_t execution_duration = sandbox->duration_of_state[SANDBOX_RUNNING_USER]
 	                                    + sandbox->duration_of_state[SANDBOX_RUNNING_SYS];
-	execution_histogram_update(&route->execution_histogram, execution_duration);
+	execution_histogram_update(&sandbox->route->execution_histogram, execution_duration);
 #endif
 
 #ifdef ADMISSIONS_CONTROL
@@ -65,7 +60,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* Terminal State Logging for Sandbox */
 	sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
-	route_latency_add(&route->latency, sandbox->total_time);
+	route_latency_add(&sandbox->route->latency, sandbox->total_time);
 
 	/* State Change Hooks */
 	sandbox_state_transition_from_hook(sandbox, last_state);

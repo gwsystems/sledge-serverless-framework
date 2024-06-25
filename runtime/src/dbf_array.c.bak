@@ -1,0 +1,335 @@
+#include <string.h>
+#include <assert.h>
+#include "tenant.h"
+#include "runtime.h"
+#include "arch/getcycles.h"
+#include "math.h"
+#include "message.h"
+#include "panic.h"
+#include "dbf.h"
+
+struct tenant;
+
+struct dbf_array {
+	struct tenant *tenant;
+	int      worker_idx;
+	// uint32_t idx_oversupply;
+	uint64_t max_relative_deadline;
+	uint64_t base_supply; /* supply amount for time 1 */
+	uint64_t time_of_oversupply;
+	uint64_t max_absolute_deadline;
+
+	uint32_t capacity;
+	uint64_t demands[];
+};
+
+static inline int 
+dbf_array_get_worker_idx(void * dbf_raw)
+{
+	assert(dbf_raw);
+	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+	return dbf->worker_idx;
+}
+
+/*static inline uint64_t
+dbf_array_get_max_relative_dl(void * dbf_raw)
+{
+	assert(dbf_raw);
+	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+	return dbf->max_relative_deadline;
+}*/
+
+static inline uint64_t
+dbf_array_get_time_of_oversupply(void * dbf_raw)
+{
+	assert(dbf_raw);
+	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+	return dbf->time_of_oversupply;
+}
+
+static void
+dbf_array_print(void *dbf_raw, uint64_t start_time)
+{
+	assert(dbf_raw != NULL);
+	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+
+	printf("DBF INFO:\n\
+	\t WorkerIDX: \t%d\n\
+	\t Capacity: \t%u\n\
+	\t Max Rel DL: \t%lu\n\
+	\t Max Abs DL (ms): \t%lu\n\
+	\t Basic Supply: \t%lu\n\n",
+	       dbf->worker_idx, dbf->capacity, dbf->max_relative_deadline, dbf->max_absolute_deadline/runtime_quantum, dbf->base_supply);
+
+	for (int i = 0; i < dbf->capacity; i++) {
+		if (dbf->demands[i] > 0) printf("demands[%d] = %lu\n", i, dbf->demands[i]);
+	}
+}
+
+// static void *
+// dbf_array_grow(void *dbf_raw, uint64_t new_max_relative_deadline)
+// {
+// 	assert(dbf_raw != NULL);
+// 	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+
+// 	uint32_t new_capacity = new_max_relative_deadline / runtime_quantum /* * 2 */; // NOT adding 1 for final leftovers
+
+// 	struct dbf_array *new_dbf = realloc(dbf, sizeof(struct dbf_array) + sizeof(uint64_t) * new_capacity);
+// 	if (new_dbf == NULL) panic("Failed to grow dbf\n");
+
+// 	memset(new_dbf->demands, 0, new_capacity * sizeof(uint64_t));
+
+// 	new_dbf->capacity              = new_capacity;
+// 	new_dbf->max_relative_deadline = new_max_relative_deadline;
+
+// 	return new_dbf;
+// }
+
+/*
+static bool
+dbf_array_check_supply_quick(struct dbf_array *dbf_raw, uint64_t start_time, uint64_t abs_deadline, uint64_t adjustment)
+{
+	assert(dbf_raw != NULL);
+	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+	// assert(start_time < abs_deadline);
+	if (start_time >= abs_deadline) return true;
+
+	const uint32_t live_deadline_len      = ceil((abs_deadline - start_time) / (double)runtime_quantum);
+	const uint32_t abs_deadline_idx       = (abs_deadline / runtime_quantum) % dbf->capacity;
+	const uint64_t max_supply_at_deadline = live_deadline_len * dbf->base_supply;
+
+	return (dbf->demands[abs_deadline_idx] + adjustment <= max_supply_at_deadline);
+}
+*/
+
+static bool
+dbf_array_try_update_demand(void *dbf_raw, uint64_t start_time, uint64_t route_relative_deadline,
+                      uint64_t abs_deadline, uint64_t adjustment, dbf_update_mode_t dbf_update_mode,
+                      void *new_message_raw, struct sandbox_metadata *sandbox_meta)
+{
+	assert(dbf_raw != NULL);
+	assert(start_time < abs_deadline);
+	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+	struct message *new_message = (struct message *) new_message_raw;
+
+	if (abs_deadline > dbf->max_absolute_deadline) dbf->max_absolute_deadline = abs_deadline;
+
+	if (adjustment == 0) goto done;
+
+	// const uint32_t max_relative_deadline_len = dbf->max_relative_deadline / runtime_quantum;
+	const uint32_t live_deadline_len         = round((abs_deadline - start_time) / (double)runtime_quantum);
+	// const uint32_t live_deadline_len         = (abs_deadline - start_time) / runtime_quantum;
+	// const uint32_t live_deadline_len         = abs_deadline/runtime_quantum - start_time/runtime_quantum;
+	const uint32_t abs_deadline_idx          = (abs_deadline / runtime_quantum) % dbf->capacity;
+	// const uint32_t start_time_idx          = (start_time / runtime_quantum) % dbf->capacity;
+	
+	// if (start_time_idx == abs_deadline_idx) goto done;
+
+	// assert(live_deadline_len <= max_relative_deadline_len);
+	assert(live_deadline_len <= dbf->capacity);
+
+	bool demand_is_below_supply = true;
+
+	for (uint32_t i = abs_deadline_idx, iter = 0; i < abs_deadline_idx + dbf->capacity /*iter< (start_time_idx-abs_deadline_idx+dbf->capacity)%dbf->capacity*/; i++, iter++) {
+		uint32_t circular_i = i % dbf->capacity;
+
+		const uint64_t max_supply_at_time_i = (live_deadline_len + iter) * dbf->base_supply;
+		const uint64_t prev_demand          = dbf->demands[circular_i];
+
+		switch (dbf_update_mode) {
+		case DBF_CHECK_AND_ADD_DEMAND:
+			dbf->demands[circular_i] += adjustment;
+
+			if (dbf->demands[circular_i] > max_supply_at_time_i) {
+				/* Undo DBF adding if over supply detected */
+				for (uint32_t j = abs_deadline_idx; j <= i; j++) {
+					dbf->demands[j % dbf->capacity] -= adjustment;
+				}
+				dbf->time_of_oversupply = iter;
+				goto err_demand_over_supply;
+			}
+			break;
+		/*case DBF_CHECK_EXISTING_SANDBOX_EXTRA_DEMAND:
+			if (dbf->demands[circular_i] + adjustment > max_supply_at_time_i) {
+				dbf->time_of_oversupply = iter;
+				goto err_demand_over_supply;
+			}
+			break;*/
+		case DBF_FORCE_ADD_NEW_SANDBOX_DEMAND:
+			/* [Work Conservation Scenario] Only applicable for tenant and global dbf! */
+			assert(dbf->worker_idx < 0);
+
+			dbf->demands[circular_i] += adjustment;
+			assert(prev_demand < dbf->demands[circular_i]);
+
+			if (demand_is_below_supply && dbf->demands[circular_i] > max_supply_at_time_i) {
+				dbf->time_of_oversupply    = iter;
+				demand_is_below_supply = false;
+			}
+			break;
+		case DBF_REDUCE_EXISTING_DEMAND:
+			dbf->demands[circular_i] -= adjustment;
+			if (prev_demand < dbf->demands[circular_i]) {
+				printf("DBF_REDUCE_EXISTING_DEMAND\n");
+				printf("Worker ID: %d\n", dbf->worker_idx);
+				// printf("Tenant Reservation: %u\n", new_message->reserv);
+				printf("Sandbox ID: %lu\n", new_message->sandbox_id);
+				// printf("Sandbox Response Code: %u\n", new_message->sandbox_response_code);
+				printf("Basic supply: %lu\n", dbf->base_supply);
+				printf("Cap=%u\n", dbf->capacity);
+				printf("Abs_dest_idx=%u\n", abs_deadline_idx);
+				printf("live_deadline_len=%u\n", live_deadline_len);
+				printf("i=%u, cir_i = %u, iter = %u\n", i, circular_i, iter);
+				printf("max_supply_at_time_i = %lu\n\n", max_supply_at_time_i);
+				printf("Prev_demand[%u]=%lu\n\n", circular_i, prev_demand);
+				printf("demand[%u]=%lu\n\n", circular_i, dbf->demands[circular_i]);
+				// printf("sandbox_state=%u, if_case=%d\n", new_message->state, new_message->if_case);
+				printf("exceeded_estimation=%d\n", new_message->exceeded_estimation);
+				printf("Adjustment=%lu\n", adjustment);
+				// printf("last_exec_duration=%lu, prev_rem_exec=%ld, rem_exec=%ld\n",
+				//        new_message->last_exec_dur, new_message->prev_rem_exec,
+				//        new_message->remaining_execution);
+
+				dbf_print(dbf, start_time);
+				panic("Interger Underflow -> Tried reducing demand, but it actually went over supply!");
+			}
+			break;
+		}
+	}
+
+done:
+	return demand_is_below_supply;
+err_demand_over_supply:
+	demand_is_below_supply = false;
+	goto done;
+}
+
+static uint64_t
+dbf_array_get_demand_overgone_its_supply_at(void *dbf_raw, uint64_t start_time, uint64_t abs_deadline, uint64_t time_of_oversupply)
+{
+	assert(dbf_raw != NULL);
+	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+
+	time_of_oversupply = abs_deadline + time_of_oversupply*runtime_quantum;
+
+	if (time_of_oversupply > dbf->max_absolute_deadline) {
+		printf("abs: %lu, time_of_oversupply: %lu,  dbf_abs: %lu\n", abs_deadline, time_of_oversupply, dbf->max_absolute_deadline);
+		time_of_oversupply = dbf->max_absolute_deadline;
+	}
+
+	assert(start_time < time_of_oversupply);
+
+	// const uint32_t live_deadline_len = (time_of_oversupply - start_time) / runtime_quantum;
+	// const uint32_t live_deadline_len         = time_of_oversupply/runtime_quantum - start_time/runtime_quantum;
+	const uint32_t live_deadline_len         = round((time_of_oversupply - start_time) / (double)runtime_quantum);
+	const uint32_t abs_deadline_idx = (time_of_oversupply / runtime_quantum) % dbf->capacity;
+
+	uint64_t       demand_overgone   = 0;
+	uint32_t circular_i = (time_of_oversupply/runtime_quantum) % dbf->capacity;
+
+	const uint64_t max_supply_at_time_i  = live_deadline_len * dbf->base_supply;
+	const uint64_t curr_demand_at_time_i = dbf->demands[circular_i];
+
+	if (curr_demand_at_time_i > max_supply_at_time_i) {
+		demand_overgone = curr_demand_at_time_i - max_supply_at_time_i;
+	}
+
+	return demand_overgone;
+}
+
+/*
+static uint64_t
+dbf_array_get_demand_overgone_its_supply_at(void *dbf_raw, uint64_t start_time, uint64_t abs_deadline, uint64_t time_of_oversupply)
+{
+	assert(dbf_raw != NULL);
+	assert(start_time < abs_deadline);
+	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+
+	const uint32_t live_deadline_len = ceil((abs_deadline - start_time) / (double)runtime_quantum);
+	const uint32_t abs_deadline_idx = (abs_deadline / runtime_quantum) % dbf->capacity;
+
+	uint64_t       demand_overgone   = 0;
+	uint32_t circular_i = (abs_deadline_idx + time_of_oversupply) % dbf->capacity;
+
+	const uint64_t max_supply_at_time_i  = (live_deadline_len + time_of_oversupply) * dbf->base_supply;
+	const uint64_t curr_demand_at_time_i = dbf->demands[circular_i];
+
+	if (curr_demand_at_time_i > max_supply_at_time_i) {
+		demand_overgone = curr_demand_at_time_i - max_supply_at_time_i;
+	}
+
+	return demand_overgone;
+}
+
+static uint64_t
+dbf_array_get_demand_overgone_its_supply_at__BAK(void *dbf_raw, uint64_t start_time, uint64_t abs_deadline)
+{
+	assert(dbf_raw != NULL);
+	assert(start_time < abs_deadline);
+	struct dbf_array *dbf = (struct dbf_array *)dbf_raw;
+
+	const uint32_t live_deadline_len    = ceil((abs_deadline - start_time) / (double)runtime_quantum);
+	const uint32_t absolute_arrival_idx = start_time / runtime_quantum % dbf->capacity;
+
+	uint64_t demand_overgone = 0;
+
+	const uint32_t abs_deadline_idx = (abs_deadline / runtime_quantum) % dbf->capacity;
+
+	// assert(live_deadline_len<=route_relative_deadline_len);
+
+	for (uint32_t i = abs_deadline_idx, iter = 0; i < abs_deadline_idx + live_deadline_len; i++, iter++) {
+		uint32_t circular_i = i % dbf->capacity;
+
+		const uint64_t max_supply_at_time_i  = (live_deadline_len + iter) * dbf->base_supply;
+		const uint64_t curr_demand_at_time_i = dbf->demands[circular_i];
+
+		if (curr_demand_at_time_i > max_supply_at_time_i) {
+			if (curr_demand_at_time_i - max_supply_at_time_i > demand_overgone) {
+				demand_overgone = curr_demand_at_time_i - max_supply_at_time_i;
+			}
+		}
+	}
+
+	return demand_overgone;
+}
+*/
+static void
+dbf_array_free(void *dbf)
+{
+	assert(dbf != NULL);
+
+	free(dbf);
+}
+
+
+void *
+dbf_array_initialize(uint32_t num_of_workers, uint8_t reservation_percentile, int worker_idx, struct tenant *tenant)
+{
+	struct dbf_config config = {
+		.get_worker_idx_fn = dbf_array_get_worker_idx,
+		// .get_max_relative_dl_fn = dbf_array_get_max_relative_dl,
+		// .get_idx_oversuplly_fn = dbf_array_get_idx_oversuplly,
+		.get_time_of_oversupply_fn = dbf_array_get_time_of_oversupply,
+		.print_fn               = dbf_array_print,
+		// .print_supply_fn            = dbf_array_print_suply,
+		// .grow_fn = 								dbf_array_grow,
+		.try_update_demand_fn                 = dbf_array_try_update_demand,
+		.get_demand_overgone_its_supply_at_fn = dbf_array_get_demand_overgone_its_supply_at,
+		.free_fn = dbf_array_free
+	};
+
+	dbf_plug_functions(&config);
+
+	assert(runtime_max_deadline > 0);
+
+	uint32_t capacity = runtime_max_deadline / runtime_quantum /* * 2 */; // NOT adding 1 for final leftovers
+	struct dbf_array *dbf = (struct dbf_array *)calloc(1, sizeof(struct dbf_array) + sizeof(uint64_t) * capacity);
+
+	dbf->capacity              = capacity;
+	dbf->max_relative_deadline = runtime_max_deadline;
+	dbf->worker_idx            = worker_idx;
+	// uint32_t cpu_factor        = (num_of_workers == 1) ? 1 : num_of_workers * RUNTIME_MAX_CPU_UTIL_PERCENTILE / 100;
+	dbf->base_supply           = runtime_quantum * num_of_workers * reservation_percentile * RUNTIME_MAX_CPU_UTIL_PERCENTILE / 10000;
+
+	return dbf;
+}

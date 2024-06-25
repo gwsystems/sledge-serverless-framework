@@ -19,29 +19,25 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_RUNNING_SYS: {
+	case SANDBOX_RUNNING_SYS: 
 		assert(sandbox == current_sandbox_get());
 		assert(runtime_worker_threads_deadline[worker_thread_idx] == sandbox->absolute_deadline);
 		break;
-	}
-	case SANDBOX_PREEMPTED: {
+	
+	case SANDBOX_PREEMPTED: 
 		break;
-	}
-	default: {
+	
+	default: 
 		panic("Sandbox %lu | Illegal transition from %s to Running\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
-	}
+	
 	}
 
 
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
-	if (last_state == SANDBOX_RUNNING_SYS) {
-		sandbox->remaining_exec = (sandbox->remaining_exec > sandbox->last_state_duration)
-		                            ? sandbox->remaining_exec - sandbox->last_state_duration
-		                            : 0;
-	}
+	if(last_state == SANDBOX_RUNNING_SYS) sandbox->last_running_state_duration += sandbox->last_state_duration;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RUNNING_USER);
@@ -52,8 +48,7 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_transition_from_hook(sandbox, last_state);
 	sandbox_state_transition_to_hook(sandbox, SANDBOX_RUNNING_USER);
 
-	if (last_state == SANDBOX_RUNNING_SYS)
-		sandbox_process_scheduler_updates(sandbox); // TODO: is this code preemptable? Ok to be?
+	assert(sandbox->memory->abi.size > 0);
 
 	barrier();
 	sandbox->state = SANDBOX_RUNNING_USER;

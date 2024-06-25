@@ -1,5 +1,10 @@
 #pragma once
 
+// #include <string.h>
+// #include <sys/socket.h>
+// #include <sys/types.h>
+// #include <netdb.h>
+
 #include "current_wasm_module_instance.h"
 #include "pool.h"
 #include "sledge_abi_symbols.h"
@@ -113,9 +118,11 @@ module_initialize_pools(struct module *module)
 {
 	/* Create only a single pool for the preprocessing module, since it is executed only by the event core. */
 	const int n = module->type == APP_MODULE ? runtime_worker_threads_count : 1;
-	for (int i = 0; i < n; i++) {
-		wasm_memory_pool_init(&module->pools[i].memory, false);
-		wasm_stack_pool_init(&module->pools[i].stack, false);
+	for (int i = 0; i < 1; i++) {
+		// wasm_memory_pool_init(&module->pools[i].memory, false);
+		// wasm_stack_pool_init(&module->pools[i].stack, false);
+		wasm_memory_pool_init(&module->pools[i].memory, true);
+		wasm_stack_pool_init(&module->pools[i].stack, true);
 	}
 }
 
@@ -123,7 +130,7 @@ static inline void
 module_deinitialize_pools(struct module *module)
 {
 	const int n = module->type == APP_MODULE ? runtime_worker_threads_count : 1;
-	for (int i = 0; i < n; i++) {
+	for (int i = 0; i < 1; i++) {
 		wasm_memory_pool_deinit(&module->pools[i].memory);
 		wasm_stack_pool_deinit(&module->pools[i].stack);
 	}
@@ -167,7 +174,8 @@ module_allocate_stack(struct module *module)
 {
 	assert(module != NULL);
 
-	struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&module->pools[worker_thread_idx].stack);
+	// struct wasm_stack *stack = wasm_stack_pool_remove_nolock(&module->pools[worker_thread_idx].stack);
+	struct wasm_stack *stack = wasm_stack_pool_remove(&module->pools[0].stack);
 
 	if (stack == NULL) {
 		stack = wasm_stack_alloc(module->stack_size);
@@ -178,10 +186,17 @@ module_allocate_stack(struct module *module)
 }
 
 static inline void
-module_free_stack(struct module *module, struct wasm_stack *stack)
+module_free_stack(struct module *module, struct wasm_stack *stack, int orig_wrk_idx)
 {
+	assert(orig_wrk_idx >= 0);
+	// if (module->pools[worker_thread_idx].stack.size == RUNTIME_WORKER_POOL_SIZE) {
+	// 	assert(0);
+	// 	wasm_stack_free(stack);
+	// 	return;
+	// }
 	wasm_stack_reinit(stack);
-	wasm_stack_pool_add_nolock(&module->pools[worker_thread_idx].stack, stack);
+	// wasm_stack_pool_add_nolock(&module->pools[worker_thread_idx].stack, stack);
+	wasm_stack_pool_add(&module->pools[0].stack, stack);
 }
 
 static inline struct wasm_memory *
@@ -198,7 +213,8 @@ module_allocate_linear_memory(struct module *module)
 	assert(starting_bytes <= (uint64_t)UINT32_MAX + 1);
 	assert(max_bytes <= (uint64_t)UINT32_MAX + 1);
 
-	struct wasm_memory *linear_memory = wasm_memory_pool_remove_nolock(&module->pools[worker_thread_idx].memory);
+	// struct wasm_memory *linear_memory = wasm_memory_pool_remove_nolock(&module->pools[worker_thread_idx].memory);
+	struct wasm_memory *linear_memory = wasm_memory_pool_remove(&module->pools[0].memory);
 	if (linear_memory == NULL) {
 		linear_memory = wasm_memory_alloc(starting_bytes, max_bytes);
 		if (unlikely(linear_memory == NULL)) return NULL;
@@ -207,9 +223,26 @@ module_allocate_linear_memory(struct module *module)
 	return linear_memory;
 }
 
+thread_local static uint16_t max_size = 0;
+
 static inline void
-module_free_linear_memory(struct module *module, struct wasm_memory *memory)
+module_free_linear_memory(struct module *module, struct wasm_memory *memory, int orig_wrk_idx)
 {
+	assert(orig_wrk_idx >= 0);
+	// if (module->pools[worker_thread_idx].memory.size == RUNTIME_WORKER_POOL_SIZE) {
+	// 	assert(0);
+	// 	wasm_memory_free(memory);
+	// 	return;
+	// }
 	wasm_memory_reinit(memory, module->abi.starting_pages * WASM_PAGE_SIZE);
-	wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
+	// wasm_memory_pool_add_nolock(&module->pools[worker_thread_idx].memory, memory);
+	wasm_memory_pool_add(&module->pools[0].memory, memory);
+	// if (17 < module->pools[0].memory.size) {
+	// 	// max_size = module->pools[0].memory.size;
+	// 	printf("Module %s - [Worker]=Sizes\n",  module->path);
+	// 	for (int i=0; i< 1; i++) {
+	// 		printf("%u ", module->pools[i].memory.size);
+	// 	}
+	// 	printf("\n\n");
+	// }
 }

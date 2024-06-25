@@ -137,9 +137,10 @@ wasm_memory_reinit(struct wasm_memory *wasm_memory, uint64_t initial)
 static INLINE int32_t
 wasm_memory_expand(struct wasm_memory *wasm_memory, uint64_t size_to_expand)
 {
+	assert(wasm_memory);
 	uint64_t target_size = wasm_memory->abi.size + size_to_expand;
 	if (unlikely(target_size > wasm_memory->abi.max)) {
-		fprintf(stderr, "wasm_memory_expand - Out of Memory!. %lu out of %lu\n", wasm_memory->abi.size,
+		fprintf(stderr, "wasm_memory_expand - Out of Memory! target_size=%lu, size=%lu, max=%lu\n", target_size, wasm_memory->abi.size,
 		        wasm_memory->abi.max);
 		return -1;
 	}
@@ -153,6 +154,7 @@ wasm_memory_expand(struct wasm_memory *wasm_memory, uint64_t size_to_expand)
 		int rc = mprotect(wasm_memory->abi.buffer, target_size, PROT_READ | PROT_WRITE);
 		if (rc != 0) {
 			perror("wasm_memory_expand mprotect");
+			assert(0);
 			return -1;
 		}
 
@@ -169,6 +171,9 @@ wasm_memory_get_size(struct wasm_memory *wasm_memory)
 	return wasm_memory->abi.size;
 }
 
+/**
+ * @brief Copy the segments into the linear memory
+ */
 static INLINE void
 wasm_memory_initialize_region(struct wasm_memory *wasm_memory, uint32_t offset, uint32_t region_size, uint8_t region[])
 {
@@ -180,7 +185,7 @@ wasm_memory_initialize_region(struct wasm_memory *wasm_memory, uint32_t offset, 
  * instructions. These functions are intended to be used by the runtime to interacts with linear memories. */
 
 /**
- * Translates WASM offsets into runtime VM pointers
+ * Translates WASM offsets into runtime Virtual Memory pointers
  * @param offset an offset into the WebAssembly linear memory
  * @param bounds_check the size of the thing we are pointing to
  * @return void pointer to something in WebAssembly linear memory

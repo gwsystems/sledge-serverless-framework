@@ -33,32 +33,45 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_ALLOCATED:
+	case SANDBOX_INITIALIZED:
+		assert(sandbox->memory == NULL);
 		break;
-	case SANDBOX_RUNNING_SYS: {
-		local_runqueue_delete(sandbox);
-		sandbox_free_linear_memory(sandbox);
+	case SANDBOX_PREEMPTED:
+		/* Global work-shedding scenario, where we kill a job right after pullling from global queue */
+		if (USING_LOCAL_RUNQUEUE) {
+			local_runqueue_delete(sandbox); 
+		} else {
+			assert(sandbox->owned_worker_idx == -2);
+			assert(sandbox->pq_idx_in_runqueue == 0);
+		}
+		
+		// sandbox_free_linear_memory(sandbox);
 		break;
-	}
-	default: {
+	case SANDBOX_RUNNABLE: /* When using local queues */
+	case SANDBOX_RUNNING_SYS:
+	case SANDBOX_INTERRUPTED:
+		assert(sandbox->owned_worker_idx >= 0);
+		assert(sandbox->pq_idx_in_runqueue >= 1);
+		local_runqueue_delete(sandbox); 
+		// sandbox_free_linear_memory(sandbox);
+		break;
+	default:
 		panic("Sandbox %lu | Illegal transition from %s to Error\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
-	}
 	}
 
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
-	if (last_state == SANDBOX_RUNNING_SYS) {
-		sandbox->remaining_exec = (sandbox->remaining_exec > sandbox->last_state_duration)
-		                            ? sandbox->remaining_exec - sandbox->last_state_duration
-		                            : 0;
-	}
+	if(last_state == SANDBOX_RUNNING_SYS) sandbox->last_running_state_duration += sandbox->last_state_duration;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_ERROR);
 	sandbox_state_totals_increment(SANDBOX_ERROR);
 	sandbox_state_totals_decrement(last_state);
+
+	sandbox->timestamp_of.completion = now;
+	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation;
 
 #ifdef ADMISSIONS_CONTROL
 	/* Admissions Control Post Processing */
@@ -66,7 +79,8 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 #endif
 
 	/* Return HTTP session to listener core to be written back to client */
-	http_session_set_response_header(sandbox->http, 500);
+	const int http_status_code = (sandbox->response_code > 0) ? sandbox->response_code / 10 : 500;
+	http_session_set_response_header(sandbox->http, http_status_code);
 	sandbox->http->state = HTTP_SESSION_EXECUTION_COMPLETE;
 	http_session_send_response(sandbox->http, (void_star_cb)listener_thread_register_http_session);
 	sandbox->http = NULL;
@@ -85,8 +99,8 @@ sandbox_set_as_error(struct sandbox *sandbox, sandbox_state_t last_state)
 static inline void
 sandbox_exit_error(struct sandbox *sandbox)
 {
-	assert(sandbox->state == SANDBOX_RUNNING_SYS);
-	sandbox_set_as_error(sandbox, SANDBOX_RUNNING_SYS);
+	// assert(sandbox->state == SANDBOX_RUNNING_SYS);
+	sandbox_set_as_error(sandbox, sandbox->state);
 
 	sandbox_process_scheduler_updates(sandbox);
 }

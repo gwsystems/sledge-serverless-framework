@@ -1,0 +1,14 @@
+{
+	"name": "tenant",
+	"port": 0,
+	"reservation-percentile": 0,
+	"routes": [
+		{
+			"route": "/route",
+			"path": "fibonacci.wasm.so",
+			"admissions-percentile": 60,
+			"relative-deadline-us": 1,
+			"http-resp-content-type": "text/plain"
+		}
+	]
+}

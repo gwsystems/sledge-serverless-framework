@@ -44,8 +44,9 @@ module_init(struct module *module, char *path)
 	rc = sledge_abi_symbols_init(&module->abi, path);
 	if (rc != 0) goto err;
 
-	module->pools = calloc((module->type == APP_MODULE ? runtime_worker_threads_count : 1),
-	                       sizeof(struct module_pool));
+	const int n = module->type == APP_MODULE ? runtime_worker_threads_count : 1;
+	// module->pools = calloc(n, sizeof(struct module_pool));
+	module->pools = calloc(1, sizeof(struct module_pool));
 
 	module->path = path;
 

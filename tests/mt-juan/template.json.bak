@@ -1,0 +1,21 @@
+{
+	"name": "tenant",
+	"port": 0,
+	"replenishment-period-us": 0,
+	"max-budget-us": 0,
+	"routes": [
+		{
+			"route": "/route",
+			"path": "fibonacci.wasm.so",
+			"path_premodule": "get_jpeg_resolution.wasm.so",
+			"model-bias": 0,
+			"model-scale": 0,
+			"model-num-of-param": 0,
+			"model-beta1": 0,
+			"model-beta2": 0,
+			"admissions-percentile": 60,
+			"relative-deadline-us": 5000,
+			"http-resp-content-type": "text/plain"
+		}
+	]
+}

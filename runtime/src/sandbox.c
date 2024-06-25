@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
+#include "sandbox_types.h"
 #include "current_sandbox.h"
 #include "debuglog.h"
 #include "panic.h"
@@ -37,6 +38,10 @@ sandbox_allocate_linear_memory(struct sandbox *sandbox)
 	assert(sandbox != NULL);
 	sandbox->memory = module_allocate_linear_memory(sandbox->module);
 	if (unlikely(sandbox->memory == NULL)) return -1;
+
+	// sandbox->sizes[sandbox->sizesize] = sandbox->memory->abi.size;
+	// sandbox->sizesize++;
+	sandbox->memory->abi.id = sandbox->id;
 
 	return 0;
 }
@@ -77,8 +82,21 @@ sandbox_free_stack(struct sandbox *sandbox)
 {
 	assert(sandbox);
 
-	return module_free_stack(sandbox->module, sandbox->stack);
+	return module_free_stack(sandbox->module, sandbox->stack, sandbox->original_owner_worker_idx);
 }
+
+// /**
+//  * Free Linear Memory, leaving stack in place
+//  * @param sandbox
+//  */
+// static inline void
+// sandbox_free_linear_memory(struct sandbox *sandbox)
+// {
+// 	assert(sandbox != NULL);
+// 	assert(sandbox->memory != NULL);
+// 	module_free_linear_memory(sandbox->module, (struct wasm_memory *)sandbox->memory);
+// 	sandbox->memory = NULL;
+// }
 
 /**
  * Allocates HTTP buffers and performs our approximation of "WebAssembly instantiation"
@@ -129,15 +147,15 @@ err_stack_allocation_failed:
 err_memory_allocation_failed:
 err_globals_allocation_failed:
 err_http_allocation_failed:
-	sandbox_set_as_error(sandbox, SANDBOX_ALLOCATED);
+	sandbox_set_as_error(sandbox, SANDBOX_INITIALIZED);
+	sandbox_free(sandbox);
 	perror(error_message);
 	rc = -1;
 	goto done;
 }
 
 void
-sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session *session, struct route *route,
-             struct tenant *tenant, uint64_t admissions_estimate)
+sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session *session, uint64_t admissions_estimate)
 {
 	/* Sets the ID to the value before the increment */
 	sandbox->id     = sandbox_total_postfix_increment();
@@ -150,11 +168,18 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 	/* Allocate HTTP session structure */
 	assert(session);
 	sandbox->http   = session;
-	sandbox->tenant = tenant;
-	sandbox->route  = route;
+	sandbox->tenant = session->tenant;
+	sandbox->route  = session->route;
 
 	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->route->relative_deadline;
 	sandbox->payload_size      = session->http_request.body_length;
+
+	sandbox->exceeded_estimation = false;
+	sandbox->writeback_preemption_in_progress = false;
+	sandbox->writeback_overshoot_in_progress = false;
+	sandbox->response_code       = 0;
+	sandbox->owned_worker_idx    = -2;
+	sandbox->original_owner_worker_idx = -2;
 
 	/*
 	 * Admissions Control State
@@ -176,8 +201,7 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
  * @return the new sandbox request
  */
 struct sandbox *
-sandbox_alloc(struct module *module, struct http_session *session, struct route *route, struct tenant *tenant,
-              uint64_t admissions_estimate)
+sandbox_alloc(struct module *module, struct http_session *session, uint64_t admissions_estimate, uint64_t sandbox_alloc_timestamp)
 {
 	size_t alignment     = (size_t)PAGE_SIZE;
 	size_t size_to_alloc = (size_t)round_up_to_page(sizeof(struct sandbox));
@@ -190,11 +214,33 @@ sandbox_alloc(struct module *module, struct http_session *session, struct route 
 	if (unlikely(sandbox == NULL)) return NULL;
 	memset(sandbox, 0, size_to_alloc);
 
+	sandbox->timestamp_of.allocation = sandbox_alloc_timestamp;
 	sandbox_set_as_allocated(sandbox);
-	sandbox_init(sandbox, module, session, route, tenant, admissions_estimate);
+	sandbox_init(sandbox, module, session, admissions_estimate);
 
+	sandbox_refs[sandbox->id % RUNTIME_MAX_ALIVE_SANDBOXES] = true;
 
 	return sandbox;
+}
+
+struct sandbox_metadata *sandbox_meta_alloc(struct sandbox *sandbox)
+{
+	struct sandbox_metadata *sandbox_meta = malloc(sizeof(struct sandbox_metadata));
+
+	sandbox_meta->sandbox_shadow       = sandbox;
+	sandbox_meta->tenant               = sandbox->tenant;
+	sandbox_meta->route                = sandbox->route;
+	sandbox_meta->id                   = sandbox->id;
+	sandbox_meta->state                = sandbox->state;
+	sandbox_meta->allocation_timestamp = sandbox->timestamp_of.allocation;
+	sandbox_meta->absolute_deadline    = sandbox->absolute_deadline;
+	sandbox_meta->remaining_exec       = sandbox->remaining_exec;
+	sandbox_meta->exceeded_estimation  = sandbox->exceeded_estimation;
+	sandbox_meta->owned_worker_idx     = worker_thread_idx;
+	sandbox_meta->terminated           = false;
+	sandbox_meta->pq_idx_in_tenant_queue = 0;
+
+	return sandbox_meta;
 }
 
 void
@@ -210,8 +256,9 @@ sandbox_deinit(struct sandbox *sandbox)
 	module_release(sandbox->module);
 
 	/* Linear Memory and Guard Page should already have been munmaped and set to NULL */
-	assert(sandbox->memory == NULL);
+	// assert(sandbox->memory == NULL);
 
+	if (likely(sandbox->memory != NULL)) sandbox_free_linear_memory(sandbox);
 	if (likely(sandbox->stack != NULL)) sandbox_free_stack(sandbox);
 	if (likely(sandbox->globals.buffer != NULL)) sandbox_free_globals(sandbox);
 	if (likely(sandbox->wasi_context != NULL)) wasi_context_destroy(sandbox->wasi_context);
@@ -227,7 +274,9 @@ sandbox_free(struct sandbox *sandbox)
 	assert(sandbox != NULL);
 	assert(sandbox != current_sandbox_get());
 	assert(sandbox->state == SANDBOX_ERROR || sandbox->state == SANDBOX_COMPLETE);
+	assert(!listener_thread_is_running() || sandbox->memory == NULL);
 
+	sandbox_refs[sandbox->id % RUNTIME_MAX_ALIVE_SANDBOXES] = false;
 	sandbox_deinit(sandbox);
 	free(sandbox);
 }

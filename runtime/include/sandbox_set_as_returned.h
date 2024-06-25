@@ -31,28 +31,27 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_RUNNING_SYS: {
+	case SANDBOX_RUNNING_SYS:
 		local_runqueue_delete(sandbox);
-		sandbox_free_linear_memory(sandbox);
+		// sandbox_free_linear_memory(sandbox);
 		break;
-	}
-	default: {
+	default:
 		panic("Sandbox %lu | Illegal transition from %s to Returned\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
-	}
 	}
 
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
-	sandbox->remaining_exec      = (sandbox->remaining_exec > sandbox->last_state_duration)
-	                                 ? sandbox->remaining_exec - sandbox->last_state_duration
-	                                 : 0;
+	sandbox->last_running_state_duration += sandbox->last_state_duration;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RETURNED);
 	sandbox_state_totals_increment(SANDBOX_RETURNED);
 	sandbox_state_totals_decrement(last_state);
+
+	sandbox->timestamp_of.completion = now;
+	sandbox->total_time = sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation;
 
 	http_session_set_response_header(sandbox->http, 200);
 	sandbox->http->state = HTTP_SESSION_EXECUTION_COMPLETE;

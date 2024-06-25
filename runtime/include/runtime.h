@@ -24,10 +24,14 @@
 
 #define RUNTIME_LOG_FILE                 "sledge.log"
 #define RUNTIME_MAX_EPOLL_EVENTS         128
-#define RUNTIME_MAX_TENANT_COUNT         32
+#define RUNTIME_MAX_TENANT_COUNT         320
 #define RUNTIME_RELATIVE_DEADLINE_US_MAX 3600000000 /* One Hour. Fits in uint32_t */
-#define RUNTIME_RUNQUEUE_SIZE            256        /* Minimum guaranteed size. Might grow! */
+#define RUNTIME_RUNQUEUE_SIZE            2560        /* Minimum guaranteed size. Might grow! */
 #define RUNTIME_TENANT_QUEUE_SIZE        4096
+#define RUNTIME_WORKER_POOL_SIZE         8 /* Set to zero if no pooling desired */
+
+#define RUNTIME_MAX_CPU_UTIL_PERCENTILE 100
+#define RUNTIME_MAX_ALIVE_SANDBOXES     1048576 // 1 << 20
 
 enum RUNTIME_SIGALRM_HANDLER
 {
@@ -40,16 +44,22 @@ extern bool                         runtime_preemption_enabled;
 extern bool                         runtime_worker_spinloop_pause_enabled;
 extern uint32_t                     runtime_processor_speed_MHz;
 extern uint32_t                     runtime_quantum_us;
+extern uint64_t                     runtime_quantum;
 extern enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler;
 extern pthread_t                   *runtime_worker_threads;
 extern uint32_t                     runtime_worker_threads_count;
 extern int                         *runtime_worker_threads_argument;
 extern uint64_t                    *runtime_worker_threads_deadline;
 extern uint64_t                     runtime_boot_timestamp;
+extern uint64_t                     runtime_max_deadline;
+extern bool                         sandbox_refs[];
+extern uint16_t                     extra_execution_slack_p;
 
 extern void runtime_initialize(void);
 extern void runtime_set_pthread_prio(pthread_t thread, unsigned int nice);
 extern void runtime_set_resource_limits_to_max(void);
+extern void runtime_cleanup();
+void runtime_set_policy_and_prio();
 
 /* External Symbols */
 extern int   expand_memory(void);
@@ -67,3 +77,15 @@ runtime_print_sigalrm_handler(enum RUNTIME_SIGALRM_HANDLER variant)
 		return "TRIAGED";
 	}
 }
+
+static const bool USING_WORK_CONSERVATION = true;
+
+static const bool USING_LOCAL_RUNQUEUE = false;
+static const bool USING_TRY_LOCAL_EXTRA = true;
+
+static const bool USING_WRITEBACK_FOR_PREEMPTION = !USING_LOCAL_RUNQUEUE;
+static const bool USING_WRITEBACK_FOR_OVERSHOOT = false;
+
+static const bool USING_AGGREGATED_GLOBAL_DBF = USING_LOCAL_RUNQUEUE || false;
+
+static const bool USING_EARLIEST_START_FIRST = false;

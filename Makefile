@@ -35,7 +35,7 @@ libsledge.clean:
 .PHONY: runtime
 runtime:
 	make -C runtime
-
+	./rsync.sh
 
 .PHONY: runtime.clean
 runtime.clean:

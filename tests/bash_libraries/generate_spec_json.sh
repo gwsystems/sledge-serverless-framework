@@ -87,7 +87,7 @@ generate_spec_json() {
 		done
 	done
 
-	if [ "$CLIENT_TERMINATE_SERVER" == true ]; then jq_admin_spec; fi
+	if [ "$ADMIN_ACCESS" == true ]; then jq_admin_spec; fi
 
 	# Merges all of the multiple specs for a single module
 	jq -s '. | sort_by(.name)' ./result_*.json > "./spec.json"

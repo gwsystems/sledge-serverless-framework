@@ -183,7 +183,13 @@ ps_list_ll_rem(struct ps_list *l)
 	for (iter   = ps_list_head_first((head), __typeof__(*iter), lname); !ps_list_is_head((head), iter, lname); \
 	     (iter) = ps_list_next(iter, lname))
 
+/* Reverse iteration without mutating the list */
+#define ps_list_foreach_rev(head, iter, lname)                                                                         \
+	for (iter   = ps_list_head_last((head), __typeof__(*iter), lname); !ps_list_is_head((head), iter, lname); \
+	     (iter) = ps_list_prev(iter, lname))
+
 #define ps_list_foreach_d(head, iter) ps_list_foreach(head, iter, PS_LIST_DEF_NAME)
+#define ps_list_foreach_rev_d(head, iter) ps_list_foreach_rev(head, iter, PS_LIST_DEF_NAME)
 
 /*
  * Iteration where the current node can be ps_list_rem'ed.

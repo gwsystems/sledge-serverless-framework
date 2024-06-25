@@ -49,10 +49,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 #endif
 
 	const uint64_t expected_execution = route.relative_deadline / 2;
-#ifdef ADMISSIONS_CONTROL
-	/* Addmissions Control setup */
 	route.execution_histogram.estimated_execution = expected_execution;
-#endif
 
 #ifdef EXECUTION_HISTOGRAM
 	/* Execution Histogram setup */

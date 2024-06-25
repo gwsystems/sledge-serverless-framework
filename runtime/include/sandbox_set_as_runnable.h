@@ -29,19 +29,19 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_INITIALIZED: {
-		sandbox->timestamp_of.dispatched = now;
+	case SANDBOX_INITIALIZED: 
+		if(sandbox->timestamp_of.dispatched == 0) sandbox->timestamp_of.dispatched = now;
+		local_runqueue_add(sandbox);
+		// sandbox->owned_worker_idx = worker_thread_idx;
+		assert(sandbox->original_owner_worker_idx == -2);
+		sandbox->original_owner_worker_idx = worker_thread_idx;
+		break;
+	case SANDBOX_ASLEEP:
 		local_runqueue_add(sandbox);
 		break;
-	}
-	case SANDBOX_ASLEEP: {
-		local_runqueue_add(sandbox);
-		break;
-	}
-	default: {
+	default: 
 		panic("Sandbox %lu | Illegal transition from %s to Runnable\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
-	}
 	}
 
 	/* State Change Bookkeeping */
@@ -63,5 +63,7 @@ static inline void
 sandbox_wakeup(struct sandbox *sandbox)
 {
 	assert(sandbox->state == SANDBOX_ASLEEP);
+	assert(0); // Now sandbox should not sleep
+
 	sandbox_set_as_runnable(sandbox, SANDBOX_ASLEEP);
 }

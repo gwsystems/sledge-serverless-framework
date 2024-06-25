@@ -179,6 +179,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			atomic_fetch_sub(&handler_depth, 1);
 			current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
 		} else {
+			assert(0);
 			panic("Runtime SIGSEGV\n");
 		}
 

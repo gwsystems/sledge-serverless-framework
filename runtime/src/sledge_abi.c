@@ -43,7 +43,17 @@ check_bounds(uint32_t offset, uint32_t bounds_check)
 EXPORT int32_t
 sledge_abi__wasm_memory_expand(struct sledge_abi__wasm_memory *wasm_memory, uint32_t page_count)
 {
+	uint64_t oldsize = wasm_memory->size;
 	struct sandbox *sandbox = current_sandbox_get();
+
+assert(sandbox->sandbox_meta);
+if (!(sandbox->id == wasm_memory->id)) fprintf(stderr, "sand_id: %lu, wasm_id: %lu, terminated: %u, orig_idx: %d, owner_wrk; %d, wrk: %d\n", sandbox->id, wasm_memory->id, sandbox->sandbox_meta->terminated, sandbox->original_owner_worker_idx, sandbox->owned_worker_idx, worker_thread_idx);
+assert(sandbox->id == wasm_memory->id);
+
+// if (!(sandbox->memory->abi.size == wasm_memory->size)) printf("sand_memsize: %lu, wasm_size: %lu, wasm_oldsize: %lu, targetsize: %lu\n", sandbox->memory->abi.size, wasm_memory->size, oldsize, page_count * WASM_PAGE_SIZE);
+// assert(sandbox->memory->abi.size == wasm_memory->size);
+
+if (sandbox->state != SANDBOX_RUNNING_USER) panic ("state!!! %u\n", sandbox->state);
 
 	sandbox_syscall(sandbox);
 	int32_t old_page_count = wasm_memory->size / WASM_PAGE_SIZE;
@@ -51,12 +61,20 @@ sledge_abi__wasm_memory_expand(struct sledge_abi__wasm_memory *wasm_memory, uint
 
 	if (unlikely(rc == -1)) {
 		old_page_count = -1;
+		assert(0);
 		goto DONE;
 	}
 
 	/* We updated "forked state" in sledge_abi__current_wasm_module_instance.memory. We need to write this back to
 	 * the original struct as well  */
 	current_sandbox_memory_writeback();
+
+	
+	
+	// if (!(sandbox->memory->abi.size == wasm_memory->size)) printf("sand_memsize: %lu, wasm_size: %lu, wasm_oldsize: %lu, targetsize: %lu\n", sandbox->memory->abi.size, wasm_memory->size, oldsize, page_count * WASM_PAGE_SIZE);
+	// assert(sandbox->memory->abi.size == wasm_memory->size);
+	// sandbox->sizes[sandbox->sizesize] = wasm_memory->size + page_count * WASM_PAGE_SIZE;
+	// sandbox->sizesize++;
 
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	// Cache the runtime of the first N page allocations

@@ -18,16 +18,20 @@
  * @returns priority (a uint64_t)
  */
 typedef uint64_t (*priority_queue_get_priority_fn_t)(void *element);
+typedef void (*priority_queue_update_priority_fn_t)(const void *element);
+typedef void (*priority_queue_update_idx_fn_t)(void *element, size_t idx);
 
 /* We assume that priority is expressed in terms of a 64 bit unsigned integral */
 struct priority_queue {
-	priority_queue_get_priority_fn_t get_priority_fn;
-	bool                             use_lock;
-	lock_t                           lock;
-	uint64_t                         highest_priority;
-	size_t                           size;
-	size_t                           capacity;
-	void                            *items[];
+	priority_queue_get_priority_fn_t    get_priority_fn;
+	priority_queue_update_priority_fn_t update_priority_fn;
+	priority_queue_update_idx_fn_t      update_idx_fn;
+	bool                                use_lock;
+	lock_t                              lock;
+	uint64_t                            highest_priority;
+	size_t                              size;
+	size_t                              capacity;
+	void	                       *items[];
 };
 
 /**
@@ -47,6 +51,11 @@ static inline void
 priority_queue_update_highest_priority(struct priority_queue *priority_queue, const uint64_t priority)
 {
 	priority_queue->highest_priority = priority;
+
+	if (priority_queue->update_priority_fn) {
+		// priority_queue->update_priority_fn((priority_queue->size > 0) ? priority_queue->items[1] : NULL);
+		priority_queue->update_priority_fn(priority_queue->items[1]);
+	}
 }
 
 /**
@@ -60,6 +69,7 @@ priority_queue_append(struct priority_queue *priority_queue, void *new_item)
 {
 	assert(priority_queue != NULL);
 	assert(new_item != NULL);
+	// assert(priority_queue->update_idx_fn != NULL);
 	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
 	int rc;
@@ -67,6 +77,9 @@ priority_queue_append(struct priority_queue *priority_queue, void *new_item)
 	if (unlikely(priority_queue->size > priority_queue->capacity)) panic("PQ overflow");
 	if (unlikely(priority_queue->size == priority_queue->capacity)) goto err_enospc;
 	priority_queue->items[++priority_queue->size] = new_item;
+	if (priority_queue->update_idx_fn) {
+		priority_queue->update_idx_fn(priority_queue->items[priority_queue->size], priority_queue->size);
+	}
 
 	rc = 0;
 done:
@@ -116,6 +129,10 @@ priority_queue_percolate_up(struct priority_queue *priority_queue)
 		void *temp                   = priority_queue->items[i / 2];
 		priority_queue->items[i / 2] = priority_queue->items[i];
 		priority_queue->items[i]     = temp;
+		if (priority_queue->update_idx_fn) {
+			priority_queue->update_idx_fn(priority_queue->items[i], i);
+			priority_queue->update_idx_fn(priority_queue->items[i / 2], i / 2);
+		}
 		/* If percolated to highest priority, update highest priority */
 		if (i / 2 == 1)
 			priority_queue_update_highest_priority(priority_queue, priority_queue->get_priority_fn(
@@ -168,7 +185,7 @@ priority_queue_percolate_down(struct priority_queue *priority_queue, int parent_
 	assert(priority_queue != NULL);
 	assert(priority_queue->get_priority_fn != NULL);
 	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
-	assert(!listener_thread_is_running());
+	// assert(!listener_thread_is_running());
 
 	bool update_highest_value = parent_index == 1;
 
@@ -183,6 +200,11 @@ priority_queue_percolate_down(struct priority_queue *priority_queue, int parent_
 		void *temp                                  = priority_queue->items[smallest_child_index];
 		priority_queue->items[smallest_child_index] = priority_queue->items[parent_index];
 		priority_queue->items[parent_index]         = temp;
+		if (priority_queue->update_idx_fn) {
+			priority_queue->update_idx_fn(priority_queue->items[smallest_child_index],
+			                              smallest_child_index);
+			priority_queue->update_idx_fn(priority_queue->items[parent_index], parent_index);
+		}
 
 		parent_index     = smallest_child_index;
 		left_child_index = 2 * parent_index;
@@ -216,8 +238,8 @@ priority_queue_dequeue_if_earlier_nolock(struct priority_queue *priority_queue, 
 	assert(priority_queue != NULL);
 	assert(dequeued_element != NULL);
 	assert(priority_queue->get_priority_fn != NULL);
-	assert(!listener_thread_is_running());
 	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
+	// assert(!listener_thread_is_running());
 
 	int return_code;
 
@@ -225,9 +247,13 @@ priority_queue_dequeue_if_earlier_nolock(struct priority_queue *priority_queue, 
 	if (priority_queue_is_empty(priority_queue) || priority_queue->highest_priority >= target_deadline)
 		goto err_enoent;
 
-	*dequeued_element                             = priority_queue->items[1];
+	*dequeued_element = priority_queue->items[1];
+	if (priority_queue->update_idx_fn) { priority_queue->update_idx_fn(*dequeued_element, 0); }
 	priority_queue->items[1]                      = priority_queue->items[priority_queue->size];
 	priority_queue->items[priority_queue->size--] = NULL;
+	if (priority_queue->update_idx_fn && priority_queue->items[1]) {
+		priority_queue->update_idx_fn(priority_queue->items[1], 1);
+	}
 
 	priority_queue_percolate_down(priority_queue, 1);
 	return_code = 0;
@@ -283,6 +309,29 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
 	priority_queue->use_lock        = use_lock;
 
 	if (use_lock) lock_init(&priority_queue->lock);
+
+	return priority_queue;
+}
+
+/**
+ * Initializes some additional properties of Priority Queue Data structure. TODO: Unite with above
+ * @param capacity the number of elements to store in the data structure
+ * @param use_lock indicates that we want a concurrent data structure
+ * @param get_priority_fn pointer to a function that returns the priority of an element
+ * @return priority queue
+ */
+static inline struct priority_queue *
+priority_queue_initialize_new(size_t capacity, bool use_lock, priority_queue_get_priority_fn_t get_priority_fn,
+                              priority_queue_update_priority_fn_t update_priority_fn,
+                              priority_queue_update_idx_fn_t      update_idx_fn)
+{
+	assert(update_idx_fn != NULL);
+
+	struct priority_queue *priority_queue = priority_queue_initialize(capacity, use_lock, get_priority_fn);
+
+	priority_queue->update_priority_fn = update_priority_fn;
+	priority_queue->update_idx_fn      = update_idx_fn;
+	if (update_priority_fn) priority_queue->update_priority_fn(NULL);
 
 	return priority_queue;
 }
@@ -412,6 +461,10 @@ priority_queue_delete_nolock(struct priority_queue *priority_queue, void *value)
 		if (priority_queue->items[i] == value) {
 			priority_queue->items[i]                      = priority_queue->items[priority_queue->size];
 			priority_queue->items[priority_queue->size--] = NULL;
+			if (priority_queue->update_idx_fn) {
+				priority_queue->update_idx_fn(value, 0);
+				priority_queue->update_idx_fn(priority_queue->items[i], i);
+			}
 			priority_queue_percolate_down(priority_queue, i);
 			return 0;
 		}
@@ -436,6 +489,52 @@ priority_queue_delete(struct priority_queue *priority_queue, void *value)
 	lock_unlock(&priority_queue->lock, &node);
 
 	return rc;
+}
+
+/**
+ * @param priority_queue - the priority queue we want to delete from
+ * @param idx - the index of the value we want to delete
+ */
+static inline void
+priority_queue_delete_by_idx_nolock(struct priority_queue *priority_queue, const void *value_to_remove,
+                                    const size_t idx)
+{
+	assert(priority_queue != NULL);
+	assert(idx <= priority_queue->size);
+	assert(idx >= 1);
+	assert(priority_queue->update_idx_fn);
+	if (scheduler != SCHEDULER_MTDS && scheduler != SCHEDULER_MTDBF) assert(!listener_thread_is_running());
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
+
+	void *r = priority_queue->items[idx];
+	assert(r == value_to_remove);
+	priority_queue->update_idx_fn(r, 0);
+
+	if (idx == priority_queue->size) {
+		// priority_queue->size--;
+		priority_queue->items[priority_queue->size--] = NULL;
+		priority_queue_percolate_down(priority_queue, idx);
+		return;
+	}
+
+	priority_queue->items[idx]                    = priority_queue->items[priority_queue->size];
+	priority_queue->items[priority_queue->size--] = NULL;
+	priority_queue->update_idx_fn(priority_queue->items[idx], idx);
+	priority_queue_percolate_down(priority_queue, idx);
+}
+
+/**
+ * @param priority_queue - the priority queue we want to delete from
+ * @param idx - the index of the value we want to delete
+ * @returns 0 on success. -1 on not found
+ */
+static inline void
+priority_queue_delete_by_idx(struct priority_queue *priority_queue, const void *value_to_remove, const size_t idx)
+{
+	lock_node_t node = {};
+	lock_lock(&priority_queue->lock, &node);
+	priority_queue_delete_by_idx_nolock(priority_queue, value_to_remove, idx);
+	lock_unlock(&priority_queue->lock, &node);
 }
 
 /**

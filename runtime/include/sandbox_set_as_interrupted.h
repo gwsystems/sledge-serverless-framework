@@ -15,6 +15,7 @@ static inline void
 sandbox_set_as_interrupted(struct sandbox *sandbox, sandbox_state_t last_state)
 {
 	assert(sandbox);
+	assert(last_state == SANDBOX_RUNNING_USER);
 
 	/* WARNING: All code before this assignment is preemptable */
 	sandbox->state = SANDBOX_INTERRUPTED;
@@ -25,10 +26,7 @@ sandbox_set_as_interrupted(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
-	assert(last_state == SANDBOX_RUNNING_USER);
-	sandbox->remaining_exec = (sandbox->remaining_exec > sandbox->last_state_duration)
-	                            ? sandbox->remaining_exec - sandbox->last_state_duration
-	                            : 0;
+	sandbox->last_running_state_duration += sandbox->last_state_duration;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
 	/* We do not append SANDBOX_INTERRUPTED to the sandbox_state_history because it would quickly fill the buffer */
@@ -44,8 +42,6 @@ static inline void
 sandbox_interrupt(struct sandbox *sandbox)
 {
 	sandbox_set_as_interrupted(sandbox, sandbox->state);
-
-	sandbox_process_scheduler_updates(sandbox);
 }
 
 
@@ -69,9 +65,9 @@ sandbox_interrupt_return(struct sandbox *sandbox, sandbox_state_t interrupted_st
 	sandbox_state_totals_increment(interrupted_state);
 	sandbox_state_totals_decrement(SANDBOX_INTERRUPTED);
 
-	if (sandbox->absolute_deadline < now) {
-		// printf("Interrupted Sandbox missed deadline already!\n");
-	}
+	// if (sandbox->absolute_deadline < now) {
+	// 	printf("Interrupted sandbox #%lu of %s missed deadline in worker #%d!\n", sandbox->id, sandbox->tenant->name, worker_thread_idx);
+	// }
 
 	barrier();
 	/* WARNING: Code after this assignment may be preemptable */

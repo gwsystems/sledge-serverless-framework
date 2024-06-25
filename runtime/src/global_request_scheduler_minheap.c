@@ -61,23 +61,13 @@ global_request_scheduler_minheap_peek(void)
 	return priority_queue_peek(global_request_scheduler_minheap);
 }
 
-uint64_t
-sandbox_get_priority_fn(void *element)
-{
-	struct sandbox *sandbox = (struct sandbox *)element;
-	if (scheduler == SCHEDULER_SJF) return sandbox->remaining_exec;
-	assert(scheduler == SCHEDULER_EDF);
-	return sandbox->absolute_deadline;
-};
-
-
 /**
  * Initializes the variant and registers against the polymorphic interface
  */
 void
 global_request_scheduler_minheap_initialize()
 {
-	global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_get_priority_fn);
+	global_request_scheduler_minheap = priority_queue_initialize(4096, true, sandbox_get_priority);
 
 	struct global_request_scheduler_config config = {.add_fn    = global_request_scheduler_minheap_add,
 	                                                 .remove_fn = global_request_scheduler_minheap_remove,

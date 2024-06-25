@@ -14,6 +14,7 @@ enum tenant_config_member
 	tenant_config_member_port,
 	tenant_config_member_replenishment_period_us,
 	tenant_config_member_max_budget_us,
+	tenant_config_reservation_percentile,
 	tenant_config_member_routes,
 	tenant_config_member_len
 };
@@ -23,8 +24,10 @@ struct tenant_config {
 	uint16_t             port;
 	uint32_t             replenishment_period_us;
 	uint32_t             max_budget_us;
+	uint8_t              reservation_percentile;
 	struct route_config *routes;
 	size_t               routes_len;
+	uint32_t             max_relative_deadline_us;
 };
 
 static inline void
@@ -34,6 +37,7 @@ tenant_config_deinit(struct tenant_config *config)
 	config->name                    = NULL;
 	config->replenishment_period_us = 0;
 	config->max_budget_us           = 0;
+	config->reservation_percentile  = 0;
 	for (int i = 0; i < config->routes_len; i++) { route_config_deinit(&config->routes[i]); }
 	free(config->routes);
 	config->routes     = NULL;
@@ -48,9 +52,12 @@ tenant_config_print(struct tenant_config *config)
 	if (scheduler == SCHEDULER_MTDS) {
 		printf("[Tenant] Replenishment Period (us): %u\n", config->replenishment_period_us);
 		printf("[Tenant] Max Budget (us): %u\n", config->max_budget_us);
+	} else if (scheduler == SCHEDULER_MTDBF) {
+		printf("[Tenant] Reservation (%%): %u\n", config->reservation_percentile);
 	}
 	printf("[Tenant] Routes Size: %zu\n", config->routes_len);
 	for (int i = 0; i < config->routes_len; i++) { route_config_print(&config->routes[i]); }
+	printf("\n");
 }
 
 static inline int
@@ -91,6 +98,17 @@ tenant_config_validate(struct tenant_config *config, bool *did_set)
 		if (config->max_budget_us > (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX) {
 			fprintf(stderr, "Max-budget-us must be between 0 and %u, was %u\n",
 			        (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, config->max_budget_us);
+			return -1;
+		}
+	} else if (scheduler == SCHEDULER_MTDBF) {
+		if (did_set[tenant_config_reservation_percentile] == false) {
+			fprintf(stderr, "reservation-percentile field is required\n");
+			return -1;
+		}
+
+		if (config->replenishment_period_us > 100) {
+			fprintf(stderr, "Reservation-percentile must be between 0 and 100, was %u\n",
+			        config->reservation_percentile);
 			return -1;
 		}
 	}

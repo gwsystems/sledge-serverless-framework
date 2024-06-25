@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Admin",
+    "port": 55555,
+    "replenishment-period-us": 0,
+    "max-budget-us": 0,
+    "reservation-percentile": 0,
+    "routes": [
+      {
+        "route": "/admin",
+        "path": "fibonacci.wasm.so",
+        "admissions-percentile": 50,
+        "expected-execution-us": 1000,
+        "relative-deadline-us": 10000,
+        "http-resp-content-type": "text/plain"
+      },
+      {
+        "route": "/terminator",
+        "path": "fibonacci.wasm.so",
+        "admissions-percentile": 50,
+        "expected-execution-us": 1000,
+        "relative-deadline-us": 10000,
+        "http-resp-content-type": "text/plain"
+      }
+    ]
+  },
+  {
+    "name": "cifar10-000",
+    "port": 15000,
+    "replenishment-period-us": 0,
+    "max-budget-us": 0,
+    "reservation-percentile": 20,
+    "routes": [
+      {
+        "route": "/cifar10",
+        "path": "cifar10.wasm.so",
+        "admissions-percentile": 60,
+        "expected-execution-us": 4000,
+        "relative-deadline-us": 20000,
+        "http-resp-content-type": "text/plain"
+      }
+    ]
+  }
+]

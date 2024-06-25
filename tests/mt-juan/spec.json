@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Admin",
+    "port": 55555,
+    "replenishment-period-us": 0,
+    "max-budget-us": 0,
+    "reservation-percentile": 0,
+    "routes": [
+      {
+        "route": "/admin",
+        "path": "fibonacci.wasm.so",
+        "path_premodule": "get_jpeg_resolution.wasm.so",
+        "model-bias": 0,
+        "model-scale": 0,
+        "model-num-of-param": 0,
+        "model-beta1": 0,
+        "model-beta2": 0,
+        "admissions-percentile": 60,
+        "expected-execution-us": 1000,
+        "relative-deadline-us": 5000,
+        "http-resp-content-type": "text/plain"
+      },
+      {
+        "route": "/terminator",
+        "path": "fibonacci.wasm.so",
+        "path_premodule": "get_jpeg_resolution.wasm.so",
+        "model-bias": 0,
+        "model-scale": 0,
+        "model-num-of-param": 0,
+        "model-beta1": 0,
+        "model-beta2": 0,
+        "admissions-percentile": 60,
+        "expected-execution-us": 1000,
+        "relative-deadline-us": 5000,
+        "http-resp-content-type": "text/plain"
+      }
+    ]
+  },
+  {
+    "name": "resize-000",
+    "port": 30000,
+    "replenishment-period-us": 0,
+    "max-budget-us": 0,
+    "reservation-percentile": 20,
+    "routes": [
+      {
+        "route": "/resize",
+        "path": "resize_image.wasm.so",
+        "path_premodule": "get_jpeg_resolution.wasm.so",
+        "model-bias": 1500,
+        "model-scale": 3400,
+        "model-num-of-param": 2,
+        "model-beta1": 5476,
+        "model-beta2": 8379,
+        "admissions-percentile": 60,
+        "expected-execution-us": 62000,
+        "relative-deadline-us": 310000,
+        "http-resp-content-type": "image/jpeg"
+      }
+    ]
+  }
+]

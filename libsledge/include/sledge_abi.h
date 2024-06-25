@@ -28,6 +28,7 @@ struct sledge_abi__wasm_memory {
 	uint64_t capacity; /* Size backed by actual pages */
 	uint64_t max;      /* Soft cap in bytes. Defaults to 4GB */
 	uint8_t *buffer;   /* Backing heap allocation. Different lifetime because realloc might move this */
+    uint64_t id;
 };
 
 /* This structure is the runtime representation of the unique state of a module instance

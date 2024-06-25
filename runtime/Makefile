@@ -14,10 +14,10 @@ CFLAGS=-std=c18 -pthread
 CFLAGS+=-D_GNU_SOURCE
 
 # Release Flags
-CFLAGS+=-O3 -flto
+# CFLAGS+=-O3 -flto
 
 # Debugging Flags
-# CFLAGS+=-O0 -g3
+CFLAGS+=-O0 -g3
 
 # CFI Sanitizer
 # CFLAGS+=-fvisibility=default -fsanitize=cfi
@@ -43,6 +43,7 @@ CFLAGS += -DEXECUTION_HISTOGRAM
 
 # It is recommended (not mandatory) to enable this flag along with the EXECUTION_HISTOGRAM flag:
 # CFLAGS += -DADMISSIONS_CONTROL
+# CFLAGS += -DTRAFFIC_CONTROL
 
 # Debugging Flags
 
@@ -62,6 +63,7 @@ CFLAGS += -DEXECUTION_HISTOGRAM
 # Various Informational Logs for Debugging
 # CFLAGS += -DLOG_EXECUTION_HISTOGRAM
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
+# CFLAGS += -DLOG_TRAFFIC_CONTROL
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_HTTP_PARSER
 # CFLAGS += -DLOG_TENANT_LOADING
@@ -74,7 +76,7 @@ CFLAGS += -DEXECUTION_HISTOGRAM
 
 # This adds an array of sandbox states to all sandbox structs and appends states at each transition
 # The history trucates when the number of elements equal SANDBOX_STATE_HISTORY_CAPACITY 
-# CFLAGS += -DLOG_STATE_CHANGES
+CFLAGS += -DLOG_STATE_CHANGES
 
 # This dumps per module *.csv files containing the cycle a sandbox has been in RUNNING when each
 # page is allocated. This helps understand the relationship to memory allocation and execution time.

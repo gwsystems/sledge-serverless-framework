@@ -4,6 +4,9 @@
 #include <stdint.h>
 
 #include "execution_histogram.h"
+// #include "admissions_info.h"
+// #include "estimated_exec_info.h"
+// #include "module.h"
 #include "http_route_total.h"
 #include "module.h"
 #include "perf_window.h"
