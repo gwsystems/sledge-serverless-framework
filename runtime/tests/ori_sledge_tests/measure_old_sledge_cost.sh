@@ -15,14 +15,14 @@ remote_ip="10.10.1.1"
 repeat_count=$1
 > old_sledge.log
 
-path="/my_mount/old_sledge/sledge-serverless-framework/runtime/tests"
+path="/my_mount/ori_sledge/sledge-serverless-framework/runtime/tests"
 for(( i=0;i<$repeat_count;i++ )) do
-	echo "i is $i"
-	echo "start server..."
+	#echo "i is $i"
+	#echo "start server..."
         ssh -o stricthostkeychecking=no -i ./id_rsa xiaosuGW@$remote_ip "sudo $path/start.sh > 1.txt 2>&1 &"
         sleep 1 
-	echo "start client..."
+	#echo "start client..."
         #./curl.sh >> old_sledge.log
         ./curl.sh 
-        ssh -o stricthostkeychecking=no -i ./id_rsa xiaosuGW@$remote_ip  "sudo $path/kill_sledge.sh"
+        ssh -o stricthostkeychecking=no -i ./id_rsa xiaosuGW@$remote_ip  "sudo $path/kill_sledge.sh" > /dev/null 2>&1
 done
