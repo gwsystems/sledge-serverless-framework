@@ -68,6 +68,7 @@ struct sandbox {
 	                                 deadline (cycles) */
 	uint64_t total_time;          /* Total time from Request to Response */
 	int      payload_size;
+	double   regression_param; /* Calculated in tenant preprocessing logic if provided */
 
 	/* System Interface State */
 	int32_t         return_value;
