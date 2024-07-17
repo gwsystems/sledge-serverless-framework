@@ -11,8 +11,8 @@
 			"n-resas": 1,
                         "path": "resize_image.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 25,
-                        "relative-deadline-us": 250,
+                        "expected-execution-us": 26,
+                        "relative-deadline-us": 260,
                         "http-resp-content-type": "text/plain"
                     },   
                     {
