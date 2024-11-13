@@ -63,7 +63,7 @@
 		    {
                         "route": "/cifar10",
                         "request-type": 6,
-                        "n-resas": 8,
+                        "n-resas": 6,
 			"group-id": 3,
                         "path": "cifar10.wasm.so",
                         "admissions-percentile": 70,
