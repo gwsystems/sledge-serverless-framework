@@ -12,8 +12,8 @@
 			"group-id": 1,
                         "path": "tracking.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 6,
+                        "relative-deadline-us": 60,
                         "http-resp-content-type": "text/plain"
                     },
 	            {       
@@ -23,8 +23,8 @@
 			"group-id": 1,
                         "path": "disparity.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 11,
+                        "relative-deadline-us": 110,
                         "http-resp-content-type": "text/plain"
                     },
 	            {       
@@ -34,8 +34,8 @@
 			"group-id": 1,
                         "path": "mser.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 16,
+                        "relative-deadline-us": 160,
                         "http-resp-content-type": "text/plain"
                     },
 		    {
@@ -45,8 +45,8 @@
 			"group-id": 1,
                         "path": "sift.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 113,
+                        "relative-deadline-us": 1130,
                         "http-resp-content-type": "text/plain"
                     },
 		    {
@@ -56,8 +56,8 @@
 			"group-id": 2,
                         "path": "multi_ncut.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 326,
+                        "relative-deadline-us": 3260,
                         "http-resp-content-type": "text/plain"
                     },
 		    {
@@ -67,8 +67,8 @@
 			"group-id": 3,
                         "path": "cifar10.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 2060,
+                        "relative-deadline-us": 20600,
                         "http-resp-content-type": "text/plain"
                     }
 			
