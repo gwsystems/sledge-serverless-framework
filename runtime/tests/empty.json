@@ -9,6 +9,7 @@
                         "route": "/empty",
                         "request-type": 1,
 			"n-resas": 2,
+			"group-id": 1,
                         "path": "empty.wasm.so",
                         "admissions-percentile": 70,
                         "expected-execution-us": 1,

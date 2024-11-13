@@ -19,7 +19,7 @@ fi
 sed -i "11s/\(\"n-resas\": \)[0-9]\+/\1$NUMBER1/" "$FILENAME"
 
 # Replace the "n-resas" value in the 21st line with NUMBER2
-sed -i "21s/\(\"n-resas\": \)[0-9]\+/\1$NUMBER2/" "$FILENAME"
+sed -i "22s/\(\"n-resas\": \)[0-9]\+/\1$NUMBER2/" "$FILENAME"
 
 echo "The file $FILENAME has been updated."
 

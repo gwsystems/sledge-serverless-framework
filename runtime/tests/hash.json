@@ -8,7 +8,8 @@
                     {
                         "route": "/hash",
                         "request-type": 1,
-			"n-resas": 6,
+			"n-resas": 3,
+                        "group-id": 1,
                         "path": "hash.wasm.so",
                         "admissions-percentile": 70,
                         "expected-execution-us": 5,

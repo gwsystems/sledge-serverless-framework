@@ -134,8 +134,18 @@ route_config_validate(struct route_config *config, bool *did_set)
 	}
 	
  	if (dispatcher == DISPATCHER_DARC) {
+	    if (did_set[route_config_member_n_resas] == false) {
+		fprintf(stderr, "n-resas is required for DARC\n");	
+		return -1;
+	    }
+
 	    if (did_set[route_config_member_group_id] == false) {
 		fprintf(stderr, "group id is required for DARC\n");
+		return -1;
+	    }
+
+	    if (config->group_id <= 0) {
+		fprintf(stderr, "group id must be larger than 0\n");
 		return -1;
 	    }
 

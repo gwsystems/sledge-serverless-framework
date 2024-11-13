@@ -5,67 +5,73 @@
                 "replenishment-period-us": 0,
                 "max-budget-us": 0,
                 "routes": [
-		    {       
-                        "route": "/sift",
-                        "request-type": 1,
-			"n-resas": 1,
-                        "path": "sift.wasm.so",
-                        "admissions-percentile": 70,
-                        "expected-execution-us": 26,
-                        "relative-deadline-us": 260,
-                        "http-resp-content-type": "text/plain"
-                    },   
-                    {
-                        "route": "/mser",
-                        "request-type": 2,
-			"n-resas": 5,
-                        "path": "mser.wasm.so",
-                        "admissions-percentile": 70,
-                        "expected-execution-us": 2070,
-                        "relative-deadline-us": 20700,
-                        "http-resp-content-type": "text/plain"
-                    },
-                    {
-                        "route": "/multi_ncut",
-                        "request-type": 3,
-			"n-resas": 5,
-                        "path": "multi_ncut.wasm.so",
-                        "admissions-percentile": 70,
-                        "expected-execution-us": 2070,
-                        "relative-deadline-us": 20700,
-                        "http-resp-content-type": "text/plain"
-                    },
                     {
                         "route": "/tracking",
-                        "request-type": 4,
-			"n-resas": 5,
+                        "request-type": 1,
+			"n-resas": 1,
+			"group-id": 1,
                         "path": "tracking.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 2070,
-                        "relative-deadline-us": 20700,
+                        "expected-execution-us": 5,
+                        "relative-deadline-us": 50,
                         "http-resp-content-type": "text/plain"
                     },
-                    {
+	            {       
                         "route": "/disparity",
-                        "request-type": 5,
-			"n-resas": 5,
+                        "request-type": 2,
+			"n-resas": 1,
+			"group-id": 1,
                         "path": "disparity.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 2070,
-                        "relative-deadline-us": 20700,
+                        "expected-execution-us": 5,
+                        "relative-deadline-us": 50,
                         "http-resp-content-type": "text/plain"
                     },
-                    {
-                        "route": "/classification",
+	            {       
+                        "route": "/mser",
+                        "request-type": 3,
+			"n-resas": 1,
+			"group-id": 1,
+                        "path": "mser.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 5,
+                        "relative-deadline-us": 50,
+                        "http-resp-content-type": "text/plain"
+                    },
+		    {
+                        "route": "/sift",
+                        "request-type": 4,
+                        "n-resas": 1,
+			"group-id": 1,
+                        "path": "sift.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 5,
+                        "relative-deadline-us": 50,
+                        "http-resp-content-type": "text/plain"
+                    },
+		    {
+                        "route": "/multi_ncut",
+                        "request-type": 5,
+                        "n-resas": 1,
+			"group-id": 2,
+                        "path": "multi_ncut.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 5,
+                        "relative-deadline-us": 50,
+                        "http-resp-content-type": "text/plain"
+                    },
+		    {
+                        "route": "/cifar10",
                         "request-type": 6,
-			"n-resas": 5,
+                        "n-resas": 8,
+			"group-id": 3,
                         "path": "cifar10.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 2070,
-                        "relative-deadline-us": 20700,
+                        "expected-execution-us": 5,
+                        "relative-deadline-us": 50,
                         "http-resp-content-type": "text/plain"
                     }
-
+			
                 ]
 
         }
