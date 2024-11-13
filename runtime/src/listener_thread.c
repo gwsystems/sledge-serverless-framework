@@ -67,7 +67,7 @@ _Atomic uint32_t free_workers[MAX_DISPATCHER] = {0}; // the index is the dispate
 					 // will be 111, then the free_workers[dispatcher_id] is 7
 
 
-thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE];
+thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE]; // key is group ID
 thread_local struct request_typed_deque *request_type_deque[MAX_REQUEST_TYPE];
 
 thread_local uint32_t n_rtypes = 0;
@@ -672,7 +672,7 @@ void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t s
 
         memcpy(sandbox->rpc_request_body, msg, size);
         sandbox->rpc_request_body_size = size;
-	push_to_rqueue(sandbox, request_type_queue[req_type - 1], __getcycles());
+	push_to_rqueue(sandbox, request_type_queue[route->group_id - 1], __getcycles());
 	global_queue_length++;
         if (global_queue_length > max_queue_length) {
                 max_queue_length = global_queue_length;

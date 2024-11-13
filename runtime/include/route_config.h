@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "dispatcher_options.h"
 #include "admissions_control.h"
 #include "runtime.h"
 #include "scheduler_options.h"
@@ -13,6 +14,7 @@ enum route_config_member
 	route_config_member_route,
 	route_config_member_request_type,
 	route_config_member_n_resas,
+	route_config_member_group_id,
 	route_config_member_path,
 	route_config_member_admissions_percentile,
 	route_config_member_expected_execution_us,
@@ -21,10 +23,13 @@ enum route_config_member
 	route_config_member_len
 };
 
+extern int groups[route_config_member_len];
+
 struct route_config {
 	char    *route;
 	uint8_t  request_type;
 	uint32_t n_resas;
+	uint32_t group_id;
 	char    *path;
 	uint8_t  admissions_percentile;
 	uint32_t expected_execution_us;
@@ -82,7 +87,7 @@ route_config_validate(struct route_config *config, bool *did_set)
 	}
 
 	if (did_set[route_config_member_http_resp_content_type] == false) {
-		debuglog("http_resp_content_type not set, defaulting to text/plain\n");
+		fprintf(stderr, "http_resp_content_type not set, defaulting to text/plain\n");
 		config->http_resp_content_type = "text/plain";
 	}
 
@@ -127,6 +132,22 @@ route_config_validate(struct route_config *config, bool *did_set)
 		}
 #endif
 	}
+	
+ 	if (dispatcher == DISPATCHER_DARC) {
+	    if (did_set[route_config_member_group_id] == false) {
+		fprintf(stderr, "group id is required for DARC\n");
+		return -1;
+	    }
 
+	    if (groups[config->group_id] == 0) {
+                groups[config->group_id] = config->n_resas;
+            } else {
+                if (groups[config->group_id] != config->n_resas) {
+                    fprintf(stderr, "same group id %d has different n-resas config, must be same\n", config->group_id);
+                    return -1;
+                }
+            }
+        }
+	
 	return 0;
 }

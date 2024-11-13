@@ -38,14 +38,15 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 	assert(config->route != NULL);
 	assert(config->http_resp_content_type != NULL);
 
-	struct route route = { .route                = config->route,
-			       .request_type         = config->request_type,
-		               .module               = module,
-		               .relative_deadline_us = config->relative_deadline_us,
-		               .relative_deadline    = (uint64_t)config->relative_deadline_us
-		                                    * runtime_processor_speed_MHz,
+	struct route route = { .route                	 = config->route,
+			       .request_type             = config->request_type,
+		               .module                   = module,
+		               .relative_deadline_us     = config->relative_deadline_us,
+		               .relative_deadline        = (uint64_t)config->relative_deadline_us
+		                                            * runtime_processor_speed_MHz,
 			       .expected_execution_cycle = config->expected_execution_cycle, 
-		               .response_content_type = config->http_resp_content_type };
+		               .response_content_type    = config->http_resp_content_type,
+			       .group_id                 = config->group_id};
 
 	route_latency_init(&route.latency);
 	http_route_total_init(&route.metrics);

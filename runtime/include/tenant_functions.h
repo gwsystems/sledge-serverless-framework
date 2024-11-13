@@ -197,15 +197,17 @@ tenant_request_typed_queue_init(struct tenant *tenant, void *arg1, void *arg2) {
 	    for(int i = 0; i < tenant->routes_len; i++) {
                 request_type_deque[tenant->routes_config[i].request_type - 1] =
                 request_typed_deque_init(tenant->routes_config[i].request_type, 4096);
+		n_rtypes++;
             }
-
         } else if (dispatcher == DISPATCHER_DARC) { 
 	    for(int i = 0; i < tenant->routes_len; i++) {
-		request_type_queue[tenant->routes_config[i].request_type - 1] = 
-		request_typed_queue_init(tenant->routes_config[i].request_type, tenant->routes_config[i].n_resas);		
+		if (request_type_queue[tenant->routes_config[i].group_id - 1] == NULL) {
+		    request_type_queue[tenant->routes_config[i].group_id - 1] = 
+	            request_typed_queue_init(tenant->routes_config[i].group_id, tenant->routes_config[i].n_resas);	
+		    n_rtypes++;	
+		}
 	    }
         }
-	n_rtypes = tenant->routes_len;
 }
 
 static inline void

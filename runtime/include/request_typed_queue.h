@@ -13,9 +13,6 @@ struct request_msg {
 };
 
 struct request_typed_queue {
-    uint8_t type;
-    uint64_t mean_ns;
-    uint64_t deadline;
     double ratio;
     struct sandbox *rqueue[RQUEUE_LEN];
     unsigned int rqueue_tail;
@@ -34,7 +31,7 @@ struct request_typed_queue {
     uint64_t last_resa;
     uint32_t stealable_workers[MAX_WORKERS];
     uint32_t n_stealable;
-    int type_group;
+    uint32_t type_group;
     uint64_t max_delay;
     double prev_demand;
 

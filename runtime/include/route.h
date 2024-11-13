@@ -21,4 +21,5 @@ struct route {
 	char                   *response_content_type;
 	struct admissions_info  admissions_info;
 	struct perf_window      latency;
+	uint32_t		group_id;
 };
