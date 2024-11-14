@@ -12,8 +12,8 @@
 			"group-id": 1,
                         "path": "dummy_tpcc.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 6,
+                        "relative-deadline-us": 60,
                         "http-resp-content-type": "text/plain"
                     },
 		    {
@@ -23,8 +23,8 @@
                         "group-id": 1,
                         "path": "dummy_tpcc.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 6,
+                        "relative-deadline-us": 60,
                         "http-resp-content-type": "text/plain"
                     },
 		    {
@@ -34,8 +34,8 @@
                         "group-id": 2,
                         "path": "dummy_tpcc.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 20,
+                        "relative-deadline-us": 200,
                         "http-resp-content-type": "text/plain"
                     },
 
@@ -46,8 +46,8 @@
 			"group-id": 3,
                         "path": "dummy_tpcc.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 88,
+                        "relative-deadline-us": 880,
                         "http-resp-content-type": "text/plain"
                     },
 		    {
@@ -57,8 +57,8 @@
 			"group-id": 3,
                         "path": "dummy_tpcc.wasm.so",
                         "admissions-percentile": 70,
-                        "expected-execution-us": 5,
-                        "relative-deadline-us": 50,
+                        "expected-execution-us": 100,
+                        "relative-deadline-us": 1000,
                         "http-resp-content-type": "text/plain"
                     }
                 ]
