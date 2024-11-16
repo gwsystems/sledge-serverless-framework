@@ -3,6 +3,10 @@ import os
 import sys
 from collections import defaultdict
 
+miss_rate_dict = defaultdict(lambda: defaultdict(list))
+total_miss_rate_dict = defaultdict(list)
+load_dict = defaultdict(int)
+
 #get all file names which contain key_str
 def file_name(file_dir, key_str):
     print(file_dir, key_str)
@@ -10,23 +14,28 @@ def file_name(file_dir, key_str):
     rps_list = []
 
     for root, dirs, files in os.walk(file_dir):
-        print(files, root, dirs)
+        print("file:", files)
+        print("root:", root)
+        print("dirs:", dirs)
         for file_i in files:
             if file_i.find(key_str) >= 0:
                 full_path = os.path.join(os.getcwd() + "/" + root, file_i)
-                #print(full_path)
+                print(full_path)
                 segs = file_i.split('-')
                 if len(segs) < 2:
                   continue
                 rps=segs[1]
+                print("rps---------", rps)
                 rps=rps.split(".")[0]
                 file_list.append(full_path)
-                rps_list.append(rps)
-        
-    file_list = sorted(file_list, key = lambda x: int(x.split('-')[-1].split(".")[0]))
+                rps_list.append(int(rps))
+
+    pattern = r"server-(\d+)-\d+\.log"
+
+    file_list = sorted(file_list, key=lambda x: int(re.search(pattern, x).group(1)))
     rps_list = sorted(rps_list)
-    print(file_list)
-    print(rps_list)
+    #print(file_list)
+    print("--------------------------------", rps_list)
     return file_list, rps_list
 
 def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dict, latency_99_9_dict, slow_down_99_99_dict, latency_99_99_dict):
@@ -42,6 +51,9 @@ def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dic
 		latency_99_99_rule = r'99.99 percentile latency is\s*([\d.]+)'
 		slow_down_99_99_rule = r'99.99 percentile slow down is\s*([\d.]+)'
 
+		miss_rate_rule = r"type\s+(\d+)\s+miss\s+deadline\s+rate:\s+([\d.]+)"
+		total_miss_rate_rule = r"miss\s+deadline\s+percentage:\s+([\d.]+)"
+
 		# Use the regular expressions to find the values
 		latency_match = re.search(latency_rule, rt)
 		slow_down_match = re.search(slow_down_rule, rt)
@@ -49,7 +61,8 @@ def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dic
 		slow_down_99_9_match = re.search(slow_down_99_9_rule, rt)
 		latency_99_99_match = re.search(latency_99_99_rule, rt)
 		slow_down_99_99_match = re.search(slow_down_99_99_rule, rt)
-		
+		total_miss_rate_match = re.search(total_miss_rate_rule, rt)	
+	
 		# Check if matches were found and extract the values
 		if latency_match:
 			latency_value = 0
@@ -87,11 +100,22 @@ def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dic
 			print("99.99th slow down is:", slow_down_value)
 			slow_down_99_99_dict[key].append(slow_down_value)
 
+		if total_miss_rate_match:
+			total_miss_rate = 0
+			total_miss_rate = total_miss_rate_match.group(1)
+			print("total miss rate for ", key, " is:", total_miss_rate) 
+			total_miss_rate_dict[key].append(total_miss_rate)
+
+		for match in re.finditer(miss_rate_rule, rt):
+                    r_type, miss_rate = match.groups()
+                    print("type:", r_type, "miss rate:", miss_rate)
+                    miss_rate_dict[key][int(r_type)].append(float(miss_rate))
+
+
 if __name__ == "__main__":
     import json
     #file_folders = ['SHINJUKU', 'SHINJUKU_25', 'DARC', 'EDF_SRSF_INTERRUPT']
-    file_folders = ['SHINJUKU_5', 'SHINJUKU_100', 'SHINJUKU_200', 'SHINJUKU_25', 'DARC', 'EDF_SRSF_INTERRUPT']
-    #file_folders = ['SHINJUKU']
+    file_folders = ['SHINJUKU', 'DARC', 'EDF_INTERRUPT']
     latency = defaultdict(list)
     slow_down = defaultdict(list)
     slow_down_99_9 = defaultdict(list)
@@ -108,6 +132,7 @@ if __name__ == "__main__":
 
     for key in file_folders:
         files_list, rps_list = file_name(key, argv[0])
+        load_dict[key] = rps_list
         get_values(key, files_list, latency, slow_down, slow_down_99_9, latency_99_9, slow_down_99_99, latency_99_99)
 
     print("99 latency:")
@@ -151,3 +176,19 @@ if __name__ == "__main__":
     f3 = open("rps.txt", 'w')
     f3.write(js3)
     f3.close()
+ 
+    js8 = json.dumps(miss_rate_dict)
+    f8 = open("seperate_miss_rate.txt", 'w')
+    f8.write(js8)
+    f8.close()
+
+    js9 = json.dumps(total_miss_rate_dict)
+    f9 = open("total_miss_rate.txt", 'w')
+    f9.write(js9)
+    f9.close()
+
+    js10 = json.dumps(load_dict)
+    f10 = open("sload.txt", 'w')
+    f10.write(js10)
+    f10.close()
+

@@ -63,13 +63,12 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		line = line.strip()
 		if "meet" in line:
 			meet_deadline += 1
-			name = line.split(" ")[7]
-			cleanup = line.split(" ")[9]
-			deadline = int(line.split(" ")[10])
-			name = name[1:]
-			tid = line.split(" ")[1]
+			name = line.split(" ")[6]
+			cleanup = line.split(" ")[8]
+			deadline = int(line.split(" ")[9])
+			tid = line.split(" ")[0]
 			request_counter[name] += 1
-			total_time = int(line.split(" ")[4])
+			total_time = int(line.split(" ")[3])
 			total_time_dist[name].append(total_time)
 			if name == "fib":
 				total_slow_down.append(round((float(total_time) / deadline), 2))
@@ -80,22 +79,21 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 			if total_time > max_latency_dist[name]:
 				max_latency_dist[name] = total_time
 			meet_deadline_dist[name] += 1
-			exe_time = int(line.split(" ")[5])
+			exe_time = int(line.split(" ")[4])
 			if exe_time > max_exe_time:
 				max_exe_time = exe_time
 			running_times[name].append(exe_time);
-			queue_time = int(line.split(" ")[6])
+			queue_time = int(line.split(" ")[5])
 			queuing_times[name].append(queue_time);	
 			thread_running_times[tid].append(exe_time);	
 			t2_cleanup[tid].append(cleanup)
 		if "miss" in line:
 			miss_deadline += 1
-			name = line.split(" ")[7]
-			cleanup = line.split(" ")[9]
-			deadline = int(line.split(" ")[10])
-			name = name[1:]
-			tid = line.split(" ")[1]
-			total_time = int(line.split(" ")[4])
+			name = line.split(" ")[6]
+			cleanup = line.split(" ")[8]
+			deadline = int(line.split(" ")[9])
+			tid = line.split(" ")[0]
+			total_time = int(line.split(" ")[3])
 			if total_time > max_latency_dist[name]:
                                 max_latency_dist[name] = total_time
 			request_counter[name] += 1
@@ -107,12 +105,11 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
                                 total_slow_down.append(round((float(total_time) / deadline), 2))
 			thread_times[tid].append(total_time)
 			miss_deadline_dist[name] += 1
-			exe_time = line.split(" ")[5]
-			exe_time = int(line.split(" ")[5])
+			exe_time = int(line.split(" ")[4])
 			if exe_time > max_exe_time:
 				max_exe_time = exe_time
 			running_times[name].append(exe_time);
-			queue_time = int(line.split(" ")[6])
+			queue_time = int(line.split(" ")[5])
 			queuing_times[name].append(queue_time);
 			thread_running_times[tid].append(exe_time);
 			t2_cleanup[tid].append(cleanup)
@@ -150,7 +147,7 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		total_request = miss_value + value
 		miss_rate = (miss_value * 100) / total_request
 	
-		print(key + " miss deadline rate:" + str(miss_rate));	
+		print("type ", key, " miss deadline rate:", str(miss_rate));	
 	#	print(func_name_dict[key] + " miss deadline rate:" + str(miss_rate) + " miss count is:" + str(miss_value) + " total request:" + str(total_request))
 	#print("effective total cpu times:", total_cpu_times)
 	#for key,value in real_time_workload_times_dist.items():
