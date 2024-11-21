@@ -11,7 +11,7 @@ index 7442ea1..04de7fa 100644
  void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
  void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
 diff --git a/runtime/include/http_router.h b/runtime/include/http_router.h
-index 5140f0f..8aa30dd 100644
+index b851f45..2925b0d 100644
 --- a/runtime/include/http_router.h
 +++ b/runtime/include/http_router.h
 @@ -92,7 +92,7 @@ http_router_match_route(http_router_t *router, char *route)
@@ -177,7 +177,7 @@ index 14b7aef..6515015 100644
  			if (tenant_config_set_key_once(did_set, tenant_config_member_routes) == -1) return -1;
  
 diff --git a/runtime/include/tenant_functions.h b/runtime/include/tenant_functions.h
-index cfcae1d..0e781ed 100644
+index 65cb23e..f1c4c66 100644
 --- a/runtime/include/tenant_functions.h
 +++ b/runtime/include/tenant_functions.h
 @@ -21,7 +21,7 @@ extern thread_local uint32_t n_rtypes;
@@ -352,7 +352,7 @@ index cfcae1d..0e781ed 100644
  }
  
 diff --git a/runtime/src/admissions_info.c b/runtime/src/admissions_info.c
-index 77c3417..f9837df 100644
+index 711db96..443b227 100644
 --- a/runtime/src/admissions_info.c
 +++ b/runtime/src/admissions_info.c
 @@ -3,7 +3,7 @@
@@ -378,10 +378,10 @@ index df5a420..7a4ad87 100644
      if (first_request_comming == false){
          t_start = time(NULL);
 diff --git a/runtime/src/worker_thread.c b/runtime/src/worker_thread.c
-index dd356a4..26ce73b 100644
+index 67a8d9f..fab3f6b 100644
 --- a/runtime/src/worker_thread.c
 +++ b/runtime/src/worker_thread.c
-@@ -24,16 +24,16 @@
+@@ -24,16 +24,17 @@
   * Worker Thread State     *
   **************************/
  
@@ -392,8 +392,8 @@ index dd356a4..26ce73b 100644
 -_Atomic uint32_t local_queue_length[1024] = {0};
 -uint32_t max_local_queue_length[1024] = {0};
 -uint32_t max_local_queue_height[1024] = {0};
--extern struct perf_window * worker_perf_windows[1024];
--thread_local struct perf_window perf_window_per_thread[1024];
+-extern struct perf_window * worker_perf_windows[1024]; // index is worker id
+-thread_local struct perf_window perf_window_per_thread[1024]; // index is route unique id
 -struct sandbox* current_sandboxes[1024] = { NULL };
 +extern pthread_mutex_t mutexs[1024]; //maximum index is number of threads
 +extern pthread_cond_t conds[1024]; //maximum index is number of threads
@@ -402,13 +402,14 @@ index dd356a4..26ce73b 100644
 +_Atomic uint32_t local_queue_length[1024] = {0}; //maximum index is number of threads
 +uint32_t max_local_queue_length[1024] = {0}; //maximum index is number of threads
 +uint32_t max_local_queue_height[1024] = {0}; //maximum index is number of threads
-+extern struct perf_window * worker_perf_windows[1024]; //maximum index is the number of modules
-+thread_local struct perf_window *perf_window_per_thread = NULL; // maximum index is the number of modules
++extern struct perf_window * worker_perf_windows[1024]; //index is worker id. maximum index is the number of threads
++//thread_local struct perf_window perf_window_per_thread[1024]; // index is route unique id
++thread_local struct perf_window *perf_window_per_thread = NULL; //index is route unique id, maximum index is the number of modules
 +struct sandbox* current_sandboxes[1024] = { NULL }; //maximum index is number of threads
  extern uint32_t runtime_worker_group_size;
  
  extern FILE *sandbox_perf_log;
-@@ -101,7 +101,8 @@ worker_thread_main(void *argument)
+@@ -101,7 +102,8 @@ worker_thread_main(void *argument)
  	// runtime_set_pthread_prio(pthread_self(), 2);
  	pthread_setschedprio(pthread_self(), -20);
  
