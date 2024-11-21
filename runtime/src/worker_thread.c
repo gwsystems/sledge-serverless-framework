@@ -31,8 +31,8 @@ extern sem_t semlock[1024];
 _Atomic uint32_t local_queue_length[1024] = {0};
 uint32_t max_local_queue_length[1024] = {0};
 uint32_t max_local_queue_height[1024] = {0};
-extern struct perf_window * worker_perf_windows[1024];
-thread_local struct perf_window perf_window_per_thread[1024];
+extern struct perf_window * worker_perf_windows[1024]; // index is worker id
+thread_local struct perf_window perf_window_per_thread[1024]; // index is route unique id
 struct sandbox* current_sandboxes[1024] = { NULL };
 extern uint32_t runtime_worker_group_size;
 

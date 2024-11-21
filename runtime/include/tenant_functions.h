@@ -185,7 +185,6 @@ tenant_preallocate_memory(struct tenant *tenant, void *arg1, void *arg2) {
 static inline void
 tenant_perf_window_init(struct tenant *tenant, void *arg1, void *arg2) {
 	for(int i = 0; i < tenant->router.length; i++) {
-		tenant->router.buffer[i].admissions_info.uid = i; 
 		perf_window_initialize(&perf_window_per_thread[i]);
 	} 	
 }

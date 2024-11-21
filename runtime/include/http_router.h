@@ -69,7 +69,7 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 
 	/* Admissions Control */
 	uint64_t expected_execution = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz;
-	admissions_info_initialize(&route.admissions_info, config->admissions_percentile, expected_execution,
+	admissions_info_initialize(&route.admissions_info, route.request_type, config->admissions_percentile, expected_execution,
 	                           route.relative_deadline);
 
 	int rc = vec_route_t_push(router, route);

@@ -12,7 +12,7 @@ struct admissions_info {
 	uint32_t 	   uid;		      /* unique id to identify an admissions_info at each thread */
 };
 
-void admissions_info_initialize(struct admissions_info *admissions_info, uint8_t percentile,
+void admissions_info_initialize(struct admissions_info *admissions_info, uint8_t uid, uint8_t percentile,
                                 uint64_t expected_execution, uint64_t relative_deadline);
 void admissions_info_update(struct admissions_info *admissions_info, uint64_t execution_duration);
 void perf_window_per_thread_update(struct admissions_info *admissions_info, uint64_t execution_duration);
