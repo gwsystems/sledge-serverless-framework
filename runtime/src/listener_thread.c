@@ -882,7 +882,8 @@ void shinjuku_dispatch_different_core() {
         }
 
         /* core is idle */
-        if ((1 << i) & free_workers[dispatcher_thread_idx]) {
+        //if ((1 << i) & free_workers[dispatcher_thread_idx]) {
+	if (local_runqueue_get_length_index(worker_list[i]) == 0) {
             struct sandbox *sandbox = shinjuku_select_sandbox();
             if (!sandbox) return; // queue is empty
 
@@ -936,6 +937,7 @@ void shinjuku_dispatch() {
         if (local_runqueue_get_length_index(worker_list[true_idx]) == 0) {
             struct sandbox *sandbox = shinjuku_select_sandbox();
             if (!sandbox) return; // queue is empty
+            //while (sandbox->global_worker_thread_idx != -1 && sandbox->global_worker_thread_idx != worker_list[true_idx]) {
             while (sandbox->global_worker_thread_idx != -1) {
 		sandbox->start_ts = __getcycles();
                 local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
@@ -959,6 +961,7 @@ void shinjuku_dispatch() {
                 struct sandbox *sandbox = shinjuku_select_sandbox();
                 if (!sandbox) return; // queue is empty
 
+                //while (sandbox->global_worker_thread_idx != -1 && sandbox->global_worker_thread_idx != worker_list[true_idx]) {
                 while (sandbox->global_worker_thread_idx != -1) {
 		    sandbox->start_ts = __getcycles();
                     local_runqueue_add_index(sandbox->global_worker_thread_idx, sandbox);
