@@ -4,8 +4,12 @@ import sys
 from collections import defaultdict
 
 miss_rate_dict = defaultdict(lambda: defaultdict(list))
+seperate_meet_dict = defaultdict(lambda: defaultdict(list))
+total_meet_dict = defaultdict(list)
 total_miss_rate_dict = defaultdict(list)
+weighted_miss_rate_dict = defaultdict(list)
 load_dict = defaultdict(int)
+total_requests_dict = defaultdict(list)
 
 #get all file names which contain key_str
 def file_name(file_dir, key_str):
@@ -30,9 +34,18 @@ def file_name(file_dir, key_str):
                 file_list.append(full_path)
                 rps_list.append(int(rps))
 
-    pattern = r"server-(\d+)-\d+\.log"
 
-    file_list = sorted(file_list, key=lambda x: int(re.search(pattern, x).group(1)))
+    #pattern = r"server-(\d+\.?\d*)-\d+\.log"
+    pattern = r"server-(\d+)-\d+(\.\d+)?\.log"
+
+    for file in file_list:
+        match = re.search(pattern, file)
+        if match:
+            print(f"Matched: {file}, RPS: {match.group(1)}")
+        else:
+            print(f"Not Matched: {file}", file)
+
+    file_list = sorted(file_list, key=lambda x: float(re.search(pattern, x).group(1)))
     rps_list = sorted(rps_list)
     #print(file_list)
     print("--------------------------------", rps_list)
@@ -52,7 +65,11 @@ def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dic
 		slow_down_99_99_rule = r'99.99 percentile slow down is\s*([\d.]+)'
 
 		miss_rate_rule = r"type\s+(\d+)\s+miss\s+deadline\s+rate:\s+([\d.]+)"
+		total_meet_requests_rule = r"type\s+(\d+)\s+total\s+meet\s+requests:\s+([\d.]+)"
+		total_requests_rule = r"type\s+(\d+)\s+meet\s+requests:\s+([\d.]+)"
 		total_miss_rate_rule = r"miss\s+deadline\s+percentage:\s+([\d.]+)"
+		weighted_miss_rate_rule = r"weighted\s+miss\s+rate:\s+([\d.]+)"
+		#total_requests_rule = r"total\s+requests:\s+([\d.]+)"
 
 		# Use the regular expressions to find the values
 		latency_match = re.search(latency_rule, rt)
@@ -62,6 +79,8 @@ def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dic
 		latency_99_99_match = re.search(latency_99_99_rule, rt)
 		slow_down_99_99_match = re.search(slow_down_99_99_rule, rt)
 		total_miss_rate_match = re.search(total_miss_rate_rule, rt)	
+		weighted_miss_rate_match = re.search(weighted_miss_rate_rule, rt)	
+		total_requests_match = re.search(total_requests_rule, rt)
 	
 		# Check if matches were found and extract the values
 		if latency_match:
@@ -106,6 +125,25 @@ def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dic
 			print("total miss rate for ", key, " is:", total_miss_rate) 
 			total_miss_rate_dict[key].append(total_miss_rate)
 
+		if weighted_miss_rate_match:
+			weighted_miss_rate = 0
+			weighted_miss_rate = weighted_miss_rate_match.group(1)
+			print("weighted miss rate for ", key, " is:", weighted_miss_rate)
+			weighted_miss_rate_dict[key].append(weighted_miss_rate)
+
+		total_meet = 0
+		for match in re.finditer(total_meet_requests_rule, rt):
+			r_type, meet_requests = match.groups()
+			print("type:", r_type, "meet requests:", meet_requests)
+			total_meet = total_meet + int(meet_requests)
+			seperate_meet_dict[key][int(r_type)].append(meet_requests)
+		total_meet_dict[key].append(total_meet)	
+		if total_requests_match:
+			total_requests = 0
+			total_requests = total_requests_match.group(1)
+			print("total request for ", key, " is:", total_requests)
+			total_requests_dict[key].append(total_requests)
+
 		for match in re.finditer(miss_rate_rule, rt):
                     r_type, miss_rate = match.groups()
                     print("type:", r_type, "miss rate:", miss_rate)
@@ -116,6 +154,7 @@ if __name__ == "__main__":
     import json
     #file_folders = ['SHINJUKU', 'SHINJUKU_25', 'DARC', 'EDF_SRSF_INTERRUPT']
     file_folders = ['SHINJUKU', 'DARC', 'EDF_INTERRUPT']
+    #file_folders = ['SHINJUKU']
     latency = defaultdict(list)
     slow_down = defaultdict(list)
     slow_down_99_9 = defaultdict(list)
@@ -192,3 +231,22 @@ if __name__ == "__main__":
     f10.write(js10)
     f10.close()
 
+    js11 = json.dumps(weighted_miss_rate_dict)
+    f11 = open("weighted_miss_rate.txt", 'w')
+    f11.write(js11)
+    f11.close()
+
+    js12 = json.dumps(total_requests_dict)
+    f12 = open("total_requests.txt", 'w')
+    f12.write(js12)
+    f12.close()
+
+    js13 = json.dumps(total_meet_dict)
+    f13 = open("total_meet.txt", 'w')
+    f13.write(js13)
+    f13.close()
+
+    js14 = json.dumps(seperate_meet_dict)
+    f14 = open("seperate_meet.txt", 'w')
+    f14.write(js14)
+    f14.close()

@@ -3,6 +3,12 @@ import json
 from collections import defaultdict
 import numpy as np
 
+weights_dict = {
+	'1': 0.99,
+	'2': 0.09,
+	'3': 0.01
+}
+
 def def_list_value():
 	return [0, 0, 0, 0, 0]
 def def_value():
@@ -141,18 +147,21 @@ def count_miss_or_meet_deadline_requests(file_dir, percentage):
 		p = np.percentile(a, int(percentage))
 		print(key + " " + percentage + " percentile is:" + str(p) + " mean is:" + str(np.mean(value)) + " max latency is:" + str(max_latency_dist[key]))
 	#total_cpu_times = 0
+	weighted_miss_rate = 0
 	for key,value in meet_deadline_dist.items():
 	#	total_cpu_times += value * fun_execution_time[key]
 		miss_value = miss_deadline_dist[key]
 		total_request = miss_value + value
 		miss_rate = (miss_value * 100) / total_request
+		weighted_miss_rate = weighted_miss_rate + miss_rate * weights_dict[key]
 	
-		print("type ", key, " miss deadline rate:", str(miss_rate));	
+		print("type ", key, " miss deadline rate:", str(miss_rate));
+		print("type ", key, " total meet requests:", str(value), " total miss requests:", str(miss_value))	
 	#	print(func_name_dict[key] + " miss deadline rate:" + str(miss_rate) + " miss count is:" + str(miss_value) + " total request:" + str(total_request))
 	#print("effective total cpu times:", total_cpu_times)
 	#for key,value in real_time_workload_times_dist.items():
 	#	real_time_workload_times_dist[key] = [x - min_time for x in value]
-
+	print("weighted miss rate:", weighted_miss_rate)
 	for key,value in running_times.items():
 		#print("function times:", func_name_with_id[key], np.median(total_times[key]), np.median(running_times[key]), np.median(queuing_times[key]), np.median(runnable_times[key]), np.median(blocked_times[key]), np.median(initializing_times[key]))
 		print("function :", key, "median total:", np.median(total_time_dist[key]), "exec:", np.median(running_times[key]), "queue:", np.median(queuing_times[key]))
