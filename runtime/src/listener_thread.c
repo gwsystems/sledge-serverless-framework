@@ -60,12 +60,12 @@ thread_local uint32_t current_reserved = 0;
 thread_local uint32_t dispatcher_try_interrupts = 0;
 thread_local uint32_t worker_start_id;
 thread_local uint32_t worker_end_id;
+uint64_t requests_counter[MAX_DISPATCHER][MAX_REQUEST_TYPE]  = {0};
 thread_local uint32_t worker_list[MAX_WORKERS]; // record the worker's true id(0 - N workers - 1). worker_list[0] - worker_list[2]
 _Atomic uint32_t free_workers[MAX_DISPATCHER] = {0}; // the index is the dispatercher id, free_workers[dispatcher_id] 
 					 // is decimal value of the bitmap of avaliable workers.
 					 // For example, if there are 3 workers available, the bitmap 
 					 // will be 111, then the free_workers[dispatcher_id] is 7
-
 
 thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE]; // key is group ID
 thread_local struct request_typed_deque *request_type_deque[MAX_REQUEST_TYPE];
@@ -502,6 +502,7 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
     }
 
     total_requests++;
+    requests_counter[dispatcher_thread_idx][req_type]++;
     /* Allocate a Sandbox */
     //session->state          = HTTP_SESSION_EXECUTING;
     struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
@@ -655,6 +656,7 @@ void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t s
         }
 
 	total_requests++;
+	requests_counter[dispatcher_thread_idx][req_type]++;
         /* Allocate a Sandbox */
         //session->state          = HTTP_SESSION_EXECUTING;
         struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
@@ -718,6 +720,7 @@ void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size
         }
 
 	total_requests++;
+	requests_counter[dispatcher_thread_idx][req_type]++;
         /* Allocate a Sandbox */
         //session->state          = HTTP_SESSION_EXECUTING;
         struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);

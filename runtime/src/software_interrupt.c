@@ -46,6 +46,7 @@ extern thread_local int global_worker_thread_idx;
 extern thread_local bool pthread_stop;
 extern thread_local bool is_listener;
 extern thread_local uint32_t total_complete_requests;
+extern uint64_t requests_counter[MAX_DISPATCHER][MAX_REQUEST_TYPE];
 thread_local _Atomic volatile sig_atomic_t handler_depth    = 0;
 thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
 
@@ -260,6 +261,11 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			double arriving_rate = total_requests / seconds;
 			printf("%d try preempts:%u max global queue %u arriving rate %f total requests %lu\n", dispatcher_thread_idx,
 				dispatcher_try_interrupts, max_queue_length, arriving_rate, total_requests);
+			for (int i = 0; i < MAX_REQUEST_TYPE; i++) {
+			    if (requests_counter[dispatcher_thread_idx][i] != 0) {
+			        mem_log("type %d total requests %lu\n", i, requests_counter[dispatcher_thread_idx][i]);
+			    }
+			} 
 			//mem_log("%d try preempts:%u max global queue %u arriving rate %f total requests %lu\n", dispatcher_thread_idx,
 			//	dispatcher_try_interrupts, max_queue_length, arriving_rate, total_requests);
 			dump_log_to_file();
