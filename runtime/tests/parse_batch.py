@@ -11,11 +11,13 @@ weighted_miss_rate_dict = defaultdict(list)
 load_dict = defaultdict(int)
 total_requests_dict = defaultdict(list)
 
+
 #get all file names which contain key_str
 def file_name(file_dir, key_str):
     print(file_dir, key_str)
     file_list = []
     rps_list = []
+    last_num_list = []
 
     for root, dirs, files in os.walk(file_dir):
         print("file:", files)
@@ -33,9 +35,10 @@ def file_name(file_dir, key_str):
                 rps=rps.split(".")[0]
                 file_list.append(full_path)
                 rps_list.append(int(rps))
+                last_num=segs[2]
+                last_num=last_num.split(".")[0]
+                last_num_list.append(int(last_num))		
 
-
-    #pattern = r"server-(\d+\.?\d*)-\d+\.log"
     pattern = r"server-(\d+)-\d+(\.\d+)?\.log"
 
     for file in file_list:
@@ -45,11 +48,15 @@ def file_name(file_dir, key_str):
         else:
             print(f"Not Matched: {file}", file)
 
-    file_list = sorted(file_list, key=lambda x: float(re.search(pattern, x).group(1)))
+    file_list_based_throughput = sorted(file_list, key=lambda x: float(re.search(pattern, x).group(1)))
     rps_list = sorted(rps_list)
-    #print(file_list)
+    last_num_list = sorted(last_num_list)
+    # Sort the list based on the last number in the filename
+    file_list_based_last_num = sorted(file_list, key=lambda x: int(x.split('-')[-1].split('.')[0]))
+
+    #print(file_list_based_last_num)
     print("--------------------------------", rps_list)
-    return file_list, rps_list
+    return file_list_based_throughput, file_list_based_last_num, rps_list, last_num_list
 
 def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dict, latency_99_9_dict, slow_down_99_99_dict, latency_99_99_dict):
 	for file_i in files_list:
@@ -165,14 +172,18 @@ if __name__ == "__main__":
     rps_list = []
 
     argv = sys.argv[1:]
-    if len(argv) < 1:
-        print("usage ", sys.argv[0], "[file key]")
+    if len(argv) < 2:
+        print("usage ", sys.argv[0], "[file key] [file order, 1 is throughput, 2 is last number]")
         sys.exit()
-
+    
+    file_order = argv[1]
     for key in file_folders:
-        files_list, rps_list = file_name(key, argv[0])
+        files_list, file_list_based_last_num, rps_list, last_num_list = file_name(key, argv[0])
         load_dict[key] = rps_list
-        get_values(key, files_list, latency, slow_down, slow_down_99_9, latency_99_9, slow_down_99_99, latency_99_99)
+        if file_order == "1":
+            get_values(key, files_list, latency, slow_down, slow_down_99_9, latency_99_9, slow_down_99_99, latency_99_99)
+        else:
+            get_values(key, file_list_based_last_num, latency, slow_down, slow_down_99_9, latency_99_9, slow_down_99_99, latency_99_99)
 
     print("99 latency:")
     for key, value in latency.items():
@@ -250,3 +261,8 @@ if __name__ == "__main__":
     f14 = open("seperate_meet.txt", 'w')
     f14.write(js14)
     f14.close()
+
+    js15 = json.dumps(last_num_list)
+    f15 = open("last_num.txt", 'w')
+    f15.write(js15)
+    f15.close()
