@@ -158,8 +158,17 @@ scheduler_fifo_get_next()
 		/* If the local runqueue is empty, pull from global request scheduler */
 		if (global_request_scheduler_remove(&global) < 0) goto done;
 
-		sandbox_prepare_execution_environment(global);
-		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+		if (global->state == SANDBOX_INITIALIZED) {
+			/* add by xiaosu */
+                        uint64_t now = __getcycles();
+                        global->timestamp_of.dispatched = now;
+                        global->duration_of_state[SANDBOX_INITIALIZED] = 0;
+                        global->timestamp_of.last_state_change =  now;
+                        /* end by xiaosu */
+			sandbox_prepare_execution_environment(global);
+			local_runqueue_add(global);
+			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+		}
 	} else if (local == current_sandbox_get()) {
 		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */
 		local_runqueue_list_rotate();

@@ -188,7 +188,11 @@ runtime_get_worker_group_size() {
 	char *worker_group_size_raw = getenv("SLEDGE_WORKER_GROUP_SIZE");
 	if (worker_group_size_raw != NULL) {
 		runtime_worker_group_size = atoi(worker_group_size_raw);
-		assert(runtime_listener_threads_count * runtime_worker_group_size == runtime_worker_threads_count);
+		//If scheduler is SCHEDULER_FIFO, there will be one global queue, but might multiple listeners and 
+		//multiple workers, so the listener threads count * worker group size != worker threads count
+		if (scheduler != SCHEDULER_FIFO) {
+			assert(runtime_listener_threads_count * runtime_worker_group_size == runtime_worker_threads_count);
+		}
 	} else {
 		printf("Not specify worker group size, default group size is 1\n");
 	}
@@ -271,8 +275,16 @@ runtime_configure()
 		dispatcher = DISPATCHER_EDF_INTERRUPT;
 	} else if (strcmp(dispatcher_policy, "SHINJUKU") == 0) {
         	dispatcher = DISPATCHER_SHINJUKU;
-    	} else {
-		panic("Invalid dispatcher policy: %s. Must be {EDF_INTERRUPT|DARC|SHINJUKU\n", dispatcher_policy);
+    	} else if (strcmp(dispatcher_policy, "TO_GLOBAL_QUEUE") == 0) {
+		dispatcher = DISPATCHER_TO_GLOBAL_QUEUE;
+	} else if (strcmp(dispatcher_policy, "RR") == 0) {
+		dispatcher = DISPATCHER_RR;
+	} else if (strcmp(dispatcher_policy, "JSQ") == 0) {
+		dispatcher = DISPATCHER_JSQ;
+	} else if (strcmp(dispatcher_policy, "LLD") == 0) {
+		dispatcher = DISPATCHER_LLD;
+	} else {
+		panic("Invalid dispatcher policy: %s. Must be {EDF_INTERRUPT|DARC|SHINJUKU|TO_GLOBAL_QUEUE|RR|JSQ|LLD\n", dispatcher_policy);
     	}
 	pretty_print_key_value("Dispatcher Policy", "%s\n", dispatcher_print(dispatcher));
 

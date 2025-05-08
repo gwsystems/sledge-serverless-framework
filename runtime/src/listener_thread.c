@@ -988,6 +988,75 @@ void shinjuku_dispatch() {
     }
 }
 
+void enqueue_to_global_queue_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+	
+	if (first_request_comming == false){
+                t_start = time(NULL);
+                first_request_comming = true;
+        }
+
+        uint8_t kMsgSize = 16;
+        //TODO: rpc_id is hardcode now
+
+        struct tenant *tenant = tenant_database_find_by_port(port);
+        assert(tenant != NULL);
+        struct route *route = http_router_match_request_type(&tenant->router, req_type);
+        if (route == NULL) {
+                debuglog("Did not match any routes\n");
+                dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR));
+                return;
+        }
+
+        /*
+         * Perform admissions control.
+         * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+         * TODO: Consider providing a Retry-After header
+         */
+        uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+        if (work_admitted == 0) {
+                dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+                return;
+        }
+
+	total_requests++;
+	requests_counter[dispatcher_thread_idx][req_type]++;
+        /* Allocate a Sandbox */
+        //session->state          = HTTP_SESSION_EXECUTING;
+        struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+        if (unlikely(sandbox == NULL)) {
+                debuglog("Failed to allocate sandbox\n");
+                dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
+                return;
+        }
+
+	/* Reset estimated execution time and relative deadline for exponential service time simulation */
+    	if (runtime_exponential_service_time_simulation_enabled) {
+		int exp_num = atoi((const char *)msg);
+        	if (exp_num == 1) {
+                	sandbox->estimated_cost = base_simulated_service_time;
+        	} else {
+                	sandbox->estimated_cost = base_simulated_service_time * exp_num * (1 - LOSS_PERCENTAGE);
+        	}
+        	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
+        	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
+    	}
+
+        /* copy the received data since it will be released by erpc */
+        sandbox->rpc_request_body = malloc(size);
+        if (!sandbox->rpc_request_body) {
+                panic("malloc request body failed\n");
+        }
+
+        memcpy(sandbox->rpc_request_body, msg, size);
+        sandbox->rpc_request_body_size = size;
+	//printf("add request to GQ\n");
+	global_request_scheduler_add(sandbox);
+        global_queue_length++;
+        if (global_queue_length > max_queue_length) {
+                max_queue_length = global_queue_length;
+        }
+}
+
 void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
 	erpc_req_response_enqueue(dispatcher_thread_idx, req_handle, msg, msg_len, 1);   
 }
@@ -1070,6 +1139,17 @@ listener_thread_main(void *dummy)
             		erpc_run_event_loop_once(dispatcher_thread_idx); // get a group of packets from the NIC and enqueue them to the typed queue
             		shinjuku_dispatch(); //dispatch packets
         	}
+	} else if (dispatcher == DISPATCHER_TO_GLOBAL_QUEUE) {
+		printf("to global queeu....\n");
+		while (!pthread_stop) {
+			erpc_run_event_loop_once(dispatcher_thread_idx);
+		}
+	} else if (dispatcher == DISPATCHER_RR) {
+	
+	} else if (dispatcher == DISPATCHER_JSQ) {
+	
+	} else if (dispatcher == DISPATCHER_LLD) {
+	
 	}
 
 	/* code will end here with eRPC and won't go to the following implementaion */

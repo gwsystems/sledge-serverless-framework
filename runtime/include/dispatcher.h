@@ -12,6 +12,14 @@ dispatcher_print(enum DISPATCHER variant)
                 return "DARC"; 
         case DISPATCHER_SHINJUKU:
                 return "SHINJUKU";
+	case DISPATCHER_TO_GLOBAL_QUEUE:
+		return "DISPATCHER_TO_GLOBAL_QUEUE";
+	case DISPATCHER_RR:
+		return "DISPATCHER_RR";
+	case DISPATCHER_JSQ:
+		return "DISPATCHER_JSQ";
+	case DISPATCHER_LLD:
+		return "DISPATCHER_LLD";
         }
 }
 

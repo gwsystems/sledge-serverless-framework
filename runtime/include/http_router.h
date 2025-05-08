@@ -65,7 +65,11 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
             if (erpc_register_req_func(config->request_type, shinjuku_req_handler, 0) != 0) {
 		panic("register erpc function for Shinjuku dispatcher failed\n");
             }
-        }
+        } else if (dispatcher == DISPATCHER_TO_GLOBAL_QUEUE) {
+	    if (erpc_register_req_func(config->request_type, enqueue_to_global_queue_req_handler, 0) != 0) {
+		panic("register erpc function for enqueuing to global queue failed\n");
+	    }
+	}
 
 	/* Admissions Control */
 	uint64_t expected_execution = (uint64_t)config->expected_execution_us * runtime_processor_speed_MHz;

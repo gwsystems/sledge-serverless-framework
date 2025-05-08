@@ -133,7 +133,13 @@ runtime_initialize(void)
 	sandbox_state_totals_initialize();
 	worker_queuing_cost_initialize();
 
-        memory_pools = calloc(runtime_worker_threads_count, sizeof(struct memory_pool));
+	memory_pools = aligned_alloc(128, runtime_worker_threads_count * sizeof(struct memory_pool));
+	if (!memory_pools) {
+    		perror("aligned_alloc failed");
+    		exit(1);
+	}
+	memset(memory_pools, 0, runtime_worker_threads_count * sizeof(struct memory_pool));
+        //memory_pools = calloc(runtime_worker_threads_count, sizeof(struct memory_pool));
         runtime_initialize_pools();
 
 	/* Setup Scheduler */
