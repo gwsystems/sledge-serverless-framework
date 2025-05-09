@@ -2,11 +2,11 @@
 ulimit -n 655350
 
 function usage {
-        echo "$0 [worker num] [listener num] [first worker core id] [dispatcher policy, SHINJUKU or EDF_INTERRUPT or DARC] [server log file] [disable busy loop] [disable autoscaling] [disable service time simulation] [json config]"
+        echo "$0 [worker num] [listener num] [first worker core id] [dispatcher policy, SHINJUKU, EDF_INTERRUPT, DARC or TO_GLOBAL_QUEUE] [scheduler policy, EDF or FIFO] [server log file] [disable busy loop] [disable autoscaling] [disable service time simulation] [json config]"
         exit 1
 }
 
-if [ $# != 9 ] ; then
+if [ $# != 10 ] ; then
         usage
         exit 1;
 fi
@@ -15,13 +15,18 @@ worker_num=$1
 listener_num=$2
 first_worker_core_id=$3
 dispatcher_policy=$4
-server_log=$5
-disable_busy_loop=$6
-disable_autoscaling=$7
-disable_service_ts_simulation=$8
-json_config=$9
+scheduler_policy=$5
+server_log=$6
+disable_busy_loop=$7
+disable_autoscaling=$8
+disable_service_ts_simulation=$9
+json_config=${10}
 
-worker_group_size=$((worker_num / listener_num))
+if [ "$scheduler_policy" = "FIFO" ]; then
+    worker_group_size=1
+else
+    worker_group_size=$((worker_num / listener_num))
+fi
 
 declare project_path="$(
         cd "$(dirname "$0")/../.."
@@ -38,9 +43,10 @@ export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id
 export SLEDGE_NWORKERS=$worker_num
 export SLEDGE_NLISTENERS=$listener_num
 export SLEDGE_WORKER_GROUP_SIZE=$worker_group_size
-export SLEDGE_SCHEDULER=EDF
+export SLEDGE_SCHEDULER=$scheduler_policy
 #export SLEDGE_DISPATCHER=DARC
 export SLEDGE_DISPATCHER=$dispatcher_policy
+export SLEDGE_SCHEDULER=$scheduler_policy
 #export SLEDGE_DISPATCHER=EDF_INTERRUPT
 export SLEDGE_SANDBOX_PERF_LOG=$path/$server_log
 #echo $SLEDGE_SANDBOX_PERF_LOG
