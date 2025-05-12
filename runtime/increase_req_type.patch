@@ -1,8 +1,8 @@
 diff --git a/runtime/include/erpc_handler.h b/runtime/include/erpc_handler.h
-index 7442ea1..04de7fa 100644
+index b506eb8..4424a97 100644
 --- a/runtime/include/erpc_handler.h
 +++ b/runtime/include/erpc_handler.h
-@@ -1,6 +1,6 @@
+@@ -1,7 +1,7 @@
  #pragma once
  
  #include <stdint.h>
@@ -10,11 +10,13 @@ index 7442ea1..04de7fa 100644
 +void edf_interrupt_req_handler(void *req_handle, uint16_t req_type, uint8_t *msg, size_t size, uint16_t port);
  void darc_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
  void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
+-void enqueue_to_global_queue_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
++void enqueue_to_global_queue_req_handler(void *req_handle, uint16_t req_type, uint8_t *msg, size_t size, uint16_t port);
 diff --git a/runtime/include/http_router.h b/runtime/include/http_router.h
-index b851f45..2925b0d 100644
+index c8e5a7e..1ca37b1 100644
 --- a/runtime/include/http_router.h
 +++ b/runtime/include/http_router.h
-@@ -92,7 +92,7 @@ http_router_match_route(http_router_t *router, char *route)
+@@ -96,7 +96,7 @@ http_router_match_route(http_router_t *router, char *route)
  }
  
  static inline struct route *
@@ -365,7 +367,7 @@ index 711db96..443b227 100644
   * Initializes perf window
   * @param admissions_info
 diff --git a/runtime/src/listener_thread.c b/runtime/src/listener_thread.c
-index df5a420..7a4ad87 100644
+index a8d2fc4..f4244b7 100644
 --- a/runtime/src/listener_thread.c
 +++ b/runtime/src/listener_thread.c
 @@ -472,7 +472,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
@@ -377,8 +379,17 @@ index df5a420..7a4ad87 100644
  
      if (first_request_comming == false){
          t_start = time(NULL);
+@@ -988,7 +988,7 @@ void shinjuku_dispatch() {
+     }
+ }
+ 
+-void enqueue_to_global_queue_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
++void enqueue_to_global_queue_req_handler(void *req_handle, uint16_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+ 	
+ 	if (first_request_comming == false){
+                 t_start = time(NULL);
 diff --git a/runtime/src/worker_thread.c b/runtime/src/worker_thread.c
-index 67a8d9f..fab3f6b 100644
+index 67a8d9f..24440e5 100644
 --- a/runtime/src/worker_thread.c
 +++ b/runtime/src/worker_thread.c
 @@ -24,16 +24,17 @@
@@ -409,13 +420,11 @@ index 67a8d9f..fab3f6b 100644
  extern uint32_t runtime_worker_group_size;
  
  extern FILE *sandbox_perf_log;
-@@ -101,7 +102,8 @@ worker_thread_main(void *argument)
+@@ -101,6 +102,7 @@ worker_thread_main(void *argument)
  	// runtime_set_pthread_prio(pthread_self(), 2);
  	pthread_setschedprio(pthread_self(), -20);
  
--	preallocate_memory();
 +        perf_window_per_thread = (struct perf_window*) malloc(sizeof(struct perf_window) * MODULE_DATABASE_CAPACITY);
-+	//preallocate_memory();
+ 	preallocate_memory();
  	perf_window_init();
  	condition_variable_init();
- 	semaphore_init();
