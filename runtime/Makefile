@@ -17,6 +17,7 @@ CFLAGS+=-D_GNU_SOURCE
 CFLAGS+=-DSLEDGE
 # Release Flags
 CFLAGS+=-O3 -flto
+#CFLAGS+=-O3 -flto -fsanitize=undefined -fno-sanitize-recover=undefined
 
 # Debugging Flags
 # CFLAGS+=-O0 -g3
