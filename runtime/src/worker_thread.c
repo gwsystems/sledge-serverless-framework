@@ -83,6 +83,7 @@ void semaphore_init(){
 void *
 worker_thread_main(void *argument)
 {
+	pthread_setname_np(pthread_self(), "worker");
 	/* Set base context as running */
 	worker_thread_base_context.variant = ARCH_CONTEXT_VARIANT_RUNNING;
 

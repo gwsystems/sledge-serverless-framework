@@ -1073,6 +1073,7 @@ void dispatcher_send_response(void *req_handle, char* msg, size_t msg_len) {
 void *
 listener_thread_main(void *dummy)
 {
+	pthread_setname_np(pthread_self(), "dispatcher");
 	is_listener = true;
 	shinjuku_interrupt_interval = INTERRUPT_INTERVAL * runtime_processor_speed_MHz;
 	base_simulated_service_time = BASE_SERVICE_TIME * runtime_processor_speed_MHz;
