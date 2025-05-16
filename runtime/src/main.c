@@ -55,7 +55,7 @@ bool     runtime_autoscaling_enabled                         = false;
 bool     runtime_worker_busy_loop_enabled                    = false;
 bool     runtime_preemption_enabled                          = true;
 bool     runtime_worker_spinloop_pause_enabled               = false;
-uint32_t runtime_quantum_us                                  = 5000; /* 5ms */
+uint32_t runtime_quantum_us                                  = 1000; /* 1ms */
 uint64_t runtime_boot_timestamp;
 pid_t    runtime_pid = 0;
 

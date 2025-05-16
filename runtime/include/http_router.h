@@ -69,6 +69,10 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 	    if (erpc_register_req_func(config->request_type, enqueue_to_global_queue_req_handler, 0) != 0) {
 		panic("register erpc function for enqueuing to global queue failed\n");
 	    }
+	} else if (dispatcher == DISPATCHER_RR) {
+	    if (erpc_register_req_func(config->request_type, rr_req_handler, 0) != 0) {
+		panic("register erpc function for round robain distribution failed\n");
+	    }
 	}
 
 	/* Admissions Control */

@@ -56,6 +56,7 @@ extern _Atomic uint64_t request_index;
 extern uint32_t runtime_worker_group_size;
 extern struct sandbox* current_sandboxes[1024];
 
+thread_local uint32_t rr_index = 0;
 thread_local uint32_t current_reserved = 0;
 thread_local uint32_t dispatcher_try_interrupts = 0;
 thread_local uint32_t worker_start_id;
@@ -619,6 +620,73 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
     }
 }
 
+void rr_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+
+    if (first_request_comming == false){
+        t_start = time(NULL);
+        first_request_comming = true;
+    }
+
+    uint8_t kMsgSize = 16;
+
+    struct tenant *tenant = tenant_database_find_by_port(port);
+    assert(tenant != NULL);
+    struct route *route = http_router_match_request_type(&tenant->router, req_type);
+    if (route == NULL) {
+        debuglog("Did not match any routes\n");
+		dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR)); 
+        return;
+    }
+
+    /*
+     * Perform admissions control.
+     * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+     * TODO: Consider providing a Retry-After header
+     */
+    uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+    if (work_admitted == 0) {
+        dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+        return;
+    }
+
+    total_requests++;
+    requests_counter[dispatcher_thread_idx][req_type]++;
+    /* Allocate a Sandbox */
+    //session->state          = HTTP_SESSION_EXECUTING;
+    struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+    if (unlikely(sandbox == NULL)) {
+        debuglog("Failed to allocate sandbox\n");
+		dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
+        return;
+    }
+
+    /* Reset estimated execution time and relative deadline for exponential service time simulation */
+    if (runtime_exponential_service_time_simulation_enabled) {
+	int exp_num = atoi((const char *)msg);
+	if (exp_num == 1) {
+		sandbox->estimated_cost = base_simulated_service_time;
+	} else {
+		sandbox->estimated_cost = base_simulated_service_time * exp_num * (1 - LOSS_PERCENTAGE);
+	}
+	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
+	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
+    }
+
+    /* copy the received data since it will be released by erpc */
+    sandbox->rpc_request_body = malloc(size);
+    if (!sandbox->rpc_request_body) {
+        panic("malloc request body failed\n");
+    }
+
+    memcpy(sandbox->rpc_request_body, msg, size);
+    sandbox->rpc_request_body_size = size;
+
+    if (rr_index == worker_end_id + 1) {
+        rr_index = worker_start_id;
+    }
+    local_runqueue_add_index(rr_index, sandbox);
+    rr_index++;
+}
 /**
  * @brief Request routing function
  * @param req_handle used by eRPC internal, it is used to send out the response packet
@@ -1092,21 +1160,22 @@ listener_thread_main(void *dummy)
 
 	/* calucate the worker start and end id for this listener */
 	worker_start_id = dispatcher_thread_idx * runtime_worker_group_size;
-	worker_end_id = worker_start_id + runtime_worker_group_size;
+	worker_end_id = worker_start_id + runtime_worker_group_size - 1;
 
 	int index = 0;
-	for (uint32_t i = worker_start_id; i < worker_end_id; i++) {
+	for (uint32_t i = worker_start_id; i <= worker_end_id; i++) {
 		worker_list[index] = i;
 		index++;
 	}	
 
+	rr_index = worker_start_id;
 	if (runtime_autoscaling_enabled) {
 		current_active_workers = 1;
 	} else {
 		current_active_workers = runtime_worker_group_size;
 	} 
 	printf("listener %d worker_start_id %d worker_end_id %d active worker %d\n", 
-		dispatcher_thread_idx, worker_start_id, worker_end_id - 1, current_active_workers);
+		dispatcher_thread_idx, worker_start_id, worker_end_id, current_active_workers);
  
 	free_workers[dispatcher_thread_idx] = __builtin_powi(2, current_active_workers) - 1;	
 
@@ -1146,7 +1215,10 @@ listener_thread_main(void *dummy)
 			erpc_run_event_loop_once(dispatcher_thread_idx);
 		}
 	} else if (dispatcher == DISPATCHER_RR) {
-	
+		printf("RR....\n");
+		while (!pthread_stop) {
+			erpc_run_event_loop_once(dispatcher_thread_idx);
+		}	
 	} else if (dispatcher == DISPATCHER_JSQ) {
 	
 	} else if (dispatcher == DISPATCHER_LLD) {

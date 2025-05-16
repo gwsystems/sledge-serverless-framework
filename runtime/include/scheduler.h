@@ -230,9 +230,10 @@ scheduler_runqueue_initialize()
 	case SCHEDULER_EDF:
 		if (dispatcher == DISPATCHER_SHINJUKU || dispatcher == DISPATCHER_DARC) {
 			local_runqueue_circular_queue_initialize();	
-		} else {
-			//local_runqueue_minheap_initialize();
+		} else if (dispatcher == DISPATCHER_EDF_INTERRUPT) {
 			local_runqueue_binary_tree_initialize();
+		} else {
+			local_runqueue_minheap_initialize();
 		}
 		break;
 	case SCHEDULER_FIFO:
@@ -385,8 +386,8 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
         /* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
 	assert(next != NULL);
 
-	/* If current equals next, no switch is necessary, or its RS <= 0, just resume execution */
-	if (interrupted_sandbox == next || interrupted_sandbox->srsf_remaining_slack <= 0) {
+	/* If current equals next, no switch is necessary, or currend deadline is ealier than the next deadline or its RS <= 0, just resume execution */
+	if (interrupted_sandbox == next || interrupted_sandbox->absolute_deadline <= next->absolute_deadline || interrupted_sandbox->srsf_remaining_slack <= 0) {
 		sandbox_interrupt_return(interrupted_sandbox, SANDBOX_RUNNING_USER);
 		return;
 	}

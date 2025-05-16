@@ -188,6 +188,9 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
+			if (runtime_preemption_enabled) {
+				propagate_sigalrm(signal_info);
+			}
 		} else if (current_sandbox_is_preemptable()) {
 			preemptable_interrupts++;
 			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
@@ -198,6 +201,10 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
+
+			if (runtime_preemption_enabled) {
+                                propagate_sigalrm(signal_info);
+                        }
 			scheduler_preemptive_sched(interrupted_context);
 		} else {
 			/* We transition the sandbox to an interrupted state to exclude time propagating signals and
@@ -206,6 +213,10 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
+
+			if (runtime_preemption_enabled) {
+                                propagate_sigalrm(signal_info);
+                        }
 			atomic_fetch_add(&deferred_sigalrm, 1);
 		}
 

@@ -115,6 +115,7 @@ local_runqueue_is_empty_index(int index)
  */
 
 int local_runqueue_get_height() {
+	assert(local_runqueue.get_height_fn != NULL);
 	return local_runqueue.get_height_fn();
 }
 
@@ -122,9 +123,11 @@ int local_runqueue_get_height() {
  * Get total count of items in the queue 
  */
 int local_runqueue_get_length() {
+	assert(local_runqueue.get_length_fn != NULL);
 	return local_runqueue.get_length_fn();
 }
 int local_runqueue_get_length_index(int index) {
+	assert(local_runqueue.get_length_fn_idx != NULL);
 	return local_runqueue.get_length_fn_idx(index);
 }
 /**

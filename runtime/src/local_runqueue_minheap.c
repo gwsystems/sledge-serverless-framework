@@ -13,6 +13,7 @@
 #include "runtime.h"
 
 extern struct priority_queue* worker_queues[1024];
+extern _Atomic uint32_t local_queue_length[1024];
 extern thread_local int global_worker_thread_idx;
 _Atomic uint64_t worker_queuing_cost[1024]; /* index is thread id, each queue's total execution cost of queuing requests */
 extern struct perf_window * worker_perf_windows[1024]; /* index is thread id, each queue's perf windows, each queue can 
@@ -29,6 +30,19 @@ bool
 local_runqueue_minheap_is_empty()
 {
 	return priority_queue_length(local_runqueue_minheap) == 0;
+}
+
+/**
+ * Checks if the run queue is empty
+ * @returns true if empty. false otherwise
+ */
+bool
+local_runqueue_minheap_is_empty_index(int index)
+{
+	struct priority_queue *local_queue = worker_queues[index];
+        assert(local_queue != NULL);
+
+        return priority_queue_length(local_queue) == 0;;
 }
 
 /**
@@ -53,13 +67,35 @@ local_runqueue_minheap_add_index(int index, struct sandbox *sandbox)
 		panic("add request to local queue failed, exit\n");
 	}
 
+	atomic_fetch_add(&local_queue_length[index], 1);
 	uint32_t uid = sandbox->route->admissions_info.uid;
-	uint64_t estimated_execute_cost = perf_window_get_percentile(&worker_perf_windows[index][uid], 
-								     sandbox->route->admissions_info.percentile,
-                                                                     sandbox->route->admissions_info.control_index);
 
-	worker_queuing_cost_increment(index, estimated_execute_cost);
-	sandbox->estimated_cost = estimated_execute_cost;
+	/* Set estimated exeuction time for the sandbox */
+        if (runtime_exponential_service_time_simulation_enabled == false) {
+                uint32_t uid = sandbox->route->admissions_info.uid;
+                uint64_t estimated_execute_cost = perf_window_get_percentile(&worker_perf_windows[index][uid],
+                                                                     sandbox->route->admissions_info.percentile,
+                                                                     sandbox->route->admissions_info.control_index);
+                /* Use expected execution time in the configuration file as the esitmated execution time
+                   if estimated_execute_cost is 0
+                */
+                if (estimated_execute_cost == 0) {
+                        estimated_execute_cost = sandbox->route->expected_execution_cycle;
+                }
+                sandbox->estimated_cost = estimated_execute_cost;
+                sandbox->relative_deadline = sandbox->route->relative_deadline;
+        }
+
+	/* Record TS and calcuate RS. SRSF algo:
+           1. When reqeust arrives to the queue, record TS and calcuate RS. RS = deadline - execution time
+           2. When request starts running, update RS
+           3. When request stops, update TS
+           4. When request resumes, update RS
+        */
+        sandbox->srsf_stop_running_ts = __getcycles();
+        sandbox->srsf_remaining_slack = sandbox->relative_deadline - sandbox->estimated_cost;
+        worker_queuing_cost_increment(index, sandbox->estimated_cost);
+
 }
 
 /**
@@ -74,6 +110,7 @@ local_runqueue_minheap_delete(struct sandbox *sandbox)
 	int rc = priority_queue_delete(local_runqueue_minheap, sandbox);
 	if (rc == -1) panic("Tried to delete sandbox %lu from runqueue, but was not present\n", sandbox->id);
 
+	atomic_fetch_sub(&local_queue_length[global_worker_thread_idx], 1);
 	worker_queuing_cost_decrement(global_worker_thread_idx, sandbox->estimated_cost);
 }
 
@@ -89,11 +126,17 @@ local_runqueue_minheap_get_next()
 {
 	/* Get the deadline of the sandbox at the head of the local request queue */
 	struct sandbox *next = NULL;
-	int             rc   = priority_queue_top(local_runqueue_minheap, (void **)&next);
+	int rc = priority_queue_top(local_runqueue_minheap, (void **)&next);
 
 	if (rc == -ENOENT) return NULL;
 
 	return next;
+}
+
+int 
+local_runqueue_minheap_get_len() 
+{
+	return priority_queue_length(local_runqueue_minheap);	
 }
 
 /**
@@ -107,11 +150,13 @@ local_runqueue_minheap_initialize()
 
 	worker_queues[global_worker_thread_idx] = local_runqueue_minheap;
 	/* Register Function Pointers for Abstract Scheduling API */
-	struct local_runqueue_config config = { .add_fn      = local_runqueue_minheap_add,
-						.add_fn_idx  = local_runqueue_minheap_add_index,
-		                                .is_empty_fn = local_runqueue_minheap_is_empty,
-		                                .delete_fn   = local_runqueue_minheap_delete,
-		                                .get_next_fn = local_runqueue_minheap_get_next };
+	struct local_runqueue_config config = { .add_fn          = local_runqueue_minheap_add,
+						.add_fn_idx      = local_runqueue_minheap_add_index,
+		                                .is_empty_fn     = local_runqueue_minheap_is_empty,
+						.is_empty_fn_idx = local_runqueue_minheap_is_empty_index,
+		                                .delete_fn       = local_runqueue_minheap_delete,
+						.get_length_fn   = local_runqueue_minheap_get_len,
+		                                .get_next_fn     = local_runqueue_minheap_get_next };
 
 	local_runqueue_initialize(&config);
 }
