@@ -44,13 +44,12 @@ int             local_runqueue_get_length();
 int             local_runqueue_get_length_index(int index);
 void		local_runqueue_print_in_order(int index);
 
-void
-worker_queuing_cost_initialize();
+void worker_queuing_cost_initialize();
 
-void
-worker_queuing_cost_increment(int index, uint64_t cost);
+void worker_queuing_cost_increment(int index, uint64_t cost);
 
-void
-worker_queuing_cost_decrement(int index, uint64_t cost);
+void worker_queuing_cost_decrement(int index, uint64_t cost);
+
+uint64_t get_local_queue_load(int index);
 
 void wakeup_worker(int index);

@@ -164,6 +164,11 @@ worker_queuing_cost_decrement(int index, uint64_t cost)
         assert(worker_queuing_cost[index] >= 0);
 }
 
+uint64_t
+get_local_queue_load(int index) {
+	return worker_queuing_cost[index];
+}
+
 void 
 wakeup_worker(int index) {
 	pthread_mutex_lock(&mutexs[index]);

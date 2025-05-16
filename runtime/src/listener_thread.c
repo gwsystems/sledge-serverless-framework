@@ -687,6 +687,166 @@ void rr_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t siz
     local_runqueue_add_index(rr_index, sandbox);
     rr_index++;
 }
+
+void jsq_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+
+    if (first_request_comming == false){
+        t_start = time(NULL);
+        first_request_comming = true;
+    }
+
+    uint8_t kMsgSize = 16;
+
+    struct tenant *tenant = tenant_database_find_by_port(port);
+    assert(tenant != NULL);
+    struct route *route = http_router_match_request_type(&tenant->router, req_type);
+    if (route == NULL) {
+        debuglog("Did not match any routes\n");
+		dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR)); 
+        return;
+    }
+
+    /*
+     * Perform admissions control.
+     * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+     * TODO: Consider providing a Retry-After header
+     */
+    uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+    if (work_admitted == 0) {
+        dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+        return;
+    }
+
+    total_requests++;
+    requests_counter[dispatcher_thread_idx][req_type]++;
+    /* Allocate a Sandbox */
+    //session->state          = HTTP_SESSION_EXECUTING;
+    struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+    if (unlikely(sandbox == NULL)) {
+        debuglog("Failed to allocate sandbox\n");
+		dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
+        return;
+    }
+
+    /* Reset estimated execution time and relative deadline for exponential service time simulation */
+    if (runtime_exponential_service_time_simulation_enabled) {
+	int exp_num = atoi((const char *)msg);
+	if (exp_num == 1) {
+		sandbox->estimated_cost = base_simulated_service_time;
+	} else {
+		sandbox->estimated_cost = base_simulated_service_time * exp_num * (1 - LOSS_PERCENTAGE);
+	}
+	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
+	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
+    }
+
+    /* copy the received data since it will be released by erpc */
+    sandbox->rpc_request_body = malloc(size);
+    if (!sandbox->rpc_request_body) {
+        panic("malloc request body failed\n");
+    }
+
+    memcpy(sandbox->rpc_request_body, msg, size);
+    sandbox->rpc_request_body_size = size;
+
+    int min_queue_len = INT_MAX;
+    int min_index = 0;
+
+    next_loop_start_index++;
+    if (next_loop_start_index == current_active_workers) {
+        next_loop_start_index = 0;
+    }
+
+    for(uint32_t i = next_loop_start_index; i < next_loop_start_index + current_active_workers; ++i) {
+	int true_idx = i % current_active_workers;
+	int len = local_runqueue_get_length_index(worker_list[true_idx]);
+        if (len < min_queue_len) {
+		min_queue_len = len;
+		min_index = worker_list[true_idx]; 
+	}
+    }
+    local_runqueue_add_index(min_index, sandbox);
+}
+
+void lld_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+
+    if (first_request_comming == false){
+        t_start = time(NULL);
+        first_request_comming = true;
+    }
+
+    uint8_t kMsgSize = 16;
+
+    struct tenant *tenant = tenant_database_find_by_port(port);
+    assert(tenant != NULL);
+    struct route *route = http_router_match_request_type(&tenant->router, req_type);
+    if (route == NULL) {
+        debuglog("Did not match any routes\n");
+		dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR)); 
+        return;
+    }
+
+    /*
+     * Perform admissions control.
+     * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+     * TODO: Consider providing a Retry-After header
+     */
+    uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+    if (work_admitted == 0) {
+        dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+        return;
+    }
+
+    total_requests++;
+    requests_counter[dispatcher_thread_idx][req_type]++;
+    /* Allocate a Sandbox */
+    //session->state          = HTTP_SESSION_EXECUTING;
+    struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+    if (unlikely(sandbox == NULL)) {
+        debuglog("Failed to allocate sandbox\n");
+		dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
+        return;
+    }
+
+    /* Reset estimated execution time and relative deadline for exponential service time simulation */
+    if (runtime_exponential_service_time_simulation_enabled) {
+	int exp_num = atoi((const char *)msg);
+	if (exp_num == 1) {
+		sandbox->estimated_cost = base_simulated_service_time;
+	} else {
+		sandbox->estimated_cost = base_simulated_service_time * exp_num * (1 - LOSS_PERCENTAGE);
+	}
+	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
+	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
+    }
+
+    /* copy the received data since it will be released by erpc */
+    sandbox->rpc_request_body = malloc(size);
+    if (!sandbox->rpc_request_body) {
+        panic("malloc request body failed\n");
+    }
+
+    memcpy(sandbox->rpc_request_body, msg, size);
+    sandbox->rpc_request_body_size = size;
+
+    next_loop_start_index++;
+    if (next_loop_start_index == current_active_workers) {
+        next_loop_start_index = 0;
+    }
+
+    uint64_t min_load = INT_MAX;
+    int min_index = 0;
+
+    for(uint32_t i = next_loop_start_index; i < next_loop_start_index + current_active_workers; ++i) {
+        int true_idx = i % current_active_workers;
+        uint64_t load = get_local_queue_load(worker_list[true_idx]);
+        if (load < min_load) {
+                min_load = load;
+                min_index = worker_list[true_idx];
+        }
+    }
+    local_runqueue_add_index(min_index, sandbox);
+}
 /**
  * @brief Request routing function
  * @param req_handle used by eRPC internal, it is used to send out the response packet
@@ -1220,9 +1380,15 @@ listener_thread_main(void *dummy)
 			erpc_run_event_loop_once(dispatcher_thread_idx);
 		}	
 	} else if (dispatcher == DISPATCHER_JSQ) {
-	
+		printf("JSQ....\n");
+                while (!pthread_stop) {
+                        erpc_run_event_loop_once(dispatcher_thread_idx);
+                }	
 	} else if (dispatcher == DISPATCHER_LLD) {
-	
+		printf("LLD....\n");
+                while (!pthread_stop) {
+                        erpc_run_event_loop_once(dispatcher_thread_idx);
+                }
 	}
 
 	/* code will end here with eRPC and won't go to the following implementaion */

@@ -139,6 +139,14 @@ local_runqueue_minheap_get_len()
 	return priority_queue_length(local_runqueue_minheap);	
 }
 
+int 
+local_runqueue_minheap_get_len_index(int index)
+{
+	struct priority_queue *local_queue = worker_queues[index];
+        assert(local_queue != NULL);
+	return priority_queue_length(local_queue);
+}
+
 /**
  * Registers the PS variant with the polymorphic interface
  */
@@ -150,13 +158,14 @@ local_runqueue_minheap_initialize()
 
 	worker_queues[global_worker_thread_idx] = local_runqueue_minheap;
 	/* Register Function Pointers for Abstract Scheduling API */
-	struct local_runqueue_config config = { .add_fn          = local_runqueue_minheap_add,
-						.add_fn_idx      = local_runqueue_minheap_add_index,
-		                                .is_empty_fn     = local_runqueue_minheap_is_empty,
-						.is_empty_fn_idx = local_runqueue_minheap_is_empty_index,
-		                                .delete_fn       = local_runqueue_minheap_delete,
-						.get_length_fn   = local_runqueue_minheap_get_len,
-		                                .get_next_fn     = local_runqueue_minheap_get_next };
+	struct local_runqueue_config config = { .add_fn            = local_runqueue_minheap_add,
+						.add_fn_idx        = local_runqueue_minheap_add_index,
+		                                .is_empty_fn       = local_runqueue_minheap_is_empty,
+						.is_empty_fn_idx   = local_runqueue_minheap_is_empty_index,
+		                                .delete_fn         = local_runqueue_minheap_delete,
+						.get_length_fn     = local_runqueue_minheap_get_len,
+						.get_length_fn_idx = local_runqueue_minheap_get_len_index,
+		                                .get_next_fn       = local_runqueue_minheap_get_next };
 
 	local_runqueue_initialize(&config);
 }
