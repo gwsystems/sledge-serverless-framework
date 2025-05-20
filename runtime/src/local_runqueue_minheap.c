@@ -98,6 +98,55 @@ local_runqueue_minheap_add_index(int index, struct sandbox *sandbox)
 
 }
 
+uint32_t
+local_runqueue_minheap_try_add_and_get_len_index(int index, struct sandbox *sandbox, bool *need_interrupt) {
+	struct priority_queue *local_queue = worker_queues[index];
+        assert(local_queue != NULL);
+
+        if (priority_queue_length(local_queue) == 0) {
+                /* The worker is idle */
+                *need_interrupt = false;
+                return 0;
+        } else if (current_sandboxes[index] != NULL &&
+                   current_sandboxes[index]->srsf_remaining_slack > 0 &&
+                   sandbox_is_preemptable(current_sandboxes[index]) == true &&
+                   sandbox_get_priority(sandbox) < sandbox_get_priority(current_sandboxes[index])) {
+                /* The new one has a higher priority than the current one, need to interrupt the current one */
+                *need_interrupt = true;
+                return 0;
+        } else {
+                /* Current sandbox cannot be interrupted because its priority is higher or its RS is 0, just find
+                   a right location to add the new sandbox to the tree
+                */
+                need_interrupt = false;
+                return priority_queue_length(local_queue);
+        }
+}
+
+uint64_t
+local_runqueue_minheap_try_add_and_get_load_index(int index, struct sandbox *sandbox, bool *need_interrupt) {
+	struct priority_queue *local_queue = worker_queues[index];
+        assert(local_queue != NULL);
+
+        if (priority_queue_length(local_queue) == 0) {
+                /* The worker is idle */
+                *need_interrupt = false;
+                return 0;
+        } else if (current_sandboxes[index] != NULL &&
+                   current_sandboxes[index]->srsf_remaining_slack > 0 &&
+                   sandbox_is_preemptable(current_sandboxes[index]) == true &&
+                   sandbox_get_priority(sandbox) < sandbox_get_priority(current_sandboxes[index])) {
+                /* The new one has a higher priority than the current one, need to interrupt the current one */
+                *need_interrupt = true;
+                return 0;
+        } else {
+                /* Current sandbox cannot be interrupted because its priority is higher or its RS is 0, just find
+                   a right location to add the new sandbox to the tree
+                */
+                need_interrupt = false;
+                return worker_queuing_cost[index];
+        }
+}
 /**
  * Deletes a sandbox from the runqueue
  * @param sandbox to delete
@@ -158,14 +207,16 @@ local_runqueue_minheap_initialize()
 
 	worker_queues[global_worker_thread_idx] = local_runqueue_minheap;
 	/* Register Function Pointers for Abstract Scheduling API */
-	struct local_runqueue_config config = { .add_fn            = local_runqueue_minheap_add,
-						.add_fn_idx        = local_runqueue_minheap_add_index,
-		                                .is_empty_fn       = local_runqueue_minheap_is_empty,
-						.is_empty_fn_idx   = local_runqueue_minheap_is_empty_index,
-		                                .delete_fn         = local_runqueue_minheap_delete,
-						.get_length_fn     = local_runqueue_minheap_get_len,
-						.get_length_fn_idx = local_runqueue_minheap_get_len_index,
-		                                .get_next_fn       = local_runqueue_minheap_get_next };
+	struct local_runqueue_config config = { .add_fn            		= local_runqueue_minheap_add,
+						.add_fn_idx        		= local_runqueue_minheap_add_index,
+						.try_add_and_get_len_fn_t_idx	= local_runqueue_minheap_try_add_and_get_len_index,
+						.try_add_and_get_load_fn_t_idx	= local_runqueue_minheap_try_add_and_get_load_index,
+		                                .is_empty_fn       		= local_runqueue_minheap_is_empty,
+						.is_empty_fn_idx   		= local_runqueue_minheap_is_empty_index,
+		                                .delete_fn         		= local_runqueue_minheap_delete,
+						.get_length_fn     		= local_runqueue_minheap_get_len,
+						.get_length_fn_idx 		= local_runqueue_minheap_get_len_index,
+		                                .get_next_fn       		= local_runqueue_minheap_get_next };
 
 	local_runqueue_initialize(&config);
 }

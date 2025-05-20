@@ -75,6 +75,20 @@ local_runqueue_try_add_index(int index, struct sandbox *sandbox, bool *need_inte
 	assert(local_runqueue.try_add_fn_idx != NULL);
 	return local_runqueue.try_add_fn_idx(index, sandbox, need_interrupt);
 }
+
+uint32_t
+local_runqueue_add_and_get_length_index(int index, struct sandbox *sandbox, bool *need_interrupt)
+{
+	assert(local_runqueue.try_add_and_get_len_fn_t_idx != NULL);
+	return local_runqueue.try_add_and_get_len_fn_t_idx(index, sandbox, need_interrupt);
+}
+
+uint64_t
+local_runqueue_add_and_get_load_index(int index, struct sandbox *sandbox, bool *need_interrupt)
+{
+	assert(local_runqueue.try_add_and_get_load_fn_t_idx != NULL);
+	return local_runqueue.try_add_and_get_load_fn_t_idx(index, sandbox, need_interrupt);
+}
 /**
  * Delete a sandbox from the run queue
  * @param sandbox to delete

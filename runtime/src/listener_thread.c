@@ -620,7 +620,337 @@ void edf_interrupt_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg,
     }
 }
 
+void jsq_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+
+    if (first_request_comming == false){
+        t_start = time(NULL);
+        first_request_comming = true;
+    }
+
+    uint8_t kMsgSize = 16;
+
+    struct tenant *tenant = tenant_database_find_by_port(port);
+    assert(tenant != NULL);
+    struct route *route = http_router_match_request_type(&tenant->router, req_type);
+    if (route == NULL) {
+        debuglog("Did not match any routes\n");
+		dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR)); 
+        return;
+    }
+
+    /*
+     * Perform admissions control.
+     * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+     * TODO: Consider providing a Retry-After header
+     */
+    uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+    if (work_admitted == 0) {
+        dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+        return;
+    }
+
+    total_requests++;
+    requests_counter[dispatcher_thread_idx][req_type]++;
+    /* Allocate a Sandbox */
+    //session->state          = HTTP_SESSION_EXECUTING;
+    struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+    if (unlikely(sandbox == NULL)) {
+        debuglog("Failed to allocate sandbox\n");
+		dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
+        return;
+    }
+
+    /* Reset estimated execution time and relative deadline for exponential service time simulation */
+    if (runtime_exponential_service_time_simulation_enabled) {
+	int exp_num = atoi((const char *)msg);
+	if (exp_num == 1) {
+		sandbox->estimated_cost = base_simulated_service_time;
+	} else {
+		sandbox->estimated_cost = base_simulated_service_time * exp_num * (1 - LOSS_PERCENTAGE);
+	}
+	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
+	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
+    }
+
+    /* copy the received data since it will be released by erpc */
+    sandbox->rpc_request_body = malloc(size);
+    if (!sandbox->rpc_request_body) {
+        panic("malloc request body failed\n");
+    }
+
+    memcpy(sandbox->rpc_request_body, msg, size);
+    sandbox->rpc_request_body_size = size;
+
+    uint64_t min_queue_len = UINT64_MAX;
+    int thread_id = 0; /* This thread can server the request by waiting for a while */
+    int candidate_thread_with_interrupt = -1; /* This thread can server the request immediately by interrupting 
+					         the current one */
+
+    next_loop_start_index++;
+    if (next_loop_start_index == current_active_workers) {
+        next_loop_start_index = 0;
+    }
+
+    for (uint32_t i = next_loop_start_index; i < next_loop_start_index + current_active_workers; ++i) {
+	int true_idx = i % current_active_workers;
+	bool need_interrupt;
+        uint64_t waiting_queue_len = local_runqueue_add_and_get_length_index(worker_list[true_idx], sandbox, &need_interrupt);
+	/* The local queue is empty, the worker is idle, can be served this request immediately 
+         * without interrupting 
+         */
+        if (waiting_queue_len == 0 && need_interrupt == false) {
+            local_runqueue_add_index(worker_list[true_idx], sandbox);
+	    //mem_log("listener %d %d is idle, choose it\n", dispatcher_thread_idx, worker_list[true_idx]);  
+            return;
+        } else if (waiting_queue_len == 0 && need_interrupt == true) {//The worker can serve the request immediately
+									// by interrupting the current one
+            /* We already have a candidate worker, continue to find a 
+             * better worker without needing interrupt or a worker that has the minimum queue length 
+             */
+	    
+            candidate_thread_with_interrupt = worker_list[true_idx];
+        } else {
+		if (min_queue_len > waiting_queue_len) {
+            		min_queue_len = waiting_queue_len;
+            		thread_id = worker_list[true_idx];	
+        	} 
+	} 
+    } 
+    
+    if (candidate_thread_with_interrupt != -1) {
+        //urgent_request[candidate_thread_with_interrupt] = sandbox;
+        local_runqueue_add_index(candidate_thread_with_interrupt, sandbox);
+	//mem_log("listener %d %d can be interrupted immediately for req deadline %lu\n", dispatcher_thread_idx, 
+	//	candidate_thread_with_interrupt, sandbox->absolute_deadline);
+	
+        preempt_worker(candidate_thread_with_interrupt);
+	dispatcher_try_interrupts++;
+    } else {
+        local_runqueue_add_index(thread_id, sandbox);
+    }
+}
+
+void lld_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+
+    if (first_request_comming == false){
+        t_start = time(NULL);
+        first_request_comming = true;
+    }
+
+    uint8_t kMsgSize = 16;
+
+    struct tenant *tenant = tenant_database_find_by_port(port);
+    assert(tenant != NULL);
+    struct route *route = http_router_match_request_type(&tenant->router, req_type);
+    if (route == NULL) {
+        debuglog("Did not match any routes\n");
+		dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR)); 
+        return;
+    }
+
+    /*
+     * Perform admissions control.
+     * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+     * TODO: Consider providing a Retry-After header
+     */
+    uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+    if (work_admitted == 0) {
+        dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+        return;
+    }
+
+    total_requests++;
+    requests_counter[dispatcher_thread_idx][req_type]++;
+    /* Allocate a Sandbox */
+    //session->state          = HTTP_SESSION_EXECUTING;
+    struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+    if (unlikely(sandbox == NULL)) {
+        debuglog("Failed to allocate sandbox\n");
+		dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
+        return;
+    }
+
+    /* Reset estimated execution time and relative deadline for exponential service time simulation */
+    if (runtime_exponential_service_time_simulation_enabled) {
+	int exp_num = atoi((const char *)msg);
+	if (exp_num == 1) {
+		sandbox->estimated_cost = base_simulated_service_time;
+	} else {
+		sandbox->estimated_cost = base_simulated_service_time * exp_num * (1 - LOSS_PERCENTAGE);
+	}
+	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
+	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
+    }
+
+    /* copy the received data since it will be released by erpc */
+    sandbox->rpc_request_body = malloc(size);
+    if (!sandbox->rpc_request_body) {
+        panic("malloc request body failed\n");
+    }
+
+    memcpy(sandbox->rpc_request_body, msg, size);
+    sandbox->rpc_request_body_size = size;
+
+    uint64_t min_load = UINT64_MAX;
+    int thread_id = 0; /* This thread can server the request by waiting for a while */
+    int candidate_thread_with_interrupt = -1; /* This thread can server the request immediately by interrupting 
+					         the current one */
+
+    next_loop_start_index++;
+    if (next_loop_start_index == current_active_workers) {
+        next_loop_start_index = 0;
+    }
+
+    //uint64_t waiting_times[3] = {0};
+    int violate_deadline_workers = 0;
+    for (uint32_t i = next_loop_start_index; i < next_loop_start_index + current_active_workers; ++i) {
+	int true_idx = i % current_active_workers;
+	bool need_interrupt;
+        uint64_t load = local_runqueue_add_and_get_load_index(worker_list[true_idx], sandbox, &need_interrupt);
+	/* The local queue is empty, the worker is idle, can be served this request immediately 
+         * without interrupting 
+         */
+        if (load == 0 && need_interrupt == false) {
+            local_runqueue_add_index(worker_list[true_idx], sandbox);
+	    //mem_log("listener %d %d is idle, choose it\n", dispatcher_thread_idx, worker_list[true_idx]);  
+            return;
+        } else if (load == 0 && need_interrupt == true) {//The worker can serve the request immediately
+									// by interrupting the current one
+            /* We already have a candidate worker, continue to find a 
+             * better worker without needing interrupt or a worker that has the minimum queue length 
+             */
+	    
+            candidate_thread_with_interrupt = worker_list[true_idx];
+        } else {
+		if (min_load > load) {
+            		min_load = load;
+            		thread_id = worker_list[true_idx];	
+        	} 
+	} 
+    } 
+    
+    if (candidate_thread_with_interrupt != -1) {
+        //urgent_request[candidate_thread_with_interrupt] = sandbox;
+        local_runqueue_add_index(candidate_thread_with_interrupt, sandbox);
+	//mem_log("listener %d %d can be interrupted immediately for req deadline %lu\n", dispatcher_thread_idx, 
+	//	candidate_thread_with_interrupt, sandbox->absolute_deadline);
+	
+        preempt_worker(candidate_thread_with_interrupt);
+	dispatcher_try_interrupts++;
+    } else {
+        local_runqueue_add_index(thread_id, sandbox);
+    }
+}
+
 void rr_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+
+    if (first_request_comming == false){
+        t_start = time(NULL);
+        first_request_comming = true;
+    }
+
+    uint8_t kMsgSize = 16;
+
+    struct tenant *tenant = tenant_database_find_by_port(port);
+    assert(tenant != NULL);
+    struct route *route = http_router_match_request_type(&tenant->router, req_type);
+    if (route == NULL) {
+        debuglog("Did not match any routes\n");
+		dispatcher_send_response(req_handle, DIPATCH_ROUNTE_ERROR, strlen(DIPATCH_ROUNTE_ERROR)); 
+        return;
+    }
+
+    /*
+     * Perform admissions control.
+     * If 0, workload was rejected, so close with 429 "Too Many Requests" and continue
+     * TODO: Consider providing a Retry-After header
+     */
+    uint64_t work_admitted = admissions_control_decide(route->admissions_info.estimate);
+    if (work_admitted == 0) {
+        dispatcher_send_response(req_handle, WORK_ADMITTED_ERROR, strlen(WORK_ADMITTED_ERROR));
+        return;
+    }
+
+    total_requests++;
+    requests_counter[dispatcher_thread_idx][req_type]++;
+    /* Allocate a Sandbox */
+    //session->state          = HTTP_SESSION_EXECUTING;
+    struct sandbox *sandbox = sandbox_alloc(route->module, NULL, route, tenant, work_admitted, req_handle, dispatcher_thread_idx);
+    if (unlikely(sandbox == NULL)) {
+        debuglog("Failed to allocate sandbox\n");
+		dispatcher_send_response(req_handle, SANDBOX_ALLOCATION_ERROR, strlen(SANDBOX_ALLOCATION_ERROR));
+        return;
+    }
+
+    /* Reset estimated execution time and relative deadline for exponential service time simulation */
+    if (runtime_exponential_service_time_simulation_enabled) {
+	int exp_num = atoi((const char *)msg);
+	if (exp_num == 1) {
+		sandbox->estimated_cost = base_simulated_service_time;
+	} else {
+		sandbox->estimated_cost = base_simulated_service_time * exp_num * (1 - LOSS_PERCENTAGE);
+	}
+	sandbox->relative_deadline = 10 * sandbox->estimated_cost;
+	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->relative_deadline;
+    }
+
+    /* copy the received data since it will be released by erpc */
+    sandbox->rpc_request_body = malloc(size);
+    if (!sandbox->rpc_request_body) {
+        panic("malloc request body failed\n");
+    }
+
+    memcpy(sandbox->rpc_request_body, msg, size);
+    sandbox->rpc_request_body_size = size;
+
+    int thread_id = 0; /* This thread can server the request by waiting for a while */
+    int candidate_thread_with_interrupt = -1; /* This thread can server the request immediately by interrupting 
+					         the current one */
+
+    next_loop_start_index++;
+    if (next_loop_start_index == current_active_workers) {
+        next_loop_start_index = 0;
+    }
+
+    for (uint32_t i = next_loop_start_index; i < next_loop_start_index + current_active_workers; ++i) {
+	int true_idx = i % current_active_workers;
+	bool need_interrupt;
+        uint64_t waiting_queue_len = local_runqueue_add_and_get_length_index(worker_list[true_idx], sandbox, &need_interrupt);
+	/* The local queue is empty, the worker is idle, can be served this request immediately 
+         * without interrupting 
+         */
+        if (waiting_queue_len == 0 && need_interrupt == false) {
+            local_runqueue_add_index(worker_list[true_idx], sandbox);
+	    //mem_log("listener %d %d is idle, choose it\n", dispatcher_thread_idx, worker_list[true_idx]);  
+            return;
+        } else if (waiting_queue_len == 0 && need_interrupt == true) {//The worker can serve the request immediately
+									// by interrupting the current one
+            /* We already have a candidate worker, continue to find a 
+             * better worker without needing interrupt or a worker that has the minimum queue length 
+             */
+	    
+            candidate_thread_with_interrupt = worker_list[true_idx];
+        } 
+    } 
+    
+    if (candidate_thread_with_interrupt != -1) {
+        //urgent_request[candidate_thread_with_interrupt] = sandbox;
+        local_runqueue_add_index(candidate_thread_with_interrupt, sandbox);
+	//mem_log("listener %d %d can be interrupted immediately for req deadline %lu\n", dispatcher_thread_idx, 
+	//	candidate_thread_with_interrupt, sandbox->absolute_deadline);
+	
+        preempt_worker(candidate_thread_with_interrupt);
+	dispatcher_try_interrupts++;
+    } else {
+ 	if (rr_index == worker_end_id + 1) {
+        	rr_index = worker_start_id;
+    	}
+    	local_runqueue_add_index(rr_index, sandbox);
+    	rr_index++;
+    }
+}
+
+void rr_req_handler2(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
 
     if (first_request_comming == false){
         t_start = time(NULL);
@@ -688,7 +1018,7 @@ void rr_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t siz
     rr_index++;
 }
 
-void jsq_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+void jsq_req_handler2(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
 
     if (first_request_comming == false){
         t_start = time(NULL);
@@ -768,7 +1098,7 @@ void jsq_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t si
     local_runqueue_add_index(min_index, sandbox);
 }
 
-void lld_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
+void lld_req_handler2(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port) {
 
     if (first_request_comming == false){
         t_start = time(NULL);
