@@ -159,8 +159,8 @@ def get_values(key, files_list, latency_dict, slow_down_dict, slow_down_99_9_dic
 
 if __name__ == "__main__":
     import json
-    #file_folders = ['SHINJUKU', 'SHINJUKU_25', 'DARC', 'EDF_SRSF_INTERRUPT']
-    file_folders = ['SHINJUKU', 'DARC', 'EDF_INTERRUPT']
+    file_folders = ['RR', 'EDF_INTERRUPT', 'JSQ', 'LLD']
+    #file_folders = ['SHINJUKU', 'DARC', 'EDF_INTERRUPT']
     #file_folders = ['SHINJUKU']
     latency = defaultdict(list)
     slow_down = defaultdict(list)
