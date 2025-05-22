@@ -77,9 +77,19 @@ http_router_add_route(http_router_t *router, struct route_config *config, struct
 	    if (erpc_register_req_func(config->request_type, jsq_req_handler, 0) != 0) {
 		panic("register erpc function for join shortest queue distribution failed\n");
 	    }
-	} else if (dispatcher == DISPATCHER_LLD) {
+	} else if (dispatcher == DISPATCHER_LLD && scheduler == SCHEDULER_EDF) {
+	    /* Dispatcher assign requests to workers with LLD + interrupt, and each worker schedule its
+               local queue tasks with EDF 
+            */
 	    if (erpc_register_req_func(config->request_type, lld_req_handler, 0) != 0) {
-		panic("register erpc function for leatest load distribution failed\n");
+		panic("register erpc function for leatest load distribution with edf failed\n");
+	    }
+	} else if (dispatcher == DISPATCHER_LLD && scheduler == SCHEDULER_FIFO) {
+	    /* Dispatcher assign requests to workers with LLD and no interrupt, and each worker schedule
+	       its local queue tasks with Round Robin with fixed interval preemption
+	    */
+	    if (erpc_register_req_func(config->request_type, lld_req_handler_without_interrupt, 0) != 0) {
+		panic("register erpc function for leatest load distribution with fifo failed\n");
 	    }
 	}
 

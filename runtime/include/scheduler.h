@@ -155,8 +155,12 @@ scheduler_fifo_get_next()
 	struct sandbox *global = NULL;
 
 	if (local == NULL) {
+		if (disable_get_req_from_GQ) {
+			return NULL;
+		}
+
 		/* If the local runqueue is empty, pull from global request scheduler */
-		if (global_request_scheduler_remove(&global) < 0) goto done;
+		if (global_request_scheduler_remove(&global) < 0) return NULL;
 
 		if (global->state == SANDBOX_INITIALIZED) {
 			/* add by xiaosu */
@@ -172,11 +176,20 @@ scheduler_fifo_get_next()
 	} else if (local == current_sandbox_get()) {
 		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */
 		local_runqueue_list_rotate();
-	}
-
-
-done:
-	return local_runqueue_get_next();
+	} 
+	
+	local = local_runqueue_get_next();
+	if (local->state == SANDBOX_INITIALIZED) {
+        	/* add by xiaosu */
+                uint64_t now = __getcycles();
+                local->timestamp_of.dispatched = now;
+                local->duration_of_state[SANDBOX_INITIALIZED] = 0;
+                local->timestamp_of.last_state_change =  now;
+                /* end by xiaosu */
+                sandbox_prepare_execution_environment(local);
+                sandbox_set_as_runnable(local, SANDBOX_INITIALIZED);
+        }
+	return local;
 }
 
 static inline struct sandbox *

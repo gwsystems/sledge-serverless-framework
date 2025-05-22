@@ -266,6 +266,11 @@ runtime_configure()
 	}
 	pretty_print_key_value("Scheduler Policy", "%s\n", scheduler_print(scheduler));
 
+	char* disable_get_req_from_global_queue  = getenv("SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ");
+	if (disable_get_req_from_global_queue != NULL && strcmp(disable_get_req_from_global_queue, "false") != 0) disable_get_req_from_GQ = true;
+	pretty_print_key_value("Enable getting req from GQ", "%s\n",
+                               disable_get_req_from_GQ == false ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
+
 	/* Dispatcher Policy */
 	char *dispatcher_policy = getenv("SLEDGE_DISPATCHER");
 	if (dispatcher_policy == NULL) dispatcher_policy = "EDF_INTERRUPT";
