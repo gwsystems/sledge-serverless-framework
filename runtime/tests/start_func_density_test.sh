@@ -32,8 +32,12 @@ declare project_path="$(
 echo $project_path
 path=`pwd`
 export SLEDGE_DISABLE_PREEMPTION=true
+#only works for TO_GLOBAL_QUEUE and FIFO
+export SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ=false
 export SLEDGE_DISABLE_BUSY_LOOP=$disable_busy_loop
 export SLEDGE_DISABLE_AUTOSCALING=true
+#only works for FIFO scheduler
+export SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ=false
 export SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION=true
 #export SLEDGE_SIGALRM_HANDLER=TRIAGED
 export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id

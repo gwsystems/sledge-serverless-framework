@@ -2,11 +2,11 @@
 ulimit -n 655350
 
 function usage {
-        echo "$0 [worker num] [listener num] [first worker core id] [dispatcher policy, SHINJUKU, EDF_INTERRUPT, DARC, TO_GLOBAL_QUEUE, RR, JSQ, LLD] [server log file] [disable busy loop] [disable autoscaling] [disable service time simulation] [json config]"
+        echo "$0 [worker num] [listener num] [first worker core id] [dispatcher policy, EDF_INTERRUPT, RR, JSQ, LLD] [server log file] [disable busy loop] [disable service time simulation] [json config]"
         exit 1
 }
 
-if [ $# != 9 ] ; then
+if [ $# != 8 ] ; then
         usage
         exit 1;
 fi
@@ -18,9 +18,9 @@ dispatcher_policy=$4
 scheduler_policy="EDF"
 server_log=$5
 disable_busy_loop=$6
-disable_autoscaling=$7
-disable_service_ts_simulation=$8
-json_config=$9
+disable_autoscaling="true"
+disable_service_ts_simulation=$7
+json_config=$8
 
 if [ "$scheduler_policy" = "FIFO" ]; then
     worker_group_size=1
@@ -37,6 +37,7 @@ declare project_path="$(
 echo $project_path
 path=`pwd`
 export SLEDGE_DISABLE_PREEMPTION=$disable_preemption
+export SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ=true
 export SLEDGE_DISABLE_BUSY_LOOP=$disable_busy_loop
 export SLEDGE_DISABLE_AUTOSCALING=$disable_autoscaling
 #export SLEDGE_SIGALRM_HANDLER=TRIAGED
