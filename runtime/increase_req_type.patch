@@ -1,8 +1,8 @@
 diff --git a/runtime/include/erpc_handler.h b/runtime/include/erpc_handler.h
-index b506eb8..4424a97 100644
+index eefaf13..47324f8 100644
 --- a/runtime/include/erpc_handler.h
 +++ b/runtime/include/erpc_handler.h
-@@ -1,7 +1,7 @@
+@@ -1,10 +1,10 @@
  #pragma once
  
  #include <stdint.h>
@@ -12,11 +12,14 @@ index b506eb8..4424a97 100644
  void shinjuku_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
 -void enqueue_to_global_queue_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
 +void enqueue_to_global_queue_req_handler(void *req_handle, uint16_t req_type, uint8_t *msg, size_t size, uint16_t port);
+ void rr_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
+ void jsq_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
+ void lld_req_handler(void *req_handle, uint8_t req_type, uint8_t *msg, size_t size, uint16_t port);
 diff --git a/runtime/include/http_router.h b/runtime/include/http_router.h
-index c8e5a7e..1ca37b1 100644
+index cce8883..e0da7ee 100644
 --- a/runtime/include/http_router.h
 +++ b/runtime/include/http_router.h
-@@ -96,7 +96,7 @@ http_router_match_route(http_router_t *router, char *route)
+@@ -118,7 +118,7 @@ http_router_match_route(http_router_t *router, char *route)
  }
  
  static inline struct route *
@@ -367,10 +370,10 @@ index 711db96..443b227 100644
   * Initializes perf window
   * @param admissions_info
 diff --git a/runtime/src/listener_thread.c b/runtime/src/listener_thread.c
-index a8d2fc4..f4244b7 100644
+index ad40b6a..9a00119 100644
 --- a/runtime/src/listener_thread.c
 +++ b/runtime/src/listener_thread.c
-@@ -472,7 +472,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
+@@ -474,7 +474,7 @@ on_client_socket_epoll_event(struct epoll_event *evt)
   * @param msg the payload of the rpc request. It is the input parameter fot the function
   * @param size the size of the msg
   */
@@ -379,7 +382,7 @@ index a8d2fc4..f4244b7 100644
  
      if (first_request_comming == false){
          t_start = time(NULL);
-@@ -988,7 +988,7 @@ void shinjuku_dispatch() {
+@@ -1547,7 +1547,7 @@ void shinjuku_dispatch() {
      }
  }
  
@@ -389,7 +392,7 @@ index a8d2fc4..f4244b7 100644
  	if (first_request_comming == false){
                  t_start = time(NULL);
 diff --git a/runtime/src/worker_thread.c b/runtime/src/worker_thread.c
-index 67a8d9f..24440e5 100644
+index 70a919e..478f8df 100644
 --- a/runtime/src/worker_thread.c
 +++ b/runtime/src/worker_thread.c
 @@ -24,16 +24,17 @@
@@ -420,7 +423,7 @@ index 67a8d9f..24440e5 100644
  extern uint32_t runtime_worker_group_size;
  
  extern FILE *sandbox_perf_log;
-@@ -101,6 +102,7 @@ worker_thread_main(void *argument)
+@@ -102,6 +103,7 @@ worker_thread_main(void *argument)
  	// runtime_set_pthread_prio(pthread_self(), 2);
  	pthread_setschedprio(pthread_self(), -20);
  
