@@ -44,7 +44,7 @@ local_runqueue_add_index(int index, struct sandbox *sandbox)
 	/* wakeup worker if it is empty before we add a new request */
 
 	if (!runtime_worker_busy_loop_enabled) {
-		pthread_mutex_lock(&mutexs[index]);
+		/*pthread_mutex_lock(&mutexs[index]);
 		if (local_runqueue_is_empty_index(index)) {
 			local_runqueue.add_fn_idx(index, sandbox);
                 	//atomic_fetch_add(&local_runqueue_count[index], 1);
@@ -54,18 +54,18 @@ local_runqueue_add_index(int index, struct sandbox *sandbox)
 		} else {
 			pthread_mutex_unlock(&mutexs[index]);
 			local_runqueue.add_fn_idx(index, sandbox);
-		}
+		}*/
 
 		/* Semaphore could lost signal and cause worker block for a short time decrasing performance, 
-		   so not use the following code but condition variable 
+		   but based on test, it seems Semaphore has a better performance than condition variable 
 		*/
-		/*if (local_runqueue_is_empty_index(index)) {
+		if (local_runqueue_is_empty_index(index)) {
 			local_runqueue.add_fn_idx(index, sandbox);
 			//clock_gettime(CLOCK_MONOTONIC, &startT[index]);
 			sem_post(&semlock[index]);	
 		} else {
 			local_runqueue.add_fn_idx(index, sandbox);
-		}*/
+		}
 	} else {
 		local_runqueue.add_fn_idx(index, sandbox);
 	}
