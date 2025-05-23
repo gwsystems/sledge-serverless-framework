@@ -1,12 +1,21 @@
 #!/bin/bash
+
+#1. For LLD + worker FIFO, dispatcher assign requests to worker with LLD, and worker schedule local queue task with RR, so SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ
+#   should be true, SLEDGE_DISABLE_PREEMPTION should be false
+#2. For TO_GLOBAL_QUEUE + worker FIFO, dispatcher put requests to a global queue, and each worker compete to get requests from the global queue, so 
+#   SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ should be false, SLEDGE_DISABLE_PREEMPTION doesnt matter, for scalability test, set SLEDGE_DISABLE_PREEMPTION to true to 
+#   remove context switch.
+#3. Other non FIFO schedulers, dispatcher assign requests to worker and interrupt workers, so SLEDGE_DISABLE_PREEMPTION should be true, 
+#   SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ should be true.
+ 
 ulimit -n 655350
 
 function usage {
-        echo "$0 [worker num] [listener num] [first worker core id] [dispatcher policy, SHINJUKU, EDF_INTERRUPT, DARC or TO_GLOBAL_QUEUE] [scheduler policy, EDF or FIFO] [server log file] [disable busy loop] [disable autoscaling] [disable service time simulation] [json config]"
+        echo "$0 [worker num] [listener num] [first worker core id] [dispatcher policy, SHINJUKU, EDF_INTERRUPT, DARC, LLD, or TO_GLOBAL_QUEUE] [scheduler policy, EDF or FIFO] [server log file] [disable busy loop] [disable service time simulation] [disable get requests from GQ] [disable preemption] [json config]"
         exit 1
 }
 
-if [ $# != 10 ] ; then
+if [ $# != 11 ] ; then
         usage
         exit 1;
 fi
@@ -18,12 +27,14 @@ dispatcher_policy=$4
 scheduler_policy=$5
 server_log=$6
 disable_busy_loop=$7
-disable_autoscaling=$8
-disable_service_ts_simulation=$9
-json_config=${10}
+disable_autoscaling=true
+disable_service_ts_simulation=$8
+disable_get_req_from_GQ=${9}
+disable_preemption=${10}
+json_config=${11}
 
 if [ "$scheduler_policy" = "FIFO" ]; then
-    worker_group_size=1
+    worker_group_size=$worker_num
 else
     worker_group_size=$((worker_num / listener_num))
 fi
@@ -34,7 +45,9 @@ declare project_path="$(
 )"
 echo $project_path
 path=`pwd`
-export SLEDGE_DISABLE_PREEMPTION=true
+export SLEDGE_DISABLE_PREEMPTION=$disable_preemption
+#only works for FIFO scheduler
+export SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ=$disable_get_req_from_GQ
 export SLEDGE_DISABLE_BUSY_LOOP=$disable_busy_loop
 export SLEDGE_DISABLE_AUTOSCALING=$disable_autoscaling
 #export SLEDGE_SIGALRM_HANDLER=TRIAGED
