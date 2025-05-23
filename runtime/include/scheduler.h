@@ -512,24 +512,21 @@ scheduler_idle_loop()
 		}
 		/* If queue is empty, then sleep to wait for the condition variable or sempahore */
 		if (!runtime_worker_busy_loop_enabled) {
-			/*struct timespec endT;
-			int64_t delta_us = 0;
 			pthread_mutex_lock(&mutexs[global_worker_thread_idx]);
                 	if (local_runqueue_is_empty()) {
                         	pthread_cond_wait(&conds[global_worker_thread_idx], &mutexs[global_worker_thread_idx]);
-				clock_gettime(CLOCK_MONOTONIC, &endT);
-				delta_us = (endT.tv_sec - startT[global_worker_thread_idx].tv_sec) * 1000000 + (endT.tv_nsec - startT[global_worker_thread_idx].tv_nsec) / 1000;
                 	}
                 	pthread_mutex_unlock(&mutexs[global_worker_thread_idx]);
-			printf("worker %d delta %ld\n", global_worker_thread_idx, delta_us);
+			/* Semaphore could lost signal and cause worker block for a short time decrasing performance,
+                   	   so not use the following code but condition variable
 			*/
-			if (local_runqueue_is_empty()) {
+			/*if (local_runqueue_is_empty()) {
 				sem_wait(&semlock[global_worker_thread_idx]);
 				//struct timespec endT;
 				//clock_gettime(CLOCK_MONOTONIC, &endT);
 				//int64_t delta_us = (endT.tv_sec - startT[global_worker_thread_idx].tv_sec) * 1000000 + (endT.tv_nsec - startT[global_worker_thread_idx].tv_nsec) / 1000;
 				//printf("worker %d delta %ld\n", global_worker_thread_idx, delta_us);
-			}
+			}*/
 		}
 	}
 }

@@ -245,6 +245,36 @@ runtime_start_runtime_worker_threads()
 }
 
 void
+runtime_config_validate()
+{
+	if (dispatcher == DISPATCHER_TO_GLOBAL_QUEUE) {
+		if (runtime_worker_busy_loop_enabled == false) {
+			panic("Must enable busy loop if dispatcher is TO_GLOBAL_QUEUE\n");
+			
+		}
+
+		if (disable_get_req_from_GQ == true) {
+			panic("Must enable get request from GQ if dispatcher is TO_GLOBAL_QUEUE\n");
+		}
+
+		if (scheduler != SCHEDULER_FIFO) {
+			panic("Must use FIFO scheduler if dispatcher is TO_GLOBAL_QUEUE\n");
+		}		
+        } else {
+		if (disable_get_req_from_GQ == false) {
+			panic("Must disable get requests from GQ if dispatcher is not TO_GLOBAL_QUEUE\n");
+		}
+	}
+	
+	if (dispatcher == DISPATCHER_RR || dispatcher == DISPATCHER_JSQ || dispatcher == DISPATCHER_EDF_INTERRUPT
+	   || dispatcher == DISPATCHER_SHINJUKU || dispatcher == DISPATCHER_DARC || dispatcher == DISPATCHER_LLD && scheduler == SCHEDULER_EDF) {
+		if (runtime_preemption_enabled == true) {
+			panic("Must disable preemption if dispatcher is RR, JSQ, EDF_INTERRUPT, or LLD + EDF\n");
+		}
+	}
+
+}
+void
 runtime_configure()
 {
 	/* Scheduler Policy */
@@ -324,6 +354,9 @@ runtime_configure()
 	 pretty_print_key_value("Worker busy loop", "%s\n",
 				runtime_worker_busy_loop_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
 
+
+	/* Check validation */
+	runtime_config_validate();
 	/* Runtime Quantum */
 	char *quantum_raw = getenv("SLEDGE_QUANTUM_US");
 	if (quantum_raw != NULL) {
