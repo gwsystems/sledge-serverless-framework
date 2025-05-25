@@ -40,6 +40,7 @@ extern thread_local int dispatcher_id;
 extern pthread_mutex_t mutexs[1024];
 extern pthread_cond_t conds[1024];
 extern sem_t semlock[1024];
+extern uint32_t runtime_fifo_queue_batch_size;
 
 /**
  * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
@@ -159,19 +160,21 @@ scheduler_fifo_get_next()
 			return NULL;
 		}
 
-		/* If the local runqueue is empty, pull from global request scheduler */
-		if (global_request_scheduler_remove(&global) < 0) return NULL;
+		/* If the local runqueue is empty, pull a batch of requests from global request scheduler */
+		for (int i = 0; i < runtime_fifo_queue_batch_size; i++ ) {
+			if (global_request_scheduler_remove(&global) < 0) break;
 
-		if (global->state == SANDBOX_INITIALIZED) {
-			/* add by xiaosu */
-                        uint64_t now = __getcycles();
-                        global->timestamp_of.dispatched = now;
-                        global->duration_of_state[SANDBOX_INITIALIZED] = 0;
-                        global->timestamp_of.last_state_change =  now;
-                        /* end by xiaosu */
-			sandbox_prepare_execution_environment(global);
-			local_runqueue_add(global);
-			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+			if (global->state == SANDBOX_INITIALIZED) {
+				/* add by xiaosu */
+                        	uint64_t now = __getcycles();
+                        	global->timestamp_of.dispatched = now;
+                        	global->duration_of_state[SANDBOX_INITIALIZED] = 0;
+                        	global->timestamp_of.last_state_change =  now;
+                        	/* end by xiaosu */
+				sandbox_prepare_execution_environment(global);
+				local_runqueue_add(global);
+				sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+			}
 		}
 	} else if (local == current_sandbox_get()) {
 		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */
@@ -179,7 +182,7 @@ scheduler_fifo_get_next()
 	} 
 	
 	local = local_runqueue_get_next();
-	if (local->state == SANDBOX_INITIALIZED) {
+	if (local && local->state == SANDBOX_INITIALIZED) {
         	/* add by xiaosu */
                 uint64_t now = __getcycles();
                 local->timestamp_of.dispatched = now;

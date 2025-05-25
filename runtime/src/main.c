@@ -355,6 +355,15 @@ runtime_configure()
 				runtime_worker_busy_loop_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
 
 
+	/* Runtime local FIFO queue batch size */
+	char *batch_size = getenv("SLEDGE_FIFO_QUEUE_BATCH_SIZE");
+	if (batch_size != NULL) {
+		runtime_fifo_queue_batch_size = atoi(batch_size);
+		if (runtime_fifo_queue_batch_size == 0) {
+			panic("Fifo queue batch size must be larger than 0\n");
+		}
+	}
+
 	/* Check validation */
 	runtime_config_validate();
 	/* Runtime Quantum */

@@ -11,6 +11,7 @@ extern _Atomic uint32_t local_queue_length[1024];
 extern uint32_t max_local_queue_length[1024];
 extern struct ps_list_head * worker_fifo_queue[1024];
 thread_local static struct ps_list_head local_runqueue_list;
+uint32_t runtime_fifo_queue_batch_size = 1;
 
 int 
 local_runqueue_list_get_length_index(int index)
