@@ -48,6 +48,7 @@ path=`pwd`
 export SLEDGE_DISABLE_PREEMPTION=$disable_preemption
 #only works for FIFO scheduler
 export SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ=$disable_get_req_from_GQ
+export SLEDGE_FIFO_QUEUE_BATCH_SIZE=5
 export SLEDGE_DISABLE_BUSY_LOOP=$disable_busy_loop
 export SLEDGE_DISABLE_AUTOSCALING=$disable_autoscaling
 #export SLEDGE_SIGALRM_HANDLER=TRIAGED

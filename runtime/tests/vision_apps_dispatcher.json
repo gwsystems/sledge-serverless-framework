@@ -13,7 +13,7 @@
                         "path": "sift.wasm.so",
                         "admissions-percentile": 70,
                         "expected-execution-us": 113,
-                        "relative-deadline-us": 11300,
+                        "relative-deadline-us": 1130,
                         "http-resp-content-type": "text/plain"
                     },
 		    {
