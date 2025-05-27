@@ -36,7 +36,7 @@ declare project_path="$(
 )"
 echo $project_path
 path=`pwd`
-export SLEDGE_DISABLE_PREEMPTION=$disable_preemption
+export SLEDGE_DISABLE_PREEMPTION=$disable_preempt
 export SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ=$disable_get_req_from_GQ
 export SLEDGE_DISABLE_BUSY_LOOP=$disable_busy_loop
 export SLEDGE_DISABLE_AUTOSCALING=$disable_autoscaling
