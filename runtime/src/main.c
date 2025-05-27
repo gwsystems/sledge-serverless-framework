@@ -266,10 +266,12 @@ runtime_config_validate()
 		}
 	}
 	
-	if (dispatcher == DISPATCHER_RR || dispatcher == DISPATCHER_JSQ || dispatcher == DISPATCHER_EDF_INTERRUPT
-	   || dispatcher == DISPATCHER_SHINJUKU || dispatcher == DISPATCHER_DARC || dispatcher == DISPATCHER_LLD && scheduler == SCHEDULER_EDF) {
+	//if (dispatcher == DISPATCHER_RR || dispatcher == DISPATCHER_JSQ || dispatcher == DISPATCHER_EDF_INTERRUPT
+	//   || dispatcher == DISPATCHER_SHINJUKU || dispatcher == DISPATCHER_DARC || dispatcher == DISPATCHER_LLD && scheduler == SCHEDULER_EDF) {
+	if (dispatcher == DISPATCHER_EDF_INTERRUPT || dispatcher == DISPATCHER_SHINJUKU || dispatcher == DISPATCHER_DARC) {
 		if (runtime_preemption_enabled == true) {
-			panic("Must disable preemption if dispatcher is RR, JSQ, EDF_INTERRUPT, or LLD + EDF\n");
+			//panic("Must disable preemption if dispatcher is RR, JSQ, EDF_INTERRUPT, or LLD + EDF\n");
+			panic("Must disable preemption if dispatcher is SHINJUKU, DARC or EDF_INTERRUPT\n");
 		}
 	}
 
