@@ -14,6 +14,7 @@
 
 extern struct priority_queue* worker_queues[1024];
 extern _Atomic uint32_t local_queue_length[1024];
+extern uint32_t max_local_queue_length[1024];
 extern thread_local int global_worker_thread_idx;
 _Atomic uint64_t worker_queuing_cost[1024]; /* index is thread id, each queue's total execution cost of queuing requests */
 extern struct perf_window * worker_perf_windows[1024]; /* index is thread id, each queue's perf windows, each queue can 
@@ -68,6 +69,10 @@ local_runqueue_minheap_add_index(int index, struct sandbox *sandbox)
 	}
 
 	atomic_fetch_add(&local_queue_length[index], 1);
+	if (local_queue_length[index] > max_local_queue_length[index]) {
+                max_local_queue_length[index] = local_queue_length[index];
+        }
+
 	uint32_t uid = sandbox->route->admissions_info.uid;
 
 	/* Set estimated exeuction time for the sandbox */
