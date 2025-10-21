@@ -4,7 +4,7 @@ SHELL:=/bin/bash
 all: awsm erpc libsledge runtime applications
 
 .PHONY: clean
-clean: awsm.clean libsledge.clean runtime.clean applications.clean
+clean: awsm.clean erpc.clean libsledge.clean runtime.clean applications.clean
 
 .PHONY: submodules
 submodules:
@@ -33,7 +33,13 @@ libsledge.clean:
 
 .PHONY: erpc
 erpc:
-	eRPC/c_interface/build.sh
+	@echo "Building eRPC interface..."
+	cd eRPC/c_interface && ./build.sh
+	@echo "eRPC build complete."
+
+.PHONY: erpc.clean
+erpc.clean:
+	cd eRPC/c_interface && make clean
 
 # sledgert: the runtime that executes *.so modules
 .PHONY: runtime
