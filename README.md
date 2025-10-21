@@ -1,49 +1,29 @@
-# SLEdge
+# SLEdgeScale
 
-**SLEdge** is a lightweight serverless solution suitable for edge computing. It builds on WebAssembly sandboxing provided by the [aWsm compiler](https://github.com/gwsystems/aWsm).
+**SLEdgeScale** is an ultra-low-latency, high-density, and task-deadline-aware serverless computing solution suitable for edge environments, extending **SLEdge**. It leverages WebAssembly sandboxing provided by the [aWsm compiler](https://github.com/gwsystems/aWsm) and kernel-bypass RPC offered by [eRPC](https://github.com/erpc-io/eRPC).
 
-## Setting up a development environment
+## Setting up a development environment (Native on Debian Host)
+SLEdgeScale was developed and tested on [Cloudlab](https://www.cloudlab.us) nodes (d6515) equipped with Mellanox NICs. A public [profile](https://www.cloudlab.us/p/GWCloudLab/sledge-rpc2) is available on CloudLab for easily creating a development environment for eRPC with node d6515. If you plan to set up the environment on machines with Intel NICs or other machines, please refer to the [eRPC](https://github.com/erpc-io/eRPC) repository for details about environment configuration, including driver and DPDK installation. For Mellanox NICs, please follow [this](https://docs.nvidia.com/networking/display/mlnxofedv590560125/installing+mlnx_ofed) guide to install *MLNX_OFED*.
 
-### Native on Debian Host
+For using CloudLab profile to create the development environment:
+Choose the [profile](https://www.cloudlab.us/p/GWCloudLab/sledge-rpc2) and use the following configuration:
+Number of Nodes: 2
+Select OS image: SLEDGE
+Optional physical node type : d6515
 
-```sh
-git clone https://github.com/gwsystems/sledge-serverless-framework.git
-cd sledge-serverless-framework
-./install_deb.sh
-source ~/.bashrc
-make install
-make test
-```
-
-### Docker
-
-**Note: These steps require Docker. Make sure you've got it installed!**
-
-[Docker Installation Instructions](https://docs.docker.com/install/)
-
-We provide a Docker build environment configured with the dependencies and toolchain needed to build the SLEdge runtime and serverless functions.
-
-To setup this environment, run:
-
-```bash
-./devenv.sh setup
-```
-
-### Using the Docker container to compile your serverless functions
-
-To enter the docker environment, run:
-
-```bash
-./devenv.sh run
-```
-
-The first time you enter this environment, run the following to copy the sledgert binary to /sledge/runtime/bin.
-
-```bash
-cd /sledge/runtime
-make clean all
-```
-
+Now the environment is prepared for eRPC. The following steps are to build and install SLEdgeScale:
+1. Git clone this repo and checkout branch *compare_dispatchers*
+2. Extend the root filesystem. Run `sledge-serverless-framework/runtime/tests/add_partition.sh`
+3. Move `sledge-serverless-framework` to `/my_mount/`
+4. Disable multiple threads. Run `sudo sledge-serverless-framework/runtime/tests/no_hyperthreads.sh`
+5. Build:
+   ```sh
+   cd sledge-serverless-framework
+   ./install_deb.sh
+   source $HOME/.cargo/env
+   source ~/.bashrc
+   make install
+   ```
 There are a set of benchmarking applications in the `/sledge/applications` directory. Run the following to compile all benchmarks runtime tests using the aWsm compiler and then copy all resulting `<application>.wasm.so` files to /sledge/runtime/bin.
 
 ```bash
@@ -51,33 +31,12 @@ cd /sledge/applications/
 make clean all
 ```
 
-You now have everything that you need to execute your first serverless function on SLEdge
+You now have everything that you need to execute your first serverless function on SLEdgeScale
 
-To exit the container:
-
-```bash
-exit
-```
-
-To stop the Docker container:
-
-```bash
-./devenv.sh stop
-```
-
-### Deleting Docker Build Containers
-
-If you are finished working with the SLEdge runtime and wish to remove it, run the following command to delete our Docker build and runtime images.
-
-```bash
-./devenv.sh rma
-```
-
-And then simply delete this repository.
 
 ## Running your first serverless function
 
-An SLEdge serverless function consists of a shared library (\*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:
+An SLEdgeScale serverless function consists of a shared library (\*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:
 
 ```json
 [
