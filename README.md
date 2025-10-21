@@ -13,10 +13,18 @@ Optional physical node type : d6515
 
 Now the environment is prepared for eRPC. The following steps are to build and install SLEdgeScale:
 1. Git clone this repo and checkout branch *compare_dispatchers*
-2. Extend the root filesystem. Run `sledge-serverless-framework/runtime/tests/add_partition.sh`
-3. Move `sledge-serverless-framework` to `/my_mount/`
-4. Disable multiple threads. Run `sudo sledge-serverless-framework/runtime/tests/no_hyperthreads.sh`
-5. Build:
+2. Extend the root filesystem:
+   ```sh
+   cd sledge-serverless-framework/runtime/tests
+   ./add_partition.sh
+   ```
+4. Move `sledge-serverless-framework` to `/my_mount/`
+5. Disable multiple threads:
+   ```sh
+   cd sledge-serverless-framework/runtime/tests
+   sudo ./no_hyperthreads.sh
+   ```
+7. Build:
    ```sh
    cd sledge-serverless-framework
    ./install_deb.sh
