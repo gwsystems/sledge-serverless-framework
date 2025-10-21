@@ -1,7 +1,7 @@
 SHELL:=/bin/bash
 
 .PHONY: all
-all: awsm libsledge runtime applications
+all: awsm erpc libsledge runtime applications
 
 .PHONY: clean
 clean: awsm.clean libsledge.clean runtime.clean applications.clean
@@ -30,6 +30,10 @@ libsledge:
 .PHONY: libsledge.clean
 libsledge.clean:
 	make -C libsledge clean
+
+.PHONY: erpc
+erpc:
+	eRPC/c_interface/build.sh
 
 # sledgert: the runtime that executes *.so modules
 .PHONY: runtime

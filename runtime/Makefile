@@ -118,12 +118,12 @@ CFLAGS += -D${ARCH}
 # allowing the libraries acess to such symbols. The libm math library is used several places, including
 # in backing functions that implement the WebAssembly instruction set.
 LDFLAGS += -Wl,--whole-archive -ldpdk -Wl,--no-whole-archive -Wl,--export-dynamic -ldl -lm -lstdc++ -lnuma -ldl -libverbs -lmlx4 -lmlx5
-LDFLAGS += -L /users/xiaosuGW/eRPC/c_interface/build
+LDFLAGS += -L ../eRPC/c_interface/build
 
 # Our third-party dependencies build into a single dist directory to simplify configuration here.
 LDFLAGS += -Lthirdparty/dist/lib/
 INCLUDES += -Iinclude/ -Ithirdparty/dist/include/ -I../libsledge/include/
-INCLUDES += -I/users/xiaosuGW/eRPC/c_interface
+INCLUDES += -I../eRPC/c_interface
 INCLUDES += -I /usr/include/dpdk
 
 
@@ -139,7 +139,7 @@ JSMNCFLAGS += -DJSMN_STRICT
 
 # Force sledgert to rebuild when header files change
 # This is a bit fragile, as it does not recurse subdirectories when detecting last changed times
-HEADER_DEPS = thirdparty/dist/include/*.h include/*.h include/arch/x86_64/*.h include/arch/aarch64/*.h /users/xiaosuGW/eRPC/c_interface/*.h
+HEADER_DEPS = thirdparty/dist/include/*.h include/*.h include/arch/x86_64/*.h include/arch/aarch64/*.h ../eRPC/c_interface/*.h
 
 .PHONY: all
 all: thirdparty runtime
@@ -151,7 +151,7 @@ clean: thirdparty.clean runtime.clean
 bin/${BINARY_NAME}: ${HEADER_DEPS} ${CFILES}
 	@echo "Compiling runtime"
 	@mkdir -p bin/
-	@${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ ${CFILES} -L/users/xiaosuGW/eRPC/c_interface/build -lerpc_c_interface -o bin/${BINARY_NAME}
+	@${CC} ${INCLUDES} ${CFLAGS} ${LDFLAGS} ${JSMNCFLAGS} -L/usr/lib/ ${CFILES} -L../eRPC/c_interface/build -lerpc_c_interface -o bin/${BINARY_NAME}
 
 .PHONY: runtime
 runtime: bin/${BINARY_NAME}
