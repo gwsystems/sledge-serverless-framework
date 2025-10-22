@@ -39,8 +39,7 @@ cd /sledge/applications/
 make clean all
 ```
 
-You now have everything that you need to execute your first serverless function on SLEdgeScale
-
+All binary files are generated in `sledge-serverless-framework/runtime/bin`. You now have everything that you need to execute your first serverless function on SLEdgeScale
 
 ## Running your first serverless function
 
@@ -48,25 +47,65 @@ An SLEdgeScale serverless function consists of a shared library (\*.so) and a JS
 
 ```json
 [
-	{
-		"name": "GWU",
-		"port": 10010,
-		"routes": [
-			{
-				"route": "/fib",
-				"path": "fibonacci.wasm.so",
-				"expected-execution-us": 6000,
-				"relative-deadline-us": 20000,
-				"http-resp-content-type": "text/plain"
-			}
-		]
-	}
-]
+        {
+                "name": "gwu",
+                "port": 31850,
+                "replenishment-period-us": 0,
+                "max-budget-us": 0,
+                "routes": [
+                    {
+                        "route": "/fib",
+                        "request-type": 1,
+                        "n-resas": 1,
+                        "group-id": 1,
+                        "path": "fibonacci.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 5,
+                        "relative-deadline-us": 50,
+                        "http-resp-content-type": "text/plain"
+                    }
+                ]
 
+        }
+
+]
 ```
 
-The `port` and `route` fields are used to determine the path where our serverless function will be served served.
+`port`:Refers to the UDP port. 
+`request-type` and `path`: Used to determine which serverless function will be served; `request-type` must be unique per function.
+`route`: An inherited field from SLEdge. It is not used currently but is kept to avoid parse errors.
+`n-resas`: Specifies the number of CPU cores reserved for this serverless function. It is used by the DARC algorithm.
+`group-id`: Specifies the group identifier used in the DARC algorithm. 
+`expected-execution-us`: Specifies the function’s expected execution time in microseconds. This is used for testing; SLEdgeScale also estimates execution time online.
+`relative-deadline-us`: Specifies the request deadline in microseconds.
+`http-resp-content-type`: Not used currently but is kept to avoid parse errors.
 
+### Start the SLEdgeScale Server
+We need to export some environment variables before start the server. The commonly used environment variables are:
+`SLEDGE_DISABLE_PREEMPTION`: Disables the timer that sends a SIGALRM signal every 5 ms for preemption. Must disable in SLEdgeScale.
+`SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ`: Disable workers fetching requests from the global queue. Disabled in SLEdgeScale; optional in SLEdge. 
+#only works for FIFO scheduler
+export SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ=$disable_get_req_from_GQ
+export SLEDGE_FIFO_QUEUE_BATCH_SIZE=5
+export SLEDGE_DISABLE_BUSY_LOOP=$disable_busy_loop
+export SLEDGE_DISABLE_AUTOSCALING=$disable_autoscaling
+#export SLEDGE_SIGALRM_HANDLER=TRIAGED
+export SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION=$disable_service_ts_simulation
+export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id
+export SLEDGE_NWORKERS=$worker_num
+export SLEDGE_NLISTENERS=$listener_num
+export SLEDGE_WORKER_GROUP_SIZE=$worker_group_size
+export SLEDGE_SCHEDULER=$scheduler_policy
+#export SLEDGE_DISPATCHER=DARC
+export SLEDGE_DISPATCHER=$dispatcher_policy
+export SLEDGE_SCHEDULER=$scheduler_policy
+#export SLEDGE_DISPATCHER=EDF_INTERRUPT
+export SLEDGE_SANDBOX_PERF_LOG=$path/$server_log
+
+Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `applications/` directory to LD_LIBRARY_PATH.
+
+```bash
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../../tests/fibonacci/bimodal/spec.json
 In our case, we are running the SLEdge runtime on localhost, so our function is available at `localhost:10010/fib`.
 
 Our fibonacci function will parse a single argument from the HTTP POST body that we send. The expected Content-Type is "text/plain".
@@ -81,10 +120,7 @@ From the root project directory of the host environment (not the Docker containe
 cd runtime/bin/
 ```
 
-Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `applications/` directory to LD_LIBRARY_PATH.
 
-```bash
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../../tests/fibonacci/bimodal/spec.json
 ```
 
 While you don't see any output to the console, the runtime is running in the foreground.
