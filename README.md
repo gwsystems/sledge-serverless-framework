@@ -76,25 +76,36 @@ An SLEdgeScale serverless function consists of a shared library (\*.so) and a JS
 `route`: An inherited field from SLEdge. It is not used currently but is kept to avoid parse errors.
 `n-resas`: Specifies the number of CPU cores reserved for this serverless function. It is used by the DARC algorithm.
 `group-id`: Specifies the group identifier used in the DARC algorithm. 
-`expected-execution-us`: Specifies the function’s expected execution time in microseconds. This is used for testing; SLEdgeScale also estimates execution time online.
+`expected-execution-us`: Currently not used. SLEdgeScale will estimate execution time online.
 `relative-deadline-us`: Specifies the request deadline in microseconds.
 `http-resp-content-type`: Not used currently but is kept to avoid parse errors.
 
 ### Start the SLEdgeScale Server
 We need to export some environment variables before start the server. The commonly used environment variables are:
 `SLEDGE_DISABLE_PREEMPTION`: Disables the timer that sends a SIGALRM signal every 5 ms for preemption. Must disable in SLEdgeScale.
-`SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ`: Disable workers fetching requests from the global queue. Disabled in SLEdgeScale; optional in SLEdge. 
-#only works for FIFO scheduler
-export SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ=$disable_get_req_from_GQ
-export SLEDGE_FIFO_QUEUE_BATCH_SIZE=5
-export SLEDGE_DISABLE_BUSY_LOOP=$disable_busy_loop
-export SLEDGE_DISABLE_AUTOSCALING=$disable_autoscaling
-#export SLEDGE_SIGALRM_HANDLER=TRIAGED
-export SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION=$disable_service_ts_simulation
-export SLEDGE_FIRST_WORKER_COREID=$first_worker_core_id
-export SLEDGE_NWORKERS=$worker_num
-export SLEDGE_NLISTENERS=$listener_num
-export SLEDGE_WORKER_GROUP_SIZE=$worker_group_size
+`SLEDGE_DISPATCHER`: Specifies the dispatcher policy. There are seven types of dispatchers:
+- SHINJUKU: Requests are enqueued to each dispatcher's typed queue.
+- EDF_INTERRUPT: The dispatcher policy used by SLEdgeScale.
+- DARC: Requests are enqueued to each dispatcher's typed queue.
+- LLD: The dispatcher selects the worker with the least loaded queue to enqueue a request..
+- TO_GLOBAL_QUEUE: The dispatcher policy used by SLEdge. All dispatchers enqueue requests to a global queue.
+- RR: The dispatcher selects a worker in a round-robin fashion.
+- JSQ: The dispatcher selects the worker with the shortest queue to enqueue a request.
+  
+`SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ`: Disable workers fetching requests from the global queue. Must be disabled if the dispatcher policy is not set to TO_GLOBAL_QUEUE. 
+`SLEDGE_SCHEDULER`: Specifies the scheduler policy. There are two types of schedulers:
+- FIFO: First-In-First-Out. Must use the TO_GLOBAL_QUEUE dispatch policy when using FIFO.
+- EDF: Earliest-deadline-first.
+  
+`SLEDGE_FIFO_QUEUE_BATCH_SIZE`: When using the FIFO scheduler, specifies how many requests are fetched from the global queue to the local queue each time the local queue becomes empty.
+`SLEDGE_DISABLE_BUSY_LOOP`: Disables the worker’s busy loop for fetching requests from the local or global queue. The busy loop must be enabled if the dispatcher policy is set to `TO_GLOBAL_QUEUE`.
+`SLEDGE_DISABLE_AUTOSCALING`: Currently not used;always set to `true`.
+`SLEDGE_SIGALRM_HANDLER`: Always set to `TRIAGED` to avoid performance issues.
+`SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION`: For the `hash` function, enabling this option allows SLEdgeScale to estimate the function’s execution time based on the input number. For other types of functions, this should be disabled.
+`SLEDGE_FIRST_WORKER_COREID`: Specifies the ID of the first core for the worker thread. Cores 0–2 are reserved, so numbering should start from 3.
+`SLEDGE_NWORKERS`: Specifies the total number of workers in the system. 
+`SLEDGE_NLISTENERS`: Specifies the total number of dispachers in the system. 
+`SLEDGE_WORKER_GROUP_SIZE`: Specifies SLEdgeScale calculates the number of workers in each worker group based on this value.
 export SLEDGE_SCHEDULER=$scheduler_policy
 #export SLEDGE_DISPATCHER=DARC
 export SLEDGE_DISPATCHER=$dispatcher_policy
