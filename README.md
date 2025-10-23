@@ -82,7 +82,9 @@ An SLEdgeScale serverless function consists of a shared library (\*.so) and a JS
 
 ### Start the SLEdgeScale Server
 We need to export some environment variables before start the server. The commonly used environment variables are:
+
 `SLEDGE_DISABLE_PREEMPTION`: Disables the timer that sends a SIGALRM signal every 5 ms for preemption. Must disable in SLEdgeScale.
+
 `SLEDGE_DISPATCHER`: Specifies the dispatcher policy. There are seven types of dispatchers:
 - SHINJUKU: Requests are enqueued to each dispatcher's typed queue.
 - EDF_INTERRUPT: The dispatcher policy used by SLEdgeScale.
@@ -92,26 +94,55 @@ We need to export some environment variables before start the server. The common
 - RR: The dispatcher selects a worker in a round-robin fashion.
 - JSQ: The dispatcher selects the worker with the shortest queue to enqueue a request.
   
-`SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ`: Disable workers fetching requests from the global queue. Must be disabled if the dispatcher policy is not set to TO_GLOBAL_QUEUE. 
+`SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ`: Disable workers fetching requests from the global queue. Must be disabled if the dispatcher policy is not set to TO_GLOBAL_QUEUE.
+
 `SLEDGE_SCHEDULER`: Specifies the scheduler policy. There are two types of schedulers:
 - FIFO: First-In-First-Out. Must use the TO_GLOBAL_QUEUE dispatch policy when using FIFO.
 - EDF: Earliest-deadline-first.
   
 `SLEDGE_FIFO_QUEUE_BATCH_SIZE`: When using the FIFO scheduler, specifies how many requests are fetched from the global queue to the local queue each time the local queue becomes empty.
+
 `SLEDGE_DISABLE_BUSY_LOOP`: Disables the worker’s busy loop for fetching requests from the local or global queue. The busy loop must be enabled if the dispatcher policy is set to `TO_GLOBAL_QUEUE`.
+
 `SLEDGE_DISABLE_AUTOSCALING`: Currently not used;always set to `true`.
-`SLEDGE_SIGALRM_HANDLER`: Always set to `TRIAGED` to avoid performance issues.
+
 `SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION`: For the `hash` function, enabling this option allows SLEdgeScale to estimate the function’s execution time based on the input number. For other types of functions, this should be disabled.
+
 `SLEDGE_FIRST_WORKER_COREID`: Specifies the ID of the first core for the worker thread. Cores 0–2 are reserved, so numbering should start from 3.
-`SLEDGE_NWORKERS`: Specifies the total number of workers in the system. 
-`SLEDGE_NLISTENERS`: Specifies the total number of dispachers in the system. 
-`SLEDGE_WORKER_GROUP_SIZE`: Specifies SLEdgeScale calculates the number of workers in each worker group based on this value.
-export SLEDGE_SCHEDULER=$scheduler_policy
-#export SLEDGE_DISPATCHER=DARC
-export SLEDGE_DISPATCHER=$dispatcher_policy
-export SLEDGE_SCHEDULER=$scheduler_policy
-#export SLEDGE_DISPATCHER=EDF_INTERRUPT
+
+`SLEDGE_NWORKERS`: The total number of workers in the system. 
+
+`SLEDGE_NLISTENERS`: The total number of dispachers in the system. 
+
+`SLEDGE_WORKER_GROUP_SIZE`: The number of workers in each worker group. Its value is equal to SLEDGE_NWORKERS / SLEDGE_NLISTENERS
+
+`SLEDGE_SANDBOX_PERF_LOG`: Server log file path
+
+Now use the following example script to start server side:
+```sh
+declare project_path="$(
+        cd "$(dirname "$0")/../.."
+        pwd
+)"
+echo $project_path
+path=`pwd`
+export SLEDGE_DISABLE_PREEMPTION=true
+export SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ=true
+export SLEDGE_FIFO_QUEUE_BATCH_SIZE=5
+export SLEDGE_DISABLE_BUSY_LOOP=true
+export SLEDGE_DISABLE_AUTOSCALING=true
+export SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION=true
+export SLEDGE_FIRST_WORKER_COREID=3
+export SLEDGE_NWORKERS=1
+export SLEDGE_NLISTENERS=1
+export SLEDGE_WORKER_GROUP_SIZE=1
+export SLEDGE_SCHEDULER=EDF
+export SLEDGE_DISPATCHER=EDF_INTERRUPT
 export SLEDGE_SANDBOX_PERF_LOG=$path/$server_log
+
+cd $project_path/runtime/bin
+LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/fib.json
+```
 
 Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `applications/` directory to LD_LIBRARY_PATH.
 
