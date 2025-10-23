@@ -81,7 +81,9 @@ An SLEdgeScale serverless function consists of a shared library (\*.so) and a JS
 `http-resp-content-type`: Not used currently but is kept to avoid parse errors.
 
 ### Start the SLEdgeScale Server
-We need to export some environment variables before start the server. The commonly used environment variables are:
+First, set the public IPs and ports for eRPC. Open `sledge-serverless-framework/eRPC/scripts/autorun_process_file` — the first line specifies the server IP and port, and the second line specifies the client IP and port. Make sure to apply the same change on the client machine as well.
+
+Then we need to export some environment variables before start the server. The commonly used environment variables are:
 
 `SLEDGE_DISABLE_PREEMPTION`: Disables the timer that sends a SIGALRM signal every 5 ms for preemption. Must disable in SLEdgeScale.
 
@@ -118,8 +120,11 @@ We need to export some environment variables before start the server. The common
 
 `SLEDGE_SANDBOX_PERF_LOG`: Server log file path
 
-Now use the following example script to start server side:
+Now run the sledgert binary with the following script using sudo, passing the JSON file (e.g., the above Fibonacci function configuration) of the serverless function we want to serve. Because serverless functions are loaded by SLEdgeScale as shared libraries, we want to add the `applications/` directory to LD_LIBRARY_PATH:
+
 ```sh
+#!/bin/bash
+
 declare project_path="$(
         cd "$(dirname "$0")/../.."
         pwd
@@ -138,13 +143,11 @@ export SLEDGE_NLISTENERS=1
 export SLEDGE_WORKER_GROUP_SIZE=1
 export SLEDGE_SCHEDULER=EDF
 export SLEDGE_DISPATCHER=EDF_INTERRUPT
-export SLEDGE_SANDBOX_PERF_LOG=$path/$server_log
+export SLEDGE_SANDBOX_PERF_LOG=$path/server.log
 
 cd $project_path/runtime/bin
 LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/fib.json
 ```
-
-Now run the sledgert binary, passing the JSON file of the serverless function we want to serve. Because serverless functions are loaded by SLEdge as shared libraries, we want to add the `applications/` directory to LD_LIBRARY_PATH.
 
 ```bash
 LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../../tests/fibonacci/bimodal/spec.json
