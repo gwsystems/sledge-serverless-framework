@@ -43,7 +43,7 @@ All binary files are generated in `sledge-serverless-framework/runtime/bin`. You
 
 ## Running your first serverless function
 
-An SLEdgeScale serverless function consists of a shared library (\*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. As an example, here is the configuration file for our sample fibonacci function:
+An SLEdgeScale serverless function consists of a shared library (\*.so) and a JSON configuration file that determines how the runtime should execute the serverless function. We first need to prepare this configuration file. As an example, here is the configuration file for our sample fibonacci function:
 
 ```json
 [
@@ -148,61 +148,65 @@ export SLEDGE_SANDBOX_PERF_LOG=$path/server.log
 cd $project_path/runtime/bin
 LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../tests/fib.json
 ```
-
-```bash
-LD_LIBRARY_PATH="$(pwd):$LD_LIBRARY_PATH" ./sledgert ../../tests/fibonacci/bimodal/spec.json
-In our case, we are running the SLEdge runtime on localhost, so our function is available at `localhost:10010/fib`.
-
-Our fibonacci function will parse a single argument from the HTTP POST body that we send. The expected Content-Type is "text/plain".
-
-Now that we understand roughly how the SLEdge runtime interacts with serverless function, let's run Fibonacci!
-
-The fastest way to check it out is just to click on the following URL on your Web browser: [http://localhost:10010/fib?10](http://localhost:10010/fib?10)
-
-From the root project directory of the host environment (not the Docker container!), navigate to the binary directory
-
-```bash
-cd runtime/bin/
+### Start the client to send requests
+First git clone the client code:
+```sh
+git clone https://github.com/lyuxiaosu/eRPC.git
 ```
+There are several client implementations under eRPC/apps, and you can also create your own customized client. In our setup, we use `openloop_client`, which is an open-loop client that sends requests following a Poisson distribution.
+Edit `autorun_app_file`, `autorun_process_file`, and build:
+```sh
+cd eRPC
+echo "openloop_client" > ./scripts/autorun_app_file
+./build.sh
+```
+Our fibonacci function will parse a single argument from the rpc request that we send. Create the configuration file `eRPC/apps/openloop_client/conf` for `openloop_client`:
+```
+--test_ms 10000
+--sm_verbose 0
+--num_server_threads 1
+--window_size 10
+--req_size 5
+--resp_size 32
+--num_processes 2
+--numa_0_ports 0
+--numa_1_ports 1,3
+--req_type 1
+--rps 1000
+--req_parameter 20
+--warmup_rps 200
+```
+`test_ms`: Define the test duration time in milliseconds. 
 
+`num_server_threads`: Specifies how many dispatcher threads to run on the server.
+
+`req_size`: The size of the request package in bytes
+
+`resp_size`: The size of the response package in bytes
+
+`req_type`: The request type 
+
+`req_parameter`: The parameter carried by the request. Here is the fibonacci number.
+
+
+Now we have everything, let's run Fibonacci!
+
+```sh
+cd eRPC
+./scripts/do.sh 1 0
 
 ```
-
-While you don't see any output to the console, the runtime is running in the foreground.
-
-Let's now invoke our serverless function to compute the 10th fibonacci number. We'll use `cURL` and [HTTPie](https://httpie.org/) to send a HTTP  GET and POST requests with the parameter we want to pass to my serverless function. Feel free to use whatever other network client you prefer! 
-
-Open a **new** terminal session and execute the following
-
-```bash
-# HTTP GET method:
-http localhost:10010/fib?10
-curl localhost:10010/fib?10
-
-# HTTP POST method:
-echo "10" | http POST localhost:10010/fib
-curl -i -d 10 localhost:10010/fib
+The results is saved at `client.log`:
 ```
-
-You should receive the following in response. The serverless function says that the 10th fibonacci number is 55, which seems to be correct!
-
-```bash
-HTTP/1.1 200 OK
-Server: SLEdge
-Connection: close
-Content-Type: text/plain
-Content-Length: 3
-
-55
+thread id, type id, latency, cpu time
+0 1 64.492000 23
+0 1 46.649000 23
+0 1 45.806000 23
+0 1 45.877000 22
+0 1 45.416000 22
+...
 ```
-
-When done, terminal the SLEdge runtime with `Ctrl+c`
-
-## Running Test Workloads
-
-Various synthetic and real-world tests can be found in `runtime/tests`. Generally, each experiment can be run by Make rules in the top level `test.mk`.
-
-`make -f test.mk all`
+The first column is the thread ID, the second column is the request type, the third column is the end-to-end latency in microseconds, and the fourth column is the execution time in microseconds.
 
 ## Problems or Feedback?
 
