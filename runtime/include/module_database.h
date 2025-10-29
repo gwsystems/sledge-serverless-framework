@@ -2,7 +2,7 @@
 
 #include "module.h"
 
-#define MODULE_DATABASE_CAPACITY 128
+#define MODULE_DATABASE_CAPACITY 1024 
 
 struct module_database {
 	struct module *modules[MODULE_DATABASE_CAPACITY];

@@ -13,6 +13,16 @@
 #include "tenant_config.h"
 #include "priority_queue.h"
 #include "sandbox_functions.h"
+#include "request_typed_queue.h"
+#include "request_typed_deque.h"
+#include "memlogging.h"
+
+extern thread_local uint32_t n_rtypes;
+extern thread_local struct request_typed_queue *request_type_queue[MAX_REQUEST_TYPE];
+extern thread_local struct request_typed_deque *request_type_deque[MAX_REQUEST_TYPE];
+extern thread_local uint8_t dispatcher_thread_idx;
+extern thread_local struct perf_window perf_window_per_thread[1024];
+extern thread_local int global_worker_thread_idx;
 
 int            tenant_database_add(struct tenant *tenant);
 struct tenant *tenant_database_find_by_name(char *name);
@@ -77,19 +87,19 @@ tenant_policy_specific_init(struct tenant *tenant, struct tenant_config *config)
 static inline struct tenant *
 tenant_alloc(struct tenant_config *config)
 {
-	struct tenant *existing_tenant = tenant_database_find_by_name(config->name);
-	if (existing_tenant != NULL) panic("Tenant %s is already initialized\n", existing_tenant->name);
-
-	existing_tenant = tenant_database_find_by_port(config->port);
+	struct tenant *existing_tenant = tenant_database_find_by_port(config->port);
 	if (existing_tenant != NULL)
 		panic("Tenant %s is already configured with port %u\n", existing_tenant->name, config->port);
 
 	struct tenant *tenant = (struct tenant *)calloc(1, sizeof(struct tenant));
 
 	/* Move name */
-	tenant->tag  = EPOLL_TAG_TENANT_SERVER_SOCKET;
-	tenant->name = config->name;
-	config->name = NULL;
+	tenant->tag  	      = EPOLL_TAG_TENANT_SERVER_SOCKET;
+	tenant->name          = config->name;
+	tenant->port          = config->port;
+	tenant->routes_config = config->routes;
+	tenant->routes_len    = config->routes_len;
+	config->name          = NULL;
 
 	tcp_server_init(&tenant->tcp_server, config->port);
 	http_router_init(&tenant->router, config->routes_len);
@@ -162,3 +172,46 @@ get_next_timeout_of_tenant(uint64_t replenishment_period)
  */
 int tenant_listen(struct tenant *tenant);
 int listener_thread_register_tenant(struct tenant *tenant);
+
+static inline void
+tenant_preallocate_memory(struct tenant *tenant, void *arg1, void *arg2) {
+	struct module **modules = tenant->module_db.modules;
+	size_t count = tenant->module_db.count;	
+	for(int i = 0; i < count; i++) {
+		module_preallocate_memory(modules[i]);	
+	}
+}
+
+static inline void
+tenant_perf_window_init(struct tenant *tenant, void *arg1, void *arg2) {
+	for(int i = 0; i < tenant->router.length; i++) {
+		perf_window_initialize(&perf_window_per_thread[i]);
+	} 	
+}
+
+static inline void
+tenant_request_typed_queue_init(struct tenant *tenant, void *arg1, void *arg2) {
+
+	if (dispatcher == DISPATCHER_SHINJUKU) {
+	    for(int i = 0; i < tenant->routes_len; i++) {
+                request_type_deque[tenant->routes_config[i].request_type - 1] =
+                request_typed_deque_init(tenant->routes_config[i].request_type, 4096);
+		n_rtypes++;
+            }
+        } else if (dispatcher == DISPATCHER_DARC) { 
+	    for(int i = 0; i < tenant->routes_len; i++) {
+		if (request_type_queue[tenant->routes_config[i].group_id - 1] == NULL) {
+		    request_type_queue[tenant->routes_config[i].group_id - 1] = 
+	            request_typed_queue_init(tenant->routes_config[i].group_id, tenant->routes_config[i].n_resas);	
+		    n_rtypes++;	
+		}
+	    }
+        }
+}
+
+static inline void
+tenat_perf_window_print_mean(struct tenant *tenant, void *arg1, void *arg2) {
+	for(int i = 0; i < tenant->router.length; i++) {
+		mem_log("tid %d admssion id %u exec mean %lu\n", global_worker_thread_idx, i, perf_window_get_mean(&perf_window_per_thread[i]));	
+	}
+}

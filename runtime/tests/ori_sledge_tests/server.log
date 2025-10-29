@@ -1,0 +1,8 @@
+id,tenant,route,state,deadline,actual,queued,uninitialized,allocated,initialized,runnable,interrupted,preempted,running_sys,running_user,asleep,returned,complete,error,proc_MHz,memory
+1,gwu,/empty,Complete,32400,153009,56541,0,447,56094,846,0,0,23899,71746,0,149836,0,0,3240
+2,gwu,/empty,Complete,32400,112424,46060,0,728,45332,587,0,0,14593,51231,0,128333,0,0,3240
+3,gwu,/empty,Complete,32400,141963,58233,0,728,57505,329,0,0,17530,65918,0,105633,0,0,3240
+4,gwu,/empty,Complete,32400,149483,74730,0,493,74237,305,0,0,19106,55389,0,102531,0,0,3240
+5,gwu,/empty,Complete,32400,28717,12925,0,494,12431,564,0,0,9283,5969,0,66951,0,0,3240
+6,gwu,/empty,Complete,32400,24111,7919,0,423,7496,1058,0,0,9447,5710,0,62064,0,0,3240
+7,gwu,/empty,Complete,32400,30527,15581,0,470,15111,329,0,0,8577,6063,0,65988,0,0,3240

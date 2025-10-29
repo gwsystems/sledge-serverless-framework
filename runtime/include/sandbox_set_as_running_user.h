@@ -21,10 +21,12 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_RUNNING_SYS: {
 		assert(sandbox == current_sandbox_get());
-		assert(runtime_worker_threads_deadline[worker_thread_idx] == sandbox->absolute_deadline);
+		assert(runtime_worker_threads_deadline[global_worker_thread_idx] == sandbox->absolute_deadline);
 		break;
 	}
 	case SANDBOX_PREEMPTED: {
+		/* Sandbox resumes, update its RS */
+                sandbox->srsf_remaining_slack = sandbox->srsf_remaining_slack - (__getcycles() - sandbox->srsf_stop_running_ts);
 		break;
 	}
 	default: {
@@ -38,6 +40,15 @@ sandbox_set_as_running_user(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
+	//------------xiaosu------------------
+	/*if (last_state == SANDBOX_RUNNING_SYS) {
+		printf("id %lu running user, last running sys, current ts %lu total running user %lu total running sys %lu\n", 
+			sandbox->id, now, sandbox->duration_of_state[SANDBOX_RUNNING_USER], sandbox->duration_of_state[last_state]);
+	} else {
+		printf("id %lu running user, last preempt, current ts %lu total running user %lu total preempt %lu\n",
+			sandbox->id, now, sandbox->duration_of_state[SANDBOX_RUNNING_USER], sandbox->duration_of_state[last_state]);
+	}*/
+	//-------------xiaosu----------------
 	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RUNNING_USER);
 	sandbox_state_totals_increment(SANDBOX_RUNNING_USER);

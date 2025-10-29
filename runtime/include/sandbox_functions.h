@@ -12,12 +12,17 @@
  * Public API              *
  **************************/
 
+extern struct sandbox* current_sandboxes[1024];
+extern bool runtime_exponential_service_time_simulation_enabled;
+extern struct perf_window * worker_perf_windows[1024];
 struct sandbox *sandbox_alloc(struct module *module, struct http_session *session, struct route *route,
-                              struct tenant *tenant, uint64_t admissions_estimate);
+                              struct tenant *tenant, uint64_t admissions_estimate, void *req_handle,
+			      uint8_t rpc_id);
 int             sandbox_prepare_execution_environment(struct sandbox *sandbox);
-void            sandbox_free(struct sandbox *sandbox);
+uint64_t        sandbox_free(struct sandbox *sandbox, uint64_t *ret);
 void            sandbox_main(struct sandbox *sandbox);
 void            sandbox_switch_to(struct sandbox *next_sandbox);
+void 		sandbox_send_response(struct sandbox *sandbox, uint8_t response_code);
 
 /**
  * Free Linear Memory, leaving stack in place
@@ -47,8 +52,59 @@ sandbox_get_module(struct sandbox *sandbox)
 static inline uint64_t
 sandbox_get_priority(void *element)
 {
+	assert(element != NULL);
 	struct sandbox *sandbox = (struct sandbox *)element;
 	return sandbox->absolute_deadline;
+}
+
+static inline uint64_t
+sandbox_get_execution_cost(void *element, int thread_id) 
+{
+	assert(element != NULL);
+	struct sandbox *sandbox = (struct sandbox *)element;
+	if (runtime_exponential_service_time_simulation_enabled) {
+		assert(sandbox->estimated_cost != 0);
+		if (sandbox == current_sandboxes[thread_id]) {
+			/* This sandbox is running, get the running lasting time until now and
+                           calculate the remaining execution time 
+			*/
+			uint64_t run_cycles = __getcycles() - sandbox->timestamp_of.last_state_change;			
+			return sandbox->estimated_cost > (sandbox->duration_of_state[SANDBOX_RUNNING_SYS]
+                                                  + sandbox->duration_of_state[SANDBOX_RUNNING_USER] + run_cycles) ?
+                                                  sandbox->estimated_cost -
+                                                  sandbox->duration_of_state[SANDBOX_RUNNING_SYS] -
+                                                  sandbox->duration_of_state[SANDBOX_RUNNING_USER] - run_cycles : 0;
+		} else {
+		
+		    	return sandbox->estimated_cost > (sandbox->duration_of_state[SANDBOX_RUNNING_SYS] 
+						  + sandbox->duration_of_state[SANDBOX_RUNNING_USER]) ? 
+						  sandbox->estimated_cost - 
+						  sandbox->duration_of_state[SANDBOX_RUNNING_SYS] - 
+					          sandbox->duration_of_state[SANDBOX_RUNNING_USER] : 0;
+		}
+	} else {
+		uint32_t uid = sandbox->route->admissions_info.uid;
+		uint64_t estimated_cost =  perf_window_get_percentile(&worker_perf_windows[thread_id][uid],
+                                          	sandbox->route->admissions_info.percentile,
+                                          	sandbox->route->admissions_info.control_index);
+
+		if (sandbox == current_sandboxes[thread_id]) {
+			uint64_t run_cycles = __getcycles() - sandbox->timestamp_of.last_state_change;
+			return estimated_cost > (sandbox->duration_of_state[SANDBOX_RUNNING_SYS]
+                                         + sandbox->duration_of_state[SANDBOX_RUNNING_USER] + run_cycles) ?
+                                         estimated_cost -
+                                         sandbox->duration_of_state[SANDBOX_RUNNING_SYS] -
+                                         sandbox->duration_of_state[SANDBOX_RUNNING_USER] - run_cycles : 0;
+
+		} else {
+		    	return estimated_cost > (sandbox->duration_of_state[SANDBOX_RUNNING_SYS]
+                                         + sandbox->duration_of_state[SANDBOX_RUNNING_USER]) ?
+                                         estimated_cost -
+                             	         sandbox->duration_of_state[SANDBOX_RUNNING_SYS] -
+                                         sandbox->duration_of_state[SANDBOX_RUNNING_USER] : 0;
+		}
+
+	}
 }
 
 static inline void

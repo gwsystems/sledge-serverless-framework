@@ -25,7 +25,7 @@ sandbox_set_as_running_sys(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_RUNNING_USER: {
 		assert(sandbox == current_sandbox_get());
-		assert(runtime_worker_threads_deadline[worker_thread_idx] == sandbox->absolute_deadline);
+		assert(runtime_worker_threads_deadline[global_worker_thread_idx] == sandbox->absolute_deadline);
 		break;
 	}
 	case SANDBOX_RUNNABLE: {
@@ -42,6 +42,12 @@ sandbox_set_as_running_sys(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
+	//--------------xiaosu------------------
+	//if (last_state == SANDBOX_RUNNING_USER) {
+	//	printf("id %lu running sys, current ts %lu last running user duration %lu total running user duration %lu\n", 
+	//		sandbox->id, now, sandbox->last_state_duration, sandbox->duration_of_state[last_state]);
+	//}
+	//-------------xiaosu-------------------
 	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RUNNING_SYS);
 	sandbox_state_totals_increment(SANDBOX_RUNNING_SYS);

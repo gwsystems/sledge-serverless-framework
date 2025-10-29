@@ -46,8 +46,8 @@ static inline void
 software_interrupt_counts_deferred_sigalrm_max_update(int deferred_sigalrm_count)
 {
 #ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
-	if (unlikely(deferred_sigalrm_count > software_interrupt_counts_deferred_sigalrm_max[worker_thread_idx])) {
-		software_interrupt_counts_deferred_sigalrm_max[worker_thread_idx] = deferred_sigalrm_count;
+	if (unlikely(deferred_sigalrm_count > software_interrupt_counts_deferred_sigalrm_max[global_worker_thread_idx])) {
+		software_interrupt_counts_deferred_sigalrm_max[global_worker_thread_idx] = deferred_sigalrm_count;
 	}
 #endif
 }
@@ -56,7 +56,7 @@ static inline void
 software_interrupt_counts_deferred_sigalrm_replay_increment()
 {
 #ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
-	atomic_fetch_add(&software_interrupt_counts_deferred_sigalrm_replay[worker_thread_idx], 1);
+	atomic_fetch_add(&software_interrupt_counts_deferred_sigalrm_replay[global_worker_thread_idx], 1);
 #endif
 }
 
@@ -64,7 +64,7 @@ static inline void
 software_interrupt_counts_sigalrm_kernel_increment()
 {
 #ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
-	atomic_fetch_add(&software_interrupt_counts_sigalrm_kernel[worker_thread_idx], 1);
+	atomic_fetch_add(&software_interrupt_counts_sigalrm_kernel[global_worker_thread_idx], 1);
 #endif
 }
 
@@ -72,7 +72,7 @@ static inline void
 software_interrupt_counts_sigalrm_thread_increment()
 {
 #ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
-	atomic_fetch_add(&software_interrupt_counts_sigalrm_thread[worker_thread_idx], 1);
+	atomic_fetch_add(&software_interrupt_counts_sigalrm_thread[global_worker_thread_idx], 1);
 #endif
 }
 
@@ -80,7 +80,7 @@ static inline void
 software_interrupt_counts_sigfpe_increment()
 {
 #ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
-	atomic_fetch_add(&software_interrupt_counts_sigfpe[worker_thread_idx], 1);
+	atomic_fetch_add(&software_interrupt_counts_sigfpe[global_worker_thread_idx], 1);
 #endif
 }
 
@@ -88,7 +88,7 @@ static inline void
 software_interrupt_counts_sigsegv_increment()
 {
 #ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
-	atomic_fetch_add(&software_interrupt_counts_sigsegv[worker_thread_idx], 1);
+	atomic_fetch_add(&software_interrupt_counts_sigsegv[global_worker_thread_idx], 1);
 #endif
 }
 
@@ -96,7 +96,7 @@ static inline void
 software_interrupt_counts_sigusr_increment()
 {
 #ifdef LOG_SOFTWARE_INTERRUPT_COUNTS
-	atomic_fetch_add(&software_interrupt_counts_sigusr[worker_thread_idx], 1);
+	atomic_fetch_add(&software_interrupt_counts_sigusr[global_worker_thread_idx], 1);
 #endif
 }
 

@@ -3,7 +3,6 @@
 #include "runtime.h"
 
 #define GLOBAL_REQUEST_SCHEDULER_DEQUE_CAPACITY (1 << 19)
-
 static struct deque_sandbox *global_request_scheduler_deque;
 
 /* TODO: Should this be used???  */
@@ -19,7 +18,14 @@ global_request_scheduler_deque_add(struct sandbox *sandbox)
 {
 	int return_code = 1;
 
+	/* For mulitiple threads calling deque_push_sandbox(), use spin-lock instead of mutex-lock 
+         * to reduce context-switch overhead.
+         * For single thread calling deque_push_sandbox(), avoid any lock since no race condition
+         */
+	lock_node_t node = {};
+	lock_lock(&global_request_scheduler_deque->lock, &node);
 	return_code = deque_push_sandbox(global_request_scheduler_deque, &sandbox);
+	lock_unlock(&global_request_scheduler_deque->lock, &node);
 
 	if (return_code != 0) return NULL;
 	return sandbox;
@@ -56,6 +62,7 @@ global_request_scheduler_deque_initialize()
 	/* Note: Below is a Macro */
 	deque_init_sandbox(global_request_scheduler_deque, GLOBAL_REQUEST_SCHEDULER_DEQUE_CAPACITY);
 
+	lock_init(&global_request_scheduler_deque->lock);
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct global_request_scheduler_config config = {
 		.add_fn               = global_request_scheduler_deque_add,

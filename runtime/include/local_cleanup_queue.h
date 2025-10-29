@@ -3,5 +3,5 @@
 #include "sandbox_types.h"
 
 void local_cleanup_queue_add(struct sandbox *sandbox);
-void local_cleanup_queue_free();
+int  local_cleanup_queue_free(uint64_t *duration, uint64_t *ret);
 void local_cleanup_queue_initialize();

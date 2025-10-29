@@ -9,3 +9,4 @@ enum SCHEDULER
 };
 
 extern enum SCHEDULER scheduler;
+extern bool disable_get_req_from_GQ;

@@ -49,6 +49,7 @@
 #ifndef PS_LIST_H
 #define PS_LIST_H
 
+#include "lock.h"
 struct ps_list {
 	struct ps_list *n, *p;
 };
@@ -60,6 +61,7 @@ struct ps_list {
  */
 struct ps_list_head {
 	struct ps_list l;
+	lock_t lock;
 };
 
 #define PS_LIST_DEF_NAME list

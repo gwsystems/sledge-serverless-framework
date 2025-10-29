@@ -48,6 +48,8 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	/* State Change Hooks */
 	sandbox_state_transition_from_hook(sandbox, last_state);
 	sandbox_state_transition_to_hook(sandbox, SANDBOX_PREEMPTED);
+	/* Update TS when sandbox was preempted */
+	sandbox->srsf_stop_running_ts = now;
 }
 
 static inline void

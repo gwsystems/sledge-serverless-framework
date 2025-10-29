@@ -36,7 +36,7 @@ perf_window_initialize(struct perf_window *perf_window)
 static inline void
 perf_window_swap(struct perf_window *perf_window, uint16_t first_by_duration_idx, uint16_t second_by_duration_idx)
 {
-	assert(lock_is_locked(&perf_window->lock));
+	//assert(lock_is_locked(&perf_window->lock));
 	assert(perf_window != NULL);
 	assert(first_by_duration_idx < PERF_WINDOW_CAPACITY);
 	assert(second_by_duration_idx < PERF_WINDOW_CAPACITY);
@@ -95,7 +95,7 @@ perf_window_add(struct perf_window *perf_window, uint64_t newest_execution_time)
 	uint64_t previous_execution_time;
 	bool     check_up;
 
-	if (unlikely(!lock_is_locked(&perf_window->lock))) panic("lock not held when calling perf_window_add\n");
+	//if (unlikely(!lock_is_locked(&perf_window->lock))) panic("lock not held when calling perf_window_add\n");
 
 	/* If perf window is empty, fill all elements with newest_execution_time */
 	if (perf_window->count == 0) {
@@ -168,6 +168,24 @@ perf_window_get_percentile(struct perf_window *perf_window, uint8_t percentile, 
 	}
 
 	return perf_window->by_duration[idx].execution_time;
+}
+
+
+static inline uint64_t 
+perf_window_get_mean(struct perf_window *perf_window) {
+	assert(perf_window != NULL);
+	uint64_t sum = 0;
+
+	for (int i = 0; i < PERF_WINDOW_CAPACITY; i++) {
+		sum += perf_window->by_duration[i].execution_time;
+	}
+
+	if (perf_window->count == 0) {
+		printf("perf_window count is 0\n");
+		return 0;
+	}
+	uint64_t mean = sum  / PERF_WINDOW_CAPACITY;
+	return mean / runtime_processor_speed_MHz;
 }
 
 /**

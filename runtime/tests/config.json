@@ -1,0 +1,330 @@
+[
+    {
+        "name": "gwu",
+        "port": 31850,
+        "replenishment-period-us": 0,
+        "max-budget-us": 0,
+        "routes": [
+            {
+                "route": "/fib1",
+                "request-type": 1,
+                "n-resas": 2,
+                "path": "fibonacci1.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib2",
+                "request-type": 2,
+                "n-resas": 2,
+                "path": "fibonacci2.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib3",
+                "request-type": 3,
+                "n-resas": 2,
+                "path": "fibonacci3.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib4",
+                "request-type": 4,
+                "n-resas": 2,
+                "path": "fibonacci4.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib5",
+                "request-type": 5,
+                "n-resas": 2,
+                "path": "fibonacci5.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib6",
+                "request-type": 6,
+                "n-resas": 2,
+                "path": "fibonacci6.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib7",
+                "request-type": 7,
+                "n-resas": 2,
+                "path": "fibonacci7.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib8",
+                "request-type": 8,
+                "n-resas": 2,
+                "path": "fibonacci8.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib9",
+                "request-type": 9,
+                "n-resas": 2,
+                "path": "fibonacci9.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib10",
+                "request-type": 10,
+                "n-resas": 2,
+                "path": "fibonacci10.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib11",
+                "request-type": 11,
+                "n-resas": 2,
+                "path": "fibonacci11.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib12",
+                "request-type": 12,
+                "n-resas": 2,
+                "path": "fibonacci12.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib13",
+                "request-type": 13,
+                "n-resas": 2,
+                "path": "fibonacci13.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib14",
+                "request-type": 14,
+                "n-resas": 2,
+                "path": "fibonacci14.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib15",
+                "request-type": 15,
+                "n-resas": 2,
+                "path": "fibonacci15.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib16",
+                "request-type": 16,
+                "n-resas": 2,
+                "path": "fibonacci16.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib17",
+                "request-type": 17,
+                "n-resas": 2,
+                "path": "fibonacci17.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib18",
+                "request-type": 18,
+                "n-resas": 2,
+                "path": "fibonacci18.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib19",
+                "request-type": 19,
+                "n-resas": 2,
+                "path": "fibonacci19.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib20",
+                "request-type": 20,
+                "n-resas": 2,
+                "path": "fibonacci20.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib21",
+                "request-type": 21,
+                "n-resas": 2,
+                "path": "fibonacci21.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib22",
+                "request-type": 22,
+                "n-resas": 2,
+                "path": "fibonacci22.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib23",
+                "request-type": 23,
+                "n-resas": 2,
+                "path": "fibonacci23.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib24",
+                "request-type": 24,
+                "n-resas": 2,
+                "path": "fibonacci24.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib25",
+                "request-type": 25,
+                "n-resas": 2,
+                "path": "fibonacci25.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib26",
+                "request-type": 26,
+                "n-resas": 2,
+                "path": "fibonacci26.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib27",
+                "request-type": 27,
+                "n-resas": 2,
+                "path": "fibonacci27.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib28",
+                "request-type": 28,
+                "n-resas": 2,
+                "path": "fibonacci28.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib29",
+                "request-type": 29,
+                "n-resas": 2,
+                "path": "fibonacci29.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib30",
+                "request-type": 30,
+                "n-resas": 2,
+                "path": "fibonacci30.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib31",
+                "request-type": 31,
+                "n-resas": 2,
+                "path": "fibonacci31.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            },
+            {
+                "route": "/fib32",
+                "request-type": 32,
+                "n-resas": 2,
+                "path": "fibonacci32.wasm.so",
+                "admissions-percentile": 70,
+                "expected-execution-us": 1,
+                "relative-deadline-us": 10,
+                "http-resp-content-type": "text/plain"
+            }
+        ]
+    }
+]

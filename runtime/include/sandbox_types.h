@@ -24,6 +24,8 @@ struct sandbox_timestamps {
 	uint64_t allocation;        /* Timestamp when sandbox is allocated */
 	uint64_t dispatched;        /* Timestamp when a sandbox is first added to a worker's runqueue */
 	uint64_t completion;        /* Timestamp when sandbox runs to completion */
+	uint64_t cleanup;	    /* Time duration of cleaning up the previous sandboxes */
+	uint64_t other;	    	    /* Time duration of only sandbox_free */
 #ifdef LOG_SANDBOX_MEMORY_PROFILE
 	uint32_t page_allocations[SANDBOX_PAGE_ALLOCATION_TIMESTAMP_COUNT];
 	size_t   page_allocations_size;
@@ -66,8 +68,28 @@ struct sandbox {
 	                                 deadline (cycles) */
 	uint64_t total_time;          /* Total time from Request to Response */
 
+	void *rpc_handler;
+	uint8_t rpc_id;
+	uint8_t *rpc_request_body;
+	size_t rpc_request_body_size;
+	/* Runtime state used by WASI */
+        int cursor; /* Sandbox cursor (offset from body pointer) */
+	struct auto_buf         response_body;
+	//size_t                  response_body_written;
+
 	/* System Interface State */
 	int32_t         return_value;
 	wasi_context_t *wasi_context;
-
+	int context_switch_to; /* 1 means context switch to base, 2 means context swtich to next sandbox */
+	uint64_t ret[5];
+	uint64_t estimated_cost; /* estimated execution cost */
+	uint64_t relative_deadline; 
+        int global_worker_thread_idx; /* which thread in a global view processes this sandbox. 
+                                    pause and restore the sandbox must be done in the same thread */
+        int group_worker_thread_idx; /* what's the thread index in the group */
+        uint64_t start_ts; /* the start timestamp when dispatcher assign this sandbox to a worker */
+        /* For SRSF */
+	uint64_t srsf_stop_running_ts; /* record the timestamp of stopping running of this sandbox, in cycles */
+	int64_t srsf_remaining_slack;
+	
 } PAGE_ALIGNED;

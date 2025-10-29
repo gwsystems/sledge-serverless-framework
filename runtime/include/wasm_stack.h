@@ -28,6 +28,7 @@ struct wasm_stack {
 	uint8_t       *high;     /* The highest address of the stack. Grows down from here */
 	uint8_t       *low;      /* The address of the lowest useabe address. Above guard page */
 	uint8_t       *buffer;   /* Points base address of backing heap allocation (Guard Page) */
+        uint8_t       *sp;       /* Stack pointer */
 };
 
 static struct wasm_stack *wasm_stack_alloc(uint64_t capacity);
@@ -60,6 +61,7 @@ wasm_stack_init(struct wasm_stack *wasm_stack, uint64_t capacity)
 	wasm_stack->low      = wasm_stack->buffer + /* guard page */ PAGE_SIZE;
 	wasm_stack->capacity = capacity;
 	wasm_stack->high     = wasm_stack->low + capacity;
+        wasm_stack->sp       = wasm_stack->low;
 
 	/* Set the initial bytes to read / write */
 	rc = mprotect(wasm_stack->low, capacity, PROT_READ | PROT_WRITE);
@@ -124,7 +126,6 @@ wasm_stack_reinit(struct wasm_stack *wasm_stack)
 	assert(wasm_stack->buffer != NULL);
 	assert(wasm_stack->low == wasm_stack->buffer + /* guard page */ PAGE_SIZE);
 	assert(wasm_stack->high == wasm_stack->low + wasm_stack->capacity);
-
-	explicit_bzero(wasm_stack->low, wasm_stack->capacity);
+	//explicit_bzero(wasm_stack->sp, wasm_stack->high - wasm_stack->sp);
 	ps_list_init_d(wasm_stack);
 }

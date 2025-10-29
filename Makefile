@@ -1,10 +1,10 @@
 SHELL:=/bin/bash
 
 .PHONY: all
-all: awsm libsledge runtime applications
+all: awsm erpc libsledge runtime applications
 
 .PHONY: clean
-clean: awsm.clean libsledge.clean runtime.clean applications.clean
+clean: awsm.clean erpc.clean libsledge.clean runtime.clean applications.clean
 
 .PHONY: submodules
 submodules:
@@ -16,7 +16,7 @@ install: submodules wasm_apps all
 # aWsm: the WebAssembly to LLVM bitcode compiler
 .PHONY: awsm
 awsm: 
-	cd awsm && cargo build --release
+	cd awsm && git checkout f0b35e756395f79b06be8dd2660eecac94506e94 && cargo build --release
 
 .PHONY: awsm.clean
 awsm.clean:
@@ -30,6 +30,16 @@ libsledge:
 .PHONY: libsledge.clean
 libsledge.clean:
 	make -C libsledge clean
+
+.PHONY: erpc
+erpc:
+	@echo "Building eRPC interface..."
+	cd eRPC/c_interface && ./build.sh
+	@echo "eRPC build complete."
+
+.PHONY: erpc.clean
+erpc.clean:
+	cd eRPC/c_interface && make clean
 
 # sledgert: the runtime that executes *.so modules
 .PHONY: runtime
@@ -52,7 +62,7 @@ applications.clean:
 
 # Instead of having two copies of wasm_apps, just link to the awsm repo's copy
 wasm_apps:
-	ln -sr awsm/applications/wasm_apps/ applications/
+	cd awsm/applications/wasm_apps && git checkout master && cd ../../../ && ln -sr awsm/applications/wasm_apps/ applications/
 
 # Tests
 .PHONY: test

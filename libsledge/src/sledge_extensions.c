@@ -63,3 +63,12 @@ scratch_storage_upsert(uint32_t key_offset, uint32_t key_len, uint32_t value_off
 {
 	sledge_abi__scratch_storage_upsert(key_offset, key_len, value_offset, value_len);
 }
+
+/*
+ * Return CPU cycles
+ */
+INLINE uint64_t
+env_getcycles() {
+        return sledge_abi__env_getcycles();
+}
+

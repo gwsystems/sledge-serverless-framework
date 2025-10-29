@@ -37,15 +37,19 @@ local_cleanup_queue_add(struct sandbox *sandbox)
  * @brief Frees all sandboxes in the thread local cleanup queue
  * @return void
  */
-void
-local_cleanup_queue_free()
+int
+local_cleanup_queue_free(uint64_t *duration, uint64_t *ret)
 {
 	struct sandbox *sandbox_iterator = NULL;
 	struct sandbox *buffer           = NULL;
+	int    cleanup_count 		 = 0;
 
 	ps_list_foreach_del_d(&local_cleanup_queue, sandbox_iterator, buffer)
 	{
 		ps_list_rem_d(sandbox_iterator);
-		sandbox_free(sandbox_iterator);
+		*duration = sandbox_free(sandbox_iterator, ret);
+		cleanup_count++;
 	}
+
+	return cleanup_count;
 }

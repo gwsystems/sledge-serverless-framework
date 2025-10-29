@@ -31,7 +31,7 @@ software_interrupt_mask_signal(int signal)
 	sigset_t set;
 	int      return_code;
 
-	assert(signal == SIGALRM || signal == SIGUSR1 || signal == SIGFPE || signal == SIGSEGV);
+	assert(signal == SIGALRM || signal == SIGUSR1 || signal == SIGFPE || signal == SIGSEGV || signal == SIGINT);
 	/* all threads created by the calling thread will have signal blocked */
 	sigemptyset(&set);
 	sigaddset(&set, signal);
@@ -55,7 +55,7 @@ software_interrupt_unmask_signal(int signal)
 	sigset_t set;
 	int      return_code;
 
-	assert(signal == SIGALRM || signal == SIGUSR1 || signal == SIGFPE || signal == SIGSEGV);
+	assert(signal == SIGALRM || signal == SIGUSR1 || signal == SIGFPE || signal == SIGSEGV || signal == SIGINT);
 	/* all threads created by the calling thread will have signal unblocked */
 	sigemptyset(&set);
 	sigaddset(&set, signal);
@@ -96,3 +96,5 @@ void software_interrupt_arm_timer(void);
 void software_interrupt_cleanup(void);
 void software_interrupt_disarm_timer(void);
 void software_interrupt_initialize(void);
+bool sandbox_is_preemptable(void *sandbox);
+void preempt_worker(int thread_id);

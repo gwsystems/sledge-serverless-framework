@@ -1,0 +1,47 @@
+[
+        {
+                "name": "gwu",
+                "port": 31850,
+                "replenishment-period-us": 0,
+                "max-budget-us": 0,
+                "routes": [
+		    {
+                        "route": "/sift",
+                        "request-type": 1,
+                        "n-resas": 3,
+			"group-id": 1,
+                        "path": "sift.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 113,
+                        "relative-deadline-us": 11300,
+                        "http-resp-content-type": "text/plain"
+                    },
+		    {
+                        "route": "/multi_ncut",
+                        "request-type": 2,
+                        "n-resas": 2,
+			"group-id": 2,
+                        "path": "multi_ncut.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 1100,
+                        "relative-deadline-us": 2200,
+                        "http-resp-content-type": "text/plain"
+                    },
+		    {
+                        "route": "/cifar10",
+                        "request-type": 3,
+                        "n-resas": 1,
+			"group-id": 3,
+                        "path": "cifar10.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 2060,
+                        "relative-deadline-us": 4120,
+                        "http-resp-content-type": "text/plain"
+                    }
+			
+                ]
+
+        }
+
+]
+

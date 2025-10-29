@@ -9,6 +9,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+
 
 #ifdef LOG_TO_FILE
 #include <sys/types.h>
@@ -16,6 +21,7 @@
 #include <sys/fcntl.h>
 #endif
 
+#include "erpc_c_interface.h"
 #include "json_parse.h"
 #include "pretty_print.h"
 #include "debuglog.h"
@@ -25,6 +31,7 @@
 #include "sandbox_perf_log.h"
 #include "sandbox_types.h"
 #include "scheduler.h"
+#include "dispatcher.h"
 #include "software_interrupt.h"
 #include "tenant_functions.h"
 #include "worker_thread.h"
@@ -35,12 +42,20 @@ uint32_t runtime_first_worker_processor  = 1;
 uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
+uint32_t runtime_listener_threads_count  = 0;
+uint32_t max_possible_workers		 = 0;
+bool first_request_comming 		 = false;
+
+uint32_t runtime_worker_group_size       = 1;
 
 enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_BROADCAST;
 
-bool     runtime_preemption_enabled            = true;
-bool     runtime_worker_spinloop_pause_enabled = false;
-uint32_t runtime_quantum_us                    = 5000; /* 5ms */
+bool	 runtime_exponential_service_time_simulation_enabled = false;
+bool     runtime_autoscaling_enabled                         = false;
+bool     runtime_worker_busy_loop_enabled                    = false;
+bool     runtime_preemption_enabled                          = true;
+bool     runtime_worker_spinloop_pause_enabled               = false;
+uint32_t runtime_quantum_us                                  = 1000; /* 1ms */
 uint64_t runtime_boot_timestamp;
 pid_t    runtime_pid = 0;
 
@@ -60,25 +75,29 @@ runtime_usage(char *cmd)
 void
 runtime_allocate_available_cores()
 {
-	uint32_t max_possible_workers;
-
 	/* Find the number of processors currently online */
 	runtime_total_online_processors = sysconf(_SC_NPROCESSORS_ONLN);
-
 	pretty_print_key_value("Core Count (Online)", "%u\n", runtime_total_online_processors);
 
-	/* If more than two cores are available, leave core 0 free to run OS tasks */
-	if (runtime_total_online_processors > 2) {
-		runtime_first_worker_processor = 2;
-		max_possible_workers           = runtime_total_online_processors - 2;
-	} else if (runtime_total_online_processors == 2) {
-		runtime_first_worker_processor = 1;
-		max_possible_workers           = runtime_total_online_processors - 1;
+	char* first_worker_core_id = getenv("SLEDGE_FIRST_WORKER_COREID");
+	if (first_worker_core_id != NULL) {
+		runtime_first_worker_processor = atoi(first_worker_core_id);
+		assert(runtime_first_worker_processor > 1);
+		max_possible_workers = runtime_total_online_processors > 2 ? runtime_total_online_processors - 2: 
+				       runtime_total_online_processors - 1;
 	} else {
-		panic("Runtime requires at least two cores!");
+		/* If more than two cores are available, leave core 0 free to run OS tasks */
+		if (runtime_total_online_processors > 2) {
+			runtime_first_worker_processor = 2;
+			max_possible_workers           = runtime_total_online_processors - 2;
+		} else if (runtime_total_online_processors == 2) {
+			runtime_first_worker_processor = 1;
+			max_possible_workers           = runtime_total_online_processors - 1;
+		} else {
+			panic("Runtime requires at least two cores!");
+		}
 	}
-
-
+	
 	/* Number of Workers */
 	char *worker_count_raw = getenv("SLEDGE_NWORKERS");
 	if (worker_count_raw != NULL) {
@@ -91,7 +110,7 @@ runtime_allocate_available_cores()
 		runtime_worker_threads_count = max_possible_workers;
 	}
 
-	pretty_print_key_value("Listener core ID", "%u\n", LISTENER_THREAD_CORE_ID);
+	pretty_print_key_value("Listener start core ID", "%u\n", LISTENER_THREAD_START_CORE_ID);
 	pretty_print_key_value("First Worker core ID", "%u\n", runtime_first_worker_processor);
 	pretty_print_key_value("Worker core count", "%u\n", runtime_worker_threads_count);
 }
@@ -146,6 +165,38 @@ err:
 	panic("Failed to detect processor frequency");
 }
 
+static inline void
+runtime_get_listener_count() {
+	/* Number of Listener */
+        char *listener_count_raw = getenv("SLEDGE_NLISTENERS");
+        if (listener_count_raw != NULL) {
+                int listener_count = atoi(listener_count_raw);
+                int max_possible_listeners = max_possible_workers - runtime_worker_threads_count;
+
+                if (listener_count <= 0 || listener_count > max_possible_listeners) {
+                        panic("Invalid Lisenter Count. Was %d. Must be {1..%d}\n", listener_count, max_possible_listeners);
+                }
+
+                runtime_listener_threads_count = listener_count;
+        } else {
+                runtime_listener_threads_count = 1;
+        }
+}
+
+static inline void
+runtime_get_worker_group_size() {
+	char *worker_group_size_raw = getenv("SLEDGE_WORKER_GROUP_SIZE");
+	if (worker_group_size_raw != NULL) {
+		runtime_worker_group_size = atoi(worker_group_size_raw);
+		//If scheduler is SCHEDULER_FIFO, there will be one global queue, but might multiple listeners and 
+		//multiple workers, so the listener threads count * worker group size != worker threads count
+		if (scheduler != SCHEDULER_FIFO) {
+			assert(runtime_listener_threads_count * runtime_worker_group_size == runtime_worker_threads_count);
+		}
+	} else {
+		printf("Not specify worker group size, default group size is 1\n");
+	}
+}
 /**
  * Controls the behavior of the debuglog macro defined in types.h
  * If LOG_TO_FILE is defined, close stdin, stdout, stderr, and debuglog writes to a logfile named awesome.log.
@@ -173,7 +224,7 @@ runtime_process_debug_log_behavior()
 void
 runtime_start_runtime_worker_threads()
 {
-	printf("Starting %d worker thread(s)\n", runtime_worker_threads_count);
+	printf("Starting %d worker thread(s) first worker cpu is %d\n", runtime_worker_threads_count, runtime_first_worker_processor);
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		/* Pass the value we want the threads to use when indexing into global arrays of per-thread values */
 		runtime_worker_threads_argument[i] = i;
@@ -193,6 +244,38 @@ runtime_start_runtime_worker_threads()
 	}
 }
 
+void
+runtime_config_validate()
+{
+	if (dispatcher == DISPATCHER_TO_GLOBAL_QUEUE) {
+		if (runtime_worker_busy_loop_enabled == false) {
+			panic("Must enable busy loop if dispatcher is TO_GLOBAL_QUEUE\n");
+			
+		}
+
+		if (disable_get_req_from_GQ == true) {
+			panic("Must enable get request from GQ if dispatcher is TO_GLOBAL_QUEUE\n");
+		}
+
+		if (scheduler != SCHEDULER_FIFO) {
+			panic("Must use FIFO scheduler if dispatcher is TO_GLOBAL_QUEUE\n");
+		}		
+        } else {
+		if (disable_get_req_from_GQ == false) {
+			panic("Must disable get requests from GQ if dispatcher is not TO_GLOBAL_QUEUE\n");
+		}
+	}
+	
+	//if (dispatcher == DISPATCHER_RR || dispatcher == DISPATCHER_JSQ || dispatcher == DISPATCHER_EDF_INTERRUPT
+	//   || dispatcher == DISPATCHER_SHINJUKU || dispatcher == DISPATCHER_DARC || dispatcher == DISPATCHER_LLD && scheduler == SCHEDULER_EDF) {
+	if (dispatcher == DISPATCHER_EDF_INTERRUPT || dispatcher == DISPATCHER_SHINJUKU || dispatcher == DISPATCHER_DARC) {
+		if (runtime_preemption_enabled == true) {
+			//panic("Must disable preemption if dispatcher is RR, JSQ, EDF_INTERRUPT, or LLD + EDF\n");
+			panic("Must disable preemption if dispatcher is SHINJUKU, DARC or EDF_INTERRUPT\n");
+		}
+	}
+
+}
 void
 runtime_configure()
 {
@@ -215,6 +298,33 @@ runtime_configure()
 	}
 	pretty_print_key_value("Scheduler Policy", "%s\n", scheduler_print(scheduler));
 
+	char* disable_get_req_from_global_queue  = getenv("SLEDGE_DISABLE_GET_REQUESTS_FROM_GQ");
+	if (disable_get_req_from_global_queue != NULL && strcmp(disable_get_req_from_global_queue, "false") != 0) disable_get_req_from_GQ = true;
+	pretty_print_key_value("Enable getting req from GQ", "%s\n",
+                               disable_get_req_from_GQ == false ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
+
+	/* Dispatcher Policy */
+	char *dispatcher_policy = getenv("SLEDGE_DISPATCHER");
+	if (dispatcher_policy == NULL) dispatcher_policy = "EDF_INTERRUPT";
+	if (strcmp(dispatcher_policy, "DARC") == 0) {
+		dispatcher = DISPATCHER_DARC;
+	} else if (strcmp(dispatcher_policy, "EDF_INTERRUPT") == 0) {
+		dispatcher = DISPATCHER_EDF_INTERRUPT;
+	} else if (strcmp(dispatcher_policy, "SHINJUKU") == 0) {
+        	dispatcher = DISPATCHER_SHINJUKU;
+    	} else if (strcmp(dispatcher_policy, "TO_GLOBAL_QUEUE") == 0) {
+		dispatcher = DISPATCHER_TO_GLOBAL_QUEUE;
+	} else if (strcmp(dispatcher_policy, "RR") == 0) {
+		dispatcher = DISPATCHER_RR;
+	} else if (strcmp(dispatcher_policy, "JSQ") == 0) {
+		dispatcher = DISPATCHER_JSQ;
+	} else if (strcmp(dispatcher_policy, "LLD") == 0) {
+		dispatcher = DISPATCHER_LLD;
+	} else {
+		panic("Invalid dispatcher policy: %s. Must be {EDF_INTERRUPT|DARC|SHINJUKU|TO_GLOBAL_QUEUE|RR|JSQ|LLD\n", dispatcher_policy);
+    	}
+	pretty_print_key_value("Dispatcher Policy", "%s\n", dispatcher_print(dispatcher));
+
 	/* Sigalrm Handler Technique */
 	char *sigalrm_policy = getenv("SLEDGE_SIGALRM_HANDLER");
 	if (sigalrm_policy == NULL) sigalrm_policy = "BROADCAST";
@@ -234,6 +344,30 @@ runtime_configure()
 	pretty_print_key_value("Preemption", "%s\n",
 	                       runtime_preemption_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
 
+	/* Runtime Autoscaling */
+	char *autoscaling_disable = getenv("SLEDGE_DISABLE_AUTOSCALING");
+	if (autoscaling_disable != NULL && strcmp(autoscaling_disable, "true") != 0) runtime_autoscaling_enabled = true;
+	pretty_print_key_value("Autoscaling", "%s\n",
+				runtime_autoscaling_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
+
+	/* Runtime worker busy loop */
+	char *worker_busy_loop_disable = getenv("SLEDGE_DISABLE_BUSY_LOOP");
+	if (worker_busy_loop_disable != NULL && strcmp(worker_busy_loop_disable, "true") != 0) runtime_worker_busy_loop_enabled = true;
+	 pretty_print_key_value("Worker busy loop", "%s\n",
+				runtime_worker_busy_loop_enabled ? PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
+
+
+	/* Runtime local FIFO queue batch size */
+	char *batch_size = getenv("SLEDGE_FIFO_QUEUE_BATCH_SIZE");
+	if (batch_size != NULL) {
+		runtime_fifo_queue_batch_size = atoi(batch_size);
+		if (runtime_fifo_queue_batch_size == 0) {
+			panic("Fifo queue batch size must be larger than 0\n");
+		}
+	}
+
+	/* Check validation */
+	runtime_config_validate();
 	/* Runtime Quantum */
 	char *quantum_raw = getenv("SLEDGE_QUANTUM_US");
 	if (quantum_raw != NULL) {
@@ -245,19 +379,19 @@ runtime_configure()
 	}
 	pretty_print_key_value("Quantum", "%u us\n", runtime_quantum_us);
 
+	/* Runtime exponential service time simulation */
+	char *exponential_service_time_simulation_disable = getenv("SLEDGE_DISABLE_EXPONENTIAL_SERVICE_TIME_SIMULATION");
+	if (exponential_service_time_simulation_disable != NULL && 
+	    strcmp(exponential_service_time_simulation_disable, "false") == 0) {
+		runtime_exponential_service_time_simulation_enabled = true;
+	}
+
+	pretty_print_key_value("Exponential_service_time_simulation", " %s\n",
+				runtime_exponential_service_time_simulation_enabled ? 
+				PRETTY_PRINT_GREEN_ENABLED : PRETTY_PRINT_RED_DISABLED);
+				
 	sandbox_perf_log_init();
 	http_session_perf_log_init();
-}
-
-void
-runtime_configure_worker_spinloop_pause()
-{
-	/* Runtime Worker-Spinloop-Pause Toggle */
-	char *pause_enable = getenv("SLEDGE_SPINLOOP_PAUSE_ENABLED");
-	if (pause_enable != NULL && strcmp(pause_enable, "true") == 0) runtime_worker_spinloop_pause_enabled = true;
-	pretty_print_key_value("Worker-Spinloop-Pause", "%s\n",
-	                       runtime_worker_spinloop_pause_enabled ? PRETTY_PRINT_GREEN_ENABLED
-	                                                             : PRETTY_PRINT_RED_DISABLED);
 }
 
 void
@@ -459,6 +593,48 @@ err:
 	return 0;
 }
 
+void listener_threads_initialize() {
+	printf("Starting %d listener thread(s)\n", runtime_listener_threads_count);
+	for (int i = 0; i < runtime_listener_threads_count; i++) {
+        	listener_thread_initialize(i);
+        }
+}
+
+int getUri(const char *interface, int port, char *uri) {
+    struct ifreq ifr;
+
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd == -1) {
+        perror("socket");
+        return -1;
+    }
+
+    // Set the name of the interface
+    strncpy(ifr.ifr_name, interface, IFNAMSIZ - 1);
+    ifr.ifr_name[IFNAMSIZ - 1] = '\0';
+
+    // Get the IP address
+    if (ioctl(sockfd, SIOCGIFADDR, &ifr) == -1) {
+        perror("ioctl");
+        close(sockfd);
+        return -1;
+    }
+
+    close(sockfd);
+
+    // Convert the IP address to a string
+    if (inet_ntop(AF_INET, &((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr, uri, INET_ADDRSTRLEN) == NULL) {
+        perror("inet_ntop");
+        return -1;
+    }
+
+    // Append the port to the IP address in the same buffer
+    int offset = strlen(uri);
+    snprintf(uri + offset, INET_ADDRSTRLEN - offset + 6, ":%d", port);
+
+    return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -471,6 +647,19 @@ main(int argc, char **argv)
 
 	printf("Starting the Sledge runtime\n");
 
+	software_interrupt_initialize();
+
+	/* eRPC init */
+	char server_uri[INET_ADDRSTRLEN + 6];
+
+	if (getUri("ens1f0np0", 31850, server_uri) == 0) {
+		printf("URI: %s\n", server_uri);
+	} else {
+		printf("Failed to get URI.\n");
+	}
+
+        erpc_init(server_uri, 0, 0);
+
 	log_compiletime_config();
 	runtime_process_debug_log_behavior();
 
@@ -480,14 +669,9 @@ main(int argc, char **argv)
 	runtime_allocate_available_cores();
 	runtime_configure();
 	runtime_initialize();
-	software_interrupt_initialize();
-
-	listener_thread_initialize();
-	runtime_start_runtime_worker_threads();
 	runtime_get_processor_speed_MHz();
-	runtime_configure_worker_spinloop_pause();
-	software_interrupt_arm_timer();
 
+	
 #ifdef LOG_TENANT_LOADING
 	debuglog("Parsing <spec.json> file [%s]\n", argv[1]);
 #endif
@@ -509,27 +693,46 @@ main(int argc, char **argv)
 			panic("Tenant database full!\n");
 			exit(-1);
 		}
-
-		/* Start listening for requests */
-		rc = tenant_listen(tenant);
-		if (rc < 0) exit(-1);
 	}
+
+	runtime_get_listener_count();
+	runtime_get_worker_group_size();
+	/* Set main thread cpu affinity to core #1 */
+	cpu_set_t cs;
+	CPU_ZERO(&cs);
+	CPU_SET(1, &cs);
+	int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cs);
+	assert(ret == 0);
+
+	runtime_start_runtime_worker_threads();
+	software_interrupt_arm_timer();
+	
+	listener_threads_initialize();
 
 	runtime_boot_timestamp = __getcycles();
-
-	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
-		tenant_config_deinit(&tenant_config_vec[tenant_idx]);
-	}
-	free(tenant_config_vec);
 
 	for (int i = 0; i < runtime_worker_threads_count; i++) {
 		int ret = pthread_join(runtime_worker_threads[i], NULL);
 		if (ret) {
 			errno = ret;
-			perror("pthread_join");
+			perror("worker pthread_join");
 			exit(-1);
 		}
 	}
+
+	for (int i = 0; i < runtime_listener_threads_count; i++) {
+		int ret = pthread_join(runtime_listener_threads[i], NULL);		
+		if (ret) {
+                        errno = ret;
+                        perror("listener pthread_join");
+                        exit(-1);
+                }
+	} 
+
+	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {
+		tenant_config_deinit(&tenant_config_vec[tenant_idx]);
+	}
+	free(tenant_config_vec);
 
 	exit(-1);
 }
