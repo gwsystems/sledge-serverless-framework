@@ -208,6 +208,14 @@ thread id, type id, latency, cpu time
 ```
 The first column is the thread ID, the second column is the request type, the third column is the end-to-end latency in microseconds, and the fourth column is the execution time in microseconds.
 
+### Test High Density 
+Since the High Density experiment involves a large number of RPC types, we need to modify the maximum number of RPC types supported by eRPC, as well as some parts of the SledgeScale code. These changes are temporary and not part of the permanent code base.
+Please run:
+```
+./apply_patch.sh
+```
+in the `eRPC` directory (on both the client and server sides) and in the `runtime` directory, and then recompile `eRPC` and the `runtime`.
+
 ## Problems or Feedback?
 
 If you encountered bugs or have feedback, please let us know in our [issue tracker.](https://github.com/gwsystems/sledge-serverless-framework/issues)
