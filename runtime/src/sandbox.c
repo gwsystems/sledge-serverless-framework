@@ -155,6 +155,7 @@ sandbox_init(struct sandbox *sandbox, struct module *module, struct http_session
 
 	sandbox->absolute_deadline = sandbox->timestamp_of.allocation + sandbox->route->relative_deadline;
 	sandbox->payload_size      = session->http_request.body_length;
+	sandbox->regression_param  = session->regression_param;
 
 	/*
 	 * Admissions Control State

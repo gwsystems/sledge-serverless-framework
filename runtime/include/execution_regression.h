@@ -11,7 +11,7 @@ get_regression_prediction(struct http_session *session)
 	/* Default Pre-processing - Extract payload size */
 	const int payload_size = session->http_request.body_length;
 
-	const double regression_params[2] = {payload_size, session->paregression_paramram2};
+	const double regression_params[2] = {payload_size, session->regression_param};
 
 	/* Perform Linear Regression using the factors provided by the regressor performed AoT on Matlab using training
 	 * tenant-given dataset */

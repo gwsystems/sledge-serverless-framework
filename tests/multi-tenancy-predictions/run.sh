@@ -33,7 +33,6 @@ declare -r GET_JPEG_RESOLUTION="get_jpeg_resolution.wasm.so"
 
 # Per route configs:
 declare -ar WASM_PATHS=("$CNN" "$CIFAR10" "$GOCR" "$LPD" "$RESIZE" "$EKF")
-declare -ar WASM_PATHS_PREPROCESSING=("$GET_JPEG_RESOLUTION" "$GET_JPEG_RESOLUTION" "$GET_JPEG_RESOLUTION" "$GET_JPEG_RESOLUTION" "$NONE")
 declare -ar RESP_CONTENT_TYPES=("text/plain" "text/plain" "text/plain" "text/plain" "image/jpeg" "application/octet-stream")
 declare -ar EXPECTED_EXEC_TIMES_us=("600000" "4000" "8900" "16700" "62000" "30")
 declare -ar DEADLINE_TO_EXEC_RATIOs=("500" "500" "500" "500" "500" "5000") # percentage
