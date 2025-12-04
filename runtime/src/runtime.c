@@ -24,14 +24,23 @@
 #include "software_interrupt.h"
 #include "sandbox_perf_log.h"
 
+#define WAKEUP_THREAD_OVERHEAD 5 /* 5us */
+
 /***************************
  * Shared Process State    *
  **************************/
 
+/* Count of the total number of requests we've ever received. Never decrements as it is used to dispatch requests to workers with RR */
+_Atomic uint64_t request_index;
 pthread_t *runtime_worker_threads;
+pthread_t *runtime_listener_threads;
 int       *runtime_worker_threads_argument;
+int       *runtime_listener_threads_argument;
 /* The active deadline of the sandbox running on each worker thread */
 uint64_t *runtime_worker_threads_deadline;
+uint64_t wakeup_thread_cycles;
+
+struct memory_pool *memory_pools = NULL;
 
 /******************************************
  * Shared Process / Listener Thread Logic *
@@ -45,9 +54,18 @@ runtime_cleanup()
 
 	if (runtime_worker_threads_deadline) free(runtime_worker_threads_deadline);
 	if (runtime_worker_threads_argument) free(runtime_worker_threads_argument);
-	if (runtime_worker_threads) free(runtime_worker_threads);
+	if (runtime_worker_threads) {
+		free(runtime_worker_threads);
+		runtime_worker_threads = NULL;
+	}
+	if (runtime_listener_threads) {
+		free(runtime_listener_threads);
+		runtime_listener_threads = NULL;
+	}
 
 	software_interrupt_cleanup();
+	runtime_deinitialize_pools();
+	free(memory_pools);
 	exit(EXIT_SUCCESS);
 }
 
@@ -104,9 +122,25 @@ runtime_initialize(void)
 	assert(runtime_worker_threads_deadline != NULL);
 	memset(runtime_worker_threads_deadline, UINT8_MAX, runtime_worker_threads_count * sizeof(uint64_t));
 
+	runtime_listener_threads = calloc(runtime_listener_threads_count, sizeof(pthread_t));
+        assert(runtime_listener_threads != NULL);
+	runtime_listener_threads_argument = calloc(runtime_listener_threads_count, sizeof(int));
+	assert(runtime_listener_threads_argument != NULL);
+
 	http_total_init();
 	sandbox_total_initialize();
+	request_index_initialize();
 	sandbox_state_totals_initialize();
+	worker_queuing_cost_initialize();
+
+	memory_pools = aligned_alloc(128, runtime_worker_threads_count * sizeof(struct memory_pool));
+	if (!memory_pools) {
+    		perror("aligned_alloc failed");
+    		exit(1);
+	}
+	memset(memory_pools, 0, runtime_worker_threads_count * sizeof(struct memory_pool));
+        //memory_pools = calloc(runtime_worker_threads_count, sizeof(struct memory_pool));
+        runtime_initialize_pools();
 
 	/* Setup Scheduler */
 	scheduler_initialize();
@@ -114,11 +148,11 @@ runtime_initialize(void)
 	/* Configure Signals */
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, runtime_cleanup);
-	signal(SIGINT, runtime_cleanup);
 	signal(SIGQUIT, runtime_cleanup);
 
 	http_parser_settings_initialize();
 	admissions_control_initialize();
+	wakeup_thread_cycles = WAKEUP_THREAD_OVERHEAD * runtime_processor_speed_MHz; 
 }
 
 static void

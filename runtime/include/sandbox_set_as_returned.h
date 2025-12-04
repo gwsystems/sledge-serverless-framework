@@ -14,6 +14,8 @@
 #include "sandbox_state_transition.h"
 #include "sandbox_types.h"
 
+extern struct sandbox* current_sandboxes[1024];
+extern thread_local int global_worker_thread_idx;
 /**
  * Transitions a sandbox to the SANDBOX_RETURNED state.
  * This occurs when a sandbox is executing and runs to completion.
@@ -33,6 +35,7 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	switch (last_state) {
 	case SANDBOX_RUNNING_SYS: {
 		local_runqueue_delete(sandbox);
+		current_sandboxes[global_worker_thread_idx] = NULL;
 		sandbox_free_linear_memory(sandbox);
 		break;
 	}
@@ -50,11 +53,6 @@ sandbox_set_as_returned(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RETURNED);
 	sandbox_state_totals_increment(SANDBOX_RETURNED);
 	sandbox_state_totals_decrement(last_state);
-
-	http_session_set_response_header(sandbox->http, 200);
-	sandbox->http->state = HTTP_SESSION_EXECUTION_COMPLETE;
-	http_session_send_response(sandbox->http, (void_star_cb)listener_thread_register_http_session);
-	sandbox->http = NULL;
 
 	/* State Change Hooks */
 	sandbox_state_transition_from_hook(sandbox, last_state);

@@ -1,0 +1,21 @@
+[
+        {
+                "name": "gwu",
+                "port": 31850,
+                "replenishment-period-us": 0,
+                "max-budget-us": 0,
+                "routes": [
+                    {
+                        "route": "/empty",
+                        "path": "empty.wasm.so",
+                        "admissions-percentile": 70,
+                        "expected-execution-us": 1,
+                        "relative-deadline-us": 10,
+                        "http-resp-content-type": "text/plain"
+                    }
+                ]
+
+        }
+
+]
+

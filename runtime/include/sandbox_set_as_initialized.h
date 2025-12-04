@@ -40,7 +40,7 @@ sandbox_set_as_initialized(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_INITIALIZED);
 	sandbox_state_totals_increment(SANDBOX_INITIALIZED);
-	sandbox_state_totals_decrement(last_state);
+	//sandbox_state_totals_decrement(last_state);
 
 	/* State Change Hooks */
 	sandbox_state_transition_from_hook(sandbox, last_state);

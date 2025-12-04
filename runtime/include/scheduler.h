@@ -11,6 +11,8 @@
 #include "global_request_scheduler_mtds.h"
 #include "local_runqueue.h"
 #include "local_runqueue_minheap.h"
+#include "local_runqueue_binary_tree.h"
+#include "local_runqueue_circular_queue.h"
 #include "local_runqueue_list.h"
 #include "local_cleanup_queue.h"
 #include "local_runqueue_mtds.h"
@@ -23,7 +25,22 @@
 #include "sandbox_set_as_interrupted.h"
 #include "sandbox_set_as_running_user.h"
 #include "scheduler_options.h"
+#include "sandbox_perf_log.h"
+#include "request_typed_queue.h"
+#include "listener_thread.h"
+#include "local_preempted_fifo_queue.h"
 
+extern struct timespec startT[1024];
+extern bool runtime_worker_busy_loop_enabled;
+extern thread_local uint32_t interrupts;
+extern thread_local bool pthread_stop;
+extern uint32_t runtime_worker_group_size;
+extern _Atomic uint32_t free_workers[10];
+extern thread_local int dispatcher_id;
+extern pthread_mutex_t mutexs[1024];
+extern pthread_cond_t conds[1024];
+extern sem_t semlock[1024];
+extern uint32_t runtime_fifo_queue_batch_size;
 
 /**
  * This scheduler provides for cooperative and preemptive multitasking in a OS process's userspace.
@@ -78,7 +95,7 @@ scheduler_mtds_get_next()
 	enum MULTI_TENANCY_CLASS local_mt_class = MT_DEFAULT;
 	struct sandbox          *global         = NULL;
 
-	if (local) local_mt_class = local->tenant->pwt_sandboxes[worker_thread_idx].mt_class;
+	if (local) local_mt_class = local->tenant->pwt_sandboxes[global_worker_thread_idx].mt_class;
 
 	uint64_t global_guaranteed_deadline = global_request_scheduler_mtds_guaranteed_peek();
 	uint64_t global_default_deadline    = global_request_scheduler_mtds_default_peek();
@@ -112,24 +129,23 @@ scheduler_edf_get_next()
 	/* Get the deadline of the sandbox at the head of the local queue */
 	struct sandbox *local          = local_runqueue_get_next();
 	uint64_t        local_deadline = local == NULL ? UINT64_MAX : local->absolute_deadline;
-	struct sandbox *global         = NULL;
 
-	uint64_t global_deadline = global_request_scheduler_peek();
-
-	/* Try to pull and allocate from the global queue if earlier
-	 * This will be placed at the head of the local runqueue */
-	if (global_deadline < local_deadline) {
-		if (global_request_scheduler_remove_if_earlier(&global, local_deadline) == 0) {
-			assert(global != NULL);
-			assert(global->absolute_deadline < local_deadline);
-			sandbox_prepare_execution_environment(global);
-			assert(global->state == SANDBOX_INITIALIZED);
-			sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+	if (local != NULL) {
+		if (local->state == SANDBOX_INITIALIZED) {
+			/* add by xiaosu */
+			uint64_t now = __getcycles();
+			local->timestamp_of.dispatched = now;
+			local->duration_of_state[SANDBOX_INITIALIZED] = 0;
+			local->timestamp_of.last_state_change =  now;
+			/* end by xiaosu */
+			sandbox_prepare_execution_environment(local);
+                        //printf("sandbox state %d\n", local->state);
+			assert(local->state == SANDBOX_INITIALIZED);
+			sandbox_set_as_runnable(local, SANDBOX_INITIALIZED);
 		}
 	}
-
 	/* Return what is at the head of the local runqueue or NULL if empty */
-	return local_runqueue_get_next();
+	return local;
 }
 
 static inline struct sandbox *
@@ -140,19 +156,43 @@ scheduler_fifo_get_next()
 	struct sandbox *global = NULL;
 
 	if (local == NULL) {
-		/* If the local runqueue is empty, pull from global request scheduler */
-		if (global_request_scheduler_remove(&global) < 0) goto done;
+		if (disable_get_req_from_GQ) {
+			return NULL;
+		}
 
-		sandbox_prepare_execution_environment(global);
-		sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+		/* If the local runqueue is empty, pull a batch of requests from global request scheduler */
+		for (int i = 0; i < runtime_fifo_queue_batch_size; i++ ) {
+			if (global_request_scheduler_remove(&global) < 0) break;
+
+			if (global->state == SANDBOX_INITIALIZED) {
+				/* add by xiaosu */
+                        	uint64_t now = __getcycles();
+                        	global->timestamp_of.dispatched = now;
+                        	global->duration_of_state[SANDBOX_INITIALIZED] = 0;
+                        	global->timestamp_of.last_state_change =  now;
+                        	/* end by xiaosu */
+				sandbox_prepare_execution_environment(global);
+				local_runqueue_add(global);
+				sandbox_set_as_runnable(global, SANDBOX_INITIALIZED);
+			}
+		}
 	} else if (local == current_sandbox_get()) {
 		/* Execute Round Robin Scheduling Logic if the head is the current sandbox */
 		local_runqueue_list_rotate();
-	}
-
-
-done:
-	return local_runqueue_get_next();
+	} 
+	
+	local = local_runqueue_get_next();
+	if (local && local->state == SANDBOX_INITIALIZED) {
+        	/* add by xiaosu */
+                uint64_t now = __getcycles();
+                local->timestamp_of.dispatched = now;
+                local->duration_of_state[SANDBOX_INITIALIZED] = 0;
+                local->timestamp_of.last_state_change =  now;
+                /* end by xiaosu */
+                sandbox_prepare_execution_environment(local);
+                sandbox_set_as_runnable(local, SANDBOX_INITIALIZED);
+        }
+	return local;
 }
 
 static inline struct sandbox *
@@ -204,7 +244,13 @@ scheduler_runqueue_initialize()
 		local_runqueue_mtds_initialize();
 		break;
 	case SCHEDULER_EDF:
-		local_runqueue_minheap_initialize();
+		if (dispatcher == DISPATCHER_SHINJUKU || dispatcher == DISPATCHER_DARC) {
+			local_runqueue_circular_queue_initialize();	
+		} else if (dispatcher == DISPATCHER_EDF_INTERRUPT) {
+			local_runqueue_binary_tree_initialize();
+		} else {
+			local_runqueue_minheap_initialize();
+		}
 		break;
 	case SCHEDULER_FIFO:
 		local_runqueue_list_initialize();
@@ -255,6 +301,7 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
 {
 	/* Switch to next sandbox */
 	switch (next->ctxt.variant) {
+	/* This sandbox is a new sandbox */
 	case ARCH_CONTEXT_VARIANT_FAST: {
 		assert(next->state == SANDBOX_RUNNABLE);
 		arch_context_restore_fast(&interrupted_context->uc_mcontext, &next->ctxt);
@@ -262,10 +309,14 @@ scheduler_preemptive_switch_to(ucontext_t *interrupted_context, struct sandbox *
 		sandbox_set_as_running_sys(next, SANDBOX_RUNNABLE);
 		break;
 	}
+	/* This sandbox is a preempted sandbox */
 	case ARCH_CONTEXT_VARIANT_SLOW: {
 		assert(next->state == SANDBOX_PREEMPTED);
 		arch_context_restore_slow(&interrupted_context->uc_mcontext, &next->ctxt);
 		current_sandbox_set(next);
+		//-----------xiaosu--------------
+		//printf("id %lu resume from slow\n", next->id);
+		//-----------xiaosu--------------
 		sandbox_set_as_running_user(next, SANDBOX_PREEMPTED);
 		break;
 	}
@@ -301,7 +352,7 @@ scheduler_process_policy_specific_updates_on_interrupts(struct sandbox *interrup
 }
 
 /**
- * Called by the SIGALRM handler after a quantum
+ * Called by the SIGALRM handler after a quantum, this function can only be called by SHINJUKU or EDF_INTERRUPT
  * Assumes the caller validates that there is something to preempt
  * @param interrupted_context - The context of our user-level Worker thread
  * @returns the sandbox that the scheduler chose to run
@@ -316,15 +367,43 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	struct sandbox *interrupted_sandbox = current_sandbox_get();
 	assert(interrupted_sandbox != NULL);
 	assert(interrupted_sandbox->state == SANDBOX_INTERRUPTED);
-	// printf ("Worker #%d interrupted sandbox #%lu\n", worker_thread_idx, interrupted_sandbox->id);
+	// printf ("Worker #%d interrupted sandbox #%lu\n", global_worker_thread_idx, interrupted_sandbox->id);
 	scheduler_process_policy_specific_updates_on_interrupts(interrupted_sandbox);
 
+        /* Delete current sandbox from local queue if dispatcher is DISPATCHER_SHINJUKU */
+        if (dispatcher == DISPATCHER_SHINJUKU) {
+            if (local_runqueue_get_length() > 1) {
+            	local_runqueue_delete(interrupted_sandbox);     
+            	sandbox_preempt(interrupted_sandbox); 
+            	// Write back global at idx 0
+            	wasm_globals_set_i64(&interrupted_sandbox->globals, 0, sledge_abi__current_wasm_module_instance.abi.wasmg_0,
+                             true);
+            	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
+            	int ret = push_to_preempted_queue(interrupted_sandbox, __getcycles());
+	    	assert(ret != -1);
+		
+		interrupts++;
+		struct sandbox *next = scheduler_get_next();
+		assert(next != NULL);
+               	scheduler_preemptive_switch_to(interrupted_context, next);
+	    } else {
+	    	/* current sandbox shouldn't be interrupted becuase it is the only request in the local queue 
+	       	   so return directly, the current context isn't switched and will resume when single handler
+		   returns 
+	         */
+                sandbox_interrupt_return(interrupted_sandbox, SANDBOX_RUNNING_USER);
+                return;
+	    }
+	    return;
+        }
+
 	struct sandbox *next = scheduler_get_next();
-	/* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
+
+        /* Assumption: the current sandbox is on the runqueue, so the scheduler should always return something */
 	assert(next != NULL);
 
-	/* If current equals next, no switch is necessary, so resume execution */
-	if (interrupted_sandbox == next) {
+	/* If current equals next, no switch is necessary, or currend deadline is ealier than the next deadline or its RS <= 0, just resume execution */
+	if (interrupted_sandbox == next || interrupted_sandbox->absolute_deadline <= next->absolute_deadline || interrupted_sandbox->srsf_remaining_slack <= 0) {
 		sandbox_interrupt_return(interrupted_sandbox, SANDBOX_RUNNING_USER);
 		return;
 	}
@@ -340,8 +419,9 @@ scheduler_preemptive_sched(ucontext_t *interrupted_context)
 	// Write back global at idx 0
 	wasm_globals_set_i64(&interrupted_sandbox->globals, 0, sledge_abi__current_wasm_module_instance.abi.wasmg_0,
 	                     true);
-
 	arch_context_save_slow(&interrupted_sandbox->ctxt, &interrupted_context->uc_mcontext);
+
+	interrupts++;
 	scheduler_preemptive_switch_to(interrupted_context, next);
 }
 
@@ -387,12 +467,15 @@ scheduler_switch_to_base_context(struct arch_context *current_context)
 	arch_context_switch(current_context, &worker_thread_base_context);
 }
 
-
 /* The idle_loop is executed by the base_context. This should not be called directly */
 static inline void
 scheduler_idle_loop()
 {
-	while (true) {
+	uint64_t cleanup_cost = 0;	
+	uint64_t other = 0;
+	int cleanup_count = 0;
+	uint64_t ret[5] = {0};
+	while (!pthread_stop) {
 		/* Assumption: only called by the "base context" */
 		assert(current_sandbox_get() == NULL);
 
@@ -402,14 +485,49 @@ scheduler_idle_loop()
 		/* Switch to a sandbox if one is ready to run */
 		struct sandbox *next_sandbox = scheduler_get_next();
 		if (next_sandbox != NULL) {
+			//printf("poped a sandbox\n");
+			next_sandbox->timestamp_of.cleanup += cleanup_cost;
+			next_sandbox->timestamp_of.other += other;
+			next_sandbox->context_switch_to = 1;
+			next_sandbox->ret[0] += ret[0];
+			next_sandbox->ret[1] += ret[1];
+			next_sandbox->ret[2] += ret[2];
+			next_sandbox->ret[3] += ret[3];
+			next_sandbox->ret[4] += ret[4];
+			cleanup_cost = 0;
+			other = 0;
+			ret[0] = ret[1] = ret[2] = ret[3] = ret[4] = 0;
 			scheduler_cooperative_switch_to(&worker_thread_base_context, next_sandbox);
 		}
-
 		/* Clear the cleanup queue */
-		local_cleanup_queue_free();
-
-		/* Improve the performance of spin-wait loops (works only if preemptions enabled) */
-		if (runtime_worker_spinloop_pause_enabled) pause();
+		uint64_t now = __getcycles();
+		uint64_t duration = 0;
+		uint64_t ret_inner[5] = {0};
+		cleanup_count = local_cleanup_queue_free(&duration, ret_inner);
+		if (cleanup_count != 0 && cleanup_cost == 0) {
+			cleanup_cost += __getcycles() - now;
+			other += duration;
+			ret[0] += ret_inner[0];
+			ret[1] += ret_inner[1];
+			ret[2] += ret_inner[2];
+			ret[3] += ret_inner[3];
+			ret[4] += ret_inner[4];
+		}
+		/* If queue is empty, then sleep to wait for the condition variable or sempahore */
+		if (!runtime_worker_busy_loop_enabled) {
+			/*pthread_mutex_lock(&mutexs[global_worker_thread_idx]);
+                	if (local_runqueue_is_empty()) {
+                        	pthread_cond_wait(&conds[global_worker_thread_idx], &mutexs[global_worker_thread_idx]);
+                	}
+                	pthread_mutex_unlock(&mutexs[global_worker_thread_idx]);
+			*/
+			/* Semaphore could lost signal and cause worker block for a short time decrasing performance,
+                   	   but based on test, it seems Semaphore has a better performance than condition variable 
+			*/
+			if (local_runqueue_is_empty()) {
+				sem_wait(&semlock[global_worker_thread_idx]);
+			}
+		}
 	}
 }
 
@@ -423,8 +541,11 @@ scheduler_idle_loop()
 static inline void
 scheduler_cooperative_sched(bool add_to_cleanup_queue)
 {
+	//uint64_t now = __getcycles(); 
 	struct sandbox *exiting_sandbox = current_sandbox_get();
+	
 	assert(exiting_sandbox != NULL);
+	//uint8_t dispatcher_id = exiting_sandbox->rpc_id;
 
 	/* Clearing current sandbox indicates we are entering the cooperative scheduler */
 	current_sandbox_set(NULL);
@@ -439,9 +560,18 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 	/* Deferred signals should have been cleared by this point */
 	assert(deferred_sigalrm == 0);
 
+	uint64_t now = __getcycles(); 
+	uint64_t duration = 0;
+	uint64_t ret[5] = {0};
 	/* We have not added ourself to the cleanup queue, so we can free */
-	local_cleanup_queue_free();
-
+	local_cleanup_queue_free(&duration, ret);
+	exiting_sandbox->timestamp_of.cleanup += (__getcycles() - now);	
+	exiting_sandbox->timestamp_of.other += duration;
+	exiting_sandbox->ret[0] += ret[0];
+	exiting_sandbox->ret[1] += ret[1];
+	exiting_sandbox->ret[2] += ret[2];
+	exiting_sandbox->ret[3] += ret[3];
+	exiting_sandbox->ret[4] += ret[4];
 	/* Switch to a sandbox if one is ready to run */
 	struct sandbox *next_sandbox = scheduler_get_next();
 
@@ -459,14 +589,20 @@ scheduler_cooperative_sched(bool add_to_cleanup_queue)
 
 	if (add_to_cleanup_queue) local_cleanup_queue_add(exiting_sandbox);
 	/* Do not touch sandbox struct after this point! */
+ 	/* Logging this sandbox to memory */	
+	sandbox_perf_log_print_entry(exiting_sandbox);
 
 	if (next_sandbox != NULL) {
+		next_sandbox->context_switch_to = 2;
 		scheduler_cooperative_switch_to(exiting_context, next_sandbox);
 	} else {
-		scheduler_switch_to_base_context(exiting_context);
+	    if (dispatcher == DISPATCHER_DARC) {
+		    int virtual_id = global_worker_thread_idx - dispatcher_id * runtime_worker_group_size;	
+		    atomic_fetch_or(&free_workers[dispatcher_id], 1 << virtual_id);	
+	    }
+            scheduler_switch_to_base_context(exiting_context);
 	}
 }
-
 
 static inline bool
 scheduler_worker_would_preempt(int worker_idx)

@@ -1,0 +1,30 @@
+diff --git a/applications/Makefile b/applications/Makefile
+index 1ec969c..08cd49c 100644
+--- a/applications/Makefile
++++ b/applications/Makefile
+@@ -21,6 +21,9 @@ dist:
+ all: \
+ 	cifar10.install \
+ 	empty.install \
++	sift.install \
++	hash.install \
++	multi_ncut.install \
+ 	fibonacci.install \
+ 	gocr.install \
+ 	gps_ekf.install \
+@@ -90,6 +93,15 @@ exit.install: ../runtime/bin/exit.wasm.so
+ .PHONY: fibonacci.install
+ fibonacci.install: ../runtime/bin/fibonacci.wasm.so
+ 
++.PHONY: multi_ncut.install
++fibonacci.install: ../runtime/bin/multi_ncut.wasm.so
++
++.PHONY: sift.install
++fibonacci.install: ../runtime/bin/sift.wasm.so
++
++.PHONY: hash.install
++hash.install: ../runtime/bin/hash.wasm.so
++
+ .PHONY: asc-fib.install
+ asc-fib.install: ../runtime/bin/asc-fib.wasm.so
+ 

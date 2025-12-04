@@ -24,7 +24,29 @@
 #include "scheduler.h"
 #include "software_interrupt.h"
 #include "software_interrupt_counts.h"
+#include "memlogging.h"
+#include "tenant_functions.h"
 
+extern sem_t semlock[1024];
+extern uint32_t local_runqueue_count[1024];
+extern thread_local uint8_t dispatcher_thread_idx;
+extern uint32_t worker_old_sandbox[1024];
+extern uint32_t worker_new_sandbox[1024];
+extern thread_local uint64_t total_requests;
+extern uint32_t max_local_queue_length[1024];
+extern uint32_t max_local_queue_height[1024];
+extern thread_local uint32_t max_queue_length;
+extern thread_local uint32_t dispatcher_try_interrupts;
+thread_local uint32_t interrupts = 0;
+thread_local uint32_t preemptable_interrupts = 0;
+
+extern struct sandbox* current_sandboxes[1024];
+extern time_t t_start;
+extern thread_local int global_worker_thread_idx;
+extern thread_local bool pthread_stop;
+extern thread_local bool is_listener;
+extern thread_local uint32_t total_complete_requests;
+extern uint64_t requests_counter[MAX_DISPATCHER][MAX_REQUEST_TYPE];
 thread_local _Atomic volatile sig_atomic_t handler_depth    = 0;
 thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
 
@@ -33,10 +55,18 @@ thread_local _Atomic volatile sig_atomic_t deferred_sigalrm = 0;
  **************************************/
 
 extern pthread_t *runtime_worker_threads;
+extern pthread_t *runtime_listener_threads;
+
+#ifdef SANDBOX_STATE_TOTALS
+extern _Atomic uint32_t sandbox_state_totals[SANDBOX_STATE_COUNT];
+#endif
 
 /**************************
  * Private Static Inlines *
  *************************/
+void perf_window_print_mean() {
+        tenant_database_foreach(tenat_perf_window_print_mean, NULL, NULL);
+}
 
 /**
  * A POSIX signal is delivered to only one thread.
@@ -75,6 +105,34 @@ propagate_sigalrm(siginfo_t *signal_info)
 	}
 }
 
+/**
+ * A POSIX signal is delivered to only one thread.
+ * This function broadcasts the sigint signal to all other worker threads
+ */
+static inline void
+sigint_propagate_workers_listener(siginfo_t *signal_info)
+{
+        /* Signal was sent directly by the kernel user space, so forward to other threads */
+        if (signal_info->si_code == SI_KERNEL || signal_info->si_code == SI_USER) {
+                for (int i = 0; i < runtime_worker_threads_count; i++) {
+                        if (pthread_self() == runtime_worker_threads[i]) continue;
+
+                        /* All threads should have been initialized */
+                        assert(runtime_worker_threads[i] != 0);
+                        pthread_kill(runtime_worker_threads[i], SIGINT);
+                }
+		for (int i = 0; i < runtime_listener_threads_count;i++) {
+			if (pthread_self() == runtime_listener_threads[i]) continue;
+
+			assert(runtime_listener_threads[i] != 0);
+			pthread_kill(runtime_listener_threads[i], SIGINT);
+		}	
+        } else {
+                /* Signal forwarded from another thread. Just confirm it resulted from pthread_kill */
+                assert(signal_info->si_code == SI_TKILL);
+        }
+}
+
 static inline bool
 worker_thread_is_running_cooperative_scheduler(void)
 {
@@ -82,11 +140,20 @@ worker_thread_is_running_cooperative_scheduler(void)
 }
 
 
-static inline bool
+bool
 current_sandbox_is_preemptable()
 {
 	struct sandbox *sandbox = current_sandbox_get();
 	return sandbox != NULL && sandbox->state == SANDBOX_RUNNING_USER;
+}
+
+bool
+sandbox_is_preemptable(void *sandbox) {
+	return sandbox != NULL && ((struct sandbox *)sandbox)->state == SANDBOX_RUNNING_USER;
+}
+
+void preempt_worker(int thread_id) {
+	pthread_kill(runtime_worker_threads[thread_id], SIGALRM);
 }
 
 /**
@@ -112,7 +179,7 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 
 	switch (signal_type) {
 	case SIGALRM: {
-		assert(runtime_preemption_enabled);
+		//assert(runtime_preemption_enabled);
 
 		if (worker_thread_is_running_cooperative_scheduler()) {
 			/* There is no benefit to deferring SIGALRMs that occur when we are already in the cooperative
@@ -121,15 +188,23 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
-			propagate_sigalrm(signal_info);
+			if (runtime_preemption_enabled) {
+				propagate_sigalrm(signal_info);
+			}
 		} else if (current_sandbox_is_preemptable()) {
+			preemptable_interrupts++;
 			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
+			/* sandbox_interrupt means the sandbox stopped, but might be resume very soon. If
+ 			   deciding preempt the sandbox for a while, then will call sandbox_preempt */
 			sandbox_interrupt(current_sandbox);
 			if (scheduler == SCHEDULER_MTDS && signal_info->si_code == SI_KERNEL) {
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
-			propagate_sigalrm(signal_info);
+
+			if (runtime_preemption_enabled) {
+                                propagate_sigalrm(signal_info);
+                        }
 			scheduler_preemptive_sched(interrupted_context);
 		} else {
 			/* We transition the sandbox to an interrupted state to exclude time propagating signals and
@@ -138,14 +213,17 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 				/* Global tenant promotions */
 				global_timeout_queue_process_promotions();
 			}
-			propagate_sigalrm(signal_info);
+
+			if (runtime_preemption_enabled) {
+                                propagate_sigalrm(signal_info);
+                        }
 			atomic_fetch_add(&deferred_sigalrm, 1);
 		}
 
 		break;
 	}
 	case SIGUSR1: {
-		assert(runtime_preemption_enabled);
+		//assert(runtime_preemption_enabled);
 		assert(current_sandbox);
 		assert(current_sandbox->state == SANDBOX_PREEMPTED);
 		assert(current_sandbox->ctxt.variant == ARCH_CONTEXT_VARIANT_SLOW);
@@ -182,6 +260,55 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 			panic("Runtime SIGSEGV\n");
 		}
 
+		break;
+	}
+	case SIGINT: { /* Stop the alarm timer first */ software_interrupt_disarm_timer();
+   		sigint_propagate_workers_listener(signal_info);
+		time_t t_end = time(NULL);
+		double seconds = difftime(t_end, t_start);
+
+		if (is_listener) {
+			pthread_stop = true;
+			double arriving_rate = total_requests / seconds;
+			printf("%d try preempts:%u max global queue %u arriving rate %f total requests %lu\n", dispatcher_thread_idx,
+				dispatcher_try_interrupts, max_queue_length, arriving_rate, total_requests);
+			for (int i = 0; i < MAX_REQUEST_TYPE; i++) {
+			    if (requests_counter[dispatcher_thread_idx][i] != 0) {
+			        mem_log("type %d total requests %lu\n", i, requests_counter[dispatcher_thread_idx][i]);
+			    }
+			} 
+			//mem_log("%d try preempts:%u max global queue %u arriving rate %f total requests %lu\n", dispatcher_thread_idx,
+			//	dispatcher_try_interrupts, max_queue_length, arriving_rate, total_requests);
+			dump_log_to_file();
+			break;
+		}
+ 
+		/* calculate the throughput */
+		double throughput = atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]) / seconds;
+		uint32_t total_sandboxes_error = atomic_load(&sandbox_state_totals[SANDBOX_ERROR]);
+		mem_log("throughput %f tid(%d) error request %u complete requests %u total request %u total_complete_requests %u interrupts %u p-interrupts %u max local queue %u\n", 
+			throughput, global_worker_thread_idx, total_sandboxes_error, atomic_load(&sandbox_state_totals[SANDBOX_COMPLETE]), 
+			atomic_load(&sandbox_state_totals[SANDBOX_ALLOCATED]), total_complete_requests, interrupts, preemptable_interrupts,
+			max_local_queue_length[global_worker_thread_idx]);
+                dump_log_to_file();
+		//printf("id %d max local queue %u height %u new %u old %u current length %u real length %d total complete request %u\n", 
+                //        global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx],max_local_queue_height[global_worker_thread_idx],
+		//	worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx], 
+                //        local_runqueue_count[global_worker_thread_idx],
+		//	local_runqueue_get_length(), total_complete_requests);
+		printf("id %d max local queue %u new %u old %u current length %u real length %d total complete request %u\n", 
+                        global_worker_thread_idx, max_local_queue_length[global_worker_thread_idx],
+			worker_new_sandbox[global_worker_thread_idx], worker_old_sandbox[global_worker_thread_idx], 
+                        local_runqueue_count[global_worker_thread_idx],
+			local_runqueue_get_length(), total_complete_requests);
+		pthread_stop = true;		
+		if (!runtime_worker_busy_loop_enabled) {
+		    /* Wake up worker so it can check if pthread_stop is true, othewise, it will block at condition wait */
+		    wakeup_worker(global_worker_thread_idx);
+		    sem_post(&semlock[global_worker_thread_idx]);	
+		}
+                /* Use pthread_exit in case some function code is an infinite loop and cannot finish forever */
+		//pthread_exit(NULL);
 		break;
 	}
 	default: {
@@ -268,9 +395,10 @@ software_interrupt_initialize(void)
 	sigaddset(&signal_action.sa_mask, SIGUSR1);
 	sigaddset(&signal_action.sa_mask, SIGFPE);
 	sigaddset(&signal_action.sa_mask, SIGSEGV);
+	sigaddset(&signal_action.sa_mask, SIGINT);
 
-	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGFPE, SIGSEGV };
-	const size_t supported_signals_len = 4;
+	const int    supported_signals[]   = { SIGALRM, SIGUSR1, SIGFPE, SIGSEGV, SIGINT };
+	const size_t supported_signals_len = 5;
 
 	for (int i = 0; i < supported_signals_len; i++) {
 		int signal = supported_signals[i];

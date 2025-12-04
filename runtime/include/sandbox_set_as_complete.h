@@ -28,7 +28,7 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	switch (last_state) {
 	case SANDBOX_RETURNED: {
-		sandbox->timestamp_of.completion = now;
+		//sandbox->timestamp_of.completion = now;
 		break;
 	}
 	default: {
@@ -45,14 +45,19 @@ sandbox_set_as_complete(struct sandbox *sandbox, sandbox_state_t last_state)
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_COMPLETE);
 	sandbox_state_totals_increment(SANDBOX_COMPLETE);
 	sandbox_state_totals_decrement(last_state);
-
+	//---------xiaosu---------------
+	//printf("id %lu total running sys %lu, total running user %lu\n", sandbox->id, sandbox->duration_of_state[SANDBOX_RUNNING_SYS],
+	//	sandbox->duration_of_state[SANDBOX_RUNNING_USER]);
+	//----------xiaosu-------------
 	/* Admissions Control Post Processing */
 	admissions_info_update(&sandbox->route->admissions_info, sandbox->duration_of_state[SANDBOX_RUNNING_USER]
+	                                                           + sandbox->duration_of_state[SANDBOX_RUNNING_SYS]);
+	perf_window_per_thread_update(&sandbox->route->admissions_info, sandbox->duration_of_state[SANDBOX_RUNNING_USER]
 	                                                           + sandbox->duration_of_state[SANDBOX_RUNNING_SYS]);
 	admissions_control_subtract(sandbox->admissions_estimate);
 
 	/* Terminal State Logging for Sandbox */
-	sandbox_perf_log_print_entry(sandbox);
+	//sandbox_perf_log_print_entry(sandbox);
 	sandbox_summarize_page_allocations(sandbox);
 	route_latency_add(&sandbox->route->latency, sandbox->total_time);
 

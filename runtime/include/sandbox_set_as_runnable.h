@@ -30,8 +30,7 @@ sandbox_set_as_runnable(struct sandbox *sandbox, sandbox_state_t last_state)
 
 	switch (last_state) {
 	case SANDBOX_INITIALIZED: {
-		sandbox->timestamp_of.dispatched = now;
-		local_runqueue_add(sandbox);
+		//sandbox->timestamp_of.dispatched = now;
 		break;
 	}
 	case SANDBOX_ASLEEP: {

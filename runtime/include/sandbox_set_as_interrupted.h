@@ -26,6 +26,10 @@ sandbox_set_as_interrupted(struct sandbox *sandbox, sandbox_state_t last_state)
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
+	//------------xiaosu-------------------
+	//printf("id %lu interrupt, current ts %lu last state %d last duration %lu total duration %lu\n", sandbox->id, now, last_state, 
+	//	sandbox->last_state_duration, sandbox->duration_of_state[last_state]);
+	//-------------xiaosu------------------
 	sandbox->timestamp_of.last_state_change = now;
 	/* We do not append SANDBOX_INTERRUPTED to the sandbox_state_history because it would quickly fill the buffer */
 	sandbox_state_totals_increment(SANDBOX_INTERRUPTED);

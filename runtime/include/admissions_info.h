@@ -1,4 +1,5 @@
 #pragma once
+#include <threads.h>
 
 #include "perf_window_t.h"
 
@@ -8,8 +9,10 @@ struct admissions_info {
 	int                control_index;     /* Precomputed Lookup index when perf_window is full */
 	uint64_t           estimate;          /* cycles */
 	uint64_t           relative_deadline; /* Relative deadline in cycles. This is duplicated state */
+	uint32_t 	   uid;		      /* unique id to identify an admissions_info at each thread */
 };
 
-void admissions_info_initialize(struct admissions_info *admissions_info, uint8_t percentile,
+void admissions_info_initialize(struct admissions_info *admissions_info, uint8_t uid, uint8_t percentile,
                                 uint64_t expected_execution, uint64_t relative_deadline);
 void admissions_info_update(struct admissions_info *admissions_info, uint64_t execution_duration);
+void perf_window_per_thread_update(struct admissions_info *admissions_info, uint64_t execution_duration);

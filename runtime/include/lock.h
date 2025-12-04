@@ -4,8 +4,8 @@
 #include <spinlock/mcs.h>
 #include <stdint.h>
 
+#include "types.h"
 #include "arch/getcycles.h"
-#include "runtime.h"
 
 
 /* A linked list of nodes */

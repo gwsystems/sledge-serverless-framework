@@ -7,6 +7,7 @@
 #ifndef DEQUE_H
 #define DEQUE_H
 
+#include "lock.h"
 /*
  * This was implemented by referring to:
  * https://github.com/cpp-taskflow/cpp-taskflow/blob/9c28ccec910346a9937c40db7bdb542262053f9c/taskflow/executor/workstealing.hpp
@@ -30,6 +31,7 @@
                                                                                                     \
 		volatile long top;                                                                  \
 		volatile long bottom;                                                               \
+		lock_t lock;                                                                        \
 	};                                                                                          \
                                                                                                     \
 	static inline void deque_init_##name(struct deque_##name *q, size_t sz)                     \
@@ -39,7 +41,7 @@
 		if (sz) {                                                                           \
 			/* only for size with pow of 2 */                                           \
 			/* assert((sz & (sz - 1)) == 0); */                                         \
-			assert(sz <= DEQUE_MAX_SZ);                                                 \
+			assert(sz && (sz & (sz - 1)) == 0 && sz <= DEQUE_MAX_SZ);                   \
 		} else {                                                                            \
 			sz = DEQUE_MAX_SZ;                                                          \
 		}                                                                                   \
@@ -58,7 +60,7 @@
 		/* nope, fixed size only */                                                         \
 		if (q->size - 1 < (cb - ct)) return -ENOSPC;                                        \
                                                                                                     \
-		q->wrk[cb] = *w;                                                                    \
+		q->wrk[cb & (q->size - 1)] = *w;                                                    \
 		__sync_synchronize();                                                               \
 		if (__sync_bool_compare_and_swap(&q->bottom, cb, cb + 1) == false) assert(0);       \
                                                                                                     \
@@ -110,7 +112,7 @@
 		/* Empty */                                                                         \
 		if (ct >= cb) return -ENOENT;                                                       \
                                                                                                     \
-		*w = deque->wrk[ct];                                                                \
+		*w = deque->wrk[ct & (deque->size - 1)];                                            \
 		if (__sync_bool_compare_and_swap(&deque->top, ct, ct + 1) == false) return -EAGAIN; \
                                                                                                     \
 		return 0;                                                                           \

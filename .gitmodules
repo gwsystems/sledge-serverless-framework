@@ -12,3 +12,6 @@
 [submodule "jsmn"]
 	path = runtime/thirdparty/jsmn
 	url = https://github.com/gwsystems/jsmn.git
+[submodule "eRPC"]
+	path = eRPC
+	url = https://github.com/lyuxiaosu/eRPC

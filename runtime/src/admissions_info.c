@@ -3,17 +3,19 @@
 #include "debuglog.h"
 #include "perf_window.h"
 
+extern thread_local struct perf_window perf_window_per_thread[1024];
 /**
  * Initializes perf window
  * @param admissions_info
  */
 void
-admissions_info_initialize(struct admissions_info *admissions_info, uint8_t percentile, uint64_t expected_execution,
+admissions_info_initialize(struct admissions_info *admissions_info, uint8_t uid, uint8_t percentile, uint64_t expected_execution,
                            uint64_t relative_deadline)
 {
-#ifdef ADMISSIONS_CONTROL
+//#ifdef ADMISSIONS_CONTROL
 	assert(relative_deadline > 0);
 	assert(expected_execution > 0);
+	admissions_info->uid = uid;
 	admissions_info->relative_deadline = relative_deadline;
 	admissions_info->estimate = admissions_control_calculate_estimate(expected_execution, relative_deadline);
 	debuglog("Initial Estimate: %lu\n", admissions_info->estimate);
@@ -29,9 +31,13 @@ admissions_info_initialize(struct admissions_info *admissions_info, uint8_t perc
 	debuglog("Percentile: %u\n", admissions_info->percentile);
 	debuglog("Control Index: %d\n", admissions_info->control_index);
 #endif
-#endif
+//#endif
 }
 
+void perf_window_per_thread_update(struct admissions_info *admissions_info, uint64_t execution_duration) {
+	uint32_t uid = admissions_info->uid;
+	perf_window_add(&perf_window_per_thread[uid], execution_duration);
+}
 
 /*
  * Adds an execution value to the perf window and calculates and caches and updated estimate

@@ -256,3 +256,4 @@ int sledge_abi__scratch_storage_set(uint32_t key_offset, uint32_t key_len, uint3
 int sledge_abi__scratch_storage_delete(uint32_t key_offset, uint32_t key_len);
 void
 sledge_abi__scratch_storage_upsert(uint32_t key_offset, uint32_t key_len, uint32_t value_offset, uint32_t value_len);
+uint64_t sledge_abi__env_getcycles();

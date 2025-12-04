@@ -54,15 +54,24 @@ current_sandbox_exit()
 	switch (exiting_sandbox->state) {
 	case SANDBOX_RETURNED:
 		sandbox_exit_success(exiting_sandbox);
+        	sandbox_send_response(exiting_sandbox, 0);
 		break;
 	case SANDBOX_RUNNING_SYS:
+        	sandbox_send_response(exiting_sandbox, 1);
 		sandbox_exit_error(exiting_sandbox);
 		break;
 	default:
 		panic("Cooperatively switching from a sandbox in a non-terminal %s state\n",
 		      sandbox_state_stringify(exiting_sandbox->state));
 	}
-
+	//---------xiaosu-----------------
+	/*char str[4096] = {0};
+	sprintf(str, "id %lu ", exiting_sandbox->id);
+	for (int i = 0; i < exiting_sandbox->state_history.size; i++) {
+		sprintf(str + strlen(str), "sate %d ", exiting_sandbox->state_history.buffer[i]);
+	}
+	printf("%s\n", str);*/
+	//-----------xiaosu---------------
 	scheduler_cooperative_sched(true);
 
 	/* The scheduler should never switch back to completed sandboxes */
@@ -127,18 +136,16 @@ current_sandbox_init()
 	/* Initialize Arguments. First arg is the module name. Subsequent args are query parameters */
 	char *args[HTTP_MAX_QUERY_PARAM_COUNT + 1];
 	args[0] = sandbox->module->path;
-	for (int i = 0; i < sandbox->http->http_request.query_params_count; i++)
-		args[i + 1] = (char *)sandbox->http->http_request.query_params[i].value;
 
-	options.argc                                          = sandbox->http->http_request.query_params_count + 1;
+	options.argc                                          = 1;
 	options.argv                                          = (const char **)&args;
 	sandbox->wasi_context                                 = wasi_context_init(&options);
 	sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
 	assert(sandbox->wasi_context != NULL);
 
 	sandbox_return(sandbox);
-
-	/* Initialize sandbox globals. Needs to run in user state */
+	
+        /* Initialize sandbox globals. Needs to run in user state */
 	module_initialize_globals(current_module);
 
 	return sandbox;
@@ -160,7 +167,9 @@ current_sandbox_fini()
 
 	sandbox->timestamp_of.completion = __getcycles();
 	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation;
-
+	//-----------xiaosu-----------------------
+	//printf("id %lu finish, total time %lu, current ts %lu\n", sandbox->id, sandbox->total_time, sandbox->timestamp_of.completion);
+	//----------xiaosu-------------------------
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 
 done:
@@ -189,6 +198,8 @@ current_sandbox_start(void)
 	int rc = sigsetjmp(sandbox->ctxt.start_buf, 1);
 	if (rc == 0) {
 		struct module *current_module = sandbox_get_module(sandbox);
+		/* Sandbox starts running, update its RS */ 
+		sandbox->srsf_remaining_slack = sandbox->srsf_remaining_slack - (__getcycles() - sandbox->srsf_stop_running_ts);
 		sandbox->return_value         = module_entrypoint(current_module);
 	} else {
 		current_sandbox_wasm_trap_handler(rc);
