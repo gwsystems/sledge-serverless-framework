@@ -7,12 +7,12 @@ SLEdgeScale was developed and tested on [Cloudlab](https://www.cloudlab.us) node
 
 For using CloudLab profile to create the development environment:
 Choose the [profile](https://www.cloudlab.us/p/GWCloudLab/sledge-rpc2) and use the following configuration:
-Number of Nodes: 2
-Select OS image: SLEDGE
-Optional physical node type : d6515
+- **Number of Nodes:** 2  
+- **Select OS image:** SLEDGE  
+- **Optional physical node type:** d6515
 
 Now the environment is prepared for eRPC. The following steps are to build and install SLEdgeScale:
-1. Git clone this repo and checkout branch *compare_dispatchers*
+1. Git clone this repo and checkout branch *sledgescale*
 2. Extend the root filesystem:
    ```sh
    cd sledge-serverless-framework/runtime/tests
