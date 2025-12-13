@@ -72,12 +72,19 @@ An SLEdgeScale serverless function consists of a shared library (\*.so) and a JS
 ```
 
 `port`:Refers to the UDP port. 
+
 `request-type` and `path`: Used to determine which serverless function will be served; `request-type` must be unique per function.
+
 `route`: An inherited field from SLEdge. It is not used currently but is kept to avoid parse errors.
+
 `n-resas`: Specifies the number of CPU cores reserved for this serverless function. It is used by the DARC algorithm.
+
 `group-id`: Specifies the group identifier used in the DARC algorithm. 
+
 `expected-execution-us`: Currently not used. SLEdgeScale will estimate execution time online.
+
 `relative-deadline-us`: Specifies the request deadline in microseconds.
+
 `http-resp-content-type`: Not used currently but is kept to avoid parse errors.
 
 ### Start the SLEdgeScale Server
