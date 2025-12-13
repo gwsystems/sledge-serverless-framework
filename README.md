@@ -32,14 +32,13 @@ Now the environment is prepared for eRPC. The following steps are to build and i
    source ~/.bashrc
    make install
    ```
-There are a set of benchmarking applications in the `/sledge/applications` directory. Run the following to compile all benchmarks runtime tests using the aWsm compiler and then copy all resulting `<application>.wasm.so` files to /sledge/runtime/bin.
+The `/sledge/applications` directory contains a set of benchmark applications. Run the following command to compile all benchmarks.
 
 ```bash
-cd /sledge/applications/
+cd sledge-serverless-framework/applications/
 make clean all
 ```
-
-All binary files are generated in `sledge-serverless-framework/runtime/bin`. You now have everything that you need to execute your first serverless function on SLEdgeScale
+All binary files (`<application>.wasm.so`) are generated in `sledge-serverless-framework/runtime/bin`. You now have everything that you need to execute your first serverless function on SLEdgeScale
 
 ## Running your first serverless function
 
