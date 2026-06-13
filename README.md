@@ -4,18 +4,11 @@
 
 ## Setting up a development environment
 
-### Native on Debian Host
+SLEdge's `aWsm` compiler is built against a **specific LLVM version (LLVM 13)** via the `llvm-alt` Rust bindings. Those bindings use LLVM C-API functions (e.g. `LLVMBuildCall`, `LLVMBuildLoad`) that were **removed in LLVM 15+**, so the build will fail to link against newer LLVM toolchains.
 
-```sh
-git clone https://github.com/gwsystems/sledge-serverless-framework.git
-cd sledge-serverless-framework
-./install_deb.sh
-source ~/.bashrc
-make install
-make test
-```
+**For this reason, the Docker environment below is the recommended way to build SLEdge.** It pins the exact Debian + LLVM 13 + WASI SDK toolchain that the compiler needs, and works on any host with Docker (macOS, Windows/WSL2, or a Linux distro other than the one targeted by `install_deb.sh`).
 
-### Docker
+### Docker (recommended)
 
 **Note: These steps require Docker. Make sure you've got it installed!**
 
@@ -74,6 +67,21 @@ If you are finished working with the SLEdge runtime and wish to remove it, run t
 ```
 
 And then simply delete this repository.
+
+### Native build (Debian + LLVM 13 only)
+
+**Caveat:** `install_deb.sh` only works on a host whose package repositories provide **LLVM 13** and `libtinfo5` — in practice a Debian release (or older Ubuntu such as 20.04/22.04) that `apt.llvm.org` still serves LLVM 13 for. It will **not** work on Ubuntu 24.04 (noble) or other distros where LLVM 13 is unavailable: `libtinfo5` has no install candidate, `apt.llvm.org/llvm.sh 13` provides no packages, and the `aWsm` build will fail to link against the newer system LLVM (`undefined symbol: LLVMBuildCall`). Use the Docker route above on those systems.
+
+On a supported host:
+
+```sh
+git clone https://github.com/gwsystems/sledge-serverless-framework.git
+cd sledge-serverless-framework
+./install_deb.sh
+source ~/.bashrc
+make install
+make test
+```
 
 ## Running your first serverless function
 
