@@ -21,6 +21,7 @@ enum route_config_member
 	route_config_member_model_beta1,
 	route_config_member_model_beta2,
 	route_config_member_http_resp_content_type,
+	route_config_member_stack_size,
 	route_config_member_len
 };
 
@@ -36,6 +37,7 @@ struct route_config {
 	uint32_t model_beta1;
 	uint32_t model_beta2;
 	char    *http_resp_content_type;
+	uint32_t stack_size; /* in bytes; 0 means use the runtime default (WASM_STACK_SIZE) */
 };
 
 static inline void
@@ -57,6 +59,7 @@ route_config_print(struct route_config *config)
 	printf("[Route] Admissions Percentile: %hhu\n", config->admissions_percentile);
 	printf("[Route] Relative Deadline (us): %u\n", config->relative_deadline_us);
 	printf("[Route] HTTP Response Content Type: %s\n", config->http_resp_content_type);
+	printf("[Route] Stack Size (bytes, 0=default): %u\n", config->stack_size);
 #ifdef EXECUTION_HISTOGRAM
 	printf("[Route] Path of Preprocessing Module: %s\n", config->path_preprocess);
 	printf("[Route] Model Bias: %u\n", config->model_bias);

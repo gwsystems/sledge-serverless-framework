@@ -42,7 +42,7 @@ struct module {
  *******************************/
 
 void           module_free(struct module *module);
-struct module *module_alloc(char *path, enum module_type type);
+struct module *module_alloc(char *path, enum module_type type, uint32_t stack_size);
 
 /*************************
  * Public Static Inlines *
