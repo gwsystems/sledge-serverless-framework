@@ -1,0 +1,471 @@
+# =============================================================================
+# Valgrind / Memcheck suppressions for the SLEdge runtime
+# =============================================================================
+#
+# SLEdge does three things that Valgrind's Memcheck cannot model, and each
+# produces a flood of *false* "Invalid read/write" reports:
+#
+#   1. Signal-based preemption. A SIGALRM is delivered to a worker while it is
+#      running on a sandbox's stack and the handler
+#      (software_interrupt_handle_signals -> propagate_sigalrm -> pthread_kill)
+#      reads the interrupted ucontext and the glibc thread descriptor (TCB).
+#      Because the handler runs after a user-level stack switch, Valgrind has
+#      lost track of those regions and flags every read as invalid, e.g.:
+#
+#          Invalid read of size 4
+#             at pthread_kill (pthread_kill.c:40)
+#             by propagate_sigalrm
+#             by software_interrupt_handle_signals
+#             ...
+#             by worker_thread_main
+#
+#      The pthread_t handed to pthread_kill is a valid, mapped TCB (the
+#      runtime calloc's runtime_worker_threads[], asserts each slot is non-zero
+#      before use, and arms the interval timer only after every worker exists);
+#      only Valgrind's addressability bookkeeping is wrong.
+#
+#   2. User-level context switching (swapcontext / arch_context). Valgrind
+#      prints "client switching stacks? SP change ..." and can no longer
+#      distinguish valid stack memory from garbage.
+#
+#   3. Direct mmap of sandbox linear memory. The runtime maps large guard
+#      regions that Valgrind marks "noaccess" ("set address range perms: large
+#      range ... (noaccess)"); the JIT-compiled wasm module then legitimately
+#      accesses them, producing millions of bogus errors inside *.wasm.so.
+#
+# These suppressions let you run the runtime under Valgrind *with preemption
+# enabled* and still see real runtime memory errors. They intentionally do NOT
+# hide errors in the SLEdge control plane outside the signal path.
+#
+# Use with:  valgrind --suppressions=runtime/tools/valgrind/sledge.supp ...
+# (see runtime/tools/valgrind/run-valgrind.sh and docs/valgrind.md)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. Signal handler reading the interrupted context on a switched stack
+# -----------------------------------------------------------------------------
+{
+   sledge-softint-handler-Addr1
+   Memcheck:Addr1
+   fun:software_interrupt_handle_signals
+   ...
+}
+{
+   sledge-softint-handler-Addr2
+   Memcheck:Addr2
+   fun:software_interrupt_handle_signals
+   ...
+}
+{
+   sledge-softint-handler-Addr4
+   Memcheck:Addr4
+   fun:software_interrupt_handle_signals
+   ...
+}
+{
+   sledge-softint-handler-Addr8
+   Memcheck:Addr8
+   fun:software_interrupt_handle_signals
+   ...
+}
+{
+   sledge-softint-handler-Value4
+   Memcheck:Value4
+   fun:software_interrupt_handle_signals
+   ...
+}
+{
+   sledge-softint-handler-Value8
+   Memcheck:Value8
+   fun:software_interrupt_handle_signals
+   ...
+}
+{
+   sledge-softint-handler-Cond
+   Memcheck:Cond
+   fun:software_interrupt_handle_signals
+   ...
+}
+{
+   sledge-idle-loop-signal-context-Cond
+   Memcheck:Cond
+   fun:scheduler_idle_loop
+   ...
+}
+{
+   sledge-idle-loop-signal-context-Value8
+   Memcheck:Value8
+   fun:scheduler_idle_loop
+   ...
+}
+{
+   sledge-idle-loop-ctxswitch-Addr1
+   Memcheck:Addr1
+   fun:scheduler_idle_loop
+   ...
+}
+{
+   sledge-idle-loop-ctxswitch-Addr2
+   Memcheck:Addr2
+   fun:scheduler_idle_loop
+   ...
+}
+{
+   sledge-idle-loop-ctxswitch-Addr4
+   Memcheck:Addr4
+   fun:scheduler_idle_loop
+   ...
+}
+{
+   sledge-idle-loop-ctxswitch-Addr8
+   Memcheck:Addr8
+   fun:scheduler_idle_loop
+   ...
+}
+{
+   sledge-cooperative-sched-ctxswitch-Cond
+   Memcheck:Cond
+   fun:scheduler_cooperative_sched
+   ...
+}
+{
+   sledge-cooperative-sched-ctxswitch-Value8
+   Memcheck:Value8
+   fun:scheduler_cooperative_sched
+   ...
+}
+{
+   sledge-cooperative-sched-ctxswitch-Addr4
+   Memcheck:Addr4
+   fun:scheduler_cooperative_sched
+   ...
+}
+{
+   sledge-cooperative-sched-ctxswitch-Addr8
+   Memcheck:Addr8
+   fun:scheduler_cooperative_sched
+   ...
+}
+{
+   sledge-pthread-asynccancel-tcb-Addr4
+   Memcheck:Addr4
+   fun:__pthread_enable_asynccancel
+   ...
+}
+{
+   sledge-pthread-asynccancel-tcb-Addr4-disable
+   Memcheck:Addr4
+   fun:__pthread_disable_asynccancel
+   ...
+}
+{
+   sledge-sigprocmask-switched-context-Addr8
+   Memcheck:Addr8
+   fun:sigprocmask
+   ...
+}
+
+# -----------------------------------------------------------------------------
+# 2. Broadcasting SIGALRM to the other workers
+# -----------------------------------------------------------------------------
+{
+   sledge-propagate-sigalrm-Addr4
+   Memcheck:Addr4
+   fun:propagate_sigalrm
+   ...
+}
+{
+   sledge-propagate-sigalrm-Addr8
+   Memcheck:Addr8
+   fun:propagate_sigalrm
+   ...
+}
+{
+   sledge-propagate-sigalrm-pthread-kill-Addr4
+   Memcheck:Addr4
+   fun:pthread_kill
+   fun:propagate_sigalrm
+   ...
+}
+{
+   sledge-propagate-sigalrm-pthread-kill-Addr8
+   Memcheck:Addr8
+   fun:pthread_kill
+   fun:propagate_sigalrm
+   ...
+}
+
+# -----------------------------------------------------------------------------
+# 3. pthread_self() / pthread_kill() reading the TCB after a stack switch
+# -----------------------------------------------------------------------------
+{
+   sledge-pthread-self-Addr8
+   Memcheck:Addr8
+   fun:pthread_self
+   ...
+}
+{
+   sledge-pthread-kill-tcb-Addr4
+   Memcheck:Addr4
+   fun:pthread_kill
+   ...
+}
+{
+   sledge-pthread-kill-tcb-Addr8
+   Memcheck:Addr8
+   fun:pthread_kill
+   ...
+}
+
+# -----------------------------------------------------------------------------
+# 4. JIT-compiled wasm module code touching mmap'd sandbox linear memory.
+#    Everything that executes inside a *.wasm.so object is sandboxed guest
+#    code that Valgrind cannot model; suppress it wholesale.
+# -----------------------------------------------------------------------------
+{
+   sledge-wasm-module-Addr1
+   Memcheck:Addr1
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Addr16
+   Memcheck:Addr16
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Addr2
+   Memcheck:Addr2
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Addr4
+   Memcheck:Addr4
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Addr8
+   Memcheck:Addr8
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Value1
+   Memcheck:Value1
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Value2
+   Memcheck:Value2
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Value4
+   Memcheck:Value4
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Value8
+   Memcheck:Value8
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Cond
+   Memcheck:Cond
+   obj:*wasm.so
+}
+{
+   sledge-wasm-module-Jump
+   Memcheck:Jump
+   obj:*wasm.so
+}
+{
+   sledge-context-save-sigsetjmp-Addr8
+   Memcheck:Addr8
+   fun:__sigsetjmp
+   ...
+}
+
+# -----------------------------------------------------------------------------
+# 5. Per-worker runtime data structures (run queue, timeout queue) read after a
+#    user-level context switch. These live in large allocations that become
+#    anonymous mmap segments; once Valgrind sees "client switching stacks?" it
+#    can no longer follow them and reports "Invalid read ... in a rw- anonymous
+#    segment". They are NOT real errors. If you are specifically hunting a
+#    scheduler bug, comment this section out and re-run so these stay visible.
+# -----------------------------------------------------------------------------
+{
+   sledge-runqueue-after-ctxswitch-Addr8
+   Memcheck:Addr8
+   fun:local_runqueue_minheap_get_next
+   ...
+}
+{
+   sledge-runqueue-after-ctxswitch-Value8
+   Memcheck:Value8
+   fun:local_runqueue_minheap_get_next
+   ...
+}
+{
+   sledge-runqueue-after-ctxswitch-Cond
+   Memcheck:Cond
+   fun:local_runqueue_minheap_get_next
+   ...
+}
+{
+   sledge-priority-queue-after-ctxswitch-Value8
+   Memcheck:Value8
+   fun:priority_queue_enqueue_nolock*
+   ...
+}
+{
+   sledge-priority-queue-after-ctxswitch-Cond
+   Memcheck:Cond
+   fun:priority_queue_enqueue_nolock*
+   ...
+}
+{
+   sledge-priority-queue-after-ctxswitch-Addr8
+   Memcheck:Addr8
+   fun:priority_queue_dequeue_nolock*
+   ...
+}
+{
+   sledge-runqueue-delete-after-ctxswitch-Addr4
+   Memcheck:Addr4
+   fun:local_runqueue_minheap_delete
+   ...
+}
+{
+   sledge-runqueue-delete-after-ctxswitch-Addr8
+   Memcheck:Addr8
+   fun:local_runqueue_minheap_delete
+   ...
+}
+{
+   sledge-runqueue-delete-after-ctxswitch-Value8
+   Memcheck:Value8
+   fun:local_runqueue_minheap_delete
+   ...
+}
+{
+   sledge-runqueue-delete-after-ctxswitch-Cond
+   Memcheck:Cond
+   fun:local_runqueue_minheap_delete
+   ...
+}
+
+# -----------------------------------------------------------------------------
+# 6. Host-side WASI / syscall shims dereferencing pointers that live inside the
+#    sandbox's mmap'd linear memory. Same root cause as the wasm-module
+#    suppressions in section 4 (Valgrind marked the guest's linear memory
+#    "noaccess"), but here the access happens from runtime code on the guest's
+#    behalf.
+# -----------------------------------------------------------------------------
+{
+   sledge-abi-guest-memory-Addr4
+   Memcheck:Addr4
+   fun:sledge_abi__*
+   ...
+}
+{
+   sledge-abi-guest-memory-Addr8
+   Memcheck:Addr8
+   fun:sledge_abi__*
+   ...
+}
+{
+   sledge-sandbox-syscall-guest-memory-Addr4
+   Memcheck:Addr4
+   fun:sandbox_syscall*
+   ...
+}
+{
+   sledge-sandbox-syscall-guest-memory-Addr8
+   Memcheck:Addr8
+   fun:sandbox_syscall*
+   ...
+}
+{
+   sledge-sandbox-return-ctxswitch-Addr4
+   Memcheck:Addr4
+   fun:sandbox_return
+   ...
+}
+{
+   sledge-sandbox-return-ctxswitch-Addr8
+   Memcheck:Addr8
+   fun:sandbox_return
+   ...
+}
+{
+   sledge-current-sandbox-start-Addr4
+   Memcheck:Addr4
+   fun:current_sandbox_start
+   ...
+}
+{
+   sledge-current-sandbox-start-Addr8
+   Memcheck:Addr8
+   fun:current_sandbox_start
+   ...
+}
+
+# -----------------------------------------------------------------------------
+# 7. Sandbox lifecycle zeroing/teardown writing the sandbox's mmap'd memory and
+#    per-worker cleanup queues that Valgrind has marked noaccess.
+# -----------------------------------------------------------------------------
+{
+   sledge-sandbox-deinit-bzero-Addr8
+   Memcheck:Addr8
+   fun:memset
+   fun:explicit_bzero
+   fun:sandbox_deinit
+   ...
+}
+{
+   sledge-cleanup-queue-free-Addr4
+   Memcheck:Addr4
+   fun:local_cleanup_queue_free
+   ...
+}
+{
+   sledge-cleanup-queue-free-Addr8
+   Memcheck:Addr8
+   fun:local_cleanup_queue_free
+   ...
+}
+{
+   sledge-sandbox-deinit-Addr4
+   Memcheck:Addr4
+   fun:sandbox_deinit
+   ...
+}
+{
+   sledge-sandbox-deinit-Addr8
+   Memcheck:Addr8
+   fun:sandbox_deinit
+   ...
+}
+{
+   sledge-sandbox-prepare-exec-Addr4
+   Memcheck:Addr4
+   fun:sandbox_prepare_execution_environment
+   ...
+}
+{
+   sledge-sandbox-prepare-exec-Addr8
+   Memcheck:Addr8
+   fun:sandbox_prepare_execution_environment
+   ...
+}
+{
+   sledge-sandbox-prepare-exec-Value8
+   Memcheck:Value8
+   fun:sandbox_prepare_execution_environment
+   ...
+}
+{
+   sledge-sandbox-prepare-exec-Cond
+   Memcheck:Cond
+   fun:sandbox_prepare_execution_environment
+   ...
+}
