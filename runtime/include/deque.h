@@ -7,6 +7,12 @@
 #ifndef DEQUE_H
 #define DEQUE_H
 
+#include <assert.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdlib.h>
+
 /*
  * This was implemented by referring to:
  * https://github.com/cpp-taskflow/cpp-taskflow/blob/9c28ccec910346a9937c40db7bdb542262053f9c/taskflow/executor/workstealing.hpp
@@ -18,33 +24,63 @@
  *
  * PPoPP implementation paper, "Correct and Efficient Work-Stealing for Weak Memory Models"
  * https://www.di.ens.fr/~zappa/readings/ppopp13.pdf
+ *
+ * The backing buffer is heap-allocated at init to the requested capacity (rounded up to a power of two)
+ * and indexed circularly: the top/bottom counters grow monotonically and are masked into the buffer. The
+ * occupancy cap (size - 1) keeps the producer from lapping the consumers, so the masked indices of live
+ * elements never collide. Memory therefore scales with the configured capacity rather than a fixed
+ * compile-time maximum.
+ *
+ * Growing the buffer when full is intentionally not implemented: the deque is consumed lock-free by
+ * stealers concurrently with the producer, so reallocating (and freeing) the backing buffer underneath
+ * an in-flight steal would be a use-after-free. A safe grow would require synchronizing every stealer or
+ * a lock-free resizable variant; until that is designed and perf-tested the deque returns -ENOSPC when
+ * full and the caller applies backpressure.
  */
 
-/* TODO: Implement the ability to dynamically resize! Issue #89 */
+/* Upper bound on a deque's capacity. A sanity guard on the requested size, not an allocation size. */
 #define DEQUE_MAX_SZ (1 << 23)
+
+static inline size_t
+deque_round_up_to_pow2(size_t v)
+{
+	size_t p = 1;
+	while (p < v) p <<= 1;
+	return p;
+}
 
 #define DEQUE_PROTOTYPE(name, type)                                                                 \
 	struct deque_##name {                                                                       \
-		type wrk[DEQUE_MAX_SZ];                                                             \
-		long size;                                                                          \
+		type *wrk;                                                                          \
+		long  size;                                                                         \
+		long  mask;                                                                         \
                                                                                                     \
 		volatile long top;                                                                  \
 		volatile long bottom;                                                               \
 	};                                                                                          \
                                                                                                     \
-	static inline void deque_init_##name(struct deque_##name *q, size_t sz)                     \
+	/* Allocates the backing buffer. Returns 0 on success, -ENOMEM on allocation failure. */    \
+	static inline int deque_init_##name(struct deque_##name *q, size_t sz)                      \
 	{                                                                                           \
-		memset(q, 0, sizeof(struct deque_##name));                                          \
+		if (sz == 0) sz = DEQUE_MAX_SZ;                                                     \
+		assert(sz <= DEQUE_MAX_SZ);                                                         \
+		sz = deque_round_up_to_pow2(sz);                                                    \
                                                                                                     \
-		if (sz) {                                                                           \
-			/* only for size with pow of 2 */                                           \
-			/* assert((sz & (sz - 1)) == 0); */                                         \
-			assert(sz <= DEQUE_MAX_SZ);                                                 \
-		} else {                                                                            \
-			sz = DEQUE_MAX_SZ;                                                          \
-		}                                                                                   \
+		q->wrk = (type *)calloc(sz, sizeof(type));                                          \
+		if (q->wrk == NULL) return -ENOMEM;                                                 \
                                                                                                     \
-		q->size = sz;                                                                       \
+		q->size   = (long)sz;                                                               \
+		q->mask   = (long)sz - 1;                                                           \
+		q->top    = 0;                                                                      \
+		q->bottom = 0;                                                                      \
+                                                                                                    \
+		return 0;                                                                           \
+	}                                                                                           \
+                                                                                                    \
+	static inline void deque_free_##name(struct deque_##name *q)                                \
+	{                                                                                           \
+		free(q->wrk);                                                                       \
+		q->wrk = NULL;                                                                      \
 	}                                                                                           \
                                                                                                     \
 	/* Use mutual exclusion locks around push/pop if multi-threaded. */                         \
@@ -55,10 +91,10 @@
 		ct = q->top;                                                                        \
 		cb = q->bottom;                                                                     \
                                                                                                     \
-		/* nope, fixed size only */                                                         \
+		/* Bounded by the configured capacity; caller applies backpressure on -ENOSPC. */   \
 		if (q->size - 1 < (cb - ct)) return -ENOSPC;                                        \
                                                                                                     \
-		q->wrk[cb] = *w;                                                                    \
+		q->wrk[cb & q->mask] = *w;                                                          \
 		__sync_synchronize();                                                               \
 		if (__sync_bool_compare_and_swap(&q->bottom, cb, cb + 1) == false) assert(0);       \
                                                                                                     \
@@ -82,7 +118,7 @@
 			return -ENOENT;                                                             \
 		}                                                                                   \
                                                                                                     \
-		*w = q->wrk[cb];                                                                    \
+		*w = q->wrk[cb & q->mask];                                                          \
 		if (sz > 0) return 0;                                                               \
                                                                                                     \
 		ret = __sync_bool_compare_and_swap(&q->top, ct, ct + 1);                            \
@@ -110,7 +146,7 @@
 		/* Empty */                                                                         \
 		if (ct >= cb) return -ENOENT;                                                       \
                                                                                                     \
-		*w = deque->wrk[ct];                                                                \
+		*w = deque->wrk[ct & deque->mask];                                                  \
 		if (__sync_bool_compare_and_swap(&deque->top, ct, ct + 1) == false) return -EAGAIN; \
                                                                                                     \
 		return 0;                                                                           \

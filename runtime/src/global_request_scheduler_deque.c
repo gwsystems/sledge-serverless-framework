@@ -53,8 +53,9 @@ global_request_scheduler_deque_initialize()
 	/* Allocate and Initialize the global deque */
 	global_request_scheduler_deque = (struct deque_sandbox *)calloc(1, sizeof(struct deque_sandbox));
 	assert(global_request_scheduler_deque);
-	/* Note: Below is a Macro */
-	deque_init_sandbox(global_request_scheduler_deque, GLOBAL_REQUEST_SCHEDULER_DEQUE_CAPACITY);
+	/* Note: Below is a Macro. It heap-allocates the backing buffer sized to the requested capacity. */
+	int rc = deque_init_sandbox(global_request_scheduler_deque, GLOBAL_REQUEST_SCHEDULER_DEQUE_CAPACITY);
+	if (rc != 0) panic("Failed to allocate global request scheduler deque\n");
 
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct global_request_scheduler_config config = {.add_fn    = global_request_scheduler_deque_add,
