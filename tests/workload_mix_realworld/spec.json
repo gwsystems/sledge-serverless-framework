@@ -200,7 +200,7 @@
 				"path": "resize_image.wasm.so",
 				"expected-execution-us": 138903,
 				"relative-deadline-us": 208354,
-				"http-resp-content-type": "image/png",
+				"http-resp-content-type": "image/jpeg",
 				"admissions-percentile": 90
 			},
 			{
@@ -208,7 +208,7 @@
 				"path": "resize_image.wasm.so",
 				"expected-execution-us": 138903,
 				"relative-deadline-us": 222245,
-				"http-resp-content-type": "image/png",
+				"http-resp-content-type": "image/jpeg",
 				"admissions-percentile": 90
 			},
 			{
@@ -216,7 +216,7 @@
 				"path": "resize_image.wasm.so",
 				"expected-execution-us": 138903,
 				"relative-deadline-us": 236135,
-				"http-resp-content-type": "image/png",
+				"http-resp-content-type": "image/jpeg",
 				"admissions-percentile": 90
 			},
 			{
@@ -224,7 +224,7 @@
 				"path": "resize_image.wasm.so",
 				"expected-execution-us": 138903,
 				"relative-deadline-us": 250025,
-				"http-resp-content-type": "image/png",
+				"http-resp-content-type": "image/jpeg",
 				"admissions-percentile": 90
 			},
 			{
@@ -232,7 +232,7 @@
 				"path": "resize_image.wasm.so",
 				"expected-execution-us": 138903,
 				"relative-deadline-us": 263916,
-				"http-resp-content-type": "image/png",
+				"http-resp-content-type": "image/jpeg",
 				"admissions-percentile": 90
 			},
 			{
@@ -240,7 +240,7 @@
 				"path": "resize_image.wasm.so",
 				"expected-execution-us": 138903,
 				"relative-deadline-us": 277806,
-				"http-resp-content-type": "image/png",
+				"http-resp-content-type": "image/jpeg",
 				"admissions-percentile": 90
 			}
 		]
