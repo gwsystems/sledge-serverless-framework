@@ -62,6 +62,10 @@ worker_thread_main(void *argument)
 		                                                        tenant_timeout_get_priority);
 	}
 
+	/* Register this worker's alternate signal stack before unmasking the fault signals, so a sandbox stack
+	 * overflow (which faults on the stack guard page) can still be delivered and recovered from. */
+	software_interrupt_alt_stack_initialize();
+
 	software_interrupt_unmask_signal(SIGFPE);
 	software_interrupt_unmask_signal(SIGSEGV);
 
