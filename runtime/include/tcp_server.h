@@ -13,19 +13,17 @@
 #include "likely.h"
 
 /*
- * Defines the listen backlog, the queue length for completely established socketeds waiting to be accepted
- * If this value is greater than the value in /proc/sys/net/core/somaxconn (typically 128), then it is silently
- * truncated to this value. See man listen(2) for info
+ * Defines the listen backlog: the queue length for completely established sockets waiting to be accepted.
+ * The kernel silently caps this to /proc/sys/net/core/somaxconn, so requesting more than the host allows is
+ * harmless (it just truncates). We request a large value because a single listener thread accepts every
+ * connection; under a burst of short-lived, non-keep-alive requests a small backlog overflows, the kernel
+ * drops the connection, and the client only retries after the ~1s initial SYN RTO — a sharp ~1s tail-latency
+ * spike. A deeper backlog absorbs the burst and removes that spike.
  *
- * When configuring the number of sockets to handle, the queue length of incomplete sockets defined in
- * /proc/sys/net/ipv4/tcp_max_syn_backlog should also be considered. Optionally, enabling syncookies removes this
- * maximum logical length. See tcp(7) for more info.
+ * The queue length of incomplete (half-open) sockets in /proc/sys/net/ipv4/tcp_max_syn_backlog should also be
+ * considered; enabling syncookies removes that maximum. See listen(2) and tcp(7).
  */
-#define TCP_SERVER_MAX_PENDING_CLIENT_REQUESTS 128
-#if TCP_SERVER_MAX_PENDING_CLIENT_REQUESTS > 128
-#warning \
-  "TCP_SERVER_MAX_PENDING_CLIENT_REQUESTS likely exceeds the value in /proc/sys/net/core/somaxconn and thus may be silently truncated";
-#endif
+#define TCP_SERVER_MAX_PENDING_CLIENT_REQUESTS 4096
 
 /* L4 TCP State */
 struct tcp_server {
