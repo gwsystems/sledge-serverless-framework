@@ -6,12 +6,15 @@
 
 static struct deque_sandbox *global_request_scheduler_deque;
 
-/* TODO: Should this be used???  */
-static pthread_mutex_t global_request_scheduler_deque_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 /**
- * Pushes a sandbox to the global deque
- * @param sandbox_raw
+ * Pushes a sandbox to the global deque.
+ *
+ * No lock is required: this is a work-stealing deque used as a single-producer / multi-consumer queue. Only the
+ * listener thread ever pushes (the "owner" end), while worker threads only ever steal (the lock-free opposite
+ * end, coordinated by a CAS). The owner's other operation, deque_pop, is never used, so the multi-owner case the
+ * deque comments warn about does not arise here.
+ *
+ * @param sandbox
  * @returns pointer to sandbox if added. NULL otherwise
  */
 static struct sandbox *
