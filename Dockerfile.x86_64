@@ -1,5 +1,5 @@
-# using ubuntu 20 docker image
-FROM ubuntu:focal
+# using ubuntu 24.04 (noble) docker image
+FROM ubuntu:noble
 
 ENV LLVM_VERSION=13
 ENV WASI_SDK_VERSION=12
@@ -27,7 +27,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	binutils-dev \
 	cmake \
 	git \
-	libtinfo5 \
 	libtool \
 	pkg-config
 
@@ -47,7 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	wget
 
 # Test Script Stuff
-# hey is a load generator used by the test workloads (focal ships it in universe;
+# hey is a load generator used by the test workloads (noble ships it in universe;
 # the previously-used hey-release S3/GCS binaries now return 403)
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	bc \
@@ -86,12 +85,14 @@ RUN ./sledge/install_llvm.sh $LLVM_VERSION
 RUN curl -sS -L -O $WASI_SDK_URL && dpkg -i wasi-sdk_$WASI_SDK_VERSION.0_amd64.deb && rm -f wasi-sdk_$WASI_SDK_VERSION.0_amd64.deb
 ENV WASI_SDK_PATH=/opt/wasi-sdk
 
-# Create non-root user and add to sudoers
-ARG USERNAME=dev
+# Non-root user and sudoers.
+# Ubuntu noble (24.04) already ships a default non-root login user "ubuntu" at
+# UID/GID 1000 (real shell + /home/ubuntu, in the sudo group) intended to be the
+# account you work as, so reuse it rather than creating a second user at 1000
+# (which would collide on UID 1000 and fail).
+ARG USERNAME=ubuntu
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
-RUN groupadd --gid $USER_GID $USERNAME
-RUN useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
 RUN apt-get update && apt-get install -y sudo
 RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME
 RUN chmod 0440 /etc/sudoers.d/$USERNAME
@@ -111,12 +112,12 @@ RUN cd sledge && ./fix_root.sh
 # Rust
 # Rustup does not cleanly support system installs, so install as non-root user
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
-ENV PATH=/home/dev/.cargo/bin:$PATH
+ENV PATH=/home/ubuntu/.cargo/bin:$PATH
 # `make install` runs as root (docker exec -u 0), but Rust is installed for the
-# dev user. Point rustup/cargo at dev's install so root resolves the default
+# ubuntu user. Point rustup/cargo at ubuntu's install so root resolves the default
 # toolchain instead of failing with "no default is configured".
-ENV RUSTUP_HOME=/home/dev/.rustup
-ENV CARGO_HOME=/home/dev/.cargo
+ENV RUSTUP_HOME=/home/ubuntu/.rustup
+ENV CARGO_HOME=/home/ubuntu/.cargo
 RUN cargo install --debug cargo-audit cargo-watch rsign2
 
 # We need to set the locale for pango-view
