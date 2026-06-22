@@ -12,7 +12,7 @@
 #include "auto_buf.h"
 #include "debuglog.h"
 #include "epoll_tag.h"
-#include "http_parser.h"
+#include "llhttp.h"
 #include "http_parser_settings.h"
 #include "http_request.h"
 #include "http_route_total.h"
@@ -44,7 +44,7 @@ struct http_session {
 	enum http_session_state state;
 	struct sockaddr         client_address; /* client requesting connection! */
 	int                     socket;
-	struct http_parser      http_parser;
+	llhttp_t                http_parser;
 	struct http_request     http_request;
 	struct auto_buf         request_buffer;
 	struct auto_buf         response_header;
@@ -73,8 +73,9 @@ static inline void
 http_session_parser_init(struct http_session *session)
 {
 	memset(&session->http_request, 0, sizeof(struct http_request));
-	http_parser_init(&session->http_parser, HTTP_REQUEST);
-	/* Set the session as the data the http-parser has access to */
+	/* llhttp binds the callback settings at init time (unlike http-parser, which took them at execute) */
+	llhttp_init(&session->http_parser, HTTP_REQUEST, http_parser_settings_get());
+	/* Set the session as the data the parser has access to */
 	session->http_parser.data = &session->http_request;
 }
 
@@ -293,22 +294,27 @@ http_session_parse(struct http_session *session, ssize_t bytes_received)
 	assert(session != 0);
 	assert(bytes_received > 0);
 
-	const http_parser_settings *settings = http_parser_settings_get();
+	const char *parse_start  = (const char *)&session->request_buffer.data[session->http_request.length_parsed];
+	size_t      parse_length = (size_t)session->request_buffer.size - session->http_request.length_parsed;
 
 #ifdef LOG_HTTP_PARSER
-	debuglog("http_parser_execute(%p, %p, %p, %zu\n)", &session->http_parser, settings,
-	         &session->request_buffer.buffer[session->request_buffer.length], bytes_received);
+	debuglog("llhttp_execute(%p, %p, %zu)\n", &session->http_parser, parse_start, parse_length);
 #endif
-	size_t bytes_parsed =
-	  http_parser_execute(&session->http_parser, settings,
-	                      (const char *)&session->request_buffer.data[session->http_request.length_parsed],
-	                      (size_t)session->request_buffer.size - session->http_request.length_parsed);
 
-	if (session->http_parser.http_errno != HPE_OK) {
-		debuglog("Error: %s, Description: %s\n",
-		         http_errno_name((enum http_errno)session->http_parser.http_errno),
-		         http_errno_description((enum http_errno)session->http_parser.http_errno));
-		debuglog("Length Parsed %zu, Length Read %zu\n", bytes_parsed, (size_t)bytes_received);
+	/* Unlike http_parser_execute (which returned a byte count), llhttp_execute returns an error code and
+	 * binds its callback settings at init time. On HPE_OK the whole buffer was consumed. */
+	enum llhttp_errno err = llhttp_execute(&session->http_parser, parse_start, parse_length);
+
+	size_t bytes_parsed;
+	if (likely(err == HPE_OK)) {
+		bytes_parsed = parse_length;
+	} else if (err == HPE_PAUSED || err == HPE_PAUSED_UPGRADE) {
+		/* Parser stopped early (e.g. on an upgrade); count only the bytes it consumed. */
+		bytes_parsed = (size_t)(llhttp_get_error_pos(&session->http_parser) - parse_start);
+	} else {
+		debuglog("Error: %s, Description: %s\n", llhttp_errno_name(err),
+		         llhttp_get_error_reason(&session->http_parser));
+		debuglog("Length Read %zu\n", (size_t)bytes_received);
 		debuglog("Error parsing socket %d\n", session->socket);
 		return -1;
 	}

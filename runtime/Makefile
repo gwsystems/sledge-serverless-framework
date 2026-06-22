@@ -127,7 +127,9 @@ INCLUDES += -Iinclude/ -Ithirdparty/dist/include/ -I../libsledge/include/
 CFILES += src/*.c
 CFILES += src/arch/${ARCH}/*.c
 CFILES += src/libc/*.c
-CFILES += thirdparty/dist/lib/http_parser.o
+CFILES += thirdparty/dist/lib/llhttp.o
+CFILES += thirdparty/dist/lib/llhttp_api.o
+CFILES += thirdparty/dist/lib/llhttp_http.o
 
 # Configuring Jasmine
 JSMNCFLAGS += -DJSMN_STATIC
@@ -157,7 +159,9 @@ runtime.clean:
 	@rm -f bin/${BINARY_NAME}
 
 # Thirdparty Dependency Rules
-thirdparty/dist/lib/http_parser.o: thirdparty
+thirdparty/dist/lib/llhttp.o: thirdparty
+thirdparty/dist/lib/llhttp_api.o: thirdparty
+thirdparty/dist/lib/llhttp_http.o: thirdparty
 thirdparty/dist/include/*.h: thirdparty
 
 .PHONY: thirdparty

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "http_parser.h"
+#include "llhttp.h"
 
-extern http_parser_settings runtime_http_parser_settings;
+extern llhttp_settings_t runtime_http_parser_settings;
 
 void http_parser_settings_initialize(void);
 
-static inline http_parser_settings *
+static inline llhttp_settings_t *
 http_parser_settings_get()
 {
 	return &runtime_http_parser_settings;
