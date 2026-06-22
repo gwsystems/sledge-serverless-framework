@@ -103,12 +103,22 @@ tenant_alloc(struct tenant_config *config)
 		struct module *module = module_database_find_by_path(&tenant->module_db, config->routes[i].path);
 		if (module == NULL) {
 			/* Ownership of path moves here */
-			module = module_alloc(config->routes[i].path, APP_MODULE);
+			module = module_alloc(config->routes[i].path, APP_MODULE, config->routes[i].stack_size);
 			if (module != NULL) {
 				module_database_add(&tenant->module_db, module);
 				config->routes[i].path = NULL;
 			}
 		} else {
+			/* The module (keyed by path) already exists, so its stack size is fixed. The stack pool is
+			 * sized per-module, so a route cannot request a different stack size for a shared module. */
+			if (config->routes[i].stack_size != 0
+			    && round_up_to_page(config->routes[i].stack_size) != module->stack_size) {
+				fprintf(stderr,
+				        "Warning: route %s requested stack-size %u for %s, but that module already "
+				        "exists with stack size %u; keeping the existing size.\n",
+				        config->routes[i].route, config->routes[i].stack_size, config->routes[i].path,
+				        module->stack_size);
+			}
 			free(config->routes[i].path);
 			config->routes[i].path = NULL;
 		}
@@ -123,7 +133,8 @@ tenant_alloc(struct tenant_config *config)
 			                                                 config->routes[i].path_preprocess);
 			if (module_proprocess == NULL) {
 				/* Ownership of path moves here */
-				module_proprocess = module_alloc(config->routes[i].path_preprocess, PREPROCESS_MODULE);
+				module_proprocess = module_alloc(config->routes[i].path_preprocess, PREPROCESS_MODULE,
+				                                 0 /* preprocess modules use the default stack size */);
 				if (module_proprocess != NULL) {
 					module_database_add(&tenant->module_db, module_proprocess);
 					config->routes[i].path_preprocess = NULL;

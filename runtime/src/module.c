@@ -29,13 +29,11 @@
  * @returns 0 on success, -1 on error
  */
 static inline int
-module_init(struct module *module, char *path)
+module_init(struct module *module, char *path, uint32_t stack_size)
 {
 	assert(module != NULL);
 	assert(path != NULL);
 	assert(strlen(path) > 0);
-
-	uint32_t stack_size = 0;
 
 	int rc = 0;
 
@@ -49,6 +47,7 @@ module_init(struct module *module, char *path)
 
 	module->path = path;
 
+	/* A stack_size of 0 means the config did not specify one, so fall back to the runtime default. */
 	module->stack_size = ((uint32_t)(round_up_to_page(stack_size == 0 ? WASM_STACK_SIZE : stack_size)));
 
 	module_alloc_table(module);
@@ -107,7 +106,7 @@ module_free(struct module *module)
  */
 
 struct module *
-module_alloc(char *path, enum module_type type)
+module_alloc(char *path, enum module_type type, uint32_t stack_size)
 {
 	size_t alignment     = (size_t)CACHE_PAD;
 	size_t size_to_alloc = (size_t)round_to_cache_pad(sizeof(struct module));
@@ -123,7 +122,7 @@ module_alloc(char *path, enum module_type type)
 	memset(module, 0, size_to_alloc);
 	module->type = type;
 
-	int rc = module_init(module, path);
+	int rc = module_init(module, path, stack_size);
 	if (rc < 0) goto init_err;
 
 done:
