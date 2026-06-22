@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifdef LOG_TO_FILE
@@ -96,54 +97,69 @@ runtime_allocate_available_cores()
 	pretty_print_key_value("Worker core count", "%u\n", runtime_worker_threads_count);
 }
 
+static inline uint64_t
+runtime_monotonic_raw_ns(void)
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+	return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
+}
+
 /**
- * Returns the cpu MHz entry for CPU0 in /proc/cpuinfo, rounded to the nearest MHz
- * We are assuming all cores are the same clock speed, which is not true of many systems
- * We are also assuming this value is static
- * @return proceccor speed in MHz
+ * Determines the frequency (in MHz) of the Time Stamp Counter that backs
+ * __getcycles (rdtsc), which the runtime uses for all timekeeping and deadline
+ * math. The TSC is "invariant" on modern x86-64 — it ticks at a fixed rate
+ * regardless of the core's current p-state — so we calibrate it directly
+ * against CLOCK_MONOTONIC_RAW. Scraping the instantaneous "cpu MHz" from
+ * /proc/cpuinfo instead reports the core's current operating frequency, which
+ * varies under frequency scaling and TurboBoost and does not equal the TSC rate.
+ *
+ * SLEDGE_PROC_MHZ may be set to override calibration with a fixed value.
  */
 static inline void
 runtime_get_processor_speed_MHz(void)
 {
 	char *proc_mhz_raw = getenv("SLEDGE_PROC_MHZ");
-	FILE *cmd          = NULL;
 
 	if (proc_mhz_raw != NULL) {
-		/* The case with manual override for the CPU freq */
-		runtime_processor_speed_MHz = atoi(proc_mhz_raw);
+		/* Manual override */
+		int override_MHz = atoi(proc_mhz_raw);
+		if (unlikely(override_MHz <= 0)) panic("SLEDGE_PROC_MHZ must be a positive integer\n");
+		runtime_processor_speed_MHz = (uint32_t)override_MHz;
 	} else {
-		/* The case when we have to get CPU freq from */
-		usleep(200000); /* wait a bit for the workers to launch  for more accuracy */
+		/* Calibrate the TSC frequency against CLOCK_MONOTONIC_RAW.
+		 *
+		 * A deschedule during a window only ever stretches the measured wall time
+		 * (lowering the apparent rate), never the reverse, so taking the maximum
+		 * rate across several short windows rejects that noise. */
+		const int             iterations = 5;
+		const struct timespec window     = { .tv_sec = 0, .tv_nsec = 20 * 1000 * 1000 }; /* 20 ms */
+		double                best_MHz   = 0.0;
 
-		/* Get the average of the cpufreqs only for worker cores (no event core and reserved) */
-		char command[128] = {0};
-		sprintf(command, "grep '^cpu MHz' /proc/cpuinfo | sed -n '%u,%up' | \
-					awk '{ total += $4; count++ } END { print total/count }'",
-		        runtime_first_worker_processor + 1,
-		        runtime_first_worker_processor + runtime_worker_threads_count);
-		cmd = popen(command, "r");
-		if (unlikely(cmd == NULL)) goto err;
+		for (int i = 0; i < iterations; i++) {
+			uint64_t ns_start     = runtime_monotonic_raw_ns();
+			uint64_t cycles_start = __getcycles();
 
-		char   buff[16];
-		size_t n = fread(buff, 1, sizeof(buff) - 1, cmd);
-		buff[n]  = '\0';
-		pclose(cmd);
+			nanosleep(&window, NULL);
 
-		float processor_speed_MHz;
-		n = sscanf(buff, "%f", &processor_speed_MHz);
-		if (unlikely(n != 1)) goto err;
-		if (unlikely(processor_speed_MHz < 0)) goto err;
+			uint64_t cycles_end = __getcycles();
+			uint64_t ns_end     = runtime_monotonic_raw_ns();
 
-		runtime_processor_speed_MHz = (uint32_t)nearbyintf(processor_speed_MHz);
+			uint64_t elapsed_ns     = ns_end - ns_start;
+			uint64_t elapsed_cycles = cycles_end - cycles_start;
+			if (unlikely(elapsed_ns == 0)) continue;
+
+			/* MHz = cycles / microseconds = cycles * 1000 / nanoseconds */
+			double mhz = (double)elapsed_cycles * 1000.0 / (double)elapsed_ns;
+			if (mhz > best_MHz) best_MHz = mhz;
+		}
+
+		if (unlikely(best_MHz <= 0.0)) panic("Failed to calibrate processor frequency\n");
+
+		runtime_processor_speed_MHz = (uint32_t)nearbyint(best_MHz);
 	}
 
 	pretty_print_key_value("Worker CPU Freq", "%u MHz\n", runtime_processor_speed_MHz);
-
-done:
-	return;
-err:
-	goto done;
-	panic("Failed to detect processor frequency");
 }
 
 /**
