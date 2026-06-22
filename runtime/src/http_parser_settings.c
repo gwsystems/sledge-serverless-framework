@@ -7,7 +7,7 @@
 #include "http_request.h"
 #include "likely.h"
 
-http_parser_settings runtime_http_parser_settings;
+llhttp_settings_t runtime_http_parser_settings;
 
 /***********************************************************************
  * http-parser Callbacks in lifecycle order                            *
@@ -22,7 +22,7 @@ http_parser_settings runtime_http_parser_settings;
  * @returns 0
  */
 int
-http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
+http_parser_settings_on_url(llhttp_t *parser, const char *at, size_t length)
 {
 	struct http_request *http_request = (struct http_request *)parser->data;
 
@@ -84,7 +84,7 @@ http_parser_settings_on_url(http_parser *parser, const char *at, size_t length)
  * @param parser
  */
 int
-http_parser_settings_on_message_begin(http_parser *parser)
+http_parser_settings_on_message_begin(llhttp_t *parser)
 {
 	struct http_request *http_request = (struct http_request *)parser->data;
 
@@ -111,7 +111,7 @@ http_parser_settings_on_message_begin(http_parser *parser)
  * @returns 0
  */
 int
-http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t length)
+http_parser_settings_on_header_field(llhttp_t *parser, const char *at, size_t length)
 {
 	struct http_request *http_request = (struct http_request *)parser->data;
 
@@ -153,7 +153,7 @@ http_parser_settings_on_header_field(http_parser *parser, const char *at, size_t
  * @returns 0
  */
 int
-http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t length)
+http_parser_settings_on_header_value(llhttp_t *parser, const char *at, size_t length)
 {
 	struct http_request *http_request = (struct http_request *)parser->data;
 
@@ -187,7 +187,7 @@ http_parser_settings_on_header_value(http_parser *parser, const char *at, size_t
  * @param parser
  */
 int
-http_parser_settings_on_header_end(http_parser *parser)
+http_parser_settings_on_header_end(llhttp_t *parser)
 {
 	struct http_request *http_request = (struct http_request *)parser->data;
 
@@ -207,7 +207,9 @@ http_parser_settings_on_header_end(http_parser *parser)
 		return 0;
 	} else {
 		http_request->body_length = 0;
-		return 2;
+		/* Returning 1 tells llhttp to assume no body and proceed straight to
+		 * on_message_complete (http-parser used 2 for the same intent). */
+		return 1;
 	}
 }
 
@@ -223,7 +225,7 @@ const char *http_methods[] = {"OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE",
  * @returns 0
  */
 int
-http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
+http_parser_settings_on_body(llhttp_t *parser, const char *at, size_t length)
 {
 	struct http_request *http_request = (struct http_request *)parser->data;
 
@@ -260,7 +262,7 @@ http_parser_settings_on_body(http_parser *parser, const char *at, size_t length)
  * @returns 0
  */
 int
-http_parser_settings_on_msg_end(http_parser *parser)
+http_parser_settings_on_msg_end(llhttp_t *parser)
 {
 	struct http_request *http_request = (struct http_request *)parser->data;
 
@@ -273,7 +275,11 @@ http_parser_settings_on_msg_end(http_parser *parser)
 
 	http_request->message_end = true;
 
-	return 0;
+	/* Pause once a full message is parsed so llhttp stops cleanly instead of trying to parse any trailing
+	 * bytes as a pipelined next message (which would re-enter on_message_begin and trip its asserts). This
+	 * mirrors http-parser, which returned immediately after firing on_message_complete for our requests.
+	 * http_session_parse treats HPE_PAUSED as a normal stop. */
+	return HPE_PAUSED;
 }
 
 /***********************************************************************
@@ -284,7 +290,7 @@ http_parser_settings_on_msg_end(http_parser *parser)
  * The settings global with the Callback Functions for HTTP Events
  */
 static inline void
-http_parser_settings_register_callbacks(http_parser_settings *settings)
+http_parser_settings_register_callbacks(llhttp_settings_t *settings)
 {
 	settings->on_url              = http_parser_settings_on_url;
 	settings->on_message_begin    = http_parser_settings_on_message_begin;
@@ -301,6 +307,6 @@ http_parser_settings_register_callbacks(http_parser_settings *settings)
 void
 http_parser_settings_initialize()
 {
-	http_parser_settings_init(&runtime_http_parser_settings);
+	llhttp_settings_init(&runtime_http_parser_settings);
 	http_parser_settings_register_callbacks(&runtime_http_parser_settings);
 }

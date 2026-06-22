@@ -5,7 +5,7 @@ DIST_PREFIX=${CURR_DIR}/dist/
 all: clean build
 
 .PHONY: build
-build: ck jsmn http-parser
+build: ck jsmn llhttp
 
 # Concurrency Kit
 ck/Makefile: ck/Makefile.in ck/configure
@@ -17,20 +17,28 @@ ${DIST_PREFIX}/lib/libck.so: ck/Makefile
 .PHONY: ck
 ck: ${DIST_PREFIX}/lib/libck.so
 
-# HTTP Parser
-${DIST_PREFIX}/include/http_parser.h: http-parser/http_parser.h
-	mkdir -p ${DIST_PREFIX}
+# llhttp HTTP Parser (pre-generated C release of nodejs/llhttp, vendored in llhttp/)
+# We compile the release's three C sources directly so the build needs no Node/npm/llparse toolchain.
+LLHTTP_CFLAGS = -O3 -Illhttp/include
+
+${DIST_PREFIX}/include/llhttp.h: llhttp/include/llhttp.h
 	mkdir -p ${DIST_PREFIX}/include/
-	cp http-parser/http_parser.h ${DIST_PREFIX}/include/
+	cp llhttp/include/llhttp.h ${DIST_PREFIX}/include/
 
-${DIST_PREFIX}/lib/http_parser.o: http-parser/http_parser.c http-parser/http_parser.h
-	mkdir -p ${DIST_PREFIX}
+${DIST_PREFIX}/lib/llhttp.o: llhttp/src/llhttp.c llhttp/include/llhttp.h
 	mkdir -p ${DIST_PREFIX}/lib/
-	cd http-parser;	$(CC) $(CFLAGS) -I. -c http_parser.c
-	mv http-parser/http_parser.o ${DIST_PREFIX}/lib/
+	$(CC) $(CFLAGS) $(LLHTTP_CFLAGS) -c llhttp/src/llhttp.c -o $@
 
-.PHONY: http-parser
-http-parser: ${DIST_PREFIX}/lib/http_parser.o ${DIST_PREFIX}/include/http_parser.h
+${DIST_PREFIX}/lib/llhttp_api.o: llhttp/src/api.c llhttp/include/llhttp.h
+	mkdir -p ${DIST_PREFIX}/lib/
+	$(CC) $(CFLAGS) $(LLHTTP_CFLAGS) -c llhttp/src/api.c -o $@
+
+${DIST_PREFIX}/lib/llhttp_http.o: llhttp/src/http.c llhttp/include/llhttp.h
+	mkdir -p ${DIST_PREFIX}/lib/
+	$(CC) $(CFLAGS) $(LLHTTP_CFLAGS) -c llhttp/src/http.c -o $@
+
+.PHONY: llhttp
+llhttp: ${DIST_PREFIX}/lib/llhttp.o ${DIST_PREFIX}/lib/llhttp_api.o ${DIST_PREFIX}/lib/llhttp_http.o ${DIST_PREFIX}/include/llhttp.h
 
 # Jasmine JSON Parser
 ${DIST_PREFIX}/include/jsmn.h: jsmn/jsmn.h
