@@ -1,11 +1,10 @@
-# using ubuntu 20 docker image
-FROM ubuntu:focal
+# using ubuntu 24.04 (noble) docker image
+FROM ubuntu:noble
 
 ENV LLVM_VERSION=13
 ENV WASI_SDK_VERSION=12
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG HEY_URL=https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64
 ARG WASI_SDK_URL=https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-$WASI_SDK_VERSION/wasi-sdk_$WASI_SDK_VERSION.0_amd64.deb
 ARG SHFMT_URL=https://github.com/mvdan/sh/releases/download/v3.2.4/shfmt_v3.2.4_linux_amd64
 ARG SHELLCHECK_URL=https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz
@@ -28,9 +27,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	binutils-dev \
 	cmake \
 	git \
-	libtinfo5 \
 	libtool \
 	pkg-config
+
+# The repo is bind-mounted from the host, so its files are owned by the host user
+# while the build runs as root (docker exec -u 0). Modern git rejects this as
+# "dubious ownership", so whitelist any directory for all users in the image.
+RUN git config --system --add safe.directory '*'
 
 # Needed to install from http endpoints via curl or wget
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -43,12 +46,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	wget
 
 # Test Script Stuff
+# hey is a load generator used by the test workloads (noble ships it in universe;
+# the previously-used hey-release S3/GCS binaries now return 403)
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	bc \
 	fonts-dejavu \
 	fonts-cascadia-code \
 	fonts-roboto \
 	gnuplot \
+	hey \
 	httpie \
 	imagemagick \
 	jq \
@@ -56,11 +62,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	netpbm \
 	pango1.0-tools \
 	wamerican
-
-# Hey is a load generator we have to recklessly download from the 'net, as it is only published to brew
-# Binaries are only provided for AMD64 though, so ARM will have to build from source
-# See https://github.com/rakyll/hey
-RUN wget $HEY_URL -O hey && chmod +x hey && mv hey /usr/bin/hey
 
 # shfmt is a formatter for shell scripts
 RUN wget $SHFMT_URL -O shfmt && chmod +x shfmt && mv shfmt /usr/local/bin/shfmt
@@ -84,12 +85,14 @@ RUN ./sledge/install_llvm.sh $LLVM_VERSION
 RUN curl -sS -L -O $WASI_SDK_URL && dpkg -i wasi-sdk_$WASI_SDK_VERSION.0_amd64.deb && rm -f wasi-sdk_$WASI_SDK_VERSION.0_amd64.deb
 ENV WASI_SDK_PATH=/opt/wasi-sdk
 
-# Create non-root user and add to sudoers
-ARG USERNAME=dev
+# Non-root user and sudoers.
+# Ubuntu noble (24.04) already ships a default non-root login user "ubuntu" at
+# UID/GID 1000 (real shell + /home/ubuntu, in the sudo group) intended to be the
+# account you work as, so reuse it rather than creating a second user at 1000
+# (which would collide on UID 1000 and fail).
+ARG USERNAME=ubuntu
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
-RUN groupadd --gid $USER_GID $USERNAME
-RUN useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
 RUN apt-get update && apt-get install -y sudo
 RUN echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME
 RUN chmod 0440 /etc/sudoers.d/$USERNAME
@@ -109,7 +112,12 @@ RUN cd sledge && ./fix_root.sh
 # Rust
 # Rustup does not cleanly support system installs, so install as non-root user
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable --component rustfmt --target wasm32-wasi -y
-ENV PATH=/home/dev/.cargo/bin:$PATH
+ENV PATH=/home/ubuntu/.cargo/bin:$PATH
+# `make install` runs as root (docker exec -u 0), but Rust is installed for the
+# ubuntu user. Point rustup/cargo at ubuntu's install so root resolves the default
+# toolchain instead of failing with "no default is configured".
+ENV RUSTUP_HOME=/home/ubuntu/.rustup
+ENV CARGO_HOME=/home/ubuntu/.cargo
 RUN cargo install --debug cargo-audit cargo-watch rsign2
 
 # We need to set the locale for pango-view

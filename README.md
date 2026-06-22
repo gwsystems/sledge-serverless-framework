@@ -4,18 +4,11 @@
 
 ## Setting up a development environment
 
-### Native on Debian Host
+SLEdge's `aWsm` compiler is built against a **specific LLVM version (LLVM 13)** via the `llvm-alt` Rust bindings. Those bindings use LLVM C-API functions (e.g. `LLVMBuildCall`, `LLVMBuildLoad`) that were **removed in LLVM 15+**, so the build will fail to link against newer LLVM toolchains.
 
-```sh
-git clone https://github.com/gwsystems/sledge-serverless-framework.git
-cd sledge-serverless-framework
-./install_deb.sh
-source ~/.bashrc
-make install
-make test
-```
+**For this reason, the Docker environment below is the recommended way to build SLEdge.** It pins the exact Ubuntu + LLVM 13 + WASI SDK toolchain that the compiler needs, and works on any host with Docker (macOS, Windows/WSL2, or any Linux distribution). To build directly on a Debian or Ubuntu host instead — including Ubuntu 24.04 (noble) — see [Native build](#native-build-linux-debian-or-ubuntu-including-2404-noble) below.
 
-### Docker
+### Docker (recommended)
 
 **Note: These steps require Docker. Make sure you've got it installed!**
 
@@ -74,6 +67,29 @@ If you are finished working with the SLEdge runtime and wish to remove it, run t
 ```
 
 And then simply delete this repository.
+
+### Native build (Linux: Debian or Ubuntu, including 24.04 noble)
+
+`install_deb.sh` installs the full toolchain directly on the host — the apt dependencies, **LLVM 13**, the WASI SDK, and a Rust toolchain — after which `make install` builds the runtime and the sample functions.
+
+On **Ubuntu 24.04 (noble)** neither the distro nor `apt.llvm.org/noble` provides LLVM 13, so `install_llvm.sh` automatically pins the **focal** `apt.llvm.org` repository for LLVM 13 and installs the two focal-era runtime libraries that noble dropped (`libtinfo5`, `libffi7`). This path is validated on Ubuntu 24.04.4 (noble), x86_64: `aWsm`, `libsledge`, the runtime, and all nine sample `*.wasm.so` modules compile, and the resulting `sledgert` binary runs.
+
+```sh
+git clone https://github.com/gwsystems/sledge-serverless-framework.git
+cd sledge-serverless-framework
+./install_deb.sh
+source ~/.bashrc
+make install
+make test
+```
+
+**Caveats:**
+
+- `install_deb.sh` requires `sudo` and uses `update-alternatives` to point the default `clang`, `wasm-ld`, and `llvm-config` at version 13. On a host that already runs a newer LLVM as its default (e.g. noble's system clang), this changes that default system-wide.
+- On noble the toolchain is pinned to focal-era LLVM 13 packages, which are on an older support track; the `apt.llvm.org/focal` and `archive.ubuntu.com` `.deb` URLs it relies on may eventually move or disappear.
+- The sample functions are C, compiled with the WASI SDK's clang, so a Rust `wasm32-wasi`/`wasm32-wasip1` target is not required to build them.
+
+On a distribution where neither the native repositories nor the focal fallback provide LLVM 13, use the Docker route above instead.
 
 ## Running your first serverless function
 

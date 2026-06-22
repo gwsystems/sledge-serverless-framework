@@ -45,7 +45,6 @@ sudo apt-get update && sudo apt-get install -y --no-install-recommends \
 	jq \
 	less \
 	libssl-dev \
-	libtinfo5 \
 	libtool \
 	libz3-4 \
 	lsb-release \
@@ -64,6 +63,9 @@ sudo apt-get update && sudo apt-get install -y --no-install-recommends \
 
 wget $SHFMT_URL -O shfmt && chmod +x shfmt && sudo mv shfmt /usr/local/bin/shfmt
 
+# Installs LLVM $LLVM_VERSION. On Ubuntu noble this pins the focal apt.llvm.org
+# repo and pulls the focal-era libtinfo5/libffi7 the LLVM 13 packages need (noble
+# dropped libtinfo5, which is why it is no longer in the apt list above).
 sudo ./install_llvm.sh $LLVM_VERSION
 
 curl -sS -L -O $WASI_SDK_URL && sudo dpkg -i wasi-sdk_$WASI_SDK_VERSION.0_amd64.deb && rm -f wasi-sdk_$WASI_SDK_VERSION.0_amd64.deb

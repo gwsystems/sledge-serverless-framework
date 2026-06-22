@@ -50,9 +50,12 @@ applications:
 applications.clean:
 	make -C applications clean
 
-# Instead of having two copies of wasm_apps, just link to the awsm repo's copy
+# Instead of having two copies of wasm_apps, just link to the awsm repo's copy.
+# -f -n make this idempotent: the symlink is committed to the repo, so it already
+# exists on a fresh clone and on rebuilds; without these flags ln fails with
+# "File exists" and breaks `make install`.
 wasm_apps:
-	ln -sr awsm/applications/wasm_apps/ applications/
+	ln -srfn awsm/applications/wasm_apps/ applications/wasm_apps
 
 # Tests
 .PHONY: test
