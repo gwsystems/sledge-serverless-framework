@@ -56,7 +56,7 @@ run_samples() {
 		return 1
 	}
 
-	hey -disable-compression -disable-keepalive -disable-redirects -n "$PERF_WINDOW_CAPACITY" -c "$PERF_WINDOW_CAPACITY" -cpus 3 -t 0 -o csv -m POST -d "10\n" "http://${hostname}:100010/fib" 1> /dev/null 2> /dev/null || {
+	hey -disable-compression -disable-keepalive -disable-redirects -n "$PERF_WINDOW_CAPACITY" -c "$PERF_WINDOW_CAPACITY" -cpus 3 -t 0 -o csv -m POST -d "10\n" "http://${hostname}:10010/fib" 1> /dev/null 2> /dev/null || {
 		printf "[ERR]\n"
 		panic "fib10 samples failed with $?"
 		return 1
