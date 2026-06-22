@@ -99,11 +99,12 @@ run_experiments() {
 	fi
 
 	# TODO: Check that workload is in spec.json
-	local -ir batch_size=1
+	# Experiment parameters, overridable via environment variables (defaults shown)
+	local -ir batch_size=${BATCH_SIZE:-1}
 	local -i batch_id=0
 	local -i roll=0
-	local -ir total_iterations=10000
-	local -ir worker_max=50
+	local -ir total_iterations=${TOTAL_ITERATIONS:-10000}
+	local -ir worker_max=${WORKER_MAX:-50}
 	local pids
 
 	printf "Running Experiments: "
