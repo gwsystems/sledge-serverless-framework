@@ -59,7 +59,8 @@ worker_thread_main(void *argument)
 
 	if (scheduler == SCHEDULER_MTDS) {
 		worker_thread_timeout_queue = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
-		                                                        tenant_timeout_get_priority);
+		                                                        tenant_timeout_get_priority,
+		                                                        tenant_timeout_get_index_ptr);
 	}
 
 	software_interrupt_unmask_signal(SIGFPE);

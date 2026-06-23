@@ -64,6 +64,7 @@ struct sandbox {
 
 	uint64_t remaining_exec;
 	uint64_t absolute_deadline;
+	size_t   pq_idx;              /* 1-based slot in its scheduling priority_queue (0 = not enqueued) */
 	uint64_t admissions_estimate; /* estimated execution time (cycles) * runtime_admissions_granularity / relative
 	                                 deadline (cycles) */
 	uint64_t total_time;          /* Total time from Request to Response */

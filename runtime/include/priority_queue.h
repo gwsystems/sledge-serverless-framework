@@ -19,9 +19,21 @@
  */
 typedef uint64_t (*priority_queue_get_priority_fn_t)(void *element);
 
+/**
+ * How to get/set an element's current 1-based index within the heap's backing array.
+ * Returns a pointer to a size_t slot stored inside the element itself. When provided, the
+ * queue keeps this slot in sync on every move, allowing priority_queue_delete to locate the
+ * element in O(1) and repair the heap in O(log n) instead of scanning in O(n). Pass NULL to
+ * priority_queue_initialize to keep the legacy linear-scan delete.
+ * @param element
+ * @returns pointer to the element's index slot
+ */
+typedef size_t *(*priority_queue_index_ptr_fn_t)(void *element);
+
 /* We assume that priority is expressed in terms of a 64 bit unsigned integral */
 struct priority_queue {
 	priority_queue_get_priority_fn_t get_priority_fn;
+	priority_queue_index_ptr_fn_t    get_index_fn; /* NULL => O(n) delete; non-NULL => O(log n) delete */
 	bool                             use_lock;
 	lock_t                           lock;
 	uint64_t                         highest_priority;
@@ -50,6 +62,46 @@ priority_queue_update_highest_priority(struct priority_queue *priority_queue, co
 }
 
 /**
+ * Records an element's current slot inside the element itself, when index tracking is enabled.
+ * No-op (single branch) for queues initialized without an index accessor.
+ * @param priority_queue the priority queue
+ * @param index the 1-based slot whose occupant should remember its position
+ */
+static inline void
+priority_queue_record_index(struct priority_queue *priority_queue, size_t index)
+{
+	if (priority_queue->get_index_fn != NULL)
+		*priority_queue->get_index_fn(priority_queue->items[index]) = index;
+}
+
+/**
+ * Marks an element as no longer enqueued (slot 0), when index tracking is enabled
+ * @param priority_queue the priority queue
+ * @param element the departing element
+ */
+static inline void
+priority_queue_clear_index(struct priority_queue *priority_queue, void *element)
+{
+	if (priority_queue->get_index_fn != NULL) *priority_queue->get_index_fn(element) = 0;
+}
+
+/**
+ * Swaps two heap slots, keeping any tracked indices in sync
+ * @param priority_queue the priority queue
+ * @param a 1-based slot
+ * @param b 1-based slot
+ */
+static inline void
+priority_queue_swap(struct priority_queue *priority_queue, size_t a, size_t b)
+{
+	void *temp               = priority_queue->items[a];
+	priority_queue->items[a] = priority_queue->items[b];
+	priority_queue->items[b] = temp;
+	priority_queue_record_index(priority_queue, a);
+	priority_queue_record_index(priority_queue, b);
+}
+
+/**
  * Adds a value to the end of the binary heap
  * @param priority_queue the priority queue
  * @param new_item the value we are adding
@@ -67,6 +119,7 @@ priority_queue_append(struct priority_queue *priority_queue, void *new_item)
 	if (unlikely(priority_queue->size > priority_queue->capacity)) panic("PQ overflow");
 	if (unlikely(priority_queue->size == priority_queue->capacity)) goto err_enospc;
 	priority_queue->items[++priority_queue->size] = new_item;
+	priority_queue_record_index(priority_queue, priority_queue->size);
 
 	rc = 0;
 done:
@@ -91,6 +144,32 @@ priority_queue_is_empty(struct priority_queue *priority_queue)
 }
 
 /**
+ * Shifts the value at start_index upwards to restore the heap structure property, keeping any
+ * tracked indices and the memoized highest priority in sync
+ * @param priority_queue the priority queue
+ * @param start_index the 1-based slot to percolate up from
+ */
+static inline void
+priority_queue_percolate_up_from(struct priority_queue *priority_queue, int start_index)
+{
+	assert(priority_queue != NULL);
+	assert(priority_queue->get_priority_fn != NULL);
+	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
+
+	for (int i = start_index; i / 2 != 0
+	                          && priority_queue->get_priority_fn(priority_queue->items[i])
+	                               < priority_queue->get_priority_fn(priority_queue->items[i / 2]);
+	     i /= 2) {
+		assert(priority_queue->get_priority_fn(priority_queue->items[i]) != ULONG_MAX);
+		priority_queue_swap(priority_queue, i / 2, i);
+		/* If percolated to highest priority, update highest priority */
+		if (i / 2 == 1)
+			priority_queue_update_highest_priority(priority_queue, priority_queue->get_priority_fn(
+			                                                         priority_queue->items[1]));
+	}
+}
+
+/**
  * Shifts an appended value upwards to restore heap structure property
  * @param priority_queue the priority queue
  */
@@ -108,19 +187,7 @@ priority_queue_percolate_up(struct priority_queue *priority_queue)
 		return;
 	}
 
-	for (int i = priority_queue->size; i / 2 != 0
-	                                   && priority_queue->get_priority_fn(priority_queue->items[i])
-	                                        < priority_queue->get_priority_fn(priority_queue->items[i / 2]);
-	     i /= 2) {
-		assert(priority_queue->get_priority_fn(priority_queue->items[i]) != ULONG_MAX);
-		void *temp                   = priority_queue->items[i / 2];
-		priority_queue->items[i / 2] = priority_queue->items[i];
-		priority_queue->items[i]     = temp;
-		/* If percolated to highest priority, update highest priority */
-		if (i / 2 == 1)
-			priority_queue_update_highest_priority(priority_queue, priority_queue->get_priority_fn(
-			                                                         priority_queue->items[1]));
-	}
+	priority_queue_percolate_up_from(priority_queue, priority_queue->size);
 }
 
 /**
@@ -180,9 +247,7 @@ priority_queue_percolate_down(struct priority_queue *priority_queue, int parent_
 		    <= priority_queue->get_priority_fn(priority_queue->items[smallest_child_index]))
 			break;
 		/* Otherwise, swap and continue down the tree */
-		void *temp                                  = priority_queue->items[smallest_child_index];
-		priority_queue->items[smallest_child_index] = priority_queue->items[parent_index];
-		priority_queue->items[parent_index]         = temp;
+		priority_queue_swap(priority_queue, smallest_child_index, parent_index);
 
 		parent_index     = smallest_child_index;
 		left_child_index = 2 * parent_index;
@@ -225,9 +290,11 @@ priority_queue_dequeue_if_earlier_nolock(struct priority_queue *priority_queue, 
 	if (priority_queue_is_empty(priority_queue) || priority_queue->highest_priority >= target_deadline)
 		goto err_enoent;
 
-	*dequeued_element                             = priority_queue->items[1];
+	*dequeued_element = priority_queue->items[1];
+	priority_queue_clear_index(priority_queue, *dequeued_element);
 	priority_queue->items[1]                      = priority_queue->items[priority_queue->size];
 	priority_queue->items[priority_queue->size--] = NULL;
+	if (priority_queue->size >= 1) priority_queue_record_index(priority_queue, 1);
 
 	priority_queue_percolate_down(priority_queue, 1);
 	return_code = 0;
@@ -264,10 +331,13 @@ priority_queue_dequeue_if_earlier(struct priority_queue *priority_queue, void **
  * @param capacity the number of elements to store in the data structure
  * @param use_lock indicates that we want a concurrent data structure
  * @param get_priority_fn pointer to a function that returns the priority of an element
+ * @param get_index_fn pointer to a function exposing an element's in-struct index slot, enabling
+ *        O(log n) priority_queue_delete; pass NULL to keep the legacy O(n) linear-scan delete
  * @return priority queue
  */
 static inline struct priority_queue *
-priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_priority_fn_t get_priority_fn)
+priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_priority_fn_t get_priority_fn,
+                          priority_queue_index_ptr_fn_t get_index_fn)
 {
 	assert(get_priority_fn != NULL);
 
@@ -280,6 +350,7 @@ priority_queue_initialize(size_t capacity, bool use_lock, priority_queue_get_pri
 	priority_queue->size            = 0;
 	priority_queue->capacity        = capacity;
 	priority_queue->get_priority_fn = get_priority_fn;
+	priority_queue->get_index_fn    = get_index_fn;
 	priority_queue->use_lock        = use_lock;
 
 	if (use_lock) lock_init(&priority_queue->lock);
@@ -408,16 +479,41 @@ priority_queue_delete_nolock(struct priority_queue *priority_queue, void *value)
 	assert(value != NULL);
 	assert(!priority_queue->use_lock || lock_is_locked(&priority_queue->lock));
 
-	for (int i = 1; i <= priority_queue->size; i++) {
-		if (priority_queue->items[i] == value) {
-			priority_queue->items[i]                      = priority_queue->items[priority_queue->size];
-			priority_queue->items[priority_queue->size--] = NULL;
-			priority_queue_percolate_down(priority_queue, i);
-			return 0;
-		}
+	int i;
+	if (priority_queue->get_index_fn != NULL) {
+		/* O(log n): the element remembers its own slot. Validate it still points back to value
+		 * (guards against a value that was never enqueued or already removed). */
+		i = (int)*priority_queue->get_index_fn(value);
+		if (i < 1 || (size_t)i > priority_queue->size || priority_queue->items[i] != value) return -1;
+	} else {
+		/* O(n) fallback: linear scan for the element */
+		for (i = 1; (size_t)i <= priority_queue->size && priority_queue->items[i] != value; i++) {}
+		if ((size_t)i > priority_queue->size) return -1;
 	}
 
-	return -1;
+	priority_queue_clear_index(priority_queue, value);
+
+	/* Fill the hole with the last element and shrink */
+	priority_queue->items[i]                      = priority_queue->items[priority_queue->size];
+	priority_queue->items[priority_queue->size--] = NULL;
+
+	if ((size_t)i <= priority_queue->size) {
+		priority_queue_record_index(priority_queue, i);
+		/* Restore the heap property from the hole. Unlike a pop, the replacement can be smaller
+		 * than the hole's parent, so it may need to rise rather than sink. */
+		if (i > 1
+		    && priority_queue->get_priority_fn(priority_queue->items[i])
+		         < priority_queue->get_priority_fn(priority_queue->items[i / 2])) {
+			priority_queue_percolate_up_from(priority_queue, i);
+		} else {
+			priority_queue_percolate_down(priority_queue, i);
+		}
+	} else if (priority_queue->size == 0) {
+		/* Removed the final element */
+		priority_queue_update_highest_priority(priority_queue, ULONG_MAX);
+	}
+
+	return 0;
 }
 
 /**

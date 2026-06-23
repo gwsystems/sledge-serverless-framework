@@ -32,6 +32,12 @@ perworker_tenant_get_priority(void *element)
 	return (sandbox) ? sandbox->absolute_deadline : UINT64_MAX;
 }
 
+static inline size_t *
+perworker_tenant_get_index_ptr(void *element)
+{
+	return &((struct perworker_tenant_sandbox_queue *)element)->pq_idx;
+}
+
 /**
  * Checks if the run queue is empty
  * @returns true if empty. false otherwise
@@ -167,9 +173,11 @@ local_runqueue_mtds_initialize()
 {
 	/* Initialize local state */
 	local_runqueue_mtds_guaranteed = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
-	                                                           perworker_tenant_get_priority);
+	                                                           perworker_tenant_get_priority,
+	                                                           perworker_tenant_get_index_ptr);
 	local_runqueue_mtds_default    = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
-	                                                           perworker_tenant_get_priority);
+	                                                           perworker_tenant_get_priority,
+	                                                           perworker_tenant_get_index_ptr);
 
 	/* Register Function Pointers for Abstract Scheduling API */
 	struct local_runqueue_config config = {.add_fn      = local_runqueue_mtds_add,
