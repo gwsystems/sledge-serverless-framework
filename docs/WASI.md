@@ -1,5 +1,20 @@
 SLEdge only implemented a subset of the WASI syscall interface 
 
+## Module Requirements and Assumptions
+
+SLEdge assumes that every module it loads is a **WASI module** compiled by aWsm and linked against `libsledge`. aWsm can also emit WebAssembly outside the WASI spec (for example, modules that do not use linear memory), but such modules are **not** supported by SLEdge.
+
+Concretely, a module must satisfy the following to run:
+
+- **WASI, compiled by aWsm.** A module is produced by running aWsm over a `*.wasm` file to emit `*.bc`, then linking that `*.bc` with `libsledge` into a `*.wasm.so` (see `applications/Makefile`). The runtime `dlopen`s the resulting `*.so` and resolves the aWsm-generated `sledge_abi__*` symbols (see `runtime/include/sledge_abi_symbols.h`).
+- **Linear memory is mandatory.** SLEdge's entire I/O model lives in the module's linear memory: the body of an inbound HTTP request is copied into the module's view of stdin, and stdout/stderr are read back out of linear memory to form the response (see "File System" below). A module that does not use linear memory cannot exchange data with the runtime and is rejected at load time, because its aWsm-generated memory symbols (`sledge_abi__init_mem`, `sledge_abi__wasm_memory_starting_pages`, `sledge_abi__wasm_memory_max_pages`) are absent.
+
+Note that the presence of the `wasi_snapshot_preview1_*` import shims is *not* a useful signal of WASI-ness: those symbols are provided by `libsledge` and are unconditionally exported from every `*.so` via `--whole-archive --export-dynamic`, regardless of which WASI calls the module actually imports. Validation therefore keys off the aWsm-generated module symbols, not the WASI import shims.
+
+### `--runtime-globals`
+
+The `sledge_abi__init_globals` symbol is only emitted when aWsm is run with the `--runtime-globals` flag. SLEdge tolerates its absence (globals are then inlined as constants by aWsm), so this symbol is resolved but not required. The "correct" configuration for SLEdge has not been settled; `applications/Makefile` currently builds with `--runtime-globals`.
+
 ## Arguments
 
 The WASI calls `args_sizes_get` and `args_get` are supported. HTTP query parameters are captured and passed as arguments.
