@@ -49,7 +49,8 @@ tenant_policy_specific_init(struct tenant *tenant, struct tenant_config *config)
 
 		for (int i = 0; i < runtime_worker_threads_count; i++) {
 			tenant->pwt_sandboxes[i].sandboxes = priority_queue_initialize(RUNTIME_TENANT_QUEUE_SIZE, false,
-			                                                               sandbox_get_priority);
+			                                                               sandbox_get_priority,
+			                                                               sandbox_get_index_ptr);
 			tenant->pwt_sandboxes[i].tenant    = tenant;
 			tenant->pwt_sandboxes[i].mt_class  = (tenant->replenishment_period == 0) ? MT_DEFAULT
 			                                                                         : MT_GUARANTEED;
@@ -59,8 +60,9 @@ tenant_policy_specific_init(struct tenant *tenant, struct tenant_config *config)
 
 		/* Initialize the tenant's global request queue */
 		tenant->tgrq_requests                   = malloc(sizeof(struct tenant_global_request_queue));
+		/* sandbox_requests is never delete()'d from directly, so it keeps the legacy O(n) delete (NULL) */
 		tenant->tgrq_requests->sandbox_requests = priority_queue_initialize(RUNTIME_TENANT_QUEUE_SIZE, false,
-		                                                                    sandbox_get_priority);
+		                                                                    sandbox_get_priority, NULL);
 		tenant->tgrq_requests->tenant           = tenant;
 		tenant->tgrq_requests->mt_class = (tenant->replenishment_period == 0) ? MT_DEFAULT : MT_GUARANTEED;
 		tenant->tgrq_requests->tenant_timeout.tenant = tenant;
@@ -171,6 +173,12 @@ static inline uint64_t
 tenant_timeout_get_priority(void *element)
 {
 	return ((struct tenant_timeout *)element)->timeout;
+}
+
+static inline size_t *
+tenant_timeout_get_index_ptr(void *element)
+{
+	return &((struct tenant_timeout *)element)->pq_idx;
 }
 
 /**

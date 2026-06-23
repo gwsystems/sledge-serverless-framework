@@ -22,6 +22,12 @@ tenant_request_queue_get_priority(void *element)
 	return (sandbox) ? sandbox->absolute_deadline : UINT64_MAX;
 }
 
+static inline size_t *
+tenant_request_queue_get_index_ptr(void *element)
+{
+	return &((struct tenant_global_request_queue *)element)->pq_idx;
+}
+
 /**
  * Demotes the given tenant's request queue, which means deletes the TGRQ from the Guaranteed queue
  *  and adds to the Default queue.
@@ -221,12 +227,14 @@ void
 global_request_scheduler_mtds_initialize()
 {
 	global_request_scheduler_mtds_guaranteed = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
-	                                                                     tenant_request_queue_get_priority);
+	                                                                     tenant_request_queue_get_priority,
+	                                                                     tenant_request_queue_get_index_ptr);
 	global_request_scheduler_mtds_default    = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
-	                                                                     tenant_request_queue_get_priority);
+	                                                                     tenant_request_queue_get_priority,
+	                                                                     tenant_request_queue_get_index_ptr);
 
 	global_tenant_timeout_queue = priority_queue_initialize(RUNTIME_MAX_TENANT_COUNT, false,
-	                                                        tenant_timeout_get_priority);
+	                                                        tenant_timeout_get_priority, tenant_timeout_get_index_ptr);
 
 	lock_init(&global_lock);
 

@@ -51,6 +51,12 @@ sandbox_get_priority(void *element)
 	return sandbox->absolute_deadline;
 }
 
+static inline size_t *
+sandbox_get_index_ptr(void *element)
+{
+	return &((struct sandbox *)element)->pq_idx;
+}
+
 static inline void
 sandbox_process_scheduler_updates(struct sandbox *sandbox)
 {

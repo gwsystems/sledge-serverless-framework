@@ -16,6 +16,7 @@ struct tenant_timeout {
 	uint64_t                               timeout;
 	struct tenant                         *tenant;
 	struct perworker_tenant_sandbox_queue *pwt;
+	size_t                                 pq_idx; /* 1-based slot in its timeout priority_queue (0 = not enqueued) */
 };
 
 struct perworker_tenant_sandbox_queue {
@@ -23,6 +24,7 @@ struct perworker_tenant_sandbox_queue {
 	struct tenant           *tenant; // to be able to find the RB/MB/RP/RT.
 	struct tenant_timeout    tenant_timeout;
 	enum MULTI_TENANCY_CLASS mt_class; // check whether the corresponding PWM has been demoted
+	size_t                   pq_idx;   /* 1-based slot in the local runqueue priority_queue (0 = not enqueued) */
 } __attribute__((aligned(CACHE_PAD)));
 
 struct tenant_global_request_queue {
@@ -30,6 +32,7 @@ struct tenant_global_request_queue {
 	struct tenant                            *tenant;
 	struct tenant_timeout                     tenant_timeout;
 	_Atomic volatile enum MULTI_TENANCY_CLASS mt_class;
+	size_t                                    pq_idx; /* 1-based slot in the global scheduler PQ (0 = not enqueued) */
 };
 
 struct tenant {
