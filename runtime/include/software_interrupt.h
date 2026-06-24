@@ -92,6 +92,11 @@ software_interrupt_deferred_sigalrm_replay()
  * Exports from software_interrupt.c *
  ************************/
 
+/* Size of each worker's alternate signal stack. The SA_ONSTACK handlers (SIGSEGV, SIGFPE) only siglongjmp out,
+ * so this needs little space; keep it comfortably above MINSIGSTKSZ. */
+#define SOFTWARE_INTERRUPT_ALT_STACK_SIZE (64 * 1024)
+
+void software_interrupt_alt_stack_initialize(void);
 void software_interrupt_arm_timer(void);
 void software_interrupt_cleanup(void);
 void software_interrupt_disarm_timer(void);

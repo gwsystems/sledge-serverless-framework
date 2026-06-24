@@ -278,6 +278,19 @@ software_interrupt_initialize(void)
 		/* Mask this signal on the listener thread */
 		software_interrupt_mask_signal(signal);
 
+		/* Deliver the synchronous fault signals (SIGSEGV, SIGFPE) on the per-worker alternate signal
+		 * stack registered by software_interrupt_alt_stack_initialize(). A sandbox stack overflow faults
+		 * on the stack's guard page, leaving no room to deliver the signal on the overflowed stack; running
+		 * the handler on the alternate stack keeps that overflow recoverable (the handler siglongjmps back
+		 * to the sandbox entry on a valid part of the stack). The asynchronous preemption signals (SIGALRM,
+		 * SIGUSR1) stay on the normal stack: they context-switch away rather than returning, which does not
+		 * compose with an alternate stack. */
+		if (signal == SIGSEGV || signal == SIGFPE) {
+			signal_action.sa_flags |= SA_ONSTACK;
+		} else {
+			signal_action.sa_flags &= ~SA_ONSTACK;
+		}
+
 		/* But register the handler for this signal for the process */
 		if (sigaction(signal, &signal_action, NULL)) {
 			perror("sigaction");
@@ -286,6 +299,28 @@ software_interrupt_initialize(void)
 	}
 
 	software_interrupt_counts_alloc();
+}
+
+/**
+ * Registers a per-thread alternate signal stack so that handlers flagged SA_ONSTACK (SIGSEGV, SIGFPE) can run
+ * even when the active sandbox stack is exhausted. Must be called by each worker before it unmasks those signals.
+ */
+void
+software_interrupt_alt_stack_initialize(void)
+{
+	stack_t alt_stack = { 0 };
+	alt_stack.ss_flags = 0;
+	alt_stack.ss_size  = SOFTWARE_INTERRUPT_ALT_STACK_SIZE;
+	alt_stack.ss_sp    = malloc(alt_stack.ss_size);
+	if (alt_stack.ss_sp == NULL) {
+		perror("malloc alternate signal stack");
+		exit(1);
+	}
+
+	if (sigaltstack(&alt_stack, NULL) != 0) {
+		perror("sigaltstack");
+		exit(1);
+	}
 }
 
 void
