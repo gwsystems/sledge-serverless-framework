@@ -3,9 +3,11 @@
 
 #include "global_request_scheduler.h"
 #include "listener_thread.h"
+#include "local_runqueue_mtds.h"
 #include "panic.h"
 #include "priority_queue.h"
 #include "runtime.h"
+#include "sandbox_set_as_error.h"
 #include "tenant_functions.h"
 
 static struct priority_queue *global_request_scheduler_mtds_guaranteed;
@@ -16,34 +18,31 @@ static lock_t                 global_lock;
 static inline uint64_t
 tenant_request_queue_get_priority(void *element)
 {
-	struct tenant_global_request_queue *tgrq    = (struct tenant_global_request_queue *)element;
-	struct sandbox                     *sandbox = NULL;
-	priority_queue_top_nolock(tgrq->sandbox_requests, (void **)&sandbox);
+	struct tenant_wrapper *global_tw = (struct tenant_wrapper *)element;
+	struct sandbox        *sandbox   = NULL;
+	priority_queue_top_nolock(global_tw->sandboxes, (void **)&sandbox);
 	return (sandbox) ? sandbox->absolute_deadline : UINT64_MAX;
 }
 
 /**
- * Demotes the given tenant's request queue, which means deletes the TGRQ from the Guaranteed queue
+ * Demotes the given tenant's request queue, which means deletes the Global_TW from the Guaranteed queue
  *  and adds to the Default queue.
  */
 void
-global_request_scheduler_mtds_demote_nolock(struct tenant_global_request_queue *tgrq)
+global_request_scheduler_mtds_demote_nolock(struct tenant_wrapper *global_tw)
 {
-	assert(tgrq != NULL);
+	assert(global_tw != NULL);
+	assert(global_tw->destination_queue == global_request_scheduler_mtds_guaranteed);
 
-	if (tgrq->mt_class == MT_DEFAULT) return;
+	/* Delete the corresponding Global_TW from the Guaranteed queue */
+	int rc = priority_queue_delete_nolock(global_request_scheduler_mtds_guaranteed, global_tw);
+	assert(rc == 0);
+	/* Add the corresponding Global_TW to the Default queue */
+	rc = priority_queue_enqueue_nolock(global_request_scheduler_mtds_default, global_tw);
+	assert(rc == 0);
 
-	/* Delete the corresponding TGRQ from the Guaranteed queue */
-	int rc = priority_queue_delete_nolock(global_request_scheduler_mtds_guaranteed, tgrq);
-	if (rc == -1) {
-		panic("Tried to delete a non-present TGRQ from the Global Guaranteed queue. Already deleted?, ITS "
-		      "SIZE: %d",
-		      priority_queue_length_nolock(tgrq->sandbox_requests));
-	}
-
-	/* Add the corresponding TGRQ to the Default queue */
-	rc = priority_queue_enqueue_nolock(global_request_scheduler_mtds_default, tgrq);
-	if (rc == -ENOSPC) panic("Global Default queue is full!\n");
+	global_tw->destination_queue = global_request_scheduler_mtds_default;
+	// debuglog("Demoted '%s' GLOBALLY", global_tw->tenant->name);
 }
 
 /**
@@ -56,38 +55,47 @@ global_request_scheduler_mtds_add(struct sandbox *sandbox)
 {
 	assert(sandbox);
 	assert(global_request_scheduler_mtds_guaranteed && global_request_scheduler_mtds_default);
-	if (unlikely(!listener_thread_is_running())) panic("%s is only callable by the listener thread\n", __func__);
+	assert(listener_thread_is_running());
 
-	struct tenant_global_request_queue *tgrq = sandbox->tenant->tgrq_requests;
+	int rc = -1;
+
+	struct tenant_wrapper *global_tw = sandbox->tenant->global_tenant_wrapper;
+	/* Runs only once at the very first request in the global runqueue */
+	if (unlikely(global_tw->destination_queue == NULL)) {
+		global_tw->destination_queue = global_request_scheduler_mtds_default;
+		if (tenant_has_budget(sandbox->tenant)) {
+			global_tw->destination_queue = global_request_scheduler_mtds_guaranteed;
+		}
+		rc = priority_queue_enqueue_nolock(global_tw->destination_queue, global_tw);
+		assert(rc == 0);
+
+		struct tenant *tenant = sandbox->tenant;
+
+		tenant->defferable_server_timeout = __getcycles() + tenant->replenishment_period;
+		priority_queue_enqueue_nolock(global_tenant_timeout_queue, tenant);
+	}
 
 	lock_node_t node = {};
 	lock_lock(&global_lock, &node);
 
-	struct priority_queue *destination_queue = global_request_scheduler_mtds_default;
-	if (sandbox->tenant->tgrq_requests->mt_class == MT_GUARANTEED) {
-		destination_queue = global_request_scheduler_mtds_guaranteed;
-	}
+	struct priority_queue *destination_queue = global_tw->destination_queue;
 
-	uint64_t last_mrq_deadline = priority_queue_peek(tgrq->sandbox_requests);
+	rc = priority_queue_enqueue_nolock(global_tw->sandboxes, sandbox);
+	if (rc == -ENOSPC) goto err;
 
-	int rc = priority_queue_enqueue_nolock(tgrq->sandbox_requests, sandbox);
-	if (rc == -ENOSPC) panic("Tenant's Request Queue is full\n");
-	// debuglog("Added a sandbox to the TGRQ");
+	/* Maintain the minheap structure by Removing and Re-adding the Global_TW */
+	rc = priority_queue_delete_nolock(destination_queue, global_tw);
+	assert(rc == 0);
+	rc = priority_queue_enqueue_nolock(destination_queue, global_tw);
+	assert(rc == 0);
 
-	/* Maintain the minheap structure by Removing and Adding the TGRQ from and to the global runqueue.
-	 * Do this only when the TGRQ's priority is updated.
-	 */
-	if (priority_queue_peek(tgrq->sandbox_requests) < last_mrq_deadline) {
-		priority_queue_delete_nolock(destination_queue, tgrq);
-
-		rc = priority_queue_enqueue_nolock(destination_queue, tgrq);
-		if (rc == -ENOSPC) panic("Global Runqueue is full!\n");
-		// debuglog("Added the TGRQ back to the Global runqueue - %s to Heapify", QUEUE_NAME);
-	}
-
+done:
 	lock_unlock(&global_lock, &node);
-
 	return sandbox;
+
+err:
+	sandbox = NULL;
+	goto done;
 }
 
 /**
@@ -110,75 +118,63 @@ global_request_scheduler_mtds_remove(struct sandbox **removed_sandbox)
 int
 global_request_scheduler_mtds_remove_if_earlier(struct sandbox **removed_sandbox, uint64_t target_deadline)
 {
-	/* This function won't be used with the MTDS scheduler. Keeping merely for the polymorhism. */
-	return -1;
-}
+	int                    rc                                   = -ENOENT;
+	struct sandbox        *local                                = local_runqueue_get_next();
+	struct tenant_wrapper *worker_tw                            = NULL;
+	bool                   local_sandbox_is_in_guaranteed_queue = false;
 
-/**
- * @param removed_sandbox pointer to set to removed sandbox request
- * @param target_deadline the deadline that the request must be earlier than to dequeue
- * @param mt_class the multi-tenancy class of the global request to compare the target deadline against
- * @returns 0 if successful, -ENOENT if empty or if request isn't earlier than target_deadline
- */
-int
-global_request_scheduler_mtds_remove_with_mt_class(struct sandbox **removed_sandbox, uint64_t target_deadline,
-                                                   enum MULTI_TENANCY_CLASS target_mt_class)
-{
-	int rc = -ENOENT;
+	if (local) {
+		worker_tw = &local->tenant->tw_wrappers[worker_thread_idx];
+		if (worker_tw_is_in_guaranteed_queue(worker_tw)) local_sandbox_is_in_guaranteed_queue = true;
+	}
 
 	lock_node_t node = {};
 	lock_lock(&global_lock, &node);
 
-	/* Avoid unnessary locks when the target_deadline is tighter than the head of the Global runqueue */
 	uint64_t global_guaranteed_deadline = priority_queue_peek(global_request_scheduler_mtds_guaranteed);
 	uint64_t global_default_deadline    = priority_queue_peek(global_request_scheduler_mtds_default);
 
-	switch (target_mt_class) {
-	case MT_GUARANTEED:
+	if (local_sandbox_is_in_guaranteed_queue) {
 		if (global_guaranteed_deadline >= target_deadline) goto done;
-		break;
-	case MT_DEFAULT:
+	} else {
 		if (global_guaranteed_deadline == UINT64_MAX && global_default_deadline >= target_deadline) goto done;
-		break;
 	}
 
-	struct tenant_global_request_queue *top_tgrq          = NULL;
-	struct priority_queue              *destination_queue = global_request_scheduler_mtds_guaranteed;
+	struct tenant_wrapper *top_global_tw     = NULL;
+	struct priority_queue *destination_queue = global_request_scheduler_mtds_guaranteed;
 
-	/* Spot the Tenant Global Request Queue (TGRQ) to remove the sandbox request from */
-	rc = priority_queue_top_nolock(destination_queue, (void **)&top_tgrq);
-	if (rc == -ENOENT) {
-		if (target_mt_class == MT_GUARANTEED) goto done;
+	/* Spot the Tenant Global Request Queue (Global_TW) to remove the sandbox request from */
+	priority_queue_top_nolock(destination_queue, (void **)&top_global_tw);
+	if (global_guaranteed_deadline == UINT64_MAX) {
+		/* No guaranteed tenant request in the global runqueue */
+		assert(!local_sandbox_is_in_guaranteed_queue);
 
 		destination_queue = global_request_scheduler_mtds_default;
 
-		rc = priority_queue_top_nolock(destination_queue, (void **)&top_tgrq);
-		if (rc == -ENOENT) goto done;
+		rc = priority_queue_top_nolock(destination_queue, (void **)&top_global_tw);
+		// if (rc == -ENOENT) goto done;
+		assert(rc == 0); // We are not removing global_tws from the runqueue, even if empty
 	} else {
-		if (top_tgrq->mt_class == MT_GUARANTEED && top_tgrq->tenant->remaining_budget <= 0) {
-			global_request_scheduler_mtds_demote_nolock(top_tgrq);
-			// debuglog("Demoted '%s' GLOBALLY", top_tgrq->tenant->name);
-			top_tgrq->mt_class = MT_DEFAULT;
+		assert(top_global_tw->destination_queue == global_request_scheduler_mtds_guaranteed);
+		if (top_global_tw->tenant->remaining_budget <= 0) {
+			global_request_scheduler_mtds_demote_nolock(top_global_tw);
 
 			rc = -ENOENT;
 			goto done;
 		}
 	}
 
-	assert(top_tgrq);
+	assert(top_global_tw);
 
-	/* Remove the sandbox from the corresponding TGRQ */
-	rc = priority_queue_dequeue_nolock(top_tgrq->sandbox_requests, (void **)removed_sandbox);
+	/* Remove the sandbox from the corresponding Global_TW */
+	rc = priority_queue_dequeue_nolock(top_global_tw->sandboxes, (void **)removed_sandbox);
 	assert(rc == 0);
 
-	/* Delete the TGRQ from the global runqueue completely if TGRQ is empty, re-add otherwise to heapify */
-	if (priority_queue_delete_nolock(destination_queue, top_tgrq) == -1) {
-		panic("Tried to delete an TGRQ from the Global runqueue, but was not present");
-	}
-
-	if (priority_queue_length_nolock(top_tgrq->sandbox_requests) > 0) {
-		priority_queue_enqueue_nolock(destination_queue, top_tgrq);
-	}
+	/* Delete the Global_TW from the global runqueue and then re-add to heapify */
+	rc = priority_queue_delete_nolock(destination_queue, top_global_tw);
+	assert(rc == 0);
+	rc = priority_queue_enqueue_nolock(destination_queue, top_global_tw);
+	assert(rc == 0);
 
 done:
 	lock_unlock(&global_lock, &node);
@@ -213,6 +209,11 @@ global_request_scheduler_mtds_default_peek(void)
 	return priority_queue_peek(global_request_scheduler_mtds_default);
 }
 
+static inline uint64_t
+tenant_timeout_get_priority(void *element)
+{
+	return ((struct tenant *)element)->defferable_server_timeout;
+}
 
 /**
  * Initializes the variant and registers against the polymorphic interface
@@ -248,40 +249,31 @@ global_request_scheduler_mtds_free()
 }
 
 
-void
-global_timeout_queue_add(struct tenant *tenant)
-{
-	tenant->tgrq_requests->tenant_timeout.timeout = get_next_timeout_of_tenant(tenant->replenishment_period);
-	priority_queue_enqueue_nolock(global_tenant_timeout_queue, &tenant->tgrq_requests->tenant_timeout);
-}
-
 /**
  * Promotes the given tenant, which means deletes from the Default queue
  *  and adds to the Guaranteed queue.
  */
 void
-global_request_scheduler_mtds_promote_lock(struct tenant_global_request_queue *tgrq)
+global_request_scheduler_mtds_promote_lock(struct tenant_wrapper *global_tw)
 {
-	assert(tgrq != NULL);
-	// assert(priority_queue_length_nolock(tgrq->sandbox_requests) == 0);
+	assert(global_tw != NULL);
+	assert(listener_thread_is_running());
 
 	lock_node_t node = {};
 	lock_lock(&global_lock, &node);
 
-	if (tgrq->mt_class == MT_GUARANTEED) goto done;
-	if (priority_queue_length_nolock(tgrq->sandbox_requests) == 0) goto done;
+	if (global_tw->destination_queue == global_request_scheduler_mtds_guaranteed) goto done;
 
-	/* Delete the corresponding TGRQ from the Guaranteed queue */
-	int rc = priority_queue_delete_nolock(global_request_scheduler_mtds_default, tgrq);
-	if (rc == -1) {
-		panic("Tried to delete a non-present TGRQ from the Global Default queue. Already deleted?, ITS SIZE: "
-		      "%d",
-		      priority_queue_length_nolock(tgrq->sandbox_requests));
-	}
+	/* Delete the corresponding Global_TW from the Guaranteed queue */
+	int rc = priority_queue_delete_nolock(global_request_scheduler_mtds_default, global_tw);
+	assert(rc == 0);
+	/* Add the corresponding Global_TW to the Default queue */
+	rc = priority_queue_enqueue_nolock(global_request_scheduler_mtds_guaranteed, global_tw);
+	assert(rc == 0);
 
-	/* Add the corresponding TGRQ to the Default queue */
-	rc = priority_queue_enqueue_nolock(global_request_scheduler_mtds_guaranteed, tgrq);
-	if (rc == -ENOSPC) panic("Global Guaranteed queue is full!\n");
+	global_tw->destination_queue = global_request_scheduler_mtds_guaranteed;
+
+	// debuglog("Promoted '%s' GLOBALLY", global_tw->tenant->name);
 
 done:
 	lock_unlock(&global_lock, &node);
@@ -294,39 +286,38 @@ done:
 void
 global_timeout_queue_process_promotions()
 {
-	struct tenant_timeout *top_tenant_timeout = NULL;
+	assert(listener_thread_is_running());
 
-	/* Check the timeout queue for a potential tenant to get PRomoted */
-	priority_queue_top_nolock(global_tenant_timeout_queue, (void **)&top_tenant_timeout);
-	if (top_tenant_timeout == NULL) return; // no guaranteed tenants
+	struct tenant         *tenant    = NULL;
+	struct tenant_wrapper *global_tw = NULL;
+	const uint64_t         now       = __getcycles();
+	int64_t                prev_budget;
 
-	struct tenant	              *tenant          = NULL;
-	struct tenant_global_request_queue *tgrq_to_promote = NULL;
-	uint64_t                            now             = __getcycles();
-	int64_t                             prev_budget;
+	/* Check the timeout queue for a potential tenant to get Promoted */
+	priority_queue_top_nolock(global_tenant_timeout_queue, (void **)&tenant);
+	if (unlikely(tenant == NULL)) return; /* no tenants yet */
 
-	while (now >= top_tenant_timeout->timeout) {
-		tenant          = top_tenant_timeout->tenant;
-		tgrq_to_promote = tenant->tgrq_requests;
+	while (now >= tenant->defferable_server_timeout) {
+		global_tw = tenant->global_tenant_wrapper;
 
-		if (tgrq_to_promote->mt_class == MT_DEFAULT) {
-			if (priority_queue_length_nolock(tgrq_to_promote->sandbox_requests) > 0)
-				global_request_scheduler_mtds_promote_lock(tgrq_to_promote);
-			tgrq_to_promote->mt_class = MT_GUARANTEED;
-			// debuglog("Promoted '%s' GLOBALLY", tenant->name);
+		if (global_tw->destination_queue == global_request_scheduler_mtds_default) {
+			global_request_scheduler_mtds_promote_lock(global_tw);
 		}
 
 		// TODO: We need a smarter technique to reset budget to consider budget overusage:
 		prev_budget = atomic_load(&tenant->remaining_budget);
-		while (!atomic_compare_exchange_strong(&tenant->remaining_budget, &prev_budget, tenant->max_budget))
-			;
+		while (!atomic_compare_exchange_strong(&tenant->remaining_budget, &prev_budget, tenant->max_budget));
 
 		/* Reheapify the timeout queue with the updated timeout value of the tenant */
-		priority_queue_delete_nolock(global_tenant_timeout_queue, top_tenant_timeout);
-		top_tenant_timeout->timeout = get_next_timeout_of_tenant(tenant->replenishment_period);
-		priority_queue_enqueue_nolock(global_tenant_timeout_queue, top_tenant_timeout);
+		int rc = priority_queue_delete_nolock(global_tenant_timeout_queue, tenant);
+		assert(rc == 0);
 
-		priority_queue_top_nolock(global_tenant_timeout_queue, (void **)&top_tenant_timeout);
-		now = __getcycles();
+		tenant->defferable_server_timeout = now + tenant->replenishment_period;
+
+		rc = priority_queue_enqueue_nolock(global_tenant_timeout_queue, tenant);
+		assert(rc == 0);
+
+		rc = priority_queue_top_nolock(global_tenant_timeout_queue, (void **)&tenant);
+		assert(rc == 0);
 	}
 }

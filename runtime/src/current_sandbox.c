@@ -68,6 +68,22 @@ current_sandbox_exit()
 	assert(0);
 }
 
+/**
+ * @brief Exit from the executing sandbox during an interrup. 
+ * 
+ * Should be called within the signal handler (preemptive scheduler)
+ * This places the current sandbox on the cleanup queue.
+ */
+void interrupted_sandbox_exit(void)
+{
+	struct sandbox *exiting_sandbox = current_sandbox_get();
+	assert(exiting_sandbox != NULL);
+	assert(exiting_sandbox->state == SANDBOX_INTERRUPTED);
+
+	sandbox_exit_error(exiting_sandbox);
+	local_cleanup_queue_add(exiting_sandbox);
+}
+
 void
 current_sandbox_wasm_trap_handler(int trapno)
 {
@@ -99,7 +115,10 @@ current_sandbox_wasm_trap_handler(int trapno)
 		break;
 	}
 
-	debuglog("%s", error_message);
+	// debuglog("%s - Tenant: %s, Route: %s", error_message, sandbox->tenant->name, sandbox->route->route);
+	debuglog("%s - T: %s, id: %lu, exceeded: %u, rem_exec: %lu, premp: %u, state: %u, abi->size: %lu", error_message, sandbox->tenant->name, sandbox->id,
+		sandbox->exceeded_estimation, sandbox->remaining_exec, sandbox->writeback_preemption_in_progress, sandbox->state, 
+		sandbox->memory->abi.size);
 	current_sandbox_exit();
 	assert(0);
 }
@@ -112,8 +131,8 @@ current_sandbox_init()
 	assert(sandbox != NULL);
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 
-	int   rc            = 0;
-	char *error_message = NULL;
+	// int   rc            = 0;
+	// char *error_message = NULL;
 
 	/* Initialize sandbox memory */
 	struct module *current_module = sandbox_get_module(sandbox);
@@ -142,10 +161,10 @@ current_sandbox_init()
 
 	return sandbox;
 
-err:
-	debuglog("%s", error_message);
-	current_sandbox_exit();
-	return NULL;
+// err:
+// 	debuglog("%s", error_message);
+// 	current_sandbox_exit();
+// 	return NULL;
 }
 
 extern noreturn void
@@ -157,8 +176,8 @@ current_sandbox_fini()
 	char *error_message = "";
 	sandbox_syscall(sandbox);
 
-	sandbox->timestamp_of.completion = __getcycles();
-	sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation;
+	// sandbox->timestamp_of.completion = __getcycles();
+	// sandbox->total_time              = sandbox->timestamp_of.completion - sandbox->timestamp_of.allocation;
 
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 
@@ -169,6 +188,7 @@ done:
 	current_sandbox_exit();
 	assert(0);
 err:
+	assert(0);
 	debuglog("%s", error_message);
 	assert(sandbox->state == SANDBOX_RUNNING_SYS);
 
@@ -194,4 +214,27 @@ current_sandbox_start(void)
 	}
 
 	if (sandbox->module->type == APP_MODULE) current_sandbox_fini();
+}
+
+int
+sandbox_validate_self_lifetime(struct sandbox *sandbox)
+{
+	if (sandbox->response_code != 0) goto err;
+
+	const uint64_t now = __getcycles();
+	if (sandbox->absolute_deadline >= now + (!sandbox->exceeded_estimation ? sandbox->remaining_exec : 0)) return 0;
+
+	// dbf_try_update_demand(worker_dbf, sandbox->timestamp_of.dispatched,
+	// 		                      sandbox->route->relative_deadline, sandbox->absolute_deadline, sandbox->remaining_exec,
+	// 		                      DBF_DELETE_EXISTING_DEMAND, NULL, NULL);
+
+	assert(sandbox->response_code == 0);
+	sandbox->response_code = 4081;
+
+err:	
+	sandbox_exit_error(sandbox);
+	// sandbox_free(sandbox);
+	// sandbox_free_linear_memory(sandbox);
+	local_cleanup_queue_add(sandbox);
+	return -1;
 }

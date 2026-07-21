@@ -10,10 +10,9 @@
 #include <sys/time.h>
 
 #include "admissions_control.h"
+#include "traffic_control.h"
 #include "arch/context.h"
 #include "debuglog.h"
-#include "global_request_scheduler_deque.h"
-#include "global_request_scheduler_minheap.h"
 #include "http_parser_settings.h"
 #include "listener_thread.h"
 #include "module.h"
@@ -31,6 +30,17 @@ pthread_t *runtime_worker_threads;
 int       *runtime_worker_threads_argument;
 /* The active deadline of the sandbox running on each worker thread */
 uint64_t *runtime_worker_threads_deadline;
+
+/* Tracks alive sandboxes */
+bool sandbox_refs[RUNTIME_MAX_ALIVE_SANDBOXES] = { false };
+
+CACHE_PAD_ALIGNED uint64_t worker_total_idle_times[18] = {0};
+CACHE_PAD_ALIGNED uint64_t worker_total_lock_times[18] = {0};
+
+uint64_t listener_total_idle_time = 0;
+uint64_t listener_total_lock_time = 0;
+uint64_t listener_time_in_traffic_control = 0;
+bool runtime_started_experiment = false;
 
 /******************************************
  * Shared Process / Listener Thread Logic *

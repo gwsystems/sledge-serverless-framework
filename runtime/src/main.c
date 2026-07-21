@@ -31,7 +31,7 @@
 
 /* Conditionally used by debuglog when NDEBUG is not set */
 int32_t  debuglog_file_descriptor        = -1;
-uint32_t runtime_first_worker_processor  = 1;
+uint32_t runtime_first_worker_processor  = 2; /* Core #0 is reserved for the OS and Core #1 is the event core */
 uint32_t runtime_processor_speed_MHz     = 0;
 uint32_t runtime_total_online_processors = 0;
 uint32_t runtime_worker_threads_count    = 0;
@@ -41,8 +41,11 @@ enum RUNTIME_SIGALRM_HANDLER runtime_sigalrm_handler = RUNTIME_SIGALRM_HANDLER_B
 bool     runtime_preemption_enabled            = true;
 bool     runtime_worker_spinloop_pause_enabled = false;
 uint32_t runtime_quantum_us                    = 1000; /* 1ms */
+uint64_t runtime_quantum;                              /* cycles */
 uint64_t runtime_boot_timestamp;
-pid_t    runtime_pid = 0;
+uint64_t runtime_max_deadline    = 0L;
+pid_t    runtime_pid             = 0;
+uint16_t extra_execution_slack_p = 0; /* percentile */
 
 /**
  * Returns instructions on use of CLI if used incorrectly
@@ -69,8 +72,7 @@ runtime_allocate_available_cores()
 
 	/* If more than two cores are available, leave core 0 free to run OS tasks */
 	if (runtime_total_online_processors > 2) {
-		runtime_first_worker_processor = 2;
-		max_possible_workers           = runtime_total_online_processors - 2;
+		max_possible_workers = runtime_total_online_processors - 2;
 	} else if (runtime_total_online_processors == 2) {
 		runtime_first_worker_processor = 1;
 		max_possible_workers           = runtime_total_online_processors - 1;
@@ -106,28 +108,18 @@ static inline void
 runtime_get_processor_speed_MHz(void)
 {
 	char *proc_mhz_raw = getenv("SLEDGE_PROC_MHZ");
-	FILE *cmd          = NULL;
 
 	if (proc_mhz_raw != NULL) {
 		/* The case with manual override for the CPU freq */
 		runtime_processor_speed_MHz = atoi(proc_mhz_raw);
 	} else {
-		/* The case when we have to get CPU freq from */
-		usleep(200000); /* wait a bit for the workers to launch  for more accuracy */
-
-		/* Get the average of the cpufreqs only for worker cores (no event core and reserved) */
-		char command[128] = {0};
-		sprintf(command, "grep '^cpu MHz' /proc/cpuinfo | sed -n '%u,%up' | \
-					awk '{ total += $4; count++ } END { print total/count }'",
-		        runtime_first_worker_processor + 1,
-		        runtime_first_worker_processor + runtime_worker_threads_count);
-		cmd = popen(command, "r");
+		FILE *cmd = popen("grep '^cpu MHz' /proc/cpuinfo | head -n 1 | awk '{print $4}'", "r");
 		if (unlikely(cmd == NULL)) goto err;
 
 		char   buff[16];
 		size_t n = fread(buff, 1, sizeof(buff) - 1, cmd);
-		buff[n]  = '\0';
-		pclose(cmd);
+		if (unlikely(n <= 0)) goto err;
+		buff[n] = '\0';
 
 		float processor_speed_MHz;
 		n = sscanf(buff, "%f", &processor_speed_MHz);
@@ -135,14 +127,13 @@ runtime_get_processor_speed_MHz(void)
 		if (unlikely(processor_speed_MHz < 0)) goto err;
 
 		runtime_processor_speed_MHz = (uint32_t)nearbyintf(processor_speed_MHz);
+		pclose(cmd);
 	}
 
 	pretty_print_key_value("Worker CPU Freq", "%u MHz\n", runtime_processor_speed_MHz);
-
-done:
 	return;
+
 err:
-	goto done;
 	panic("Failed to detect processor frequency");
 }
 
@@ -245,7 +236,18 @@ runtime_configure()
 			panic("SLEDGE_QUANTUM_US must be less than 999999 ms, saw %ld\n", quantum);
 		runtime_quantum_us = (uint32_t)quantum;
 	}
-	pretty_print_key_value("Quantum", "%u us\n", runtime_quantum_us);
+	runtime_quantum = runtime_quantum_us * runtime_processor_speed_MHz;
+	pretty_print_key_value("Quantum", "%u us = %lu cycles\n", runtime_quantum_us, runtime_quantum);
+
+	/* Extra execution slack percentile */
+	char *extra_slack_raw = getenv("EXTRA_EXEC_PERCENTILE");
+	if (extra_slack_raw != NULL) {
+		int extra_slack = atoi(extra_slack_raw);
+		if (unlikely(extra_slack < 0 || extra_slack > 50))
+			panic("EXTRA_EXEC_PERCENTILE must be between [0-50], saw %d\n", extra_slack);
+		extra_execution_slack_p = (uint16_t)extra_slack;
+		pretty_print_key_value("Extra Exec Slack", "%u%%\n", extra_execution_slack_p);
+	}
 
 	sandbox_perf_log_init();
 	http_session_perf_log_init();
@@ -391,6 +393,12 @@ log_compiletime_config()
 #else
 	pretty_print_key_disabled("Log Local Runqueue");
 #endif
+
+	if (USING_EARLIEST_START_FIRST) {
+		pretty_print_key_enabled("USING_EARLIEST_START_FIRST");
+	} else {
+		pretty_print_key_disabled("USING_EARLIEST_START_FIRST");
+	}
 }
 
 void
@@ -490,6 +498,7 @@ main(int argc, char **argv)
 
 	printf("Runtime Environment:\n");
 
+	runtime_get_processor_speed_MHz();
 	runtime_set_resource_limits_to_max();
 	runtime_allocate_available_cores();
 	runtime_configure();
@@ -498,7 +507,6 @@ main(int argc, char **argv)
 
 	listener_thread_initialize();
 	runtime_start_runtime_worker_threads();
-	runtime_get_processor_speed_MHz();
 	runtime_configure_worker_spinloop_pause();
 	software_interrupt_arm_timer();
 
@@ -524,11 +532,17 @@ main(int argc, char **argv)
 			exit(-1);
 		}
 
+		if (runtime_max_deadline < tenant->max_relative_deadline)
+			runtime_max_deadline = tenant->max_relative_deadline;
+
 		/* Start listening for requests */
 		rc = tenant_listen(tenant);
 		if (rc < 0) exit(-1);
 	}
-
+#ifdef TRAFFIC_CONTROL
+	traffic_control_initialize();
+	tenant_database_init_reservations();
+#endif
 	runtime_boot_timestamp = __getcycles();
 
 	for (int tenant_idx = 0; tenant_idx < tenant_config_vec_len; tenant_idx++) {

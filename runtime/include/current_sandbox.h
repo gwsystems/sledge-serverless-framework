@@ -10,6 +10,10 @@
 extern thread_local struct sandbox *worker_thread_current_sandbox;
 
 void current_sandbox_start(void);
+void current_sandbox_exit(void);
+void interrupted_sandbox_exit(void);
+int  sandbox_validate_self_lifetime(struct sandbox *);
+void sandbox_kill_self(struct sandbox *);
 
 /**
  * Getter for the current sandbox executing on this thread
@@ -38,6 +42,7 @@ current_sandbox_set(struct sandbox *sandbox)
 		        (struct sledge_abi__wasm_memory){
 		          .size     = 0,
 		          .capacity = 0,
+				  .id 	    = 0,
 		          .max      = 0,
 		          .buffer   = NULL,
 		        },
@@ -51,9 +56,15 @@ current_sandbox_set(struct sandbox *sandbox)
 		/* This is because the event core does not maintain core-assigned deadline */
 		if (!listener_thread_is_running()) runtime_worker_threads_deadline[worker_thread_idx] = UINT64_MAX;
 	} else {
+		assert(sandbox->state == SANDBOX_RUNNABLE || sandbox->state == SANDBOX_PREEMPTED);
+		assert(sandbox->memory->abi.capacity > 0);
+		assert(sandbox->memory->abi.size > 0);
+		assert(sandbox->memory->abi.max > 0);
+		
 		sledge_abi__current_wasm_module_instance.wasi_context = sandbox->wasi_context;
 		memcpy(&sledge_abi__current_wasm_module_instance.abi.memory, &sandbox->memory->abi,
 		       sizeof(struct sledge_abi__wasm_memory));
+		assert(sledge_abi__current_wasm_module_instance.abi.memory.id == sandbox->id);
 		sledge_abi__current_wasm_module_instance.abi.table = sandbox->module->indirect_table;
 		wasm_globals_update_if_used(&sandbox->globals, 0,
 		                            &sledge_abi__current_wasm_module_instance.abi.wasmg_0);

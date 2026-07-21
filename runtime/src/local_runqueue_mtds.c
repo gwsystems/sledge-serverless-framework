@@ -20,16 +20,23 @@ extern __thread struct priority_queue *worker_thread_timeout_queue;
 
 /**
  * Get Per-Worker-Tenant priority for Priority Queue ordering
- * @param element the PWT
- * @returns the priority of the head of the PWT
+ * @param element the Worker_TW
+ * @returns the priority of the head of the Worker_TW
  */
 static inline uint64_t
 perworker_tenant_get_priority(void *element)
 {
-	struct perworker_tenant_sandbox_queue *pwt     = (struct perworker_tenant_sandbox_queue *)element;
-	struct sandbox                        *sandbox = NULL;
-	priority_queue_top_nolock(pwt->sandboxes, (void **)&sandbox);
+	struct tenant_wrapper *worker_tw = (struct tenant_wrapper *)element;
+	struct sandbox        *sandbox   = NULL;
+	priority_queue_top_nolock(worker_tw->sandboxes, (void **)&sandbox);
 	return (sandbox) ? sandbox->absolute_deadline : UINT64_MAX;
+}
+
+inline bool
+worker_tw_is_in_guaranteed_queue(struct tenant_wrapper *worker_tw)
+{
+	assert(worker_tw);
+	return worker_tw->destination_queue == local_runqueue_mtds_guaranteed;
 }
 
 /**
@@ -53,39 +60,39 @@ local_runqueue_mtds_add(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
 
-	struct perworker_tenant_sandbox_queue *pwt = &sandbox->tenant->pwt_sandboxes[worker_thread_idx];
-	struct priority_queue *destination_queue   = pwt->mt_class == MT_GUARANTEED ? local_runqueue_mtds_guaranteed
-	                                                                            : local_runqueue_mtds_default;
+	int rc = -1;
 
-	uint64_t prev_pwt_deadline = priority_queue_peek(pwt->sandboxes);
+	struct tenant_wrapper *worker_tw = &sandbox->tenant->tw_wrappers[worker_thread_idx];
 
-	/* Add the sandbox to the per-worker-tenant (pwt) queue */
-	int rc = priority_queue_enqueue_nolock(pwt->sandboxes, sandbox);
-	if (rc == -ENOSPC) panic("Per Worker Tenant queue is full!\n");
-	// debuglog("Added a sandbox to the PWT of tenant '%s'", sandbox->tenant->name);
+	/* Runs only once if the tenant queue is not in the runqueue */
+	if (worker_tw->destination_queue == NULL) {
+		worker_tw->destination_queue = local_runqueue_mtds_default;
+		if (tenant_has_budget(sandbox->tenant)) worker_tw->destination_queue = local_runqueue_mtds_guaranteed;
+	}
 
-	/* If the tenant was not in the local runqueue, then since we are the first sandbox for it in this worker, add
-	 * the tenant.  */
-	if (priority_queue_length_nolock(pwt->sandboxes) == 1) {
-		/* Add sandbox tenant to the worker's timeout queue if guaranteed tenant and only if first sandbox*/
-		if (tenant_is_paid(sandbox->tenant)) {
-			pwt->tenant_timeout.timeout = get_next_timeout_of_tenant(sandbox->tenant->replenishment_period);
-			priority_queue_enqueue_nolock(worker_thread_timeout_queue, &pwt->tenant_timeout);
-		}
+	struct priority_queue *destination_queue = worker_tw->destination_queue;
 
-		rc = priority_queue_enqueue_nolock(destination_queue, pwt);
+	/* Add the sandbox to the per-worker-tenant (worker_tw) queue */
+	rc = priority_queue_enqueue_nolock(worker_tw->sandboxes, sandbox);
+	assert(rc == 0);
+
+	/* Add the tenant queue to the worker runqueue if the tenant is not there already */
+	if (priority_queue_length_nolock(worker_tw->sandboxes) == 1) {
+		rc = priority_queue_enqueue_nolock(destination_queue, worker_tw);
+		assert(rc == 0);
+
+		worker_tw->ds_timeout = worker_tw->tenant->defferable_server_timeout;
+		rc                    = priority_queue_enqueue_nolock(worker_thread_timeout_queue, worker_tw);
+		assert(rc == 0);
 
 		return;
 	}
 
-	if (sandbox->absolute_deadline < prev_pwt_deadline) {
-		/* Maintain the minheap structure by deleting & adding the pwt.
-		 * Do this only when the pwt's priority is updated. */
-		rc = priority_queue_delete_nolock(destination_queue, pwt);
-		assert(rc == 0);
-		rc = priority_queue_enqueue_nolock(destination_queue, pwt);
-		if (rc == -ENOSPC) panic("Worker Local Runqueue is full!\n");
-	}
+	/* Maintain the minheap structure by deleting & adding the worker_tw */
+	rc = priority_queue_delete_nolock(destination_queue, worker_tw);
+	assert(rc == 0);
+	rc = priority_queue_enqueue_nolock(destination_queue, worker_tw);
+	assert(rc == 0);
 }
 
 /**
@@ -96,30 +103,26 @@ static void
 local_runqueue_mtds_delete(struct sandbox *sandbox)
 {
 	assert(sandbox != NULL);
-	struct perworker_tenant_sandbox_queue *pwt = &sandbox->tenant->pwt_sandboxes[worker_thread_idx];
+	struct tenant_wrapper *worker_tw = &sandbox->tenant->tw_wrappers[worker_thread_idx];
 
 	/* Delete the sandbox from the corresponding Per-Worker-Tenant queue */
-	if (priority_queue_delete_nolock(pwt->sandboxes, sandbox) == -1) {
-		panic("Tried to delete sandbox %lu from PWT queue, but was not present\n", sandbox->id);
-	}
+	int rc = priority_queue_delete_nolock(worker_tw->sandboxes, sandbox);
+	assert(rc == 0);
 
-	struct priority_queue *destination_queue = local_runqueue_mtds_default;
+	struct priority_queue *destination_queue = worker_tw->destination_queue;
 
-	if (pwt->mt_class == MT_GUARANTEED) { destination_queue = local_runqueue_mtds_guaranteed; }
+	/* Delete the Worker_TW from the local runqueue completely if worker_tw is empty, re-add otherwise to heapify */
+	rc = priority_queue_delete_nolock(destination_queue, worker_tw);
+	assert(rc == 0);
 
-
-	/* Delete the PWT from the local runqueue completely if pwt is empty, re-add otherwise to heapify */
-	if (priority_queue_delete_nolock(destination_queue, pwt) == -1) {
-		// TODO: Apply the composite way of PQ deletion O(logn)
-		panic("Tried to delete a PWT of %s from local runqueue, but was not present\n", pwt->tenant->name);
-	}
-
-	/* Add the PWT back to the local runqueue if it still has other sandboxes inside */
-	if (priority_queue_length_nolock(pwt->sandboxes) > 0) {
-		priority_queue_enqueue_nolock(destination_queue, pwt);
-	} else if (tenant_is_paid(pwt->tenant)) {
-		priority_queue_delete_nolock(worker_thread_timeout_queue, &pwt->tenant_timeout);
-		pwt->mt_class = MT_GUARANTEED;
+	/* Add the Worker_TW back to the local runqueue if it still has other sandboxes inside */
+	if (priority_queue_length_nolock(worker_tw->sandboxes) > 0) {
+		rc = priority_queue_enqueue_nolock(destination_queue, worker_tw);
+		assert(rc == 0);
+	} else {
+		rc = priority_queue_delete_nolock(worker_thread_timeout_queue, worker_tw);
+		assert(rc == 0);
+		worker_tw->destination_queue = NULL;
 	}
 }
 
@@ -134,26 +137,27 @@ struct sandbox *
 local_runqueue_mtds_get_next()
 {
 	/* Get the deadline of the sandbox at the head of the local request queue */
-	struct perworker_tenant_sandbox_queue *next_pwt = NULL;
-	struct priority_queue                 *dq       = local_runqueue_mtds_guaranteed;
+	struct tenant_wrapper *next_tw = NULL;
+	struct priority_queue *dq      = local_runqueue_mtds_guaranteed;
 
 	/* Check the local guaranteed queue for any potential demotions */
-	int rc = priority_queue_top_nolock(dq, (void **)&next_pwt);
-	while (rc != -ENOENT && next_pwt->tenant->remaining_budget <= 0) { // next_pwt->mt_class==MT_DEFAULT){
-		local_runqueue_mtds_demote(next_pwt);
-		// debuglog("Demoted '%s' locally in GetNext", next_pwt->tenant->name);
-		next_pwt->mt_class = MT_DEFAULT;
-		rc                 = priority_queue_top_nolock(dq, (void **)&next_pwt);
+	int rc = priority_queue_top_nolock(dq, (void **)&next_tw);
+	while (rc != -ENOENT && next_tw->tenant->remaining_budget <= 0) {
+		local_runqueue_mtds_demote(next_tw);
+		rc = priority_queue_top_nolock(dq, (void **)&next_tw);
 	}
 
 	if (rc == -ENOENT) {
 		dq = local_runqueue_mtds_default;
-		rc = priority_queue_top_nolock(dq, (void **)&next_pwt);
+		rc = priority_queue_top_nolock(dq, (void **)&next_tw);
 		if (rc == -ENOENT) return NULL;
+		assert(next_tw->destination_queue == local_runqueue_mtds_default);
+	} else {
+		assert(next_tw->destination_queue == local_runqueue_mtds_guaranteed);
 	}
 
 	struct sandbox *next_sandbox = NULL;
-	priority_queue_top_nolock(next_pwt->sandboxes, (void **)&next_sandbox);
+	priority_queue_top_nolock(next_tw->sandboxes, (void **)&next_sandbox);
 	assert(next_sandbox);
 
 	return next_sandbox;
@@ -185,43 +189,40 @@ local_runqueue_mtds_initialize()
  *  and adds to the Guaranteed queue.
  */
 void
-local_runqueue_mtds_promote(struct perworker_tenant_sandbox_queue *pwt)
+local_runqueue_mtds_promote(struct tenant_wrapper *worker_tw)
 {
-	assert(pwt != NULL);
+	assert(worker_tw != NULL);
 
-	/* Delete the corresponding PWT from the Guaranteed queue */
-	int rc = priority_queue_delete_nolock(local_runqueue_mtds_default, pwt);
-	if (rc == -1) {
-		panic("Tried to delete a non-present PWT of %s from the Local Default queue. Already deleted? , ITS "
-		      "SIZE: %d",
-		      pwt->tenant->name, priority_queue_length_nolock(pwt->sandboxes));
-	}
+	if (worker_tw->destination_queue == local_runqueue_mtds_guaranteed) return;
 
-	/* Add the corresponding PWT to the Default queue */
-	rc = priority_queue_enqueue_nolock(local_runqueue_mtds_guaranteed, pwt);
-	if (rc == -ENOSPC) panic("Local Guaranteed queue is full!\n");
+	/* Delete the corresponding Worker_TW from the Default queue */
+	int rc = priority_queue_delete_nolock(local_runqueue_mtds_default, worker_tw);
+	assert(rc == 0);
+	/* Add the corresponding Worker_TW to the Guaranteed queue */
+	rc = priority_queue_enqueue_nolock(local_runqueue_mtds_guaranteed, worker_tw);
+	assert(rc == 0);
+
+	worker_tw->destination_queue = local_runqueue_mtds_guaranteed;
+	// debuglog("Promoted '%s' locally", worker_tw->tenant->name);
 }
 
 /**
- * Demotes the given per-worker-tenant queue, which means deletes from the Guaranteed queue
- *  and adds to the Default queue.
+ * Demotes the given per-worker-tenant queue: Delete from the Guaranteed queue, add to the Default queue.
  */
 void
-local_runqueue_mtds_demote(struct perworker_tenant_sandbox_queue *pwt)
+local_runqueue_mtds_demote(struct tenant_wrapper *worker_tw)
 {
-	assert(pwt != NULL);
+	assert(worker_tw != NULL);
+	assert(worker_tw->destination_queue = local_runqueue_mtds_guaranteed);
 
-	/* Delete the corresponding PWT from the Guaranteed queue */
-	int rc = priority_queue_delete_nolock(local_runqueue_mtds_guaranteed, pwt);
-	if (rc == -1) {
-		panic("Tried to delete a non-present PWT of %s from the Local Guaranteed queue. Already deleted? , ITS "
-		      "SIZE: %d",
-		      pwt->tenant->name, priority_queue_length_nolock(pwt->sandboxes));
-	}
+	/* Move the corresponding Worker_TW from the Guaranteed queue to the Default queue */
+	int rc = priority_queue_delete_nolock(local_runqueue_mtds_guaranteed, worker_tw);
+	assert(rc == 0);
+	rc = priority_queue_enqueue_nolock(local_runqueue_mtds_default, worker_tw);
+	assert(rc == 0);
 
-	/* Add the corresponding PWT to the Default queue */
-	rc = priority_queue_enqueue_nolock(local_runqueue_mtds_default, pwt);
-	if (rc == -ENOSPC) panic("Local Default queue is full!\n");
+	worker_tw->destination_queue = local_runqueue_mtds_default;
+	// debuglog("Demoted '%s' locally", worker_tw->tenant->name);
 }
 
 
@@ -232,31 +233,24 @@ local_runqueue_mtds_demote(struct perworker_tenant_sandbox_queue *pwt)
 void
 local_timeout_queue_process_promotions()
 {
-	struct tenant_timeout *top_tenant_timeout = NULL;
+	struct tenant_wrapper *worker_tw = NULL;
 
-	/* Check the timeout queue for a potential tenant to get PRomoted */
-	priority_queue_top_nolock(worker_thread_timeout_queue, (void **)&top_tenant_timeout);
-	if (top_tenant_timeout == NULL) return; // no guaranteed tenants
+	/* Check the timeout queue for a potential tenant to get Promoted */
+	priority_queue_top_nolock(worker_thread_timeout_queue, (void **)&worker_tw);
+	assert(worker_tw);
 
-	struct perworker_tenant_sandbox_queue *pwt_to_promote = NULL;
-	uint64_t                               now            = __getcycles();
+	const uint64_t now = __getcycles();
 
-	while (now >= top_tenant_timeout->timeout) {
-		pwt_to_promote = top_tenant_timeout->pwt;
-		assert(priority_queue_length_nolock(pwt_to_promote->sandboxes) > 0);
+	while (now >= worker_tw->ds_timeout) {
+		assert(priority_queue_length_nolock(worker_tw->sandboxes) > 0);
 
-		if (pwt_to_promote->mt_class == MT_DEFAULT) {
-			local_runqueue_mtds_promote(pwt_to_promote);
-			pwt_to_promote->mt_class = MT_GUARANTEED;
-			// debuglog("Promoted '%s' locally", top_tenant_timeout->tenant->name);
-		}
+		if (tenant_has_budget(worker_tw->tenant) > 0) { local_runqueue_mtds_promote(worker_tw); }
 
 		/* Reheapify the timeout queue with the updated timeout value of the tenant */
-		priority_queue_delete_nolock(worker_thread_timeout_queue, top_tenant_timeout);
-		top_tenant_timeout->timeout = get_next_timeout_of_tenant(
-		  top_tenant_timeout->tenant->replenishment_period);
-		priority_queue_enqueue_nolock(worker_thread_timeout_queue, top_tenant_timeout);
+		priority_queue_delete_nolock(worker_thread_timeout_queue, worker_tw);
+		worker_tw->ds_timeout = worker_tw->tenant->defferable_server_timeout;
+		priority_queue_enqueue_nolock(worker_thread_timeout_queue, worker_tw);
 
-		priority_queue_top_nolock(worker_thread_timeout_queue, (void **)&top_tenant_timeout);
+		priority_queue_top_nolock(worker_thread_timeout_queue, (void **)&worker_tw);
 	}
 }

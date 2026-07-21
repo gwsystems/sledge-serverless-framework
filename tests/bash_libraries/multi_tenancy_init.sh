@@ -22,9 +22,15 @@ declare -A arg_opts_hey=()
 declare -A arg_opts_lt=()
 declare -A args=()
 declare -A loads=()
+declare -A concurrencies=()
+declare -A arrival_distributions=()
+declare -A total_loads_per_var=()
 declare -a workloads=()
 declare -A workload_tids=()
 declare -A workload_vars=()
+declare -a ACTIVE_TENANT_IDS=()
+declare -A ACTIVE_ROUTES=()
+declare -a PLOTTING_TENANT_IDS=()
 
 assert_run_experiments_args() {
 	if (($# != 3)); then
@@ -66,27 +72,37 @@ load_value() {
 	local  result=$1
 	if [ "$result" = "?" ]; then
 		result=$2
+	elif [ "$result" = "??" ]; then
+		result=$3
 	fi
     echo "$result"
 }
 
 run_init() {
-	for var in "${VARYING[@]}"; do
+	for var_idx in "${!VARYING[@]}"; do
+		local var=${VARYING[$var_idx]}
+		local var2=${VARYING2[$var_idx]}
+		local total_load_per_var=0
+
 		for t_idx in "${!TENANT_IDS[@]}"; do
 			local tenant_id=${TENANT_IDS[$t_idx]}
+			if [[ $tenant_id == .* ]]; then
+				continue # Skip tenants that start with a dot
+			fi
 			local tenant=$(printf "%s-%03d" "$tenant_id" "$var")
-			local port=$((INIT_PORTS[t_idx]+var))
+			local port=$((INIT_PORTS[t_idx]+var_idx))
 			[ "$NUCLIO_MODE_ENABLED" == true ] && port=${INIT_PORTS[t_idx]}
-			local repl_period=$(load_value "${MTDS_REPL_PERIODS_us[$t_idx]}" "$var")
-			local budget=$(load_value "${MTDS_MAX_BUDGETS_us[$t_idx]}" "$var")
-			local reservation=$(load_value "${MTDBF_RESERVATIONS_p[$t_idx]}" "$var")
+			local repl_period=$(load_value "${MTDS_REPL_PERIODS_us[$t_idx]}" "$var" "$var2")
+			local budget=$(load_value "${MTDS_MAX_BUDGETS_us[$t_idx]}" "$var" "$var2")
+			# budget=$((budget*SLEDGE_NWORKERS))
+			local reservation=$(load_value "${MTDBF_RESERVATIONS_p[$t_idx]}" "$var" "$var2")
 
 			ports+=([$tenant]=$port)
 			repl_periods+=([$tenant]=$repl_period)
 			max_budgets+=([$tenant]=$budget)
 			reservations+=([$tenant]=$reservation)
 
-			local t_routes r_expected_execs r_deadlines r_arg_opts_hey r_arg_opts_lt r_args r_loads
+			local t_routes r_expected_execs r_deadlines r_arg_opts_hey r_arg_opts_lt r_args r_loads r_concurrencies r_arrival_distributions
 			local r_model_biases r_model_scales r_model_num_of_params r_model_beta1s r_model_beta2s
 
 			IFS=' ' read -r -a t_routes <<< "${ROUTES[$t_idx]}"
@@ -106,11 +122,16 @@ run_init() {
 			IFS=' ' read -r -a r_arg_opts_lt <<< "${ARG_OPTS_LT[$t_idx]}"
 			IFS=' ' read -r -a r_args <<< "${ARGS[$t_idx]}"
 			IFS=' ' read -r -a r_loads <<< "${LOADS[$t_idx]}"
+			IFS=' ' read -r -a r_concurrencies <<< "${CONCURRENCIES[$t_idx]}"
+			IFS=' ' read -r -a r_arrival_distributions <<< "${ARRIVAL_DISTRIBUTIONS[$t_idx]}"
 
 			for r_idx in "${!t_routes[@]}"; do
 				local route=${t_routes[$r_idx]}
+				if [[ $route == .* ]]; then
+					continue # Skip routes that start with a dot
+				fi
 				local wasm_path=${r_wasm_paths[$r_idx]}
-				local expected=$(load_value "${r_expected_execs[$r_idx]}" "$var")
+				local expected=$(load_value "${r_expected_execs[$r_idx]}" "$var" "$var2")
 				local dl_to_exec_ratio=${r_dl_to_exec_ratios[$r_idx]}
 				local deadline=$((expected*dl_to_exec_ratio/100))
 				local resp_content_type=${r_resp_content_types[$r_idx]}
@@ -122,8 +143,10 @@ run_init() {
 				local model_beta2=${r_model_beta2s[$r_idx]}
 				local arg_opt_hey=${r_arg_opts_hey[$r_idx]}
 				local arg_opt_lt=${r_arg_opts_lt[$r_idx]}
-				local arg=$(load_value "${r_args[$r_idx]}" "$var")
-				local load=$(load_value "${r_loads[$r_idx]}" "$var")
+				local arg=$(load_value "${r_args[$r_idx]}" "$var" "$var2")
+				local load=$(load_value "${r_loads[$r_idx]}" "$var" "$var2")
+				local concurrency=$(load_value "${r_concurrencies[$r_idx]}" "$var" "$var2")
+				local arrival_distribution=$(load_value "${r_arrival_distributions[$r_idx]}" "$var" "$var2")
 				local workload="$tenant-$route"
 
 				wasm_paths+=([$workload]=$wasm_path)
@@ -140,10 +163,31 @@ run_init() {
 				arg_opts_lt+=([$workload]=$arg_opt_lt)
 				args+=([$workload]=$arg)
 				loads+=([$workload]=$load)
+				concurrencies+=([$workload]=$concurrency)
+				arrival_distributions+=([$workload]=$arrival_distribution)
+				total_load_per_var=$((total_load_per_var+load))
 				workloads+=("$workload")
 				workload_tids+=([$workload]=$tenant_id)
 				workload_vars+=([$workload]=$var)
 			done
+		done
+
+		total_loads_per_var+=([$var]=$total_load_per_var)
+	done
+
+	# Filter out tenants that start with a dot
+	for t_idx in "${!TENANT_IDS[@]}"; do
+		local tenant_id=${TENANT_IDS[$t_idx]}
+		[[ $tenant_id == .* ]] && continue
+		ACTIVE_TENANT_IDS+=("$tenant_id")
+		[[ $tenant_id != -* ]] && PLOTTING_TENANT_IDS+=("$tenant_id")
+
+		local t_routes
+		IFS=' ' read -r -a t_routes <<< "${ROUTES[$t_idx]}"
+		for r_idx in "${!t_routes[@]}"; do
+			local route=${t_routes[$r_idx]}
+			[[ $route == .* ]] && continue
+			ACTIVE_ROUTES[$tenant_id]+=" $route"
 		done
 	done
 }

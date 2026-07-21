@@ -8,9 +8,11 @@ source "panic.sh" || exit 1
 # Outputting resulting diagrams in results_directory
 # $1 - results_directory containing the data file referenced in the gnuplot file
 # $2 - gnuplot_directory containing the *.gnuplot specification files
+# $3 - array of tenants
 generate_gnuplots() {
 	local -r results_directory="$1"
 	local -r experiment_directory="$2"
+	local -r tenant_ids="$3"
 
 	if ! command -v gnuplot &> /dev/null; then
 		panic "gnuplot could not be found in path"
@@ -30,10 +32,10 @@ generate_gnuplots() {
 
 	shopt -s nullglob
 	for gnuplot_file in "$experiment_directory"/*.gnuplot; do
-		if [ -z "$TENANT_IDS" ]; then
+		if [ -z "$tenant_ids" ]; then
 			gnuplot "$gnuplot_file"
 		else 
-			gnuplot -e "tenant_ids='${TENANT_IDS[*]}'" "$gnuplot_file"
+			gnuplot -e "tenant_ids='${tenant_ids[*]}'" "$gnuplot_file"
 		fi
 	done
 	cd "$experiment_directory" || exit

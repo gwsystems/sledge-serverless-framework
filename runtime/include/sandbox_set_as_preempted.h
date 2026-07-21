@@ -27,13 +27,11 @@ sandbox_set_as_preempted(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_INTERRUPTED: {
+	case SANDBOX_INTERRUPTED:
 		break;
-	}
-	default: {
+	default: 
 		panic("Sandbox %lu | Illegal transition from %s to Preempted\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
-	}
 	}
 
 	/* State Change Bookkeeping */
@@ -55,4 +53,6 @@ sandbox_preempt(struct sandbox *sandbox)
 {
 	assert(sandbox->state == SANDBOX_INTERRUPTED);
 	sandbox_set_as_preempted(sandbox, SANDBOX_INTERRUPTED);
+
+	// sandbox_process_scheduler_updates(sandbox);
 }

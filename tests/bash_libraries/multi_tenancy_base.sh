@@ -36,18 +36,22 @@ run_experiments() {
 	local -r loadgen="$3"
 
 	printf "Running Experiments with %s\n" "$loadgen"
+	if [ "$LOADTEST_KEEPALIVE" = true ]; then
+		echo "Keepalive flag set!"
+		keep_alive=-k
+	fi
+	if [ "$LOADTEST_LOG_RANDOM" = true ]; then
+		echo "LogRandom flag set!"
+		lograndom=--lograndom
+	fi
 
 	for var in "${VARYING[@]}"; do
-		for t_idx in "${!TENANT_IDS[@]}"; do
-			local tenant_id=${TENANT_IDS[$t_idx]}
+		http "$hostname":55555/beginx &> /dev/null
+		for tenant_id in "${ACTIVE_TENANT_IDS[@]}"; do
 			local tenant=$(printf "%s-%03d" "$tenant_id" "$var")
 			local port=${ports[$tenant]}
 
-			local t_routes
-			IFS=' ' read -r -a t_routes <<< "${ROUTES[$t_idx]}"
-
-			for index in "${!t_routes[@]}"; do
-				local route=${t_routes[$index]}
+			for route in ${ACTIVE_ROUTES[$tenant_id]}; do
 				local workload="$tenant-$route"
 				local expected=${expected_execs[$workload]}
 				local deadline=${deadlines[$workload]}
@@ -55,8 +59,11 @@ run_experiments() {
 				# local con=${concurrencies[$workload]}
 				# local rps=${rpss[$workload]}
 				local load=${loads[$workload]}
-			
+				local concurrency=${concurrencies[$workload]}
+				local arrival_distribution=${arrival_distributions[$workload]}
+
 				local pid
+				local poisson=""
 				local -a pids # Run concurrently
 				local -A pid_workloads # Run concurrently
 
@@ -69,27 +76,40 @@ run_experiments() {
 					local arg_opt_hey=${arg_opts_hey[$workload]}
 					hey -H "Expect: " $HEY_OPTS -z "$DURATION_sec"s -c "$con" -t 0 -o csv -m POST "$arg_opt_hey" "$arg" "http://${hostname}:$port/$route" > "$results_directory/$workload.csv" 2> "$results_directory/$workload-err.dat" &
 				elif [ "$loadgen" = "loadtest" ]; then
-					local con=1 #$((NWORKERS * deadline / expected))
+					# local con=1
+					# local con=$NWORKERS
+					local con=$concurrency
+					# local con=$(echo "scale=2; x = $NWORKERS * $deadline / $expected; x" | bc)
+
 					local rps=$(echo "scale=2; x = $load * $NWORKERS * 1000000 / $expected / 100; x" | bc)
 					# if [ "$(echo "$rps > $NWORKERS" | bc)" -eq 1 ]; then con=$NWORKERS; fi
 					echo "CON set for $workload" : "$con"
 					echo "RPS set for $workload" : "$rps"
 					local arg_opt_lt=${arg_opts_lt[$workload]}
 
-					[ "$LOADTEST_LOG_RANDOM" = true ] && lograndom=--lograndom
 					if [ "$LOADTEST_REQUEST_TIMEOUT" = true ]; then
-						deadline_ms=$((deadline/1000 + 1))
+						deadline_ms=$((deadline / 1000 + NETWORK_LATENCY_ms))
 						echo "Timeout set for $workload" : "$deadline_ms"
 						req_timeout="-d $deadline_ms"
 					fi
-					[ "$NUCLIO_MODE_ENABLED" = true ] && keep_alive=-k
 
-					step=2500
+					# If the arrival distribution is not fixed (0), then we use Poisson distribution for request arrivals. 
+					if [ "$arrival_distribution" != 0 ]; then
+						# The arrival_distribution variable is used as the burstiness factor for the Poisson distribution. 
+						burstiness_factor=$arrival_distribution
+						echo "Using Poisson with burstiness factor of $burstiness_factor for $workload"
+						poisson="--poisson_burstiness $burstiness_factor"
+					else
+						poisson=""
+						echo "Using Fixed inter-arrival times for $workload"
+					fi
+
+					step=3000
 					it=1
-					while (( $(bc <<< "$rps > $step") )); do
+					while (($(bc <<< "$rps > $step"))); do
 						echo "    Loadtest #$it: rps of $step/$rps"
 						# shellcheck disable=SC2086
-						loadtest -H "Expect: " -t $DURATION_sec -c $con --rps $step $arg_opt_lt $arg $req_timeout $lograndom $keep_alive "http://${hostname}:${port}/$route" >> "$results_directory/$workload.dat" 2>> "$results_directory/$workload-err.dat" &
+						loadtest -H "Expect: " -t $DURATION_sec -c $con $poisson --rps $step $arg_opt_lt $arg $req_timeout $lograndom $keep_alive "http://${hostname}:${port}/$route" >> "$results_directory/$workload.dat" 2>> "$results_directory/$workload-err.dat" &
 						rps=$(bc <<< "$rps - $step")
 						pid="$!"
 						pids+=("$pid")
@@ -99,7 +119,8 @@ run_experiments() {
 
 					echo "    Loadtest #$it: rps of $rps (last)"
 					# shellcheck disable=SC2086
-					loadtest -H "Expect: " -t $DURATION_sec -c $con --rps $rps $arg_opt_lt $arg $req_timeout $lograndom $keep_alive "http://${hostname}:${port}/$route" >> "$results_directory/$workload.dat" 2>> "$results_directory/$workload-err.dat" &
+					loadtest -H "Expect: " -t $DURATION_sec -c $con $poisson --rps $rps $arg_opt_lt $arg $req_timeout $lograndom $keep_alive "http://${hostname}:${port}/$route" >> "$results_directory/$workload.dat" 2>> "$results_directory/$workload-err.dat" &
+					# loadtest -H "Expect: " -n 10000 -c $con $poisson --rps $rps $arg_opt_lt $arg $req_timeout $lograndom $keep_alive "http://${hostname}:${port}/$route" >> "$results_directory/$workload.dat" 2>> "$results_directory/$workload-err.dat" &
 				fi
 				pid="$!"
 				pids+=("$pid")
@@ -107,7 +128,7 @@ run_experiments() {
 			done
 		done
 
-		for ((i=${#pids[@]}-1; i>=0; i--)); do
+		for ((i = ${#pids[@]} - 1; i >= 0; i--)); do
 			local pid=${pids[$i]}
 			local pid_workload=${pid_workloads[$pid]}
 			wait -f "$pid" || {
@@ -124,11 +145,13 @@ run_experiments() {
 		done
 
 		unset pids pid_workloads
+		http "$hostname":55555/endx &> /dev/null
+		sleep 1
 	done
 
 	if [ "$CLIENT_TERMINATE_SERVER" == true ]; then
 		printf "Sent a Terminator to the server\n"
-		echo "5" | http "$hostname":55555/terminator &> /dev/null
+		http "$hostname":55555/terminator &> /dev/null
 	fi
 
 	return 0
@@ -143,8 +166,8 @@ process_client_results_hey() {
 	printf "Processing HEY Results: "
 
 	# Write headers to CSVs
-	for t_id in "${TENANT_IDS[@]}"; do
-		printf "Workload,Scs%%,TOTAL,ClientScs,All200,AllFail,Deny,MisDL,Shed,MiscErr\n" >> "$results_directory/success_$t_id.csv" 
+	for t_id in "${ACTIVE_TENANT_IDS[@]}"; do
+		printf "Workload,Scs%%,TOTAL,ClientScs,All200,AllFail,Deny,MisDL,Shed,MiscErr\n" >> "$results_directory/success_$t_id.csv"
 		printf "Workload,Throughput\n" >> "$results_directory/throughput_$t_id.csv"
 		percentiles_table_header "$results_directory/latency_$t_id.csv" "Workload"
 	done
@@ -153,7 +176,7 @@ process_client_results_hey() {
 		local t_id=${workload_tids[$workload]}
 		local deadline=${deadlines[$workload]}
 		local var=${workload_vars[$workload]}
-		
+
 		# Some requests come back with an "Unsolicited response ..." See issue #185
 		misc_err=$(wc -l < "$results_directory/$workload-err.dat")
 
@@ -203,14 +226,14 @@ process_client_results_hey() {
 		rm "$results_directory/$workload-response.csv" "$results_directory/$workload-response-200.csv"
 	done
 
-	for t_id in "${TENANT_IDS[@]}"; do
+	for t_id in "${ACTIVE_TENANT_IDS[@]}"; do
 		# Transform csvs to dat files for gnuplot
 		csv_to_dat "$results_directory/success_$t_id.csv" "$results_directory/throughput_$t_id.csv" "$results_directory/latency_$t_id.csv"
 		rm "$results_directory/success_$t_id.csv" "$results_directory/throughput_$t_id.csv" "$results_directory/latency_$t_id.csv"
 	done
 
 	# Generate gnuplots
-	generate_gnuplots "$results_directory" "$__run_sh__base_path" || {
+	generate_gnuplots "$results_directory" "$__run_sh__base_path" "${PLOTTING_TENANT_IDS[*]}" || {
 		printf "[ERR]\n"
 		panic "failed to generate gnuplots"
 	}
@@ -229,8 +252,8 @@ process_client_results_loadtest() {
 	printf "Processing Loadtest Results: \n"
 
 	# Write headers to CSVs
-	for t_id in "${TENANT_IDS[@]}"; do
-		printf "Workload,Scs%%,TOTAL,All200,AllFail,Deny,MisDL,Shed,MiscErr\n" >> "$results_directory/success_$t_id.csv" 
+	for t_id in "${ACTIVE_TENANT_IDS[@]}"; do
+		printf "Workload,Scs%%,TOTAL,All200,AllFail,Deny,MisDL,Shed,MiscErr\n" >> "$results_directory/success_$t_id.csv"
 		printf "Workload,Throughput\n" >> "$results_directory/throughput_$t_id.csv"
 		percentiles_table_header "$results_directory/latency_$t_id.csv" "Workload"
 	done
@@ -238,6 +261,7 @@ process_client_results_loadtest() {
 	for workload in "${workloads[@]}"; do
 		local t_id=${workload_tids[$workload]}
 		local var=${workload_vars[$workload]}
+		local total_load=${total_loads_per_var[$var]}
 		# local expected=${expected_execs[$workload]}
 		# local load=${loads[$workload]}
 		# local rps=$(echo "scale=2; x = $load * $NWORKERS * 1000000 / $expected / 100; x" | bc)
@@ -264,7 +288,8 @@ process_client_results_loadtest() {
 
 		# ((all200 == 0)) && continue # If all errors, skip line
 		success_rate=$(echo "scale=2; $all200*100/$total" | bc)
-		printf "%s,%3.1f,%d,%d,%d,%d,%d,%d,%d\n" "$var" "$success_rate" "$total" "$all200" "$total_failed" "$denied" "$missed_dl" "$killed" "$misc_err" >> "$results_directory/success_$t_id.csv"
+		printf "%s,%3.1f,%d,%d,%d,%d,%d,%d,%d\n" "$total_load" "$success_rate" "$total" "$all200" "$total_failed" "$denied" "$missed_dl" "$killed" "$misc_err" >> "$results_directory/success_$t_id.csv"
+		# printf "%s,%3.1f,%d,%d,%d,%d,%d,%d,%d\n" "$var" "$success_rate" "$total" "$all200" "$total_failed" "$denied" "$missed_dl" "$killed" "$misc_err" >> "$results_directory/success_$t_id.csv"
 
 		# Throughput is calculated as the mean number of successful requests per second
 		duration=$(awk '/Total time:/ {sum += $13; count++} END {print sum / count}' "$results_directory/${workload}.dat")
@@ -275,6 +300,7 @@ process_client_results_loadtest() {
 		goodput=$(echo "$all200/$duration" | bc)
 		# printf "%s,%.1f\n" "$var" "$success_rate" >> "$results_directory/throughput_$t_id.csv"
 		printf "%s,%s\n" "$throughput" "$goodput" >> "$results_directory/throughput_$t_id.csv"
+		# printf "%s,%.1f\n" "$total_load" "$goodput" >> "$results_directory/throughput_$t_id.csv"
 
 		# Generate Latency Data
 		min=$(awk '/Minimum latency/ {sum += $13; count++} END {print int(sum*1000/count)}' "$results_directory/${workload}.dat")
@@ -284,24 +310,24 @@ process_client_results_loadtest() {
 		p99=$(awk '/99%/ {sum += $12; count++} END {print int(sum*1000/count)}' "$results_directory/${workload}.dat")
 		p100=$(awk '/100%/ {sum += $12; count++} END {print int(sum*1000/count)}' "$results_directory/${workload}.dat")
 
-		printf "%s,%d,%d,%d,%d,%d,%d,%d\n" "$var" "$total" "$min" "$mean" "$p50" "$p90" "$p99" "$p100" >> "$results_directory/latency_$t_id.csv"
+		printf "%s,%d,%d,%d,%d,%d,%d,%d\n" "$total_load" "$total" "$min" "$mean" "$p50" "$p90" "$p99" "$p100" >> "$results_directory/latency_$t_id.csv"
 		printf "Workload %20s duration: %.2f sec\n" "$workload" "$duration"
 	done
 
-	for t_id in "${TENANT_IDS[@]}"; do
+	for t_id in "${ACTIVE_TENANT_IDS[@]}"; do
 		# Transform csvs to dat files for gnuplot
 		csv_to_dat "$results_directory/success_$t_id.csv" "$results_directory/throughput_$t_id.csv" "$results_directory/latency_$t_id.csv"
 		rm "$results_directory/success_$t_id.csv" "$results_directory/throughput_$t_id.csv" "$results_directory/latency_$t_id.csv"
 	done
 
 	# Generate gnuplots
-	generate_gnuplots "$results_directory" "$__run_sh__base_path" || {
+	generate_gnuplots "$results_directory" "$__run_sh__base_path" "${PLOTTING_TENANT_IDS[*]}" || {
 		printf "[ERR]\n"
 		panic "failed to generate gnuplots"
 	}
 
 	local ave_duration=$(echo "scale=2; x = $sum_of_durations/${#workloads[@]}; x" | bc)
-	printf "Experiments average duration: %.2f sec\n" "$ave_duration" 
+	printf "Experiments average duration: %.2f sec\n" "$ave_duration"
 	printf "[OK]\n"
 	return 0
 }
@@ -320,8 +346,8 @@ process_server_results() {
 	fi
 
 	# Write headers to CSVs
-	for t_id in "${TENANT_IDS[@]}"; do
-		printf "Workload,Scs%%,TOTAL,SrvScs,All200,AllFail,DenyBE,DenyG,xDenyBE,xDenyG,MisD_Glb,MisD_Loc,MisD_WB,Shed_Glb,Shed_Loc,Misc,#Guar,#BE\n" >> "$results_directory/success_$t_id.csv" 
+	for t_id in "${ACTIVE_TENANT_IDS[@]}"; do
+		printf "Workload,Scs%%,TOTAL,SrvScs,All200,AllFail,DenyBE,DenyG,xDenyBE,xDenyG,MisD_Glb,MisD_Loc,MisD_WB,Shed_Glb,Shed_Loc,Misc,#Guar,#BE,CV\n" >> "$results_directory/success_$t_id.csv"
 		printf "Workload,Throughput\n" >> "$results_directory/throughput_$t_id.csv"
 		percentiles_table_header "$results_directory/latency_$t_id.csv" "Workload"
 
@@ -341,7 +367,7 @@ process_server_results() {
 		local t_id=${workload_tids[$workload]}
 		local deadline=${deadlines[$workload]}
 		local var=${workload_vars[$workload]}
-		
+
 		for metric in "${SANDBOX_METRICS[@]}"; do
 			awk -F, '
 				{workload = sprintf("%s-%s", $'"$SANDBOX_TENANT_NAME_FIELD"', substr($'"$SANDBOX_ROUTE_FIELD"',2))}
@@ -363,8 +389,37 @@ process_server_results() {
 
 		# Memory Allocation
 		# awk -F, '$2 == "'"$workload"'" {printf("%.0f\n", $MEMORY_FIELD)}' < "$results_directory/$SERVER_LOG_FILE" | sort -g > "$results_directory/$workload/memalloc_sorted.csv"
-
 		# percentiles_table_row "$results_directory/$workload/memalloc_sorted.csv" "$results_directory/memalloc_$t_id.csv.csv" "$workload" "%1.0f"
+
+		# Find the CV of the inter-arrival times for the workload, where arrival time is defined as the timestamp of when a request arrives at the server (regardless of response code). 
+		# CV is defined as the standard deviation divided by the mean. Both standard deviation and mean are in us, so no need to convert units.
+		# Compute CV (stddev/mean) of inter-arrival times (us) for this workload and patch it into the success CSV line.
+		cv=$(
+			awk -F, '
+				{workload = sprintf("%s-%s", $'"$SANDBOX_TENANT_NAME_FIELD"', substr($'"$SANDBOX_ROUTE_FIELD"',2))}
+				workload == "'"$workload"'" {print $'"$SANDBOX_ARRIVAL_TIMESTAMP"'}
+			' < "$results_directory/$SERVER_LOG_FILE" \
+				| sort -n \
+				| awk '
+					NR==1 { prev=$1; next }
+					{ d=$1-prev; sum+=d; sumsq+=d*d; n++; prev=$1 }
+					END {
+						if (n <= 0) { printf "0" ; exit }
+						mean = sum / n
+						if (mean == 0) { printf "0"; exit }
+						sd = sqrt((sumsq / n) - (mean * mean))
+						if (sd < 0) sd = 0
+						printf "%.3f", sd / mean
+					}
+				'
+		)
+
+
+		# awk -F, '
+		# 	{workload = sprintf("%s-%s", $'"$SANDBOX_TENANT_NAME_FIELD"', substr($'"$SANDBOX_ROUTE_FIELD"',2))}
+		# 	workload == "'"$workload"'" {printf("%d\n", $'"$SANDBOX_ARRIVAL_TIMESTAMP"' )}
+		# ' < "$results_directory/$SERVER_LOG_FILE" | sort -g > "$results_directory/$workload/arrivals_sorted.csv"
+
 
 		# Calculate Success Rate for csv (percent of requests that complete), $1 and deadline are both in us, so not converting
 		awk -F, '
@@ -384,14 +439,14 @@ process_server_results() {
 			$2 == 4293 {misc++}
 			$3 == 1 {guaranteed++}
 			$3 == 2 {besteffort++}
-			END{printf "'"$var"',%3.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", (all200*100/NR), NR, ok, all200, total_failed, denied_any, denied_gtd, x_denied_any, x_denied_gtd, mis_dl_glob, mis_dl_local, mis_dl_wb, shed_glob, shed_local, misc, guaranteed, besteffort}
+			END{printf "'"$var"',%3.1f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%3.1f\n", (all200*100/NR), NR, ok, all200, total_failed, denied_any, denied_gtd, x_denied_any, x_denied_gtd, mis_dl_glob, mis_dl_local, mis_dl_wb, shed_glob, shed_local, misc, guaranteed, besteffort, '"$cv"'}
 		' < "$results_directory/$workload/total_sorted.csv" >> "$results_directory/success_$t_id.csv"
 
 		total=$(awk 'END {printf "%d", NR}' "$results_directory/$workload/total_sorted.csv")
 		ok=$(awk -F, '$2 == 200 && $1 <= '"$deadline"' {ok++} END {printf "%d", ok}' "$results_directory/$workload/total_sorted.csv")
 		throughput=$(echo "$total/$DURATION_sec" | bc)
 		goodput=$(echo "$ok/$DURATION_sec" | bc)
-		
+
 		# Throughput is calculated on the client side, so ignore the below line
 		printf "%s,%s\n" "$throughput" "$goodput" >> "$results_directory/throughput_$t_id.csv"
 
@@ -405,7 +460,7 @@ process_server_results() {
 		# rm -rf "${results_directory:?}/${workload:?}"
 	done
 
-	for t_id in "${TENANT_IDS[@]}"; do
+	for t_id in "${ACTIVE_TENANT_IDS[@]}"; do
 		for metric in "${SANDBOX_METRICS[@]}"; do
 			csv_to_dat "$results_directory/${metric}_$t_id.csv"
 			rm "$results_directory/${metric}_$t_id.csv"
@@ -422,7 +477,7 @@ process_server_results() {
 	done
 
 	# Generate gnuplots
-	generate_gnuplots "$results_directory" "$__run_sh__base_path" || {
+	generate_gnuplots "$results_directory" "$__run_sh__base_path" "${PLOTTING_TENANT_IDS[*]}" || {
 		printf "[ERR]\n"
 		panic "failed to generate gnuplots"
 	}

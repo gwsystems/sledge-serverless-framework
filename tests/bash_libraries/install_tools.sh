@@ -63,7 +63,7 @@ if ! command -v loadtest > /dev/null; then
 		# 	sudo apt install -y npm
 		# fi
 		# installs NVM (Node Version Manager)
-		curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+		curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
 		sleep 5
 		export NVM_DIR="$HOME/.nvm"
 		[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
@@ -88,6 +88,7 @@ if ! command -v loadtest > /dev/null; then
 	pushd loadtest
 	# if [[ $(whoami) == "root" ]]; then
 	npm install -g
+	npm install seedrandom -g
 	# else
 	# 	sudo npm install -g
 	# fi

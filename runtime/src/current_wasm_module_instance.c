@@ -10,6 +10,7 @@ thread_local struct wasm_module_instance sledge_abi__current_wasm_module_instanc
       .size     = 0,
       .max      = 0,
       .capacity = 0,
+      .id = 0,
       .buffer   = NULL,
     },
   .abi.table    = NULL,

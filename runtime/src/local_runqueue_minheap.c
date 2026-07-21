@@ -14,6 +14,8 @@
 
 thread_local static struct priority_queue *local_runqueue_minheap;
 
+thread_local static int max_local_runqueue_len = 0; //////////
+
 /**
  * Checks if the run queue is empty
  * @returns true if empty. false otherwise
@@ -39,6 +41,11 @@ local_runqueue_minheap_add(struct sandbox *sandbox)
 		local_runqueue_minheap = temp;
 		return_code            = priority_queue_enqueue_nolock(local_runqueue_minheap, sandbox);
 		if (unlikely(return_code == -ENOSPC)) panic("Thread Runqueue is full!\n");
+	}
+
+	if(priority_queue_length_nolock(local_runqueue_minheap) > max_local_runqueue_len) {
+		max_local_runqueue_len = priority_queue_length_nolock(local_runqueue_minheap);
+		debuglog("Local MAX Queue Length: %u", max_local_runqueue_len);
 	}
 }
 

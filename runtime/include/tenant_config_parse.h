@@ -9,8 +9,9 @@
 #include "route_config_parse.h"
 #include "tenant_config.h"
 
-static const char *tenant_config_json_keys[tenant_config_member_len] = {"name", "port", "replenishment-period-us",
-                                                                        "max-budget-us", "routes"};
+static const char *tenant_config_json_keys[tenant_config_member_len] = {
+	"name", "port", "replenishment-period-us", "max-budget-us", "reservation-percentile", "routes"
+};
 
 static inline int
 tenant_config_set_key_once(bool *did_set, enum tenant_config_member member)
@@ -79,6 +80,14 @@ tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_
 			                        tenant_config_json_keys[tenant_config_member_max_budget_us],
 			                        &config->max_budget_us);
 			if (rc < 0) return -1;
+		} else if (strcmp(key, tenant_config_json_keys[tenant_config_reservation_percentile]) == 0) {
+			if (!has_valid_type(tokens[i], key, JSMN_PRIMITIVE, json_buf)) return -1;
+			if (tenant_config_set_key_once(did_set, tenant_config_reservation_percentile) == -1) return -1;
+
+			int rc = parse_uint8_t(tokens[i], json_buf,
+			                       tenant_config_json_keys[tenant_config_reservation_percentile],
+			                       &config->reservation_percentile);
+			if (rc < 0) return -1;
 		} else if (strcmp(key, tenant_config_json_keys[tenant_config_member_routes]) == 0) {
 			if (!has_valid_type(tokens[i], key, JSMN_ARRAY, json_buf)) return -1;
 			if (tenant_config_set_key_once(did_set, tenant_config_member_routes) == -1) return -1;
@@ -92,6 +101,9 @@ tenant_config_parse(struct tenant_config *config, const char *json_buf, jsmntok_
 				i++;
 				i = route_config_parse(&(config->routes)[route_idx], json_buf, tokens, i, tokens_size);
 				if (i == -1) return -1;
+				if (config->routes[route_idx].relative_deadline_us > config->max_relative_deadline_us) {
+					config->max_relative_deadline_us = config->routes[route_idx].relative_deadline_us;
+				}
 			}
 
 		} else {

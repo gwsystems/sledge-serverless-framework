@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "admissions_control.h"
+#include "traffic_control.h"
 #include "runtime.h"
 #include "scheduler_options.h"
 
@@ -95,7 +96,7 @@ route_config_validate(struct route_config *config, bool *did_set)
 			return -1;
 		}
 
-		if (config->relative_deadline_us > (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX) {
+		if (config->relative_deadline_us == 0 || config->relative_deadline_us > (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX) {
 			fprintf(stderr, "Relative-deadline-us must be between 0 and %u, was %u\n",
 			        (uint32_t)RUNTIME_RELATIVE_DEADLINE_US_MAX, config->relative_deadline_us);
 			return -1;

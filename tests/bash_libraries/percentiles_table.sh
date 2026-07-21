@@ -26,7 +26,7 @@ percentiles_table_header() {
 	local table_file="${1:?table_file not set}"
 	# Can optionally override "app" in header
 	local label_header="${2:-app}"
-	echo "${label_header},cnt,min,mean,p50,p90,p99,max" > "$table_file"
+	echo "${label_header},cnt,min,mean,p50,p90,p99,max,stdev" > "$table_file"
 }
 
 # columnar_data_file is assumed to be a file containing a single column or sorted data
@@ -45,7 +45,7 @@ percentiles_table_row() {
 	if ((sample_size == 0)); then
 		# We might not have actually run every variant depending on iterations and workload mix
 		# Insert a degenerate row if this is the case
-		echo "$row_label,0,*,*,*,*,*,*" >> "$table_file"
+		echo "$row_label,0,*,*,*,*,*,*,*" >> "$table_file"
 	else
 		awk '
 			BEGIN {
@@ -54,11 +54,14 @@ percentiles_table_row() {
 				format_string="'"$format_string"'"
 				invalid_number_symbol="*"
 				sum = 0
+				sumsq = 0
 				p50_idx = int(sample_size * 0.5)
 				p90_idx = int(sample_size * 0.9)
 				p99_idx = int(sample_size * 0.99)
 				p100_idx = sample_size
 			}
+
+			{ val = $0 + 0; sumsq += val * val }
 
 			# Empty pattern matches all rows
 			             { sum += $0 }
@@ -70,7 +73,13 @@ percentiles_table_row() {
 
 			END {
 				mean = sample_size > 0 ? sprintf(format_string, sum / NR) : invalid_number_symbol
-				printf "%s,%d,%s,%s,%s,%s,%s,%s\n", row_label, sample_size, min, mean, p50, p90, p99, p100
+				if (sample_size > 1) {
+					var = (sumsq - (sum * sum) / sample_size) / (sample_size - 1)
+					stdev = sprintf(format_string, sqrt(var))
+				} else {
+					stdev = invalid_number_symbol
+				}
+				printf "%s,%d,%s,%s,%s,%s,%s,%s,%s\n", row_label, sample_size, min, mean, p50, p90, p99, p100, stdev
 			}
 		' < "$columnar_data_file" >> "$table_file"
 	fi

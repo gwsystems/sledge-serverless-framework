@@ -44,8 +44,9 @@ module_init(struct module *module, char *path)
 	rc = sledge_abi_symbols_init(&module->abi, path);
 	if (rc != 0) goto err;
 
-	module->pools = calloc((module->type == APP_MODULE ? runtime_worker_threads_count : 1),
-	                       sizeof(struct module_pool));
+	const int n = module->type == APP_MODULE ? runtime_worker_threads_count : 1;
+	// module->pools = calloc(n, sizeof(struct module_pool));
+	module->pools = calloc(1, sizeof(struct module_pool));
 
 	module->path = path;
 
@@ -63,7 +64,7 @@ err:
 static inline void
 module_deinit(struct module *module)
 {
-	assert(module == NULL);
+	assert(module);
 	assert(module->reference_count == 0);
 
 	free(module->path);
@@ -92,7 +93,7 @@ module_free(struct module *module)
 	if (module == NULL) return;
 	assert(module->reference_count == 0);
 
-	panic("Unimplemented!\n");
+	// panic("Unimplemented!\n");
 
 	module_deinit(module);
 	free(module);

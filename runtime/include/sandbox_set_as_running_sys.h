@@ -23,29 +23,22 @@ sandbox_set_as_running_sys(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_RUNNING_USER: {
+	case SANDBOX_RUNNING_USER: 
 		assert(sandbox == current_sandbox_get());
 		assert(runtime_worker_threads_deadline[worker_thread_idx] == sandbox->absolute_deadline);
 		break;
-	}
-	case SANDBOX_RUNNABLE: {
+	case SANDBOX_RUNNABLE: 
 		assert(sandbox);
 		break;
-	}
-	default: {
+	default: 
 		panic("Sandbox %lu | Illegal transition from %s to Running Sys\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
-	}
 	}
 
 	/* State Change Bookkeeping */
 	assert(now > sandbox->timestamp_of.last_state_change);
 	sandbox->last_state_duration = now - sandbox->timestamp_of.last_state_change;
-	if (last_state == SANDBOX_RUNNING_USER) {
-		sandbox->remaining_exec = (sandbox->remaining_exec > sandbox->last_state_duration)
-		                            ? sandbox->remaining_exec - sandbox->last_state_duration
-		                            : 0;
-	}
+	if(last_state == SANDBOX_RUNNING_USER) sandbox->last_running_state_duration += sandbox->last_state_duration;
 	sandbox->duration_of_state[last_state] += sandbox->last_state_duration;
 	sandbox->timestamp_of.last_state_change = now;
 	sandbox_state_history_append(&sandbox->state_history, SANDBOX_RUNNING_SYS);
@@ -64,6 +57,4 @@ sandbox_syscall(struct sandbox *sandbox)
 
 	assert(sandbox->state == SANDBOX_RUNNING_USER);
 	sandbox_set_as_running_sys(sandbox, SANDBOX_RUNNING_USER);
-
-	sandbox_process_scheduler_updates(sandbox);
 }

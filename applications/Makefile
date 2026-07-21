@@ -26,8 +26,8 @@ all: \
 	gps_ekf.install \
 	license_plate_detection.install \
 	resize_image.install \
-	cnn_face_detection.install \
-	get_jpeg_resolution.install \
+#	cnn_face_detection.install \
+#	get_jpeg_resolution.install \
 
 .PHONY: clean
 clean:

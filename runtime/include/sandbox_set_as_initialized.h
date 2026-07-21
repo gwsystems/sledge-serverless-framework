@@ -24,13 +24,11 @@ sandbox_set_as_initialized(struct sandbox *sandbox, sandbox_state_t last_state)
 	uint64_t now   = __getcycles();
 
 	switch (last_state) {
-	case SANDBOX_ALLOCATED: {
+	case SANDBOX_ALLOCATED:
 		break;
-	}
-	default: {
+	default:
 		panic("Sandbox %lu | Illegal transition from %s to Preempted\n", sandbox->id,
 		      sandbox_state_stringify(last_state));
-	}
 	}
 
 	/* State Change Bookkeeping */

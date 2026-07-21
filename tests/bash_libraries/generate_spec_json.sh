@@ -11,6 +11,12 @@ jq_admin_spec() {
 			.routes[] + {\
 			\"route\": \"/admin\"},\
 			.routes[] + {\
+			\"route\": \"/clear\"},\
+			.routes[] + {\
+			\"route\": \"/beginx\"},\
+			.routes[] + {\
+			\"route\": \"/endx\"},\
+			.routes[] + {\
 			\"route\": \"/terminator\"}\
 		]\
 		}" < "./template.json" > "./result_admin.json"
@@ -20,9 +26,9 @@ generate_spec_json() {
 	printf "Generating 'spec.json'\n"
 
 	for var in "${VARYING[@]}"; do
-		for t_idx in "${!TENANT_IDS[@]}"; do
+		for tenant_id in "${ACTIVE_TENANT_IDS[@]}"; do
 			local jq_str
-			local tenant=$(printf "%s-%03d" "${TENANT_IDS[$t_idx]}" "$var")
+			local tenant=$(printf "%s-%03d" "$tenant_id" "$var")
 			local port=${ports[$tenant]}
 
 			jq_str=". + {
@@ -41,11 +47,7 @@ generate_spec_json() {
 
 			jq_str+=",\"routes\": ["
 
-			local t_routes
-			IFS=' ' read -r -a t_routes <<< ${ROUTES[$t_idx]}
-
-			for index in "${!t_routes[@]}"; do
-				local route=${t_routes[$index]}
+			for route in ${ACTIVE_ROUTES[$tenant_id]}; do
 				local workload="$tenant-$route"
 				local wasm_path=${wasm_paths[$workload]}
 				local resp_content_type=${resp_content_types[$workload]}
@@ -75,19 +77,16 @@ generate_spec_json() {
 						\"model-beta2\": $model_beta2"
 				fi
 
-				jq_str+="}"
-
-				if [ "$index" != $((${#t_routes[@]}-1)) ]; then
-					jq_str+=","
-				fi
+				jq_str+="},"
 			done
+			[[ ${jq_str: -1} == "," ]] && jq_str=${jq_str:0:-1} # Remove last comma
 			jq_str+="]}"
 
 			jq "$jq_str" < "./template.json" > "./result_${tenant}.json"
 		done
 	done
 
-	if [ "$CLIENT_TERMINATE_SERVER" == true ]; then jq_admin_spec; fi
+	if [ "$ADMIN_ACCESS" == true ]; then jq_admin_spec; fi
 
 	# Merges all of the multiple specs for a single module
 	jq -s '. | sort_by(.name)' ./result_*.json > "./spec.json"

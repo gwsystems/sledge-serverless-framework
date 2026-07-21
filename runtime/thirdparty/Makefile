@@ -1,6 +1,9 @@
 CURR_DIR= $(shell pwd)
 DIST_PREFIX=${CURR_DIR}/dist/
 
+# Strips out calls to assert()
+CFLAGS += -DNDEBUG
+
 .PHONY: all
 all: clean build
 

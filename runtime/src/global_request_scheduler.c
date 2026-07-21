@@ -3,6 +3,9 @@
 #include "global_request_scheduler.h"
 #include "panic.h"
 
+static struct sandbox_metadata global_highest_priority_metadata;
+static struct sandbox_metadata global_highest_priority_metadata_default;
+
 /* Default uninitialized implementations of the polymorphic interface */
 noreturn static struct sandbox *
 uninitialized_add(struct sandbox *arg)
@@ -86,4 +89,82 @@ uint64_t
 global_request_scheduler_peek()
 {
 	return global_request_scheduler.peek_fn();
+}
+
+/**
+ * Peeks at the metadata of the highest priority sandbox
+ * @returns metadata of the highest priority sandbox
+ */
+struct sandbox_metadata
+global_request_scheduler_peek_metadata()
+{
+	return global_highest_priority_metadata;
+}
+
+struct sandbox_metadata
+global_request_scheduler_peek_metadata_default()
+{
+	return global_highest_priority_metadata_default;
+}
+
+/**
+ * Updates the metadata of the highest priority sandbox
+ * @param element the highest priority sandbox
+ */
+void
+global_request_scheduler_update_highest_priority(const void *element)
+{
+	if (element == NULL) {
+		global_highest_priority_metadata.absolute_deadline    = UINT64_MAX;
+		global_highest_priority_metadata.tenant               = NULL;
+		global_highest_priority_metadata.route                = NULL;
+		global_highest_priority_metadata.allocation_timestamp = 0;
+		global_highest_priority_metadata.remaining_exec       = 0;
+		global_highest_priority_metadata.id                   = 0;
+		global_highest_priority_metadata.global_queue_type    = 0;
+		global_highest_priority_metadata.exceeded_estimation  = false;
+		global_highest_priority_metadata.state                = SANDBOX_UNINITIALIZED;
+		return;
+	}
+
+	const struct sandbox *sandbox                         = element;
+	assert(sandbox->global_queue_type == 1);
+	global_highest_priority_metadata.absolute_deadline    = sandbox->absolute_deadline;
+	global_highest_priority_metadata.tenant               = sandbox->tenant;
+	global_highest_priority_metadata.route                = sandbox->route;
+	global_highest_priority_metadata.allocation_timestamp = sandbox->timestamp_of.allocation;
+	global_highest_priority_metadata.remaining_exec       = sandbox->remaining_exec;
+	global_highest_priority_metadata.id                   = sandbox->id;
+	global_highest_priority_metadata.global_queue_type    = sandbox->global_queue_type;
+	global_highest_priority_metadata.exceeded_estimation  = sandbox->exceeded_estimation;
+	global_highest_priority_metadata.state                = sandbox->state;
+}
+
+void
+global_request_scheduler_update_highest_priority_default(const void *element)
+{
+	if (element == NULL) {
+		global_highest_priority_metadata_default.absolute_deadline    = UINT64_MAX;
+		global_highest_priority_metadata_default.tenant               = NULL;
+		global_highest_priority_metadata_default.route                = NULL;
+		global_highest_priority_metadata_default.allocation_timestamp = 0;
+		global_highest_priority_metadata_default.remaining_exec       = 0;
+		global_highest_priority_metadata_default.id                   = 0;
+		global_highest_priority_metadata_default.global_queue_type    = 0;
+		global_highest_priority_metadata_default.exceeded_estimation  = false;
+		global_highest_priority_metadata_default.state                = SANDBOX_UNINITIALIZED;
+		return;
+	}
+
+	const struct sandbox *sandbox                         = element;
+	assert(sandbox->global_queue_type == 2);
+	global_highest_priority_metadata_default.absolute_deadline    = sandbox->absolute_deadline;
+	global_highest_priority_metadata_default.tenant               = sandbox->tenant;
+	global_highest_priority_metadata_default.route                = sandbox->route;
+	global_highest_priority_metadata_default.allocation_timestamp = sandbox->timestamp_of.allocation;
+	global_highest_priority_metadata_default.remaining_exec       = sandbox->remaining_exec;
+	global_highest_priority_metadata_default.id                   = sandbox->id;
+	global_highest_priority_metadata_default.global_queue_type    = sandbox->global_queue_type;
+	global_highest_priority_metadata_default.exceeded_estimation  = sandbox->exceeded_estimation;
+	global_highest_priority_metadata_default.state                = sandbox->state;
 }

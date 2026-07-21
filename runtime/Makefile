@@ -15,6 +15,7 @@ CFLAGS+=-D_GNU_SOURCE
 
 # Release Flags
 CFLAGS+=-O3 -flto
+CFLAGS+=-DNDEBUG
 
 # Debugging Flags
 # CFLAGS+=-O0 -g3
@@ -43,6 +44,7 @@ CFLAGS += -DEXECUTION_HISTOGRAM
 
 # It is recommended (not mandatory) to enable this flag along with the EXECUTION_HISTOGRAM flag:
 # CFLAGS += -DADMISSIONS_CONTROL
+# CFLAGS += -DTRAFFIC_CONTROL
 
 # Debugging Flags
 
@@ -62,6 +64,7 @@ CFLAGS += -DEXECUTION_HISTOGRAM
 # Various Informational Logs for Debugging
 # CFLAGS += -DLOG_EXECUTION_HISTOGRAM
 # CFLAGS += -DLOG_ADMISSIONS_CONTROL
+# CFLAGS += -DLOG_TRAFFIC_CONTROL
 # CFLAGS += -DLOG_CONTEXT_SWITCHES
 # CFLAGS += -DLOG_HTTP_PARSER
 # CFLAGS += -DLOG_TENANT_LOADING

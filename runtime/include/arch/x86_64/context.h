@@ -56,7 +56,9 @@ arch_context_restore_fast(mcontext_t *active_context, struct arch_context *sandb
 	assert(sandbox_context != NULL);
 
 	/* Assumption: Base Context is only ever used by arch_context_switch */
-	assert(sandbox_context != &worker_thread_base_context);
+	// assert(sandbox_context != &worker_thread_base_context);
+	/* Assumption: Not switching to the same context */
+	assert(active_context != &sandbox_context->mctx);
 
 	assert(sandbox_context->regs[UREG_SP]);
 	assert(sandbox_context->regs[UREG_IP]);

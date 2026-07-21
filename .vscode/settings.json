@@ -157,7 +157,18 @@
 		"sledge_abi_symbols.h": "c",
 		"mutex": "c",
 		"lock.h": "c",
-		"route_latency.h": "c"
+		"route_latency.h": "c",
+		"wasm_globals.h": "c",
+		"*.bak": "c",
+		"sandbox_set_as_initialized.h": "c",
+		"sandbox_set_as_allocated.h": "c",
+		"sandbox_total.h": "c",
+		"system_error": "c",
+		"metrics_server.h": "c",
+		"typeinfo": "c",
+		"priority_queue.h": "c",
+		"global_request_scheduler_mtdbf.h": "c",
+		"local_runqueue_mtds.h": "c"
 	},
 	"files.exclude": {
 		"**/.git": true,
@@ -216,6 +227,7 @@
 	"cSpell.words": [
 		"gregs",
 		"mctx",
+		"runqueue",
 		"TKILL",
 		"WASI"
 	],

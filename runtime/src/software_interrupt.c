@@ -117,27 +117,15 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (worker_thread_is_running_cooperative_scheduler()) {
 			/* There is no benefit to deferring SIGALRMs that occur when we are already in the cooperative
 			 * scheduler, so just propagate and return */
-			if (scheduler == SCHEDULER_MTDS && signal_info->si_code == SI_KERNEL) {
-				/* Global tenant promotions */
-				global_timeout_queue_process_promotions();
-			}
 			propagate_sigalrm(signal_info);
 		} else if (current_sandbox_is_preemptable()) {
 			/* Preemptable, so run scheduler. The scheduler handles outgoing state changes */
 			sandbox_interrupt(current_sandbox);
-			if (scheduler == SCHEDULER_MTDS && signal_info->si_code == SI_KERNEL) {
-				/* Global tenant promotions */
-				global_timeout_queue_process_promotions();
-			}
 			propagate_sigalrm(signal_info);
 			scheduler_preemptive_sched(interrupted_context);
 		} else {
 			/* We transition the sandbox to an interrupted state to exclude time propagating signals and
 			 * running the scheduler from per-sandbox accounting */
-			if (scheduler == SCHEDULER_MTDS && signal_info->si_code == SI_KERNEL) {
-				/* Global tenant promotions */
-				global_timeout_queue_process_promotions();
-			}
 			propagate_sigalrm(signal_info);
 			atomic_fetch_add(&deferred_sigalrm, 1);
 		}
@@ -178,6 +166,10 @@ software_interrupt_handle_signals(int signal_type, siginfo_t *signal_info, void 
 		if (likely(current_sandbox && current_sandbox->state == SANDBOX_RUNNING_USER)) {
 			atomic_fetch_sub(&handler_depth, 1);
 			current_sandbox_trap(WASM_TRAP_OUT_OF_BOUNDS_LINEAR_MEMORY);
+		} else if (likely(current_sandbox && current_sandbox->state == SANDBOX_RUNNING_SYS)) {
+			atomic_fetch_sub(&handler_depth, 1);
+			printf("nooo\n");
+			current_sandbox_trap(WASM_TRAP_UNREACHABLE);
 		} else {
 			panic("Runtime SIGSEGV\n");
 		}
